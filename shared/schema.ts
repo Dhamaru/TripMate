@@ -1,153 +1,156 @@
-import { sql } from 'drizzle-orm';
-import {
-  index,
-  jsonb,
-  pgTable,
-  timestamp,
-  varchar,
-  text,
-  integer,
-  decimal,
-  boolean,
-} from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
+import mongoose, { Schema, Document } from 'mongoose';
 import { z } from "zod";
 
-// Session storage table for Replit Auth
-export const sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)],
-);
+// User interface and schema
+export interface IUser extends Document {
+  id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-// User storage table for Replit Auth
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+const userSchema = new Schema({
+  id: { type: String, required: true, unique: true },
+  email: { type: String, unique: true, sparse: true },
+  firstName: String,
+  lastName: String,
+  profileImageUrl: String,
+}, { timestamps: true });
+
+export const UserModel = mongoose.model<IUser>('User', userSchema);
+
+// Trip interface and schema
+export interface ITrip extends Document {
+  id: string;
+  userId: string;
+  destination: string;
+  budget?: number;
+  days: number;
+  groupSize: string;
+  travelStyle: string;
+  status: 'planning' | 'active' | 'completed';
+  startDate?: Date;
+  endDate?: Date;
+  itinerary?: any;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const tripSchema = new Schema({
+  userId: { type: String, required: true, ref: 'User' },
+  destination: { type: String, required: true },
+  budget: Number,
+  days: { type: Number, required: true },
+  groupSize: { type: String, required: true },
+  travelStyle: { type: String, required: true },
+  status: { type: String, default: 'planning', enum: ['planning', 'active', 'completed'] },
+  startDate: Date,
+  endDate: Date,
+  itinerary: Schema.Types.Mixed,
+  notes: String,
+}, { timestamps: true });
+
+export const TripModel = mongoose.model<ITrip>('Trip', tripSchema);
+
+// Journal Entry interface and schema
+export interface IJournalEntry extends Document {
+  id: string;
+  userId: string;
+  tripId?: string;
+  title: string;
+  content: string;
+  photos?: string[];
+  location?: string;
+  latitude?: string;
+  longitude?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const journalEntrySchema = new Schema({
+  userId: { type: String, required: true, ref: 'User' },
+  tripId: { type: String, ref: 'Trip' },
+  title: { type: String, required: true },
+  content: { type: String, required: true },
+  photos: [String],
+  location: String,
+  latitude: String,
+  longitude: String,
+}, { timestamps: true });
+
+export const JournalEntryModel = mongoose.model<IJournalEntry>('JournalEntry', journalEntrySchema);
+
+// Packing List interface and schema
+export interface IPackingList extends Document {
+  id: string;
+  userId: string;
+  tripId?: string;
+  name: string;
+  items: any[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const packingListSchema = new Schema({
+  userId: { type: String, required: true, ref: 'User' },
+  tripId: { type: String, ref: 'Trip' },
+  name: { type: String, required: true },
+  items: { type: [Schema.Types.Mixed], default: [] },
+}, { timestamps: true });
+
+export const PackingListModel = mongoose.model<IPackingList>('PackingList', packingListSchema);
+
+// Zod schemas for validation
+export const insertUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email().optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  profileImageUrl: z.string().optional(),
 });
 
-// Trips table
-export const trips = pgTable("trips", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  destination: text("destination").notNull(),
-  budget: decimal("budget", { precision: 10, scale: 2 }),
-  days: integer("days").notNull(),
-  groupSize: varchar("group_size").notNull(),
-  travelStyle: varchar("travel_style").notNull(),
-  status: varchar("status").notNull().default("planning"), // planning, active, completed
-  startDate: timestamp("start_date"),
-  endDate: timestamp("end_date"),
-  itinerary: jsonb("itinerary"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const insertTripSchema = z.object({
+  userId: z.string(),
+  destination: z.string(),
+  budget: z.number().optional(),
+  days: z.number(),
+  groupSize: z.string(),
+  travelStyle: z.string(),
+  status: z.enum(['planning', 'active', 'completed']).optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  itinerary: z.any().optional(),
+  notes: z.string().optional(),
 });
 
-// Journal entries table
-export const journalEntries = pgTable("journal_entries", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  tripId: varchar("trip_id").references(() => trips.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  content: text("content").notNull(),
-  photos: text("photos").array().default([]),
-  location: text("location"),
-  latitude: decimal("latitude", { precision: 10, scale: 8 }),
-  longitude: decimal("longitude", { precision: 11, scale: 8 }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const insertJournalEntrySchema = z.object({
+  userId: z.string(),
+  tripId: z.string().optional(),
+  title: z.string(),
+  content: z.string(),
+  photos: z.array(z.string()).optional(),
+  location: z.string().optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
 });
 
-// Packing lists table
-export const packingLists = pgTable("packing_lists", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  tripId: varchar("trip_id").references(() => trips.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  items: jsonb("items").notNull().default([]),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  trips: many(trips),
-  journalEntries: many(journalEntries),
-  packingLists: many(packingLists),
-}));
-
-export const tripsRelations = relations(trips, ({ one, many }) => ({
-  user: one(users, {
-    fields: [trips.userId],
-    references: [users.id],
-  }),
-  journalEntries: many(journalEntries),
-  packingLists: many(packingLists),
-}));
-
-export const journalEntriesRelations = relations(journalEntries, ({ one }) => ({
-  user: one(users, {
-    fields: [journalEntries.userId],
-    references: [users.id],
-  }),
-  trip: one(trips, {
-    fields: [journalEntries.tripId],
-    references: [trips.id],
-  }),
-}));
-
-export const packingListsRelations = relations(packingLists, ({ one }) => ({
-  user: one(users, {
-    fields: [packingLists.userId],
-    references: [users.id],
-  }),
-  trip: one(trips, {
-    fields: [packingLists.tripId],
-    references: [trips.id],
-  }),
-}));
-
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertTripSchema = createInsertSchema(trips).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertJournalEntrySchema = createInsertSchema(journalEntries).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertPackingListSchema = createInsertSchema(packingLists).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertPackingListSchema = z.object({
+  userId: z.string(),
+  tripId: z.string().optional(),
+  name: z.string(),
+  items: z.array(z.any()).optional(),
 });
 
 // Types
-export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
+export type UpsertUser = z.infer<typeof insertUserSchema>;
+export type User = IUser;
 export type InsertTrip = z.infer<typeof insertTripSchema>;
-export type Trip = typeof trips.$inferSelect;
+export type Trip = ITrip;
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
-export type JournalEntry = typeof journalEntries.$inferSelect;
+export type JournalEntry = IJournalEntry;
 export type InsertPackingList = z.infer<typeof insertPackingListSchema>;
-export type PackingList = typeof packingLists.$inferSelect;
+export type PackingList = IPackingList;
