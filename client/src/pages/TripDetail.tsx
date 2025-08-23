@@ -549,7 +549,7 @@ export default function TripDetail() {
           {/* Sidebar */}
           <div className="space-y-6">
             <WeatherWidget location={trip.destination} />
-            <PackingList tripId={trip.id} />
+            <PackingList tripId={trip._id} />
           </div>
         </div>
       </div>

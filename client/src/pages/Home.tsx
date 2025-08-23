@@ -95,7 +95,7 @@ export default function Home() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-white">Current Trip</h3>
-                    <Link href={`/trips/${currentTrip.id}`}>
+                    <Link href={`/trips/${currentTrip._id}`}>
                       <Button size="sm" variant="ghost" className="text-ios-blue hover:text-blue-400">
                         <i className="fas fa-edit"></i>
                       </Button>
@@ -112,7 +112,7 @@ export default function Home() {
                   </div>
 
                   <div className="text-center">
-                    <Link href={`/trips/${currentTrip.id}`}>
+                    <Link href={`/trips/${currentTrip._id}`}>
                       <Button className="bg-ios-blue hover:bg-blue-600">
                         View Trip Details
                       </Button>
