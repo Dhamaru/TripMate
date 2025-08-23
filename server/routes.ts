@@ -71,7 +71,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/trips', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const tripData = insertTripSchema.parse({ ...req.body, userId });
+      // Convert budget string to number if provided
+      const processedBody = {
+        ...req.body,
+        userId,
+        budget: req.body.budget ? parseFloat(req.body.budget) : undefined
+      };
+      const tripData = insertTripSchema.parse(processedBody);
       const trip = await storage.createTrip(tripData);
       res.status(201).json(trip);
     } catch (error) {
@@ -97,7 +103,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/trips/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const updates = insertTripSchema.partial().parse(req.body);
+      // Convert budget string to number if provided
+      const processedBody = {
+        ...req.body,
+        budget: req.body.budget ? parseFloat(req.body.budget) : undefined
+      };
+      const updates = insertTripSchema.partial().parse(processedBody);
       const trip = await storage.updateTrip(req.params.id, userId, updates);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
