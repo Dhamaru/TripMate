@@ -13,7 +13,7 @@ import type { Trip, JournalEntry, User } from "@shared/schema";
 
 export default function Home() {
   const { user } = useAuth() as { user: User | undefined };
-  
+
   const { data: trips, isLoading: tripsLoading } = useQuery<Trip[]>({
     queryKey: ['/api/trips'],
   });
@@ -101,12 +101,12 @@ export default function Home() {
                       </Button>
                     </Link>
                   </div>
-                  
+
                   <div className="relative rounded-2xl overflow-hidden mb-4 bg-gradient-to-br from-ios-blue to-purple-600 h-48 flex items-center justify-center">
                     <div className="text-center text-white">
                       <h4 className="text-2xl font-bold mb-2">{currentTrip.destination}</h4>
                       <p className="opacity-90">
-                        {currentTrip.days} days • ${currentTrip.budget} budget
+                        {currentTrip.days} days • ₹{currentTrip.budget} budget
                       </p>
                     </div>
                   </div>
@@ -141,9 +141,9 @@ export default function Home() {
           {/* Quick Tools */}
           <div className="space-y-6">
             <WeatherWidget location={currentTrip?.destination || "Current Location"} />
-            
+
             <CurrencyConverter />
-            
+
             <Card className="bg-ios-card border-ios-gray" data-testid="emergency-quick-access">
               <CardHeader>
                 <CardTitle className="text-lg font-bold text-ios-red">Emergency</CardTitle>
@@ -185,7 +185,7 @@ export default function Home() {
               </Button>
             </Link>
           </div>
-          
+
           {journalLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (

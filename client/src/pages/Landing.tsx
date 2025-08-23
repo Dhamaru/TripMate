@@ -188,10 +188,10 @@ export default function Landing() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-white mb-2">Budget (USD)</label>
+                      <label className="block text-sm font-semibold text-white mb-2">Budget (₹ INR)</label>
                       <Input
                         type="number"
-                        placeholder="1000"
+                        placeholder="75000"
                         value={tripForm.budget}
                         onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
                         className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"

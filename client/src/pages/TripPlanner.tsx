@@ -64,7 +64,7 @@ export default function TripPlanner() {
         title: "Trip Created!",
         description: "Your trip has been successfully planned.",
       });
-      setLocation(`/trips/${trip.id}`);
+      setLocation(`/trips/${trip._id}`);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -195,10 +195,10 @@ export default function TripPlanner() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Budget (USD)</label>
+                  <label className="block text-sm font-semibold text-white mb-2">Budget (₹ INR)</label>
                   <Input
                     type="number"
-                    placeholder="1000"
+                    placeholder="75000"
                     value={tripForm.budget}
                     onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
                     className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"

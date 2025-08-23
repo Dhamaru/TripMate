@@ -304,7 +304,7 @@ export default function TripDetail() {
               <div className="flex items-center space-x-4 text-ios-gray">
                 <span>{trip.days} days</span>
                 <span>•</span>
-                <span>${trip.budget} budget</span>
+                <span>₹{trip.budget} budget</span>
                 <span>•</span>
                 <span className="capitalize">{trip.groupSize.replace('-', ' ')}</span>
               </div>
@@ -374,7 +374,7 @@ export default function TripDetail() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Budget (USD)</label>
+                    <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
                     <Input
                       type="number"
                       value={tripForm.budget}
@@ -490,9 +490,9 @@ export default function TripDetail() {
                     <p className="font-bold text-white">{trip.days} days</p>
                   </div>
                   <div className="text-center p-4 bg-ios-darker rounded-xl">
-                    <i className="fas fa-dollar-sign text-ios-green text-xl mb-2"></i>
+                    <i className="fas fa-rupee-sign text-ios-green text-xl mb-2"></i>
                     <p className="text-sm text-ios-gray">Budget</p>
-                    <p className="font-bold text-white">${trip.budget}</p>
+                    <p className="font-bold text-white">₹{trip.budget}</p>
                   </div>
                   <div className="text-center p-4 bg-ios-darker rounded-xl">
                     <i className="fas fa-users text-ios-orange text-xl mb-2"></i>
