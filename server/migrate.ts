@@ -77,6 +77,19 @@ async function migrate() {
     `;
     console.log("✓ Created packing_lists table");
 
+    // Create session table for connect-pg-simple
+    await sql`
+      CREATE TABLE IF NOT EXISTS session (
+        sid VARCHAR NOT NULL PRIMARY KEY,
+        sess JSON NOT NULL,
+        expire TIMESTAMP(6) NOT NULL
+      )
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS IDX_session_expire ON session (expire)
+    `;
+    console.log("✓ Created session table");
+
     console.log("Migration completed successfully!");
   } catch (error) {
     console.error("Migration failed:", error);
