@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import TripPlanner from "@/pages/TripPlanner";
 import Journal from "@/pages/Journal";
 import TripDetail from "@/pages/TripDetail";
+import Maps from "@/pages/Maps";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/planner" component={TripPlanner} />
           <Route path="/journal" component={Journal} />
+          <Route path="/maps" component={Maps} />
           <Route path="/trips/:id" component={TripDetail} />
         </>
       )}
