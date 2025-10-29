@@ -16,16 +16,16 @@ export default function Maps() {
           <div className="flex items-center justify-between h-16">
             <TripMateLogo size="md" />
             <div className="flex items-center space-x-4">
-              <Link href="/" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+              <Link href="/" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-testid="link-home">
                 Home
               </Link>
-              <Link href="/planner" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+              <Link href="/planner" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-testid="link-planner">
                 Trip Planner
               </Link>
-              <Link href="/journal" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+              <Link href="/journal" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-testid="link-journal">
                 Journal
               </Link>
-              <Link href="/maps" className="text-white bg-ios-blue/20 px-3 py-2 rounded-lg text-sm font-medium">
+              <Link href="/maps" className="text-white bg-ios-blue/20 px-3 py-2 rounded-lg text-sm font-medium" data-testid="link-maps">
                 Maps
               </Link>
               <div className="flex items-center space-x-2">
