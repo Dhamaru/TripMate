@@ -1,10 +1,12 @@
+import { db } from "./db";
+import { eq, and, desc } from "drizzle-orm";
 import {
-  UserModel,
-  TripModel,
-  JournalEntryModel,
-  PackingListModel,
+  users,
+  trips,
+  journalEntries,
+  packingLists,
   type User,
-  type UpsertUser,
+  type InsertUser,
   type Trip,
   type InsertTrip,
   type JournalEntry,
@@ -16,124 +18,170 @@ import {
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  upsertUser(user: InsertUser): Promise<User>;
   
   // Trip operations
   getUserTrips(userId: string): Promise<Trip[]>;
   createTrip(trip: InsertTrip): Promise<Trip>;
-  getTrip(id: string, userId: string): Promise<Trip | undefined>;
-  updateTrip(id: string, userId: string, updates: Partial<InsertTrip>): Promise<Trip | undefined>;
-  deleteTrip(id: string, userId: string): Promise<boolean>;
+  getTrip(id: number, userId: string): Promise<Trip | undefined>;
+  updateTrip(id: number, userId: string, updates: Partial<InsertTrip>): Promise<Trip | undefined>;
+  deleteTrip(id: number, userId: string): Promise<boolean>;
   
   // Journal operations
   getUserJournalEntries(userId: string): Promise<JournalEntry[]>;
-  getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]>;
+  getTripJournalEntries(tripId: number, userId: string): Promise<JournalEntry[]>;
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
-  updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined>;
-  deleteJournalEntry(id: string, userId: string): Promise<boolean>;
+  updateJournalEntry(id: number, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined>;
+  deleteJournalEntry(id: number, userId: string): Promise<boolean>;
   
   // Packing list operations
   getUserPackingLists(userId: string): Promise<PackingList[]>;
   createPackingList(packingList: InsertPackingList): Promise<PackingList>;
-  updatePackingList(id: string, userId: string, updates: Partial<InsertPackingList>): Promise<PackingList | undefined>;
-  deletePackingList(id: string, userId: string): Promise<boolean>;
+  updatePackingList(id: number, userId: string, updates: Partial<InsertPackingList>): Promise<PackingList | undefined>;
+  deletePackingList(id: number, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
-    const user = await UserModel.findOne({ id });
-    return user || undefined;
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const user = await UserModel.findOneAndUpdate(
-      { id: userData.id },
-      { ...userData, updatedAt: new Date() },
-      { upsert: true, new: true }
-    );
-    return user!;
+  async upsertUser(userData: InsertUser): Promise<User> {
+    const result = await db
+      .insert(users)
+      .values({
+        ...userData,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result[0]!;
   }
 
   // Trip operations
   async getUserTrips(userId: string): Promise<Trip[]> {
-    return await TripModel.find({ userId }).sort({ createdAt: -1 });
+    return await db
+      .select()
+      .from(trips)
+      .where(eq(trips.userId, userId))
+      .orderBy(desc(trips.createdAt));
   }
 
   async createTrip(trip: InsertTrip): Promise<Trip> {
-    const newTrip = new TripModel(trip);
-    return await newTrip.save();
+    const result = await db.insert(trips).values(trip).returning();
+    return result[0]!;
   }
 
-  async getTrip(id: string, userId: string): Promise<Trip | undefined> {
-    const trip = await TripModel.findOne({ _id: id, userId });
-    return trip || undefined;
+  async getTrip(id: number, userId: string): Promise<Trip | undefined> {
+    const result = await db
+      .select()
+      .from(trips)
+      .where(and(eq(trips.id, id), eq(trips.userId, userId)));
+    return result[0];
   }
 
-  async updateTrip(id: string, userId: string, updates: Partial<InsertTrip>): Promise<Trip | undefined> {
-    const updatedTrip = await TripModel.findOneAndUpdate(
-      { _id: id, userId },
-      { ...updates, updatedAt: new Date() },
-      { new: true }
-    );
-    return updatedTrip || undefined;
+  async updateTrip(id: number, userId: string, updates: Partial<InsertTrip>): Promise<Trip | undefined> {
+    const result = await db
+      .update(trips)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(trips.id, id), eq(trips.userId, userId)))
+      .returning();
+    return result[0];
   }
 
-  async deleteTrip(id: string, userId: string): Promise<boolean> {
-    const result = await TripModel.deleteOne({ _id: id, userId });
-    return result.deletedCount > 0;
+  async deleteTrip(id: number, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(trips)
+      .where(and(eq(trips.id, id), eq(trips.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Journal operations
   async getUserJournalEntries(userId: string): Promise<JournalEntry[]> {
-    return await JournalEntryModel.find({ userId }).sort({ createdAt: -1 });
+    return await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.userId, userId))
+      .orderBy(desc(journalEntries.createdAt));
   }
 
-  async getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]> {
-    return await JournalEntryModel.find({ tripId, userId }).sort({ createdAt: -1 });
+  async getTripJournalEntries(tripId: number, userId: string): Promise<JournalEntry[]> {
+    return await db
+      .select()
+      .from(journalEntries)
+      .where(and(eq(journalEntries.tripId, tripId), eq(journalEntries.userId, userId)))
+      .orderBy(desc(journalEntries.createdAt));
   }
 
   async createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry> {
-    const newEntry = new JournalEntryModel(entry);
-    return await newEntry.save();
+    const result = await db.insert(journalEntries).values(entry).returning();
+    return result[0]!;
   }
 
-  async updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined> {
-    const updatedEntry = await JournalEntryModel.findOneAndUpdate(
-      { _id: id, userId },
-      { ...updates, updatedAt: new Date() },
-      { new: true }
-    );
-    return updatedEntry || undefined;
+  async updateJournalEntry(id: number, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined> {
+    const result = await db
+      .update(journalEntries)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, userId)))
+      .returning();
+    return result[0];
   }
 
-  async deleteJournalEntry(id: string, userId: string): Promise<boolean> {
-    const result = await JournalEntryModel.deleteOne({ _id: id, userId });
-    return result.deletedCount > 0;
+  async deleteJournalEntry(id: number, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(journalEntries)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Packing list operations
   async getUserPackingLists(userId: string): Promise<PackingList[]> {
-    return await PackingListModel.find({ userId }).sort({ createdAt: -1 });
+    return await db
+      .select()
+      .from(packingLists)
+      .where(eq(packingLists.userId, userId))
+      .orderBy(desc(packingLists.createdAt));
   }
 
   async createPackingList(packingList: InsertPackingList): Promise<PackingList> {
-    const newList = new PackingListModel(packingList);
-    return await newList.save();
+    const result = await db.insert(packingLists).values(packingList).returning();
+    return result[0]!;
   }
 
-  async updatePackingList(id: string, userId: string, updates: Partial<InsertPackingList>): Promise<PackingList | undefined> {
-    const updatedList = await PackingListModel.findOneAndUpdate(
-      { _id: id, userId },
-      { ...updates, updatedAt: new Date() },
-      { new: true }
-    );
-    return updatedList || undefined;
+  async updatePackingList(id: number, userId: string, updates: Partial<InsertPackingList>): Promise<PackingList | undefined> {
+    const result = await db
+      .update(packingLists)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(packingLists.id, id), eq(packingLists.userId, userId)))
+      .returning();
+    return result[0];
   }
 
-  async deletePackingList(id: string, userId: string): Promise<boolean> {
-    const result = await PackingListModel.deleteOne({ _id: id, userId });
-    return result.deletedCount > 0;
+  async deletePackingList(id: number, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(packingLists)
+      .where(and(eq(packingLists.id, id), eq(packingLists.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 }
 

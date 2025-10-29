@@ -89,7 +89,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/trips/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const trip = await storage.getTrip(req.params.id, userId);
+      const tripId = parseInt(req.params.id);
+      if (isNaN(tripId)) {
+        return res.status(400).json({ message: "Invalid trip ID" });
+      }
+      const trip = await storage.getTrip(tripId, userId);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
       }
@@ -103,13 +107,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/trips/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const tripId = parseInt(req.params.id);
+      if (isNaN(tripId)) {
+        return res.status(400).json({ message: "Invalid trip ID" });
+      }
       // Convert budget string to number if provided
       const processedBody = {
         ...req.body,
         budget: req.body.budget ? parseFloat(req.body.budget) : undefined
       };
       const updates = insertTripSchema.partial().parse(processedBody);
-      const trip = await storage.updateTrip(req.params.id, userId, updates);
+      const trip = await storage.updateTrip(tripId, userId, updates);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
       }
@@ -123,7 +131,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/trips/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const deleted = await storage.deleteTrip(req.params.id, userId);
+      const tripId = parseInt(req.params.id);
+      if (isNaN(tripId)) {
+        return res.status(400).json({ message: "Invalid trip ID" });
+      }
+      const deleted = await storage.deleteTrip(tripId, userId);
       if (!deleted) {
         return res.status(404).json({ message: "Trip not found" });
       }
@@ -166,8 +178,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/journal/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const entryId = parseInt(req.params.id);
+      if (isNaN(entryId)) {
+        return res.status(400).json({ message: "Invalid journal entry ID" });
+      }
       const updates = insertJournalEntrySchema.partial().parse(req.body);
-      const entry = await storage.updateJournalEntry(req.params.id, userId, updates);
+      const entry = await storage.updateJournalEntry(entryId, userId, updates);
       if (!entry) {
         return res.status(404).json({ message: "Journal entry not found" });
       }
@@ -181,7 +197,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/journal/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const deleted = await storage.deleteJournalEntry(req.params.id, userId);
+      const entryId = parseInt(req.params.id);
+      if (isNaN(entryId)) {
+        return res.status(400).json({ message: "Invalid journal entry ID" });
+      }
+      const deleted = await storage.deleteJournalEntry(entryId, userId);
       if (!deleted) {
         return res.status(404).json({ message: "Journal entry not found" });
       }
@@ -219,8 +239,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/packing-lists/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const listId = parseInt(req.params.id);
+      if (isNaN(listId)) {
+        return res.status(400).json({ message: "Invalid packing list ID" });
+      }
       const updates = insertPackingListSchema.partial().parse(req.body);
-      const list = await storage.updatePackingList(req.params.id, userId, updates);
+      const list = await storage.updatePackingList(listId, userId, updates);
       if (!list) {
         return res.status(404).json({ message: "Packing list not found" });
       }
@@ -234,7 +258,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/packing-lists/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const deleted = await storage.deletePackingList(req.params.id, userId);
+      const listId = parseInt(req.params.id);
+      if (isNaN(listId)) {
+        return res.status(400).json({ message: "Invalid packing list ID" });
+      }
+      const deleted = await storage.deletePackingList(listId, userId);
       if (!deleted) {
         return res.status(404).json({ message: "Packing list not found" });
       }
