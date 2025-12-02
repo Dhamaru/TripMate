@@ -38,13 +38,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
         {/* Sidebar Header - Logo */}
         <div className={cn(
-          "h-16 flex items-center border-b border-gray-800",
-          sidebarCollapsed ? "justify-center px-2" : "px-4 gap-3"
+          "h-16 flex items-center border-b border-gray-800 transition-all duration-300",
+          sidebarCollapsed ? "justify-center" : "px-4"
         )}>
-          <TripMateLogo size="sm" />
-          {!sidebarCollapsed && (
-            <span className="font-bold text-white whitespace-nowrap">TripMate</span>
-          )}
+          <TripMateLogo size="sm" showText={!sidebarCollapsed} />
         </div>
 
         {/* Sidebar Content */}
