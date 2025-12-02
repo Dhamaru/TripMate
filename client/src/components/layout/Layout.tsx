@@ -1,151 +1,149 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLocation, Link } from "wouter";
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import {
-  Home,
-  Map,
-  Grid,
-  User,
-  LogOut,
-  Settings,
-  Compass,
-  Menu
-} from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import {
+  Home,
+  Compass,
+  Grid,
+  User,
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: "/app/home" },
-  { label: "Trips", icon: Compass, href: "/app/planner" }, // Or /app/trips if that exists, using planner for now as "Trips"
+  { label: "Trips", icon: Compass, href: "/app/planner" },
   { label: "Tools", icon: Grid, href: "/app/tools" },
-  { label: "Profile", icon: User, href: "/app/profile" },
+  { label: "Feedback", icon: MessageSquare, href: "/app/feedback" },
 ];
 
-function AppSidebar() {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user } = useAuth() as any;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarContent className="pt-16">
-        <SidebarMenu className="p-2">
-          {NAV_ITEMS.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={location === item.href || location.startsWith(item.href)}
-                tooltip={item.label}
-                className="h-12"
-              >
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
+    <div className="flex min-h-screen w-full bg-ios-darker text-white">
+      {/* Sidebar - Desktop Only */}
+      <aside
+        className={cn(
+          "hidden md:flex flex-col bg-ios-dark border-r border-ios-gray transition-all duration-300 ease-in-out",
+          sidebarCollapsed ? "w-16" : "w-64"
+        )}
+      >
+        {/* Sidebar Content */}
+        <div className="flex-1 flex flex-col">
+          {/* Navigation Items */}
+          <nav className="flex-1 px-2 py-4 space-y-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive = location === item.href || location.startsWith(item.href);
+              return (
+                <Link key={item.href} href={item.href}>
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer",
+                      isActive
+                        ? "bg-ios-blue text-white"
+                        : "text-ios-gray hover:bg-ios-card hover:text-white"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    {!sidebarCollapsed && (
+                      <span className="font-medium">{item.label}</span>
+                    )}
+                  </div>
                 </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
-          <Avatar className="h-8 w-8 rounded-full overflow-hidden bg-muted">
-            <AvatarImage src={user?.profileImageUrl} className="object-cover" />
-            <AvatarFallback>{user?.firstName?.[0] || "U"}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-sm font-medium">{user?.firstName}</span>
-            <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
+              );
+            })}
+          </nav>
+
+          {/* Collapse Toggle Button - At Bottom */}
+          <div className="p-2 border-t border-ios-gray">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-ios-gray hover:bg-ios-card hover:text-white transition-all"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-5 w-5" />
+              ) : (
+                <>
+                  <ChevronLeft className="h-5 w-5" />
+                  <span className="font-medium">Collapse</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
-      </SidebarFooter>
-    </Sidebar>
-  );
-}
+      </aside>
 
-function BottomNav() {
-  const [location] = useLocation();
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Top Navigation Bar */}
+        <header className="h-16 bg-ios-dark border-b border-ios-gray px-4 flex items-center justify-between sticky top-0 z-50">
+          {/* Left: Logo */}
+          <div className="flex items-center">
+            <TripMateLogo size="sm" />
+          </div>
 
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border h-16 px-4 flex items-center justify-around md:hidden safe-area-bottom">
-      {NAV_ITEMS.map((item) => {
-        const isActive = location === item.href || location.startsWith(item.href);
-        return (
-          <Link key={item.href} href={item.href}>
-            <div className={cn(
-              "flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors",
-              isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-            )}>
-              <item.icon className={cn("h-6 w-6", isActive && "fill-current")} />
-              <span className="text-[10px] font-medium">{item.label}</span>
+          {/* Right: Profile */}
+          <Link href="/app/profile">
+            <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="hidden md:flex flex-col items-end">
+                <span className="text-sm font-medium text-white">
+                  {user?.firstName} {user?.lastName}
+                </span>
+                <span className="text-xs text-ios-gray">{user?.email}</span>
+              </div>
+              <Avatar className="h-10 w-10 rounded-full overflow-hidden bg-ios-card border-2 border-ios-gray">
+                <AvatarImage src={user?.profileImageUrl} className="object-cover" />
+                <AvatarFallback className="bg-ios-blue text-white">
+                  {user?.firstName?.[0] || "U"}
+                </AvatarFallback>
+              </Avatar>
             </div>
           </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-function CustomSidebarTrigger() {
-  const { toggleSidebar } = useSidebar();
-  return (
-    <button onClick={toggleSidebar} className="flex items-center gap-2 hover:opacity-80 transition-opacity p-2">
-      <Menu className="h-6 w-6" />
-    </button>
-  );
-}
-
-function LayoutContent({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen w-full bg-background">
-      {/* Desktop Sidebar - Hidden on Mobile */}
-      <div className="hidden md:block">
-        <AppSidebar />
-      </div>
-
-      <main className="flex-1 flex flex-col min-h-screen relative overflow-hidden">
-        {/* Desktop Header */}
-        <header className="hidden md:flex h-16 items-center justify-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 sticky top-0 z-10 relative">
-          <div className="absolute left-6">
-            <CustomSidebarTrigger />
-          </div>
-          <TripMateLogo size="sm" />
         </header>
 
-        {/* Mobile Header (Optional, maybe just Logo) */}
-        <header className="md:hidden h-14 flex items-center justify-center border-b bg-background/95 backdrop-blur sticky top-0 z-10">
-          <TripMateLogo size="sm" />
-        </header>
-
-        <div className="flex-1 overflow-y-auto pb-20 md:pb-6 p-4 md:p-6 scroll-smooth">
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
           {children}
-        </div>
+        </main>
 
-        <BottomNav />
-      </main>
+        {/* Mobile Bottom Navigation */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-ios-dark border-t border-ios-gray px-4 flex items-center justify-around z-50">
+          {NAV_ITEMS.map((item) => {
+            const isActive = location === item.href || location.startsWith(item.href);
+            return (
+              <Link key={item.href} href={item.href}>
+                <div
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors",
+                    isActive ? "text-ios-blue" : "text-ios-gray"
+                  )}
+                >
+                  <item.icon className={cn("h-6 w-6", isActive && "fill-current")} />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </div>
+              </Link>
+            );
+          })}
+          <Link href="/app/profile">
+            <div className="flex flex-col items-center justify-center gap-1 w-16 h-full">
+              <Avatar className="h-6 w-6 rounded-full overflow-hidden">
+                <AvatarImage src={user?.profileImageUrl} />
+                <AvatarFallback className="bg-ios-blue text-white text-xs">
+                  {user?.firstName?.[0] || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-[10px] font-medium text-ios-gray">Profile</span>
+            </div>
+          </Link>
+        </nav>
+      </div>
     </div>
-  );
-}
-
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <SidebarProvider defaultOpen={true}>
-      <LayoutContent>{children}</LayoutContent>
-    </SidebarProvider>
   );
 }
