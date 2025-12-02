@@ -117,7 +117,7 @@ export default function Landing() {
               </span>
             </h1>
             <p className="text-xl text-ios-gray mb-8 max-w-3xl mx-auto leading-relaxed" data-testid="hero-description">
-              Plan, explore, and experience the world with TripMate's intelligent travel assistant. 
+              Plan, explore, and experience the world with TripMate's intelligent travel assistant.
               From trip planning to real-time guidance, we've got your journey covered.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -144,11 +144,11 @@ export default function Landing() {
               Comprehensive travel tools powered by AI to make your journey seamless and memorable.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
               <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: index * 0.05 }} className="">
-                <Card 
+                <Card
                   className="bg-ios-card border-ios-gray elev-1 hover-lift smooth-transition radius-md"
                   data-testid={`feature-card-${index}`}
                 >
@@ -207,11 +207,11 @@ export default function Landing() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-white mb-2">Trip Duration</label>
-                      <Select 
-                        value={tripForm.days} 
+                      <Select
+                        value={tripForm.days}
                         onValueChange={(value) => setTripForm(prev => ({ ...prev, days: value }))}
                       >
-                        <SelectTrigger 
+                        <SelectTrigger
                           className="bg-ios-darker border-ios-gray text-white"
                           data-testid="select-duration"
                         >
@@ -227,11 +227,11 @@ export default function Landing() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-white mb-2">Group Size</label>
-                      <Select 
-                        value={tripForm.groupSize} 
+                      <Select
+                        value={tripForm.groupSize}
                         onValueChange={(value) => setTripForm(prev => ({ ...prev, groupSize: value }))}
                       >
-                        <SelectTrigger 
+                        <SelectTrigger
                           className="bg-ios-darker border-ios-gray text-white"
                           data-testid="select-group-size"
                         >
@@ -246,7 +246,7 @@ export default function Landing() {
                       </Select>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-white mb-2">Travel Style</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -300,7 +300,7 @@ export default function Landing() {
                 </a>
               </div>
             </div>
-            
+
             <div>
               <h3 className="text-white font-semibold mb-4">Features</h3>
               <ul className="space-y-2 text-sm text-ios-gray">
@@ -311,7 +311,7 @@ export default function Landing() {
                 <li><a href="#" className="hover:text-white transition-colors">Emergency Services</a></li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="text-white font-semibold mb-4">Support</h3>
               <ul className="space-y-2 text-sm text-ios-gray">
@@ -322,9 +322,9 @@ export default function Landing() {
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-ios-card mt-8 pt-8 text-center text-sm text-ios-gray">
-            <p>&copy; 2024 TripMate. All rights reserved. Made with ❤️ for travelers worldwide.</p>
+            <p>&copy; 2025 TripMate. All rights reserved. Created by Dhamaru K with ❤️ for travelers worldwide.</p>
           </div>
         </div>
       </footer>

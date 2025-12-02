@@ -628,266 +628,258 @@ export default function TripDetail() {
           </Card>
         )}
 
-        {/* Trip Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Trip Details */}
-            <Card className="bg-ios-card border-ios-gray">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">Trip Overview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-ios-darker radius-md">
-                    <i className="fas fa-calendar text-ios-blue text-xl mb-2"></i>
-                    <p className="text-sm text-ios-gray">Duration</p>
-                    <p className="font-bold text-white">{trip.days} days</p>
-                  </div>
-                  <div className="text-center p-4 bg-ios-darker radius-md">
-                    <i className="fas fa-rupee-sign text-ios-green text-xl mb-2"></i>
-                    <p className="text-sm text-ios-gray">Budget</p>
-                    <p className="font-bold text-white">₹{trip.budget}</p>
-                  </div>
-                  <div className="text-center p-4 bg-ios-darker radius-md">
-                    <i className="fas fa-users text-ios-orange text-xl mb-2"></i>
-                    <p className="text-sm text-ios-gray">Group</p>
-                    <p className="font-bold text-white capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
-                  </div>
-                  <div className="text-center p-4 bg-ios-darker radius-md">
-                    {selectedStyle && <i className={`${selectedStyle.icon} ${selectedStyle.color} text-xl mb-2`}></i>}
-                    <p className="text-sm text-ios-gray">Style</p>
-                    <p className="font-bold text-white capitalize">{trip.travelStyle.replace('-', ' ')}</p>
-                  </div>
-                  {trip.transportMode && (
-                    <div className="text-center p-4 bg-ios-darker radius-md">
-                      <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-ios-blue text-xl mb-2`}></i>
-                      <p className="text-sm text-ios-gray">Transport</p>
-                      <p className="font-bold text-white capitalize">{trip.transportMode}</p>
-                    </div>
-                  )}
+        {/* Trip Content */}
+        <div className="space-y-6">
+          {/* Trip Details */}
+          <Card className="bg-ios-card border-ios-gray">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white">Trip Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-ios-darker radius-md">
+                  <i className="fas fa-calendar text-ios-blue text-xl mb-2"></i>
+                  <p className="text-sm text-ios-gray">Duration</p>
+                  <p className="font-bold text-white">{trip.days} days</p>
                 </div>
-
-                {tripForm.notes && (
-                  <div className="mt-6">
-                    <h4 className="font-semibold text-white mb-2">Notes</h4>
-                    <p className="text-ios-gray bg-ios-darker radius-md p-4">{tripForm.notes}</p>
+                <div className="text-center p-4 bg-ios-darker radius-md">
+                  <i className="fas fa-rupee-sign text-ios-green text-xl mb-2"></i>
+                  <p className="text-sm text-ios-gray">Budget</p>
+                  <p className="font-bold text-white">₹{trip.budget}</p>
+                </div>
+                <div className="text-center p-4 bg-ios-darker radius-md">
+                  <i className="fas fa-users text-ios-orange text-xl mb-2"></i>
+                  <p className="text-sm text-ios-gray">Group</p>
+                  <p className="font-bold text-white capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
+                </div>
+                <div className="text-center p-4 bg-ios-darker radius-md">
+                  {selectedStyle && <i className={`${selectedStyle.icon} ${selectedStyle.color} text-xl mb-2`}></i>}
+                  <p className="text-sm text-ios-gray">Style</p>
+                  <p className="font-bold text-white capitalize">{trip.travelStyle.replace('-', ' ')}</p>
+                </div>
+                {trip.transportMode && (
+                  <div className="text-center p-4 bg-ios-darker radius-md">
+                    <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-ios-blue text-xl mb-2`}></i>
+                    <p className="text-sm text-ios-gray">Transport</p>
+                    <p className="font-bold text-white capitalize">{trip.transportMode}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card className="bg-ios-card border-ios-gray">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">AI Trip Planner</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Location</label>
-                    <Input type="text" value={tripForm.destination} disabled className="bg-ios-darker border-ios-gray text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
-                    <Input type="number" value={aiBudget} onChange={(e) => setAiBudget(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">Number of People</label>
-                    <Input type="number" value={aiGroupSize} onChange={(e) => setAiGroupSize(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
-                  </div>
+              {tripForm.notes && (
+                <div className="mt-6">
+                  <h4 className="font-semibold text-white mb-2">Notes</h4>
+                  <p className="text-ios-gray bg-ios-darker radius-md p-4">{tripForm.notes}</p>
                 </div>
-                <Card className="bg-ios-card border-ios-gray">
-                  <CardHeader>
-                    <CardTitle className="text-white text-base">Weather Forecast</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {weather ? (
-                      <div className="space-y-3">
-                        <div className="text-sm text-white">
-                          <span className="font-semibold">Current:</span> {Number(weather?.current?.temperature)}°C • {String(weather?.current?.condition || '')}
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                          {(Array.isArray(weather?.forecast) ? weather.forecast.slice(0, 6) : []).map((d: any, idx: number) => (
-                            <div key={`wf-${idx}`} className="text-xs text-white bg-ios-darker radius-md p-2">
-                              <div className="font-semibold">{String(d.day)}</div>
-                              <div className="text-ios-gray">{Number(d.low)}° / {Number(d.high)}° • {String(d.condition)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-ios-gray">Fetching weather forecast...</div>
-                    )}
-                  </CardContent>
-                </Card>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-ios-card border-ios-gray">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white">AI Trip Planner</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Additional Notes</label>
-                  <Textarea value={aiNotes} onChange={(e) => setAiNotes(e.target.value)} placeholder="Preferences, constraints, must-see places…" className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray min-h-[100px]" />
+                  <label className="block text-sm font-semibold text-white mb-2">Location</label>
+                  <Input type="text" value={tripForm.destination} disabled className="bg-ios-darker border-ios-gray text-white" />
                 </div>
-                <div className="flex justify-end">
-                  <Button onClick={() => generatePlanMutation.mutate()} disabled={generatePlanMutation.isPending} className="bg-ios-blue hover:bg-ios-blue smooth-transition interactive-tap radius-md">
-                    {generatePlanMutation.isPending ? (
-                      <>
-                        <i className="fas fa-spinner fa-spin mr-2"></i>
-                        {planStage === 'fetching' ? 'Fetching locations…' : planStage === 'generating' ? 'Generating Plan…' : 'Processing…'}
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-robot mr-2"></i>
-                        Generate AI Plan
-                      </>
-                    )}
-                  </Button>
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
+                  <Input type="number" value={aiBudget} onChange={(e) => setAiBudget(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">Number of People</label>
+                  <Input type="number" value={aiGroupSize} onChange={(e) => setAiGroupSize(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
+                </div>
+              </div>
+              <Card className="bg-ios-card border-ios-gray">
+                <CardHeader>
+                  <CardTitle className="text-white text-base">Weather Forecast</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {weather ? (
+                    <div className="space-y-3">
+                      <div className="text-sm text-white">
+                        <span className="font-semibold">Current:</span> {Number(weather?.current?.temperature)}°C • {String(weather?.current?.condition || '')}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {(Array.isArray(weather?.forecast) ? weather.forecast.slice(0, 6) : []).map((d: any, idx: number) => (
+                          <div key={`wf-${idx}`} className="text-xs text-white bg-ios-darker radius-md p-2">
+                            <div className="font-semibold">{String(d.day)}</div>
+                            <div className="text-ios-gray">{Number(d.low)}° / {Number(d.high)}° • {String(d.condition)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-ios-gray">Fetching weather forecast...</div>
+                  )}
+                </CardContent>
+              </Card>
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">Additional Notes</label>
+                <Textarea value={aiNotes} onChange={(e) => setAiNotes(e.target.value)} placeholder="Preferences, constraints, must-see places…" className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray min-h-[100px]" />
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => generatePlanMutation.mutate()} disabled={generatePlanMutation.isPending} className="bg-ios-blue hover:bg-ios-blue smooth-transition interactive-tap radius-md">
+                  {generatePlanMutation.isPending ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      {planStage === 'fetching' ? 'Fetching locations…' : planStage === 'generating' ? 'Generating Plan…' : 'Processing…'}
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-robot mr-2"></i>
+                      Generate AI Plan
+                    </>
+                  )}
+                </Button>
+              </div>
 
-                {trip.aiPlanMarkdown && (
-                  <div className="mt-6 prose prose-invert max-w-none">
-                    <ReactMarkdown>{trip.aiPlanMarkdown}</ReactMarkdown>
-                  </div>
-                )}
+              {trip.aiPlanMarkdown && (
+                <div className="mt-6 prose prose-invert max-w-none">
+                  <ReactMarkdown>{trip.aiPlanMarkdown}</ReactMarkdown>
+                </div>
+              )}
 
-                {openApiPlanning.length > 0 && (
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {openApiPlanning.length > 0 && (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className="bg-ios-card border-ios-gray">
+                    <CardHeader>
+                      <CardTitle className="text-white text-base">Geocoded Places</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {openApiPlanning.slice(0, 8).map((p) => (
+                          <div key={`geo-${p.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                            <div className="font-semibold">{p.title}</div>
+                            <div className="text-ios-gray">{p.address}</div>
+                            <div className="text-xs text-ios-gray">{p.coords.lat}, {p.coords.lon}</div>
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(p.displayName || p.title || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {segments.length > 0 && (
                     <Card className="bg-ios-card border-ios-gray">
                       <CardHeader>
-                        <CardTitle className="text-white text-base">Geocoded Places</CardTitle>
+                        <CardTitle className="text-white text-base">Travel Distances & Durations</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {openApiPlanning.slice(0, 8).map((p) => (
-                            <div key={`geo-${p.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{p.title}</div>
-                              <div className="text-ios-gray">{p.address}</div>
-                              <div className="text-xs text-ios-gray">{p.coords.lat}, {p.coords.lon}</div>
-                              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(p.displayName || p.title || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                          {segments.map((s, i) => (
+                            <div key={`seg-${i}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                              <div className="font-semibold">{s.from.title} → {s.to.title}</div>
+                              <div className="text-ios-gray">{s.km} km • ~{s.mins} min ({s.mode})</div>
+                              <a href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${s.from.coords.lat},${s.from.coords.lon}`)}&destination=${encodeURIComponent(`${s.to.coords.lat},${s.to.coords.lon}`)}&travelmode=${s.mode === 'walk' ? 'walking' : 'transit'}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Directions</a>
                             </div>
                           ))}
                         </div>
                       </CardContent>
                     </Card>
-
-                    {segments.length > 0 && (
-                      <Card className="bg-ios-card border-ios-gray">
-                        <CardHeader>
-                          <CardTitle className="text-white text-base">Travel Distances & Durations</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            {segments.map((s, i) => (
-                              <div key={`seg-${i}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                                <div className="font-semibold">{s.from.title} → {s.to.title}</div>
-                                <div className="text-ios-gray">{s.km} km • ~{s.mins} min ({s.mode})</div>
-                                <a href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${s.from.coords.lat},${s.from.coords.lon}`)}&destination=${encodeURIComponent(`${s.to.coords.lat},${s.to.coords.lon}`)}&travelmode=${s.mode === 'walk' ? 'walking' : 'transit'}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Directions</a>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
 
 
-                {(Array.isArray(hotelResults) || Array.isArray(foodResults) || Array.isArray(sightsResults)) && (
-                  <Card className="bg-ios-card border-ios-gray mt-6">
-                    <CardHeader>
-                      <CardTitle className="text-white text-base">Suggestions: Hotels, Restaurants, Tourist Spots</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <div className="text-white font-semibold mb-2">Hotels</div>
-                          <div className="space-y-2">
-                            {(hotelResults || []).slice(0, 5).map((i: any) => (
-                              <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                                <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                                <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                                <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-white font-semibold mb-2">Restaurants</div>
-                          <div className="space-y-2">
-                            {(foodResults || []).slice(0, 5).map((i: any) => (
-                              <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                                <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                                <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                                <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-white font-semibold mb-2">Tourist Spots</div>
-                          <div className="space-y-2">
-                            {(sightsResults || []).slice(0, 5).map((i: any) => (
-                              <div key={`s-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                                <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                                <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                                <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                                <a
-                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs text-ios-blue underline"
-                                  onClick={() => {
-                                    try { logInfo('place_open_map', { id: String(i.id), type: 'tourist_spot', lat: Number(i.lat), lon: Number(i.lon), name: String(i.name_en || i.name_local || i.display_name || '') }); } catch { }
-                                  }}
-                                >
-                                  Open Map
-                                </a>
-                              </div>
-                            ))}
-                          </div>
+              {(Array.isArray(hotelResults) || Array.isArray(foodResults) || Array.isArray(sightsResults)) && (
+                <Card className="bg-ios-card border-ios-gray mt-6">
+                  <CardHeader>
+                    <CardTitle className="text-white text-base">Suggestions: Hotels, Restaurants, Tourist Spots</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <div className="text-white font-semibold mb-2">Hotels</div>
+                        <div className="space-y-2">
+                          {(hotelResults || []).slice(0, 5).map((i: any) => (
+                            <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
+                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
+                              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                      <div>
+                        <div className="text-white font-semibold mb-2">Restaurants</div>
+                        <div className="space-y-2">
+                          {(foodResults || []).slice(0, 5).map((i: any) => (
+                            <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
+                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
+                              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold mb-2">Tourist Spots</div>
+                        <div className="space-y-2">
+                          {(sightsResults || []).slice(0, 5).map((i: any) => (
+                            <div key={`s-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
+                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-ios-blue underline"
+                                onClick={() => {
+                                  try { logInfo('place_open_map', { id: String(i.id), type: 'tourist_spot', lat: Number(i.lat), lon: Number(i.lon), name: String(i.name_en || i.name_local || i.display_name || '') }); } catch { }
+                                }}
+                              >
+                                Open Map
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
+            </CardContent>
+          </Card>
+
+          {/* Journal Entries for this Trip */}
+          {tripJournalEntries.length > 0 && (
+            <Card className="bg-ios-card border-ios-gray">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-bold text-white">Trip Journal</CardTitle>
+                  <Link href="/app/journal">
+                    <Button variant="outline" size="sm" className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap radius-md">
+                      View All
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {tripJournalEntries.slice(0, 3).map((entry) => (
+                    <div key={entry.id} className="bg-ios-darker radius-md p-4">
+                      <h4 className="font-bold text-white mb-2">{entry.title}</h4>
+                      <p className="text-sm text-ios-gray mb-2 line-clamp-2">{entry.content}</p>
+                      <div className="flex items-center justify-between text-xs text-ios-gray">
+                        <span>{entry.location}</span>
+                        <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
-
-            {/* Journal Entries for this Trip */}
-            {tripJournalEntries.length > 0 && (
-              <Card className="bg-ios-card border-ios-gray">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl font-bold text-white">Trip Journal</CardTitle>
-                    <Link href="/app/journal">
-                      <Button variant="outline" size="sm" className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap radius-md">
-                        View All
-                      </Button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {tripJournalEntries.slice(0, 3).map((entry) => (
-                      <div key={entry.id} className="bg-ios-darker radius-md p-4">
-                        <h4 className="font-bold text-white mb-2">{entry.title}</h4>
-                        <p className="text-sm text-ios-gray mb-2 line-clamp-2">{entry.content}</p>
-                        <div className="flex items-center justify-between text-xs text-ios-gray">
-                          <span>{entry.location}</span>
-                          <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Packing list removed as requested */}
-          </div>
+          )}
         </div>
       </div>
     </div>
