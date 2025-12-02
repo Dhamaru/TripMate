@@ -1,179 +1,127 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
 import type { JournalEntry, User } from "@shared/schema";
 
 export default function Journal() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth() as { user: User | undefined; isLoading: boolean; isAuthenticated: boolean };
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [entryForm, setEntryForm] = useState({
-    title: '',
-    content: '',
-    location: '',
-    latitude: '',
-    longitude: ''
+    title: "",
+    content: "",
+    location: "",
+    latitude: "",
+    longitude: "",
   });
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast({
         title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        description: "You are logged out. Redirecting to login…",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
+      const t = setTimeout(() => navigate("/signin", { replace: true }), 400);
+      return () => clearTimeout(t);
     }
-  }, [isAuthenticated, authLoading, toast]);
+  }, [isAuthenticated, authLoading, toast, navigate]);
 
-  const { data: journalEntries, isLoading } = useQuery<JournalEntry[]>({
-    queryKey: ['/api/journal'],
+  const { data: journalEntries = [], isLoading } = useQuery<JournalEntry[]>({
+    queryKey: ["/api/v1/journal"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/v1/journal");
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    },
+    staleTime: 30_000,
   });
+
+  const handleUnauthorized = () => {
+    toast({
+      title: "Unauthorized",
+      description: "Your session expired. Please log in again.",
+      variant: "destructive",
+    });
+    const t = setTimeout(() => navigate("/signin", { replace: true }), 400);
+    return () => clearTimeout(t);
+  };
 
   const createEntryMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await fetch('/api/journal', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        throw new Error(`${response.status}: ${response.statusText}`);
-      }
+      const response = await apiRequest("POST", "/api/v1/journal", formData);
+      if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/journal'] });
-      toast({
-        title: "Entry Created",
-        description: "Your journal entry has been saved successfully.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/journal"] });
+      toast({ title: "Entry Created", description: "Your journal entry has been saved successfully." });
       setIsCreateDialogOpen(false);
       resetForm();
     },
     onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to create journal entry.",
-        variant: "destructive",
-      });
+      if (isUnauthorizedError(error)) return void handleUnauthorized();
+      toast({ title: "Error", description: "Failed to create journal entry.", variant: "destructive" });
     },
   });
 
   const updateEntryMutation = useMutation({
     mutationFn: async (data: { id: string; updates: Partial<JournalEntry> }) => {
-      const response = await apiRequest('PUT', `/api/journal/${data.id}`, data.updates);
-      return response.json();
+      const res = await apiRequest("PUT", `/api/v1/journal/${data.id}`, data.updates);
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/journal'] });
-      toast({
-        title: "Entry Updated",
-        description: "Your journal entry has been updated successfully.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/journal"] });
+      toast({ title: "Entry Updated", description: "Your journal entry has been updated successfully." });
       setEditingEntry(null);
       resetForm();
     },
     onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to update journal entry.",
-        variant: "destructive",
-      });
+      if (isUnauthorizedError(error)) return void handleUnauthorized();
+      toast({ title: "Error", description: "Failed to update journal entry.", variant: "destructive" });
     },
   });
 
   const deleteEntryMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest('DELETE', `/api/journal/${id}`);
-      return response;
+      const res = await apiRequest("DELETE", `/api/v1/journal/${id}`);
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return true;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/journal'] });
-      toast({
-        title: "Entry Deleted",
-        description: "Your journal entry has been deleted.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/journal"] });
+      toast({ title: "Entry Deleted", description: "Your journal entry has been deleted." });
     },
     onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to delete journal entry.",
-        variant: "destructive",
-      });
+      if (isUnauthorizedError(error)) return void handleUnauthorized();
+      toast({ title: "Error", description: "Failed to delete journal entry.", variant: "destructive" });
     },
   });
 
   const resetForm = () => {
-    setEntryForm({
-      title: '',
-      content: '',
-      location: '',
-      latitude: '',
-      longitude: ''
-    });
+    setEntryForm({ title: "", content: "", location: "", latitude: "", longitude: "" });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!entryForm.title.trim() || !entryForm.content.trim()) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in the title and content.",
-        variant: "destructive",
-      });
+      toast({ title: "Missing Information", description: "Please fill in the title and content.", variant: "destructive" });
       return;
     }
 
@@ -181,19 +129,18 @@ export default function Journal() {
       const updates = {
         title: entryForm.title,
         content: entryForm.content,
-        location: entryForm.location || null,
-        latitude: entryForm.latitude ? entryForm.latitude : null,
-        longitude: entryForm.longitude ? entryForm.longitude : null,
+        location: entryForm.location || undefined,
+        latitude: entryForm.latitude ? parseFloat(entryForm.latitude) : undefined,
+        longitude: entryForm.longitude ? parseFloat(entryForm.longitude) : undefined,
       };
       updateEntryMutation.mutate({ id: editingEntry.id, updates });
     } else {
       const formData = new FormData();
-      formData.append('title', entryForm.title);
-      formData.append('content', entryForm.content);
-      if (entryForm.location) formData.append('location', entryForm.location);
-      if (entryForm.latitude) formData.append('latitude', entryForm.latitude);
-      if (entryForm.longitude) formData.append('longitude', entryForm.longitude);
-      
+      formData.append("title", entryForm.title);
+      formData.append("content", entryForm.content);
+      if (entryForm.location) formData.append("location", entryForm.location);
+      if (entryForm.latitude) formData.append("latitude", entryForm.latitude);
+      if (entryForm.longitude) formData.append("longitude", entryForm.longitude);
       createEntryMutation.mutate(formData);
     }
   };
@@ -203,15 +150,15 @@ export default function Journal() {
     setEntryForm({
       title: entry.title,
       content: entry.content,
-      location: entry.location || '',
-      latitude: entry.latitude?.toString() || '',
-      longitude: entry.longitude?.toString() || ''
+      location: entry.location || "",
+      latitude: entry.latitude?.toString() || "",
+      longitude: entry.longitude?.toString() || "",
     });
     setIsCreateDialogOpen(true);
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this journal entry?')) {
+    if (window.confirm("Are you sure you want to delete this journal entry?")) {
       deleteEntryMutation.mutate(id);
     }
   };
@@ -236,36 +183,10 @@ export default function Journal() {
   return (
     <div className="min-h-screen bg-ios-darker text-white">
       {/* Navigation Header */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-ios-darker/80 border-b border-ios-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/">
-              <TripMateLogo size="md" />
-            </Link>
-            <div className="flex items-center space-x-4">
-              <Link href="/" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                <i className="fas fa-arrow-left mr-2"></i>
-                Back to Home
-              </Link>
-              <div className="flex items-center space-x-2">
-                {user?.profileImageUrl && (
-                  <img 
-                    src={user.profileImageUrl} 
-                    alt="Profile" 
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                )}
-                <span className="text-sm text-white">
-                  {user?.firstName || user?.email}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+
 
       {/* Main Content */}
-      <div className="pt-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2" data-testid="journal-title">
@@ -273,10 +194,10 @@ export default function Journal() {
             </h1>
             <p className="text-ios-gray">Capture your travel memories and experiences</p>
           </div>
-          
+
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
+              <Button
                 className="bg-ios-orange hover:bg-orange-600"
                 data-testid="button-new-entry"
                 onClick={() => {
@@ -309,7 +230,7 @@ export default function Journal() {
                     data-testid="input-title"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">Location</label>
                   <Input
@@ -372,9 +293,9 @@ export default function Journal() {
 
         {/* Journal Entries */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card key={i} className="bg-ios-card border-ios-gray">
+              <Card key={i} className="bg-ios-card border-ios-gray elev-1 radius-md">
                 <CardContent className="p-0">
                   <div className="animate-pulse">
                     <div className="h-32 bg-ios-darker"></div>
@@ -391,9 +312,9 @@ export default function Journal() {
         ) : journalEntries && journalEntries.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {journalEntries.map((entry) => (
-              <Card 
-                key={entry.id} 
-                className="bg-ios-card border-ios-gray hover:transform hover:scale-105 transition-all duration-300 overflow-hidden"
+              <Card
+                key={entry.id}
+                className="bg-ios-card border-ios-gray elev-1 hover-lift smooth-transition overflow-hidden radius-md"
                 data-testid={`journal-entry-${entry.id}`}
               >
                 <div className="h-32 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center relative">
@@ -406,7 +327,7 @@ export default function Journal() {
                       onClick={() => handleEdit(entry)}
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      className="h-8 w-8 p-0 text-white hover:bg-ios-card/20 smooth-transition interactive-tap min-tap-target"
                       data-testid={`button-edit-${entry.id}`}
                     >
                       <i className="fas fa-edit text-xs"></i>
@@ -415,7 +336,7 @@ export default function Journal() {
                       onClick={() => handleDelete(entry.id)}
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-white hover:bg-ios-red/50"
+                      className="h-8 w-8 p-0 text-white hover:bg-ios-red/50 smooth-transition interactive-tap min-tap-target"
                       data-testid={`button-delete-${entry.id}`}
                     >
                       <i className="fas fa-trash text-xs"></i>
@@ -428,7 +349,7 @@ export default function Journal() {
                     {entry.content}
                   </p>
                   <div className="flex items-center justify-between text-xs text-ios-gray">
-                    <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
+                    <span>{new Date(entry.createdAt as any).toLocaleDateString()}</span>
                     {entry.photos && entry.photos.length > 0 && (
                       <span className="flex items-center">
                         <i className="fas fa-camera mr-1"></i>
@@ -441,7 +362,7 @@ export default function Journal() {
             ))}
           </div>
         ) : (
-          <Card className="bg-ios-card border-ios-gray" data-testid="no-journal-entries">
+          <Card className="bg-ios-card border-ios-gray elev-1 radius-md" data-testid="no-journal-entries">
             <CardContent className="p-12 text-center">
               <div className="text-ios-gray mb-6">
                 <i className="fas fa-book text-6xl"></i>
@@ -450,7 +371,7 @@ export default function Journal() {
               <p className="text-ios-gray mb-6 max-w-md mx-auto">
                 Document your adventures, capture memories, and create a beautiful record of your travels.
               </p>
-              <Button 
+              <Button
                 onClick={() => {
                   setEditingEntry(null);
                   resetForm();

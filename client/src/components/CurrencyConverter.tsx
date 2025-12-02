@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +20,10 @@ const CURRENCIES = [
 ];
 
 interface ConversionResult {
-  from: string;
-  to: string;
-  originalAmount: number;
-  convertedAmount: number;
   rate: number;
+  convertedAmount: number;
+  currencyName: string;
+  disclaimer: string;
 }
 
 export function CurrencyConverter({ className = '' }: { className?: string }) {
@@ -32,13 +32,30 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
   const [toCurrency, setToCurrency] = useState('EUR');
 
   const { data: conversion, isLoading, refetch } = useQuery<ConversionResult>({
-    queryKey: ['/api/currency/convert', fromCurrency, toCurrency, amount],
-    enabled: false, // Only fetch when manually triggered
+    queryKey: ['/api/v1/currency', fromCurrency, toCurrency, amount],
+    enabled: false,
+    queryFn: async ({ queryKey }) => {
+      const [, from, to, amt] = queryKey as [string, string, string, string];
+      const url = `/api/v1/currency?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(amt)}`;
+      try {
+        const res = await apiRequest('GET', url);
+        return res.json();
+      } catch {
+        const baseRates: Record<string, number> = { USD: 1, EUR: 0.92, GBP: 0.79, JPY: 155, INR: 83, CAD: 1.36, AUD: 1.52, CHF: 0.9, CNY: 7.2 };
+        const fromRate = baseRates[from] ?? 1;
+        const toRate = baseRates[to] ?? 1;
+        const rate = Math.round((toRate / fromRate) * 10000) / 10000;
+        const amtNum = parseFloat(amt) || 0;
+        return { rate, convertedAmount: Math.round(amtNum * rate * 100) / 100, currencyName: to, disclaimer: 'Estimated rate (offline fallback)' } as ConversionResult;
+      }
+    },
   });
 
   const handleConvert = () => {
     if (amount && fromCurrency && toCurrency) {
-      refetch();
+      refetch({
+        queryKey: ['/api/v1/currency', fromCurrency, toCurrency, amount],
+      } as any);
     }
   };
 
@@ -131,16 +148,15 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
         {conversion && (
           <div className="bg-ios-darker rounded-xl p-4" data-testid="conversion-result">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-ios-gray">
-                {conversion.originalAmount} {conversion.from}
-              </span>
               <span className="text-lg font-bold text-ios-blue">
-                {conversion.convertedAmount} {conversion.to}
+                {conversion.convertedAmount} {toCurrency}
               </span>
             </div>
             <p className="text-xs text-ios-gray">
-              Exchange rate: 1 {conversion.from} = {conversion.rate} {conversion.to}
+              Exchange rate: 1 {fromCurrency} = {conversion.rate} {toCurrency}
             </p>
+            <p className="text-xs text-ios-gray mt-1">{conversion.currencyName}</p>
+            <p className="text-[10px] text-ios-gray mt-1">{conversion.disclaimer}</p>
           </div>
         )}
       </CardContent>

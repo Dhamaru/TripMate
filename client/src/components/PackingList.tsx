@@ -8,40 +8,49 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import type { PackingList as PackingListType } from "@shared/schema";
+import type { PackingList as PackingListType, Trip } from "@shared/schema";
 
 interface PackingItem {
   id: string;
   name: string;
+  quantity: number;
   packed: boolean;
   category?: string;
 }
 
 interface PackingListProps {
   tripId?: string;
+  city?: string;
+  isInternational?: boolean;
   className?: string;
 }
 
-export function PackingList({ tripId, className = '' }: PackingListProps) {
+export function PackingList({ tripId, city, isInternational, className = '' }: PackingListProps) {
   const [newItemName, setNewItemName] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: packingLists, isLoading } = useQuery<PackingListType[]>({
-    queryKey: ['/api/packing-lists'],
+    queryKey: ['/api/v1/packing-lists'],
   });
 
   // Get the current packing list (first one or trip-specific)
-  const currentList = packingLists?.find(list => !tripId || list.tripId === tripId) || packingLists?.[0];
+  const currentList = packingLists?.find(list => !tripId || list.tripId?.toString() === tripId) || packingLists?.[0];
   const items: PackingItem[] = currentList?.items as PackingItem[] || [];
+
+  const { data: trip } = useQuery<Trip>({
+    queryKey: ['/api/v1/trips', tripId || ''],
+    enabled: !!tripId,
+  });
 
   const createListMutation = useMutation({
     mutationFn: async (data: { name: string; tripId?: string; items: PackingItem[] }) => {
-      const response = await apiRequest('POST', '/api/packing-lists', data);
+      const response = await apiRequest('POST', '/api/v1/packing-lists', data);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/packing-lists'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/packing-lists'] });
       toast({
         title: "Success",
         description: "Packing list created successfully",
@@ -55,7 +64,7 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/signin";
         }, 500);
         return;
       }
@@ -69,11 +78,16 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
 
   const updateListMutation = useMutation({
     mutationFn: async (data: { id: string; items: PackingItem[] }) => {
-      const response = await apiRequest('PUT', `/api/packing-lists/${data.id}`, { items: data.items });
+      // Map id to _id for backend persistence to prevent ID churn
+      const itemsForBackend = data.items.map(item => ({
+        ...item,
+        _id: item.id.length === 24 ? item.id : undefined // Only send if it looks like a Mongo ID
+      }));
+      const response = await apiRequest('PUT', `/api/v1/packing-lists/${data.id}`, { items: itemsForBackend });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/packing-lists'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/packing-lists'] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -83,7 +97,7 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/signin";
         }, 500);
         return;
       }
@@ -101,6 +115,7 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
     const newItem: PackingItem = {
       id: Date.now().toString(),
       name: newItemName.trim(),
+      quantity: 1,
       packed: false,
     };
 
@@ -135,52 +150,102 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
     updateListMutation.mutate({ id: currentList.id, items: updatedItems });
   };
 
-  const generateSmartSuggestions = () => {
-    const suggestions = [
-      { name: 'Passport & Documents', category: 'documents' },
-      { name: 'Phone Charger', category: 'electronics' },
-      { name: 'Toothbrush', category: 'toiletries' },
-      { name: 'Sunscreen', category: 'health' },
-      { name: 'Comfortable Walking Shoes', category: 'clothing' },
-      { name: 'First Aid Kit', category: 'health' },
-    ];
+  const generateSmartSuggestions = async () => {
+    try {
+      setSuggesting(true);
+      const base = [
+        { name: 'Phone Charger', category: 'electronics' },
+        { name: 'Toothbrush', category: 'toiletries' },
+        { name: 'Comfortable Walking Shoes', category: 'clothing' },
+        { name: 'First Aid Kit', category: 'health' },
+      ];
+      const effectiveInternational = typeof isInternational === 'boolean' ? isInternational : !!trip?.isInternational;
+      const passportItems = effectiveInternational ? [{ name: 'Passport & Documents', category: 'documents' }] : [];
 
-    // Add suggestions that aren't already in the list
-    const existingNames = items.map(item => item.name.toLowerCase());
-    const newSuggestions = suggestions.filter(
-      suggestion => !existingNames.includes(suggestion.name.toLowerCase())
-    );
+      let weatherItems: Array<{ name: string; category?: string }> = [];
+      const effectiveCity = city || trip?.destination || '';
+      if (effectiveCity) {
+        try {
+          const res = await apiRequest('GET', `/api/v1/weather?city=${encodeURIComponent(effectiveCity)}`);
+          const data = await res.json();
+          const temp = Number(data?.current?.temperature ?? 22);
+          const cond = String(data?.current?.condition || '').toLowerCase();
+          const hum = Number(data?.current?.humidity ?? 60);
+          if (cond.includes('rain')) {
+            weatherItems.push({ name: 'Umbrella', category: 'weather' });
+            weatherItems.push({ name: 'Raincoat', category: 'weather' });
+            weatherItems.push({ name: 'Waterproof Shoes', category: 'clothing' });
+            weatherItems.push({ name: 'Extra Socks', category: 'clothing' });
+          }
+          if (cond.includes('snow') || temp <= 10) {
+            weatherItems.push({ name: 'Warm Jacket', category: 'clothing' });
+            weatherItems.push({ name: 'Thermal Wear', category: 'clothing' });
+            weatherItems.push({ name: 'Gloves', category: 'clothing' });
+            weatherItems.push({ name: 'Scarf', category: 'clothing' });
+            weatherItems.push({ name: 'Beanie', category: 'clothing' });
+          }
+          if (cond.includes('sun') || temp >= 28) {
+            weatherItems.push({ name: 'Sunscreen', category: 'health' });
+            weatherItems.push({ name: 'Sunglasses', category: 'accessories' });
+            weatherItems.push({ name: 'Cap/Hat', category: 'accessories' });
+            weatherItems.push({ name: 'Light Cotton Clothing', category: 'clothing' });
+            weatherItems.push({ name: 'Reusable Water Bottle', category: 'health' });
+          }
+          if (cond.includes('wind')) {
+            weatherItems.push({ name: 'Windcheater', category: 'clothing' });
+          }
+          if (hum >= 70) {
+            weatherItems.push({ name: 'Mosquito Repellent', category: 'health' });
+            weatherItems.push({ name: 'Anti-chafing Powder', category: 'health' });
+          }
+        } catch { }
+      }
 
-    if (newSuggestions.length === 0) {
-      toast({
-        title: "No new suggestions",
-        description: "You already have all common items!",
-      });
-      return;
+      let transportItems: Array<{ name: string; category?: string }> = [];
+      const transport = trip?.transportMode || '';
+      if (transport === 'flight') {
+        transportItems.push({ name: 'Neck Pillow', category: 'accessories' });
+        transportItems.push({ name: 'Eye Mask', category: 'accessories' });
+        transportItems.push({ name: 'Earplugs', category: 'accessories' });
+        transportItems.push({ name: 'Power Bank', category: 'electronics' });
+      } else if (transport === 'train') {
+        transportItems.push({ name: 'Travel Pillow', category: 'accessories' });
+        transportItems.push({ name: 'Snacks', category: 'food' });
+        transportItems.push({ name: 'Water Bottle', category: 'health' });
+      } else if (transport === 'bus') {
+        transportItems.push({ name: 'Travel Blanket', category: 'accessories' });
+        transportItems.push({ name: 'Snacks', category: 'food' });
+      } else if (transport === 'car') {
+        transportItems.push({ name: 'Roadside Kit', category: 'safety' });
+        transportItems.push({ name: 'Car Documents', category: 'documents' });
+      } else if (transport === 'ship') {
+        transportItems.push({ name: 'Motion Sickness Pills', category: 'health' });
+      }
+
+      const suggestions = [...passportItems, ...base, ...weatherItems, ...transportItems];
+      const existingNames = items.map(i => i.name.toLowerCase());
+      const filtered = suggestions.filter(s => !existingNames.includes(s.name.toLowerCase()));
+      if (!filtered.length) {
+        toast({ title: 'No new suggestions', description: 'You already have all recommended items' });
+        return;
+      }
+      const itemsToAdd = filtered.slice(0, 8).map(s => ({
+        id: Date.now().toString() + Math.random(),
+        name: s.name,
+        quantity: 1,
+        packed: false,
+        category: s.category,
+      }));
+      if (currentList) {
+        const updatedItems = [...items, ...itemsToAdd];
+        updateListMutation.mutate({ id: currentList.id, items: updatedItems });
+      } else {
+        createListMutation.mutate({ name: 'My Packing List', tripId, items: itemsToAdd });
+      }
+      toast({ title: 'Smart suggestions added', description: `Added ${itemsToAdd.length} items for ${effectiveCity || 'your trip'}` });
+    } finally {
+      setSuggesting(false);
     }
-
-    const itemsToAdd = newSuggestions.slice(0, 3).map(suggestion => ({
-      id: Date.now().toString() + Math.random(),
-      name: suggestion.name,
-      packed: false,
-      category: suggestion.category,
-    }));
-
-    if (currentList) {
-      const updatedItems = [...items, ...itemsToAdd];
-      updateListMutation.mutate({ id: currentList.id, items: updatedItems });
-    } else {
-      createListMutation.mutate({
-        name: 'My Packing List',
-        tripId,
-        items: itemsToAdd,
-      });
-    }
-
-    toast({
-      title: "Smart suggestions added",
-      description: `Added ${itemsToAdd.length} recommended items`,
-    });
   };
 
   if (isLoading) {
@@ -216,6 +281,7 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
             variant="outline"
             className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card"
             data-testid="button-smart-suggestions"
+            disabled={suggesting}
           >
             <i className="fas fa-lightbulb text-ios-orange mr-1"></i>
             Suggest
@@ -229,8 +295,8 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {items.map((item) => (
-          <div 
-            key={item.id} 
+          <div
+            key={item.id}
             className="flex items-center space-x-3 p-3 bg-ios-darker rounded-xl"
             data-testid={`packing-item-${item.id}`}
           >
@@ -240,10 +306,9 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
               className="border-ios-gray data-[state=checked]:bg-ios-blue"
               data-testid={`checkbox-item-${item.id}`}
             />
-            <span 
-              className={`flex-1 text-sm ${
-                item.packed ? 'line-through text-ios-gray' : 'text-white'
-              }`}
+            <span
+              className={`flex-1 text-sm ${item.packed ? 'line-through text-ios-gray' : 'text-white'
+                }`}
             >
               {item.name}
             </span>
@@ -269,7 +334,7 @@ export function PackingList({ tripId, className = '' }: PackingListProps) {
             onKeyPress={(e) => e.key === 'Enter' && addItem()}
             data-testid="input-new-item"
           />
-          <Button 
+          <Button
             onClick={addItem}
             className="bg-ios-blue hover:bg-blue-600"
             disabled={!newItemName.trim() || createListMutation.isPending || updateListMutation.isPending}

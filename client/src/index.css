@@ -1,4 +1,5 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+@import url('./styles/utilities.css');
 
 @tailwind base;
 @tailwind components;
@@ -37,10 +38,14 @@
   --sidebar-accent-foreground: hsl(203.8863 88.2845% 53.1373%);
   --sidebar-border: hsl(220 13% 18%);
   --sidebar-ring: hsl(203.8863 88.2845% 53.1373%);
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 1.3rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-pill: 9999px;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.30);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.30);
   --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 1px 2px -1px hsl(0 0% 0% / 0.30);
@@ -51,6 +56,12 @@
   --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.30);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
+  --transition-fast: 120ms;
+  --transition-medium: 200ms;
+  --transition-slow: 320ms;
+  --icon-sm: 0.875rem;
+  --icon-md: 1rem;
+  --icon-lg: 1.25rem;
   --ios-blue: hsl(214 100% 50%);
   --ios-orange: hsl(28 100% 50%);
   --ios-green: hsl(145 63% 49%);
@@ -59,16 +70,48 @@
   --ios-dark: hsl(220 13% 11%);
   --ios-darker: hsl(0 0% 0%);
   --ios-card: hsl(220 13% 18%);
+  --surface: hsl(220 13% 14%);
+  --surface-2: hsl(220 13% 18%);
+  --text-primary: hsl(200 7% 92%);
+  --text-secondary: hsl(210 4% 60%);
+  --border-subtle: hsl(220 13% 22%);
+  --border-strong: hsl(220 13% 30%);
+  --sidebar-collapsed: 64px;
+  --sidebar-expanded: 260px;
+  --sidebar-current: var(--sidebar-collapsed);
+  --z-header: 60;
+  --z-sidebar: 50;
+  --z-modal: 80;
+  --z-toast: 90;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: var(--font-sans);
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23007AFF'/><stop offset='100%' stop-color='%23FF9500'/></linearGradient></defs><path fill='url(%23g)' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
+  }
+
+  body.sidebar-expanded {
+    --sidebar-current: var(--sidebar-expanded);
+  }
+
+  body.sidebar-collapsed {
+    --sidebar-current: var(--sidebar-collapsed);
+  }
+
+  .with-sidebar {
+    padding-left: var(--sidebar-current);
+  }
+
+  @media (max-width: 767px) {
+    .with-sidebar {
+      padding-left: 0;
+    }
   }
 
   .gradient-bg {
@@ -103,6 +146,10 @@
     scroll-behavior: smooth;
   }
 
+  a, button, input, select, textarea, [role='button'] {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23007AFF'/><stop offset='100%' stop-color='%23FF9500'/></linearGradient></defs><path fill='url(%23g)' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
+  }
+
   /* Custom scrollbar for dark theme */
   ::-webkit-scrollbar {
     width: 8px;
@@ -130,6 +177,36 @@
 }
 
 @layer utilities {
+  .pt-header-gap {
+    padding-top: calc(64px + 10px);
+  }
+  .responsive-container {
+    width: 100%;
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 640px) {
+    .responsive-container { padding-left: 1.5rem; padding-right: 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .responsive-container { padding-left: 2rem; padding-right: 2rem; }
+  }
+
+  .smooth-transition { transition: all 150ms ease-out; }
+  .hover-lift { transform: translateY(0); transition: transform 150ms ease-out; }
+  .hover-lift:hover { transform: translateY(-2px); }
+  .interactive-tap:active { transform: translateY(0.5px) scale(0.99); }
+  .icon { width: 1em; height: 1em; }
+  .elev-1 { box-shadow: var(--shadow-sm); }
+  .elev-2 { box-shadow: var(--shadow-md); }
+  .text-balance { text-wrap: balance; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .smooth-transition, .hover-lift { transition: none; }
+  }
   .text-ios-blue {
     color: hsl(214 100% 50%);
   }
@@ -216,5 +293,10 @@
 
   .hover\:border-ios-blue:hover {
     border-color: hsl(214 100% 50%);
+  }
+
+  .aspect-feature-card {
+    aspect-ratio: 4 / 5;
+    min-height: 260px;
   }
 }

@@ -3,15 +3,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 export default function Landing() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
   const [tripForm, setTripForm] = useState({
     destination: '',
     budget: '',
     days: '',
     groupSize: ''
   });
+
+  // Redirect authenticated users to home
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate("/app/home");
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   const features = [
     {
@@ -36,13 +49,13 @@ export default function Landing() {
       icon: 'fas fa-language',
       title: 'Smart Translator',
       description: 'Offline translation for 10+ languages with voice input and conversation mode.',
-      color: 'bg-purple-600'
+      color: 'bg-ios-blue'
     },
     {
       icon: 'fas fa-exchange-alt',
       title: 'Currency Converter',
       description: 'Real-time exchange rates for 20+ currencies with offline rate caching.',
-      color: 'bg-yellow-600'
+      color: 'bg-ios-orange'
     },
     {
       icon: 'fas fa-shield-alt',
@@ -55,7 +68,7 @@ export default function Landing() {
   const travelStyles = [
     { icon: 'fas fa-backpack', name: 'Adventure', color: 'text-ios-blue' },
     { icon: 'fas fa-spa', name: 'Relaxation', color: 'text-ios-orange' },
-    { icon: 'fas fa-landmark', name: 'Cultural', color: 'text-purple-400' },
+    { icon: 'fas fa-landmark', name: 'Cultural', color: 'text-ios-blue' },
     { icon: 'fas fa-utensils', name: 'Culinary', color: 'text-ios-green' }
   ];
 
@@ -67,14 +80,14 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16">
             <TripMateLogo size="md" />
             <div className="hidden md:flex items-center space-x-4">
-              <a href="#features" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+              <a href="#features" className="text-ios-gray hover:text-white px-3 py-2 rounded-lg text-sm font-medium smooth-transition interactive-tap min-tap-target">
                 Features
               </a>
-              <a href="#dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                Dashboard
+              <a href="#support" className="text-ios-gray hover:text-white px-3 py-2 rounded-lg text-sm font-medium smooth-transition interactive-tap min-tap-target">
+                Support
               </a>
-              <Button 
-                onClick={() => window.location.href = '/api/login'}
+              <Button
+                onClick={() => window.location.href = '/signin'}
                 className="bg-ios-blue hover:bg-blue-600"
                 data-testid="button-sign-in"
               >
@@ -82,7 +95,7 @@ export default function Landing() {
               </Button>
             </div>
             <div className="md:hidden">
-              <button className="text-gray-300 hover:text-white">
+              <button className="text-ios-gray hover:text-white smooth-transition interactive-tap min-tap-target">
                 <i className="fas fa-bars text-xl"></i>
               </button>
             </div>
@@ -91,9 +104,9 @@ export default function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-16 min-h-screen flex items-center">
+      <section className="min-h-screen flex items-center pt-header-gap">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center">
+          <motion.div className="text-center" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <div className="mb-8">
               <TripMateLogo size="lg" className="justify-center mb-6" />
             </div>
@@ -108,22 +121,15 @@ export default function Landing() {
               From trip planning to real-time guidance, we've got your journey covered.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                onClick={() => window.location.href = '/api/login'}
-                className="bg-ios-blue hover:bg-blue-600 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all transform hover:scale-105"
+              <Button
+                onClick={() => window.location.href = '/signin'}
+                className="bg-ios-blue hover:bg-blue-600 text-white px-8 py-4 radius-md text-lg font-semibold smooth-transition interactive-tap"
                 data-testid="button-start-planning"
               >
-                Start Planning
-              </Button>
-              <Button 
-                variant="outline"
-                className="bg-ios-card hover:bg-gray-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all transform hover:scale-105 border border-ios-gray"
-                data-testid="button-watch-demo"
-              >
-                Watch Demo
+                Sign In
               </Button>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -141,19 +147,20 @@ export default function Landing() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <Card 
-                key={index} 
-                className="bg-ios-card border-ios-gray hover:transform hover:scale-105 transition-all duration-300"
-                data-testid={`feature-card-${index}`}
-              >
-                <CardContent className="p-6">
-                  <div className={`w-12 h-12 ${feature.color} rounded-xl flex items-center justify-center mb-4`}>
-                    <i className={`${feature.icon} text-white text-xl`}></i>
-                  </div>
-                  <h3 className="text-xl font-bold mb-3 text-white">{feature.title}</h3>
-                  <p className="text-ios-gray mb-4">{feature.description}</p>
-                </CardContent>
-              </Card>
+              <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: index * 0.05 }} className="">
+                <Card 
+                  className="bg-ios-card border-ios-gray elev-1 hover-lift smooth-transition radius-md"
+                  data-testid={`feature-card-${index}`}
+                >
+                  <CardContent className="p-6">
+                    <div className={`w-12 h-12 ${feature.color} rounded-xl flex items-center justify-center mb-4`}>
+                      <i className={`${feature.icon} text-white text-xl`}></i>
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 text-white">{feature.title}</h3>
+                    <p className="text-ios-gray mb-4">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -172,7 +179,7 @@ export default function Landing() {
           </div>
 
           <div className="max-w-4xl mx-auto">
-            <Card className="bg-ios-card border-ios-gray">
+            <Card className="bg-ios-card border-ios-gray elev-1">
               <CardContent className="p-8">
                 <form className="space-y-6" data-testid="trip-planner-form">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -247,7 +254,7 @@ export default function Landing() {
                         <button
                           key={index}
                           type="button"
-                          className="bg-ios-darker border border-ios-gray rounded-xl p-3 text-center hover:border-ios-blue transition-colors"
+                          className="bg-ios-darker border border-ios-gray radius-md p-3 text-center hover:border-ios-blue smooth-transition"
                           data-testid={`travel-style-${index}`}
                         >
                           <i className={`${style.icon} ${style.color} mb-2 text-lg`}></i>
@@ -259,11 +266,11 @@ export default function Landing() {
 
                   <Button
                     type="button"
-                    onClick={() => window.location.href = '/api/login'}
+                    onClick={() => window.location.href = '/signin'}
                     className="w-full bg-gradient-to-r from-ios-blue to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-4 rounded-xl text-lg font-semibold transition-all transform hover:scale-105"
                     data-testid="button-generate-itinerary"
                   >
-                    Generate My Itinerary
+                    Sign In to Generate Itinerary
                   </Button>
                 </form>
               </CardContent>
@@ -273,7 +280,7 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-ios-darker border-t border-ios-card py-12">
+      <footer id="support" className="bg-ios-darker border-t border-ios-card py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">

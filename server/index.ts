@@ -1,8 +1,14 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import cluster from "cluster";
+import os from "os";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { connectDB } from "./db";
 
 const app = express();
+app.locals.ready = false;
+app.set("etag", false);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -36,15 +42,18 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
+(async function start() {
+  await connectDB();
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    const status = err?.status || err?.statusCode || 500;
+    const message = err?.message || "Internal Server Error";
+    try {
+      res.status(status).json({ message });
+    } catch {}
+    console.error('[error]', status, message);
+    // do NOT throw, keep process alive
   });
 
   // importantly only setup vite in development and after
@@ -56,16 +65,43 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  // Serve app on fixed port 5000 by default
+  const port = 5000;
+  server.listen(port, "0.0.0.0", () => {
+    app.locals.ready = true;
+    log(`serving on port ${port} pid=${process.pid}`);
+  });
+
+  const shutdown = (signal: string) => {
+    try {
+      log(`received ${signal}, starting graceful shutdown`);
+      app.locals.ready = false;
+      server.close(() => {
+        log("server closed, exiting");
+        process.exit(0);
+      });
+      setTimeout(() => process.exit(0), 10000);
+    } catch {
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('uncaughtException', (e) => {
+    console.error('uncaughtException', e);
+  });
+  process.on('unhandledRejection', (e) => {
+    console.error('unhandledRejection', e);
   });
 })();
+
+if (process.env.NODE_ENV === 'production' && process.env.CLUSTER === '1' && cluster.isPrimary) {
+  const workers = parseInt(process.env.CLUSTER_WORKERS || String(os.cpus().length), 10);
+  log(`starting cluster with ${workers} workers`);
+  for (let i = 0; i < workers; i++) cluster.fork();
+  cluster.on('exit', (worker) => {
+    log(`worker ${worker.process.pid} exited, respawning`);
+    cluster.fork();
+  });
+}

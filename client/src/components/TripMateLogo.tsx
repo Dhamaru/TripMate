@@ -29,7 +29,7 @@ export function TripMateLogo({ size = 'md', showText = true, className = '' }: T
         <i className={`fas fa-plane text-white ${iconSizeClasses[size]}`}></i>
       </div>
       {showText && (
-        <span className={`font-bold text-white ${textSizeClasses[size]}`}>
+        <span className={`font-bold text-foreground ${textSizeClasses[size]}`}>
           TripMate
         </span>
       )}

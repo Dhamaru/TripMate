@@ -1,0 +1,42 @@
+@layer utilities {
+  .page-section { padding-block: 2rem; }
+  .radius-md { border-radius: var(--radius); }
+  .z-header { z-index: var(--z-header); }
+  .z-sidebar { z-index: var(--z-sidebar); }
+  .z-modal { z-index: var(--z-modal); }
+  .z-toast { z-index: var(--z-toast); }
+  .tap-scale:active { transform: scale(0.97); }
+  @media (hover: none) { .tap-scale:active { transform: scale(0.97); } }
+  .fade-in { animation: fadeIn var(--transition-fast) ease-out; }
+  .slide-up { animation: slideUp var(--transition-fast) ease-out; }
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@layer utilities {
+  .card-filled { background-color: var(--surface-2); border-color: var(--border-subtle); }
+  .card-outlined { background-color: transparent; border-color: var(--border-strong); }
+  .card-quiet { background-color: var(--surface); border-color: var(--border-subtle); }
+  .btn-loading { position: relative; pointer-events: none; opacity: 0.85; }
+  .btn-loading::after { content: ""; position: absolute; right: 0.75rem; top: 50%; width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,0.6); border-top-color: transparent; border-radius: 9999px; transform: translateY(-50%); animation: spin var(--transition-medium) linear infinite; }
+}
+
+@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+@layer utilities {
+  .icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
+  .icon-md { width: var(--icon-md); height: var(--icon-md); }
+  .icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
+  .input-subtle { border-color: var(--border-subtle); }
+  .min-tap-target { min-width: 44px; min-height: 44px; }
+  .grid-cards { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 640px) { .grid-cards { grid-template-columns: 1fr; } }
+  .map-container { width: 100%; max-width: 100%; }
+  .text-min-14 { font-size: 14px; }
+  .section-title { font-weight: 700; color: var(--text-primary); }
+  .subtle-text { color: var(--text-secondary); }
+  .chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-primary); }
+  .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-foreground); }
+  .tooltip-fade { transition: opacity 120ms ease-out; }
+}

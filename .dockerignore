@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.github
+.vscode
+.env
+coverage
+test
+*.test.ts
+*.spec.ts
+README.md

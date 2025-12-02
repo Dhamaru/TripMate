@@ -1,6 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 
 interface EmergencyService {
   id: string;
@@ -20,50 +24,68 @@ interface EmergencyServicesProps {
 
 export function EmergencyServices({ location = "Current Location", className = '' }: EmergencyServicesProps) {
   const { toast } = useToast();
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [locString, setLocString] = useState<string>(location);
+  const [geoError, setGeoError] = useState<string>("");
+
+  useEffect(() => {
+    setLocString(location);
+  }, [location]);
+
+  const requestLocation = () => {
+    setGeoError("");
+    if (!("geolocation" in navigator)) {
+      setGeoError("Location not supported");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const lat = Number(latitude.toFixed(5));
+        const lon = Number(longitude.toFixed(5));
+        setCoords({ lat, lon });
+        setLocString(`${lat},${lon}`);
+        toast({ title: "Location Enabled", description: "Using your current location" });
+      },
+      () => {
+        setGeoError("Location permission denied");
+        toast({ title: "Location Denied", description: "Showing generic emergency info", variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  const { data: fetchedServices, isLoading, error } = useQuery<EmergencyService[]>({
+    queryKey: ['/api/v1/emergency', locString],
+    enabled: !!locString,
+    queryFn: async ({ queryKey }) => {
+      const [, loc] = queryKey as [string, string];
+      const res = await apiRequest('GET', `/api/v1/emergency?location=${encodeURIComponent(loc)}`);
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
 
   // Mock emergency services data - in production, this would come from a real API
   const emergencyServices: EmergencyService[] = [
-    {
-      id: '1',
-      name: 'City General Hospital',
-      type: 'hospital',
-      address: '123 Medical Center Dr',
-      phone: '+1 (555) 123-4567',
-      distance: '0.8 km',
-      latitude: 40.7128,
-      longitude: -74.0060,
-    },
-    {
-      id: '2',
-      name: 'Central Police Station',
-      type: 'police',
-      address: '456 Police Plaza',
-      phone: '+1 (555) 911-0000',
-      distance: '1.2 km',
-      latitude: 40.7129,
-      longitude: -74.0061,
-    },
-    {
-      id: '3',
-      name: 'US Embassy',
-      type: 'embassy',
-      address: '789 Embassy Row',
-      phone: '+1 (555) 234-5678',
-      distance: '2.1 km',
-      latitude: 40.7130,
-      longitude: -74.0062,
-    },
-    {
-      id: '4',
-      name: '24/7 Pharmacy Plus',
-      type: 'pharmacy',
-      address: '321 Health Ave',
-      phone: '+1 (555) 345-6789',
-      distance: '0.5 km',
-      latitude: 40.7127,
-      longitude: -74.0059,
-    },
+    { id: '1', name: 'AIIMS Hospital', type: 'hospital', address: 'Ansari Nagar, New Delhi', phone: '108', distance: '—', latitude: 28.5672, longitude: 77.2100 },
+    { id: '2', name: 'Delhi Police Station', type: 'police', address: 'Connaught Place, New Delhi', phone: '100', distance: '—', latitude: 28.6304, longitude: 77.2177 },
+    { id: '3', name: 'Embassy of India', type: 'embassy', address: 'Chanakyapuri, New Delhi', phone: '+91-11-2301-7100', distance: '—', latitude: 28.6000, longitude: 77.2000 },
+    { id: '4', name: 'Apollo Pharmacy', type: 'pharmacy', address: 'Karol Bagh, New Delhi', phone: '1860-500-0100', distance: '—', latitude: 28.6517, longitude: 77.1925 },
   ];
+
+  const servicesWithDistance = useMemo(() => {
+    const calc = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+    if (!coords) return emergencyServices;
+    return emergencyServices.map(s => ({ ...s, distance: `${calc(coords.lat, coords.lon, s.latitude, s.longitude).toFixed(1)} km` }));
+  }, [coords]);
 
   const serviceIcons: Record<EmergencyService['type'], { icon: string; color: string }> = {
     hospital: { icon: 'fas fa-hospital', color: 'text-ios-red' },
@@ -75,18 +97,11 @@ export function EmergencyServices({ location = "Current Location", className = '
 
   const handleSOSCall = () => {
     toast({
-      title: "Emergency Call Initiated",
-      description: "Connecting to emergency services...",
+      title: "SOS Call",
+      description: "Dialing emergency services...",
       variant: "destructive",
     });
-    
-    // In a real app, this would initiate an actual emergency call
-    setTimeout(() => {
-      toast({
-        title: "Call Connected",
-        description: "Emergency services have been contacted",
-      });
-    }, 2000);
+    window.location.href = 'tel:112';
   };
 
   const handleCallService = (service: EmergencyService) => {
@@ -94,10 +109,8 @@ export function EmergencyServices({ location = "Current Location", className = '
       title: "Calling Service",
       description: `Calling ${service.name}...`,
     });
-    
-    // In a real app, this would initiate a call or show directions
-    // For web, we can't directly make calls, but we could open tel: links
-    window.open(`tel:${service.phone}`, '_self');
+    const sanitized = service.phone.replace(/[^+\d]/g, '');
+    window.location.href = `tel:${sanitized}`;
   };
 
   const handleGetDirections = (service: EmergencyService) => {
@@ -111,6 +124,7 @@ export function EmergencyServices({ location = "Current Location", className = '
     });
   };
 
+  const services = fetchedServices && fetchedServices.length ? fetchedServices : servicesWithDistance;
   return (
     <Card className={`bg-ios-card border-ios-gray ${className}`} data-testid="emergency-services">
       <CardHeader>
@@ -118,10 +132,16 @@ export function EmergencyServices({ location = "Current Location", className = '
           <i className="fas fa-shield-alt text-ios-red mr-2"></i>
           Emergency Services
         </CardTitle>
-        <p className="text-sm text-ios-gray">Near {location}</p>
+        <p className="text-sm text-ios-gray">{coords ? "Near your location" : `Near ${location}`}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* SOS Button */}
+        <div className="flex items-center justify-between">
+          <Button onClick={requestLocation} className="bg-ios-blue hover:bg-blue-600" data-testid="button-enable-location">
+            <i className="fas fa-location-arrow mr-2"></i>
+            Enable Location
+          </Button>
+          {geoError && <span className="text-xs text-red-400">{geoError}</span>}
+        </div>
         <Button
           onClick={handleSOSCall}
           className="w-full bg-ios-red hover:bg-red-600 text-white font-bold py-4 text-lg"
@@ -130,14 +150,19 @@ export function EmergencyServices({ location = "Current Location", className = '
           <i className="fas fa-phone mr-2"></i>
           SOS EMERGENCY CALL
         </Button>
-
-        {/* Emergency Services List */}
         <div className="space-y-3">
-          {emergencyServices.map((service) => (
-            <div 
+          {isLoading && (
+            <div className="text-center py-6 text-ios-gray" data-testid="emergency-loading">Loading…</div>
+          )}
+          {!isLoading && services.map((service, idx) => (
+            <motion.div 
               key={service.id} 
               className="bg-ios-darker rounded-xl p-4"
               data-testid={`emergency-service-${service.id}`}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: idx * 0.05 }}
+              viewport={{ once: true }}
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center space-x-3">
@@ -176,7 +201,7 @@ export function EmergencyServices({ location = "Current Location", className = '
                   Directions
                 </Button>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 
@@ -187,9 +212,9 @@ export function EmergencyServices({ location = "Current Location", className = '
             Emergency Numbers
           </h4>
           <div className="space-y-1 text-sm">
-            <p className="text-white"><strong>Police:</strong> 911 (US) / 112 (EU)</p>
-            <p className="text-white"><strong>Medical:</strong> 911 (US) / 112 (EU)</p>
-            <p className="text-white"><strong>Fire:</strong> 911 (US) / 112 (EU)</p>
+            <p className="text-white"><strong>Police:</strong> 100 (India) / 112 (National)</p>
+            <p className="text-white"><strong>Medical (Ambulance):</strong> 108 (India) / 112 (National)</p>
+            <p className="text-white"><strong>Fire:</strong> 101 (India) / 112 (National)</p>
           </div>
         </div>
 

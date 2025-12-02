@@ -1,12 +1,17 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import * as schema from "@shared/schema";
+import mongoose from "mongoose";
+import { connectMongo } from "@shared/schema";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a PostgreSQL database?",
-  );
-}
-
-const sql = neon(process.env.DATABASE_URL);
-export const db = drizzle(sql, { schema });
+export const connectDB = async () => {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.warn("MONGODB_URI not set; starting without database connection");
+    return;
+  }
+  try {
+    await connectMongo(uri);
+    console.log("MongoDB connected successfully");
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    process.exit(1);
+  }
+};
