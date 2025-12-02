@@ -26,7 +26,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user } = useAuth() as any;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen w-full bg-black text-white">
@@ -112,7 +111,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </button>
             <div className="flex items-center gap-2">
               <TripMateLogo size="sm" />
-              <span className="font-bold text-white hidden sm:inline-block">TripMate</span>
             </div>
           </div>
 

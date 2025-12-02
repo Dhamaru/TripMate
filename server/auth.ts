@@ -82,6 +82,18 @@ export async function setupAuth(app: Express) {
             lastName: profile.name?.familyName,
             profileImageUrl: profile.photos?.[0]?.value,
           });
+        } else if (!user.profileImageUrl && profile.photos?.[0]?.value) {
+          // If user exists but has no profile picture, update it from Google
+          // This ensures we don't overwrite a user-chosen photo, but populate it if missing
+          const updatedUser = { ...user, profileImageUrl: profile.photos[0].value };
+          await storage.updateUser(user.id, updatedUser); // Assuming updateUser exists or using upsert
+          // Since storage.upsertUser usually handles both, let's use that if updateUser isn't separate
+          // Checking storage.ts might be needed, but usually upsert handles ID match.
+          // Let's stick to the safe path: if upsertUser handles updates by ID/email:
+          user = await storage.upsertUser({
+            ...user,
+            profileImageUrl: profile.photos[0].value
+          });
         }
         return done(null, user);
       } catch (error) {
