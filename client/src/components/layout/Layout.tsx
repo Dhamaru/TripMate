@@ -45,15 +45,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link key={item.href} href={item.href}>
                   <div
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer",
+                      "flex items-center gap-3 rounded-lg transition-all cursor-pointer relative group",
+                      sidebarCollapsed ? "px-3 py-3 justify-center" : "px-3 py-2",
                       isActive
                         ? "bg-ios-blue text-white"
                         : "text-ios-gray hover:bg-ios-card hover:text-white"
                     )}
+                    title={sidebarCollapsed ? item.label : undefined}
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
                     {!sidebarCollapsed && (
-                      <span className="font-medium">{item.label}</span>
+                      <span className="font-medium whitespace-nowrap">{item.label}</span>
+                    )}
+                    {/* Tooltip for collapsed state */}
+                    {sidebarCollapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-ios-card border border-ios-gray rounded text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                        {item.label}
+                      </div>
                     )}
                   </div>
                 </Link>
@@ -65,7 +73,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="p-2 border-t border-ios-gray">
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-ios-gray hover:bg-ios-card hover:text-white transition-all"
+              className={cn(
+                "w-full flex items-center gap-2 rounded-lg text-ios-gray hover:bg-ios-card hover:text-white transition-all",
+                sidebarCollapsed ? "px-3 py-3 justify-center" : "px-3 py-2"
+              )}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
                 <ChevronRight className="h-5 w-5" />
