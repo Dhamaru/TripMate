@@ -323,8 +323,50 @@ export default function Landing() {
             </div>
           </div>
 
+          {/* Team Credits */}
+          <div className="mt-12">
+            <h3 className="text-white font-semibold text-center mb-6 text-xl">Meet the Team</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <Card className="bg-ios-card border-ios-gray">
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-ios-blue rounded-full flex items-center justify-center flex-shrink-0">
+                      <i className="fas fa-lightbulb text-white text-xl"></i>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-lg mb-1">Sai Naidu .B</h4>
+                      <p className="text-ios-blue text-sm font-semibold mb-2">Product Visionary & UX Designer</p>
+                      <p className="text-ios-gray text-sm">
+                        Conceptualized the core features and user experience that make TripMate intuitive and powerful.
+                        Responsible for the creative vision and innovative ideas that shape the product.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-ios-card border-ios-gray">
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-ios-green rounded-full flex items-center justify-center flex-shrink-0">
+                      <i className="fas fa-code text-white text-xl"></i>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-lg mb-1">Dhamarunath .K</h4>
+                      <p className="text-ios-green text-sm font-semibold mb-2">Lead Developer & DevOps Engineer</p>
+                      <p className="text-ios-gray text-sm">
+                        Architected and implemented the entire technical infrastructure, from backend systems to deployment.
+                        Manages hosting, databases, and ensures seamless performance across all platforms.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
           <div className="border-t border-ios-card mt-8 pt-8 text-center text-sm text-ios-gray">
-            <p>&copy; 2025 TripMate. All rights reserved. Created by Dhamaru K with ❤️ for travelers worldwide.</p>
+            <p>&copy; 2025 TripMate. All rights reserved. Made with ❤️ for travelers worldwide.</p>
           </div>
         </div>
       </footer>
