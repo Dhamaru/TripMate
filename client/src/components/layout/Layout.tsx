@@ -16,7 +16,7 @@ import {
 
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: "/app/home" },
-  { label: "Trips", icon: Compass, href: "/app/planner" },
+  { label: "Trips", icon: Compass, href: "/app/trips" },
   { label: "Tools", icon: Grid, href: "/app/tools" },
   { label: "Feedback", icon: MessageSquare, href: "/app/feedback" },
 ];

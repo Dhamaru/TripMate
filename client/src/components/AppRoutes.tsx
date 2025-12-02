@@ -31,6 +31,7 @@ import TranslatePage from "@/pages/app/translate";
 import EmergencyPage from "@/pages/app/emergency";
 import Tools from "@/pages/Tools";
 import Feedback from "@/pages/Feedback";
+import TripsHistory from "@/pages/TripsHistory";
 import NotFound from "@/pages/not-found";
 
 import AuthLayout from "@/components/layout/AuthLayout";
@@ -121,6 +122,13 @@ function Router() {
         <ProtectedRoute>
           <AppLayout>
             <TripPlanner />
+          </AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/app/trips">
+        <ProtectedRoute>
+          <AppLayout>
+            <TripsHistory />
           </AppLayout>
         </ProtectedRoute>
       </Route>
