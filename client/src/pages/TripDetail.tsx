@@ -886,7 +886,7 @@ export default function TripDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <PackingList tripId={trip.id?.toString()} city={trip.destination} isInternational={trip.isInternational} />
+            {/* Packing list removed as requested */}
           </div>
         </div>
       </div>
