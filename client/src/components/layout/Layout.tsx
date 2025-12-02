@@ -32,10 +32,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Sidebar - Desktop */}
       <aside
         className={cn(
-          "hidden md:flex flex-col bg-[#0d1117] border-r border-gray-800 transition-all duration-300 ease-in-out fixed left-0 top-16 bottom-0 z-40",
+          "hidden md:flex flex-col bg-[#0d1117] border-r border-gray-800 transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
+        {/* Sidebar Header - Logo */}
+        <div className={cn(
+          "h-16 flex items-center border-b border-gray-800",
+          sidebarCollapsed ? "justify-center px-2" : "px-4 gap-3"
+        )}>
+          <TripMateLogo size="sm" />
+          {!sidebarCollapsed && (
+            <span className="font-bold text-white whitespace-nowrap">TripMate</span>
+          )}
+        </div>
+
         {/* Sidebar Content */}
         <div className="flex-1 flex flex-col pt-4">
           {/* Navigation Items */}
@@ -101,17 +112,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}>
         {/* Top Navigation Bar - Glass Effect */}
         <header className="h-16 bg-[#010409]/80 backdrop-blur-md border-b border-gray-800 px-4 flex items-center justify-between sticky top-0 z-50">
-          {/* Left: Hamburger & Logo */}
-          <div className="flex items-center gap-4">
-            <button
-              className="p-1 text-gray-400 hover:text-white border border-gray-700 rounded-md hover:border-gray-500 transition-colors"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+          {/* Left: Hamburger (Mobile Only) & Logo (Mobile Only) */}
+          <div className="flex items-center gap-4 md:hidden">
+            {/* Mobile Logo */}
             <div className="flex items-center gap-2">
               <TripMateLogo size="sm" />
+              <span className="font-bold text-white">TripMate</span>
             </div>
+          </div>
+
+          {/* Desktop Left: Empty or Breadcrumbs? */}
+          <div className="hidden md:flex items-center gap-4">
+            {/* Logo is now in Sidebar, so this can be empty or have a page title */}
           </div>
 
           {/* Right: Profile */}
