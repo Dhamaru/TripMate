@@ -30,6 +30,7 @@ import WeatherPage from "@/pages/app/weather";
 import TranslatePage from "@/pages/app/translate";
 import EmergencyPage from "@/pages/app/emergency";
 import Tools from "@/pages/Tools";
+import Feedback from "@/pages/Feedback";
 import NotFound from "@/pages/not-found";
 
 import AuthLayout from "@/components/layout/AuthLayout";
@@ -141,6 +142,13 @@ function Router() {
         <ProtectedRoute>
           <AppLayout>
             <PackingListPage />
+          </AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/app/feedback">
+        <ProtectedRoute>
+          <AppLayout>
+            <Feedback />
           </AppLayout>
         </ProtectedRoute>
       </Route>

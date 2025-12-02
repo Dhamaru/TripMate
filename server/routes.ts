@@ -2355,6 +2355,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return daysArray;
   }
 
+  // Feedback submission endpoint
+  app.post('/api/v1/feedback', async (req, res) => {
+    try {
+      const { type, category, subject, description, email } = req.body;
+
+      if (!type || !category || !subject || !description || !email) {
+        return res.status(400).json({ message: 'All fields are required' });
+      }
+
+      // Send email notification (if email service is configured)
+      try {
+        const nodemailer = await import('nodemailer');
+        const transporter = nodemailer.default.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        const typeEmoji = type === 'bug' ? '🐛' : type === 'feature' ? '✨' : type === 'feedback' ? '💡' : '📝';
+
+        await transporter.sendMail({
+          from: `"TripMate Feedback" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
+          to: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+          replyTo: email,
+          subject: `${typeEmoji} [${type.toUpperCase()}] ${subject}`,
+          html: `
+            <h2>New ${type.charAt(0).toUpperCase() + type.slice(1)} Submission</h2>
+            <p><strong>Type:</strong> ${type}</p>
+            <p><strong>Category:</strong> ${category}</p>
+            <p><strong>From:</strong> ${email}</p>
+            <p><strong>Subject:</strong> ${subject}</p>
+            <hr>
+            <p><strong>Description:</strong></p>
+            <p>${description.replace(/\n/g, '<br>')}</p>
+            <hr>
+            <p style="color: #666; font-size: 12px;">Submitted via TripMate Feedback Form</p>
+          `,
+        });
+      } catch (emailError) {
+        console.error('Failed to send feedback email:', emailError);
+        // Continue even if email fails
+      }
+
+      res.json({ success: true, message: 'Feedback submitted successfully' });
+    } catch (error) {
+      console.error('Feedback submission error:', error);
+      res.status(500).json({ message: 'Failed to submit feedback' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
