@@ -1898,7 +1898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Geocoding proxy: OpenWeatherMap Direct Geocoding, first result only, with input sanitization and caching
+  // Geocoding proxy: Google Places API (primary) with OpenWeatherMap fallback
   app.get('/api/v1/geocode', optionalAuth, async (req: any, res) => {
     try {
       const raw = String(req.query.query || req.query.q || '').trim();
@@ -1907,8 +1907,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .replace(/[\u0000-\u001F]+/g, ' ')
         .replace(/\s{2,}/g, ' ')
         .trim();
-      const key = process.env.WEATHER_API_KEY;
-      if (!key) return res.status(503).json({ error: 'weather api key missing' });
 
       const cache: Map<string, { ts: number; value: any }> = (req.app.locals as any).geocodeCache || new Map();
       (req.app.locals as any).geocodeCache = cache;
@@ -1918,15 +1916,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cached.value);
       }
 
-      const r = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(sanitized)}&limit=1&appid=${key}`);
-      let list = await r.json().catch(() => []);
-      if (!r.ok || !Array.isArray(list) || list.length === 0) {
+      let results: any[] = [];
+
+      // Try Google Places API first
+      const googleKey = process.env.GOOGLE_PLACES_API_KEY;
+      if (googleKey) {
         try {
-          const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&dedupe=1&limit=1&q=${encodeURIComponent(sanitized)}`;
-          const rn = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
-          const arr = await rn.json();
-          if (Array.isArray(arr) && arr.length) {
-            const it = arr[0];
+          const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(sanitized)}&language=en&key=${googleKey}`;
+          const googleRes = await fetch(googleUrl);
+          const googleData = await googleRes.json();
+
+          if (googleData.status === 'OK' && googleData.results && googleData.results.length > 0) {
+            results = googleData.results.slice(0, 5).map((place: any) => ({
+              name: place.name || '',
+              lat: place.geometry?.location?.lat || 0,
+              lon: place.geometry?.location?.lng || 0,
+              display_name: place.formatted_address || place.name || '',
+              state: '',
+              country: '',
+              source: 'google'
+            }));
+            cache.set(sanitized, { ts: Date.now(), value: results });
+            return res.json(results);
+          }
+        } catch (err) {
+          console.error('Google Places API error:', err);
+          // Fall through to OpenWeather
+        }
+      }
+
+      // Fallback to OpenWeather if Google failed or not configured
+      const weatherKey = process.env.WEATHER_API_KEY;
+      if (weatherKey) {
+        try {
+          const r = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(sanitized)}&limit=5&appid=${weatherKey}`);
+          let list = await r.json().catch(() => []);
+          if (r.ok && Array.isArray(list) && list.length > 0) {
+            results = list.map((first: any) => {
+              const name = String((first.local_names && (first.local_names.en || first.local_names['en'])) || first.name || '').trim();
+              const state = String(first.state || '').trim();
+              const country = String(first.country || '').trim();
+              const lat = Number(first.lat);
+              const lon = Number(first.lon);
+              const displayName = [name, state, country].filter(Boolean).join(', ');
+              return { name, state, country, lat, lon, displayName };
+            });
+            cache.set(sanitized, { ts: Date.now(), value: results });
+            return res.json(results);
+          }
+        } catch (err) {
+          console.error('OpenWeather geocode error:', err);
+        }
+      }
+
+      // Last resort: try Nominatim
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&dedupe=1&limit=5&q=${encodeURIComponent(sanitized)}`;
+        const rn = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
+        const arr = await rn.json();
+        if (Array.isArray(arr) && arr.length) {
+          results = arr.map((it: any) => {
             const addr = it.address || {};
             const namedetails = it.namedetails || {};
             const name = String(namedetails['name:en'] || it.localname || it.display_name?.split(',')[0] || '').trim();
@@ -1935,23 +1984,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const lat = Number(it.lat);
             const lon = Number(it.lon);
             const displayName = [name, state, country].filter(Boolean).join(', ');
-            const payload = { name, state, country, lat, lon, displayName };
-            cache.set(sanitized, { ts: Date.now(), value: payload });
-            return res.json(payload);
-          }
-        } catch { }
-        return res.status(404).json({ error: 'Location not found' });
+            return { name, state, country, lat, lon, displayName };
+          });
+          cache.set(sanitized, { ts: Date.now(), value: results });
+          return res.json(results);
+        }
+      } catch (err) {
+        console.error('Nominatim geocode error:', err);
       }
-      const first = list[0];
-      const name = String((first.local_names && (first.local_names.en || first.local_names['en'])) || first.name || '').trim();
-      const state = String(first.state || '').trim();
-      const country = String(first.country || '').trim();
-      const lat = Number(first.lat);
-      const lon = Number(first.lon);
-      const displayName = [name, state, country].filter(Boolean).join(', ');
-      const payload = { name, state, country, lat, lon, displayName };
-      cache.set(sanitized, { ts: Date.now(), value: payload });
-      return res.json(payload);
+
+      return res.status(404).json({ error: 'Location not found' });
     } catch (error) {
       console.error('Geocode error:', error);
       return res.status(500).json({ error: 'geocode failed' });
