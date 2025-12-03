@@ -673,215 +673,278 @@ export default function TripDetail() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-ios-card border-ios-gray">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">AI Trip Planner</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Location</label>
-                  <Input type="text" value={tripForm.destination} disabled className="bg-ios-darker border-ios-gray text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
-                  <Input type="number" value={aiBudget} onChange={(e) => setAiBudget(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Number of People</label>
-                  <Input type="number" value={aiGroupSize} onChange={(e) => setAiGroupSize(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
-                </div>
-              </div>
-              <Card className="bg-ios-card border-ios-gray">
-                <CardHeader>
-                  <CardTitle className="text-white text-base">Weather Forecast</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {weather ? (
-                    <div className="space-y-3">
-                      <div className="text-sm text-white">
-                        <span className="font-semibold">Current:</span> {Number(weather?.current?.temperature)}°C • {String(weather?.current?.condition || '')}
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {(Array.isArray(weather?.forecast) ? weather.forecast.slice(0, 6) : []).map((d: any, idx: number) => (
-                          <div key={`wf-${idx}`} className="text-xs text-white bg-ios-darker radius-md p-2">
-                            <div className="font-semibold">{String(d.day)}</div>
-                            <div className="text-ios-gray">{Number(d.low)}° / {Number(d.high)}° • {String(d.condition)}</div>
+        {/* Itinerary Card */}
+        {trip.itinerary && Array.isArray(trip.itinerary) && trip.itinerary.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold text-white">Your Itinerary</h3>
+            <div className="space-y-4">
+              {trip.itinerary.map((d: any) => (
+                <Card key={`day-${d.day}`} className="bg-ios-card border-ios-gray">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">Day {Number(d.day)}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {Array.isArray(d.activities) && d.activities.map((a: any, idx: number) => (
+                      <div key={`act-${d.day}-${idx}`} className="relative pl-6 border-l-2 border-ios-gray last:border-0 pb-4 last:pb-0">
+                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-ios-blue border-2 border-[#0d1117]"></div>
+                        <div className="space-y-1">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="text-sm font-semibold text-white">{String(a.time)}</div>
+                              <div className="text-base font-medium text-ios-blue">{String(a.placeName || a.title || '')}</div>
+                              {a.address && (
+                                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-gray hover:text-white underline transition-colors">
+                                  {String(a.address)}
+                                </a>
+                              )}
+                            </div>
+                            <div className="text-sm text-ios-green font-medium">
+                              {typeof a.entryFeeINR === 'number' && a.entryFeeINR > 0 ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : 'Free'}
+                            </div>
                           </div>
-                        ))}
+                          <div className="flex items-center gap-3 text-xs text-ios-gray">
+                            {typeof a.duration_minutes === 'number' && (
+                              <span className="flex items-center gap-1">
+                                <i className="fas fa-clock"></i> {Number(a.duration_minutes)} min
+                              </span>
+                            )}
+                            {a.routeFromPrevious && (
+                              <span className="flex items-center gap-1">
+                                <i className={`fas fa-${a.routeFromPrevious.mode === 'walk' ? 'walking' : 'car'}`}></i>
+                                {Number(a.routeFromPrevious.distance_km)} km
+                                ({Number(a.routeFromPrevious.travel_time_minutes)} min)
+                              </span>
+                            )}
+                          </div>
+                          {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {a.localFoodRecommendations.map((f: any, i: number) => (
+                                <span key={`food-${i}`} className="text-xs bg-ios-darker text-ios-gray px-2 py-1 rounded-full border border-gray-800">
+                                  <i className="fas fa-utensils mr-1 text-xs"></i> {String(f)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-ios-gray">Fetching weather forecast...</div>
-                  )}
-                </CardContent>
-              </Card>
+                    ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <Card className="bg-ios-card border-ios-gray">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white">AI Trip Planner</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">Additional Notes</label>
-                <Textarea value={aiNotes} onChange={(e) => setAiNotes(e.target.value)} placeholder="Preferences, constraints, must-see places…" className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray min-h-[100px]" />
+                <label className="block text-sm font-semibold text-white mb-2">Location</label>
+                <Input type="text" value={tripForm.destination} disabled className="bg-ios-darker border-ios-gray text-white" />
               </div>
-              <div className="flex justify-end">
-                <Button onClick={() => generatePlanMutation.mutate()} disabled={generatePlanMutation.isPending} className="bg-ios-blue hover:bg-ios-blue smooth-transition interactive-tap radius-md">
-                  {generatePlanMutation.isPending ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
-                      {planStage === 'fetching' ? 'Fetching locations…' : planStage === 'generating' ? 'Generating Plan…' : 'Processing…'}
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-robot mr-2"></i>
-                      Generate AI Plan
-                    </>
-                  )}
-                </Button>
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
+                <Input type="number" value={aiBudget} onChange={(e) => setAiBudget(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">Number of People</label>
+                <Input type="number" value={aiGroupSize} onChange={(e) => setAiGroupSize(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
+              </div>
+            </div>
+            <Card className="bg-ios-card border-ios-gray">
+              <CardHeader>
+                <CardTitle className="text-white text-base">Weather Forecast</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {weather ? (
+                  <div className="space-y-3">
+                    <div className="text-sm text-white">
+                      <span className="font-semibold">Current:</span> {Number(weather?.current?.temperature)}°C • {String(weather?.current?.condition || '')}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {(Array.isArray(weather?.forecast) ? weather.forecast.slice(0, 6) : []).map((d: any, idx: number) => (
+                        <div key={`wf-${idx}`} className="text-xs text-white bg-ios-darker radius-md p-2">
+                          <div className="font-semibold">{String(d.day)}</div>
+                          <div className="text-ios-gray">{Number(d.low)}° / {Number(d.high)}° • {String(d.condition)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-ios-gray">Fetching weather forecast...</div>
+                )}
+              </CardContent>
+            </Card>
+            <div>
+              <label className="block text-sm font-semibold text-white mb-2">Additional Notes</label>
+              <Textarea value={aiNotes} onChange={(e) => setAiNotes(e.target.value)} placeholder="Preferences, constraints, must-see places…" className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray min-h-[100px]" />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => generatePlanMutation.mutate()} disabled={generatePlanMutation.isPending} className="bg-ios-blue hover:bg-ios-blue smooth-transition interactive-tap radius-md">
+                {generatePlanMutation.isPending ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    {planStage === 'fetching' ? 'Fetching locations…' : planStage === 'generating' ? 'Generating Plan…' : 'Processing…'}
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-robot mr-2"></i>
+                    Generate AI Plan
+                  </>
+                )}
+              </Button>
+            </div>
 
-              {trip.aiPlanMarkdown && (
-                <div className="mt-6 prose prose-invert max-w-none">
-                  <ReactMarkdown>{trip.aiPlanMarkdown}</ReactMarkdown>
-                </div>
-              )}
+            {trip.aiPlanMarkdown && (
+              <div className="mt-6 prose prose-invert max-w-none">
+                <ReactMarkdown>{trip.aiPlanMarkdown}</ReactMarkdown>
+              </div>
+            )}
 
-              {openApiPlanning.length > 0 && (
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {openApiPlanning.length > 0 && (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-ios-card border-ios-gray">
+                  <CardHeader>
+                    <CardTitle className="text-white text-base">Geocoded Places</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {openApiPlanning.slice(0, 8).map((p) => (
+                        <div key={`geo-${p.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                          <div className="font-semibold">{p.title}</div>
+                          <div className="text-ios-gray">{p.address}</div>
+                          <div className="text-xs text-ios-gray">{p.coords.lat}, {p.coords.lon}</div>
+                          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(p.displayName || p.title || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {segments.length > 0 && (
                   <Card className="bg-ios-card border-ios-gray">
                     <CardHeader>
-                      <CardTitle className="text-white text-base">Geocoded Places</CardTitle>
+                      <CardTitle className="text-white text-base">Travel Distances & Durations</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {openApiPlanning.slice(0, 8).map((p) => (
-                          <div key={`geo-${p.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                            <div className="font-semibold">{p.title}</div>
-                            <div className="text-ios-gray">{p.address}</div>
-                            <div className="text-xs text-ios-gray">{p.coords.lat}, {p.coords.lon}</div>
-                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(p.displayName || p.title || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                        {segments.map((s, i) => (
+                          <div key={`seg-${i}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                            <div className="font-semibold">{s.from.title} → {s.to.title}</div>
+                            <div className="text-ios-gray">{s.km} km • ~{s.mins} min ({s.mode})</div>
+                            <a href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${s.from.coords.lat},${s.from.coords.lon}`)}&destination=${encodeURIComponent(`${s.to.coords.lat},${s.to.coords.lon}`)}&travelmode=${s.mode === 'walk' ? 'walking' : 'transit'}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Directions</a>
                           </div>
                         ))}
                       </div>
                     </CardContent>
                   </Card>
-
-                  {segments.length > 0 && (
-                    <Card className="bg-ios-card border-ios-gray">
-                      <CardHeader>
-                        <CardTitle className="text-white text-base">Travel Distances & Durations</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          {segments.map((s, i) => (
-                            <div key={`seg-${i}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{s.from.title} → {s.to.title}</div>
-                              <div className="text-ios-gray">{s.km} km • ~{s.mins} min ({s.mode})</div>
-                              <a href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${s.from.coords.lat},${s.from.coords.lon}`)}&destination=${encodeURIComponent(`${s.to.coords.lat},${s.to.coords.lon}`)}&travelmode=${s.mode === 'walk' ? 'walking' : 'transit'}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Directions</a>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
 
 
-              {(Array.isArray(hotelResults) || Array.isArray(foodResults) || Array.isArray(sightsResults)) && (
-                <Card className="bg-ios-card border-ios-gray mt-6">
-                  <CardHeader>
-                    <CardTitle className="text-white text-base">Suggestions: Hotels, Restaurants, Tourist Spots</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <div className="text-white font-semibold mb-2">Hotels</div>
-                        <div className="space-y-2">
-                          {(hotelResults || []).slice(0, 5).map((i: any) => (
-                            <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-white font-semibold mb-2">Restaurants</div>
-                        <div className="space-y-2">
-                          {(foodResults || []).slice(0, 5).map((i: any) => (
-                            <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-white font-semibold mb-2">Tourist Spots</div>
-                        <div className="space-y-2">
-                          {(sightsResults || []).slice(0, 5).map((i: any) => (
-                            <div key={`s-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                              <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-ios-blue underline"
-                                onClick={() => {
-                                  try { logInfo('place_open_map', { id: String(i.id), type: 'tourist_spot', lat: Number(i.lat), lon: Number(i.lon), name: String(i.name_en || i.name_local || i.display_name || '') }); } catch { }
-                                }}
-                              >
-                                Open Map
-                              </a>
-                            </div>
-                          ))}
-                        </div>
+            {(Array.isArray(hotelResults) || Array.isArray(foodResults) || Array.isArray(sightsResults)) && (
+              <Card className="bg-ios-card border-ios-gray mt-6">
+                <CardHeader>
+                  <CardTitle className="text-white text-base">Suggestions: Hotels, Restaurants, Tourist Spots</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-white font-semibold mb-2">Hotels</div>
+                      <div className="space-y-2">
+                        {(hotelResults || []).slice(0, 5).map((i: any) => (
+                          <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                            <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                            <div className="text-ios-gray">{String(i.display_name || '')}</div>
+                            <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                    <div>
+                      <div className="text-white font-semibold mb-2">Restaurants</div>
+                      <div className="space-y-2">
+                        {(foodResults || []).slice(0, 5).map((i: any) => (
+                          <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                            <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                            <div className="text-ios-gray">{String(i.display_name || '')}</div>
+                            <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-white font-semibold mb-2">Tourist Spots</div>
+                      <div className="space-y-2">
+                        {(sightsResults || []).slice(0, 5).map((i: any) => (
+                          <div key={`s-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
+                            <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                            <div className="text-ios-gray">{String(i.display_name || '')}</div>
+                            <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-ios-blue underline"
+                              onClick={() => {
+                                try { logInfo('place_open_map', { id: String(i.id), type: 'tourist_spot', lat: Number(i.lat), lon: Number(i.lon), name: String(i.name_en || i.name_local || i.display_name || '') }); } catch { }
+                              }}
+                            >
+                              Open Map
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
+          </CardContent>
+        </Card>
+
+        {/* Journal Entries for this Trip */}
+        {tripJournalEntries.length > 0 && (
+          <Card className="bg-ios-card border-ios-gray">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-bold text-white">Trip Journal</CardTitle>
+                <Link href="/app/journal">
+                  <Button variant="outline" size="sm" className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap radius-md">
+                    View All
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {tripJournalEntries.slice(0, 3).map((entry) => (
+                  <div key={entry.id} className="bg-ios-darker radius-md p-4">
+                    <h4 className="font-bold text-white mb-2">{entry.title}</h4>
+                    <p className="text-sm text-ios-gray mb-2 line-clamp-2">{entry.content}</p>
+                    <div className="flex items-center justify-between text-xs text-ios-gray">
+                      <span>{entry.location}</span>
+                      <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
-
-          {/* Journal Entries for this Trip */}
-          {tripJournalEntries.length > 0 && (
-            <Card className="bg-ios-card border-ios-gray">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl font-bold text-white">Trip Journal</CardTitle>
-                  <Link href="/app/journal">
-                    <Button variant="outline" size="sm" className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap radius-md">
-                      View All
-                    </Button>
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {tripJournalEntries.slice(0, 3).map((entry) => (
-                    <div key={entry.id} className="bg-ios-darker radius-md p-4">
-                      <h4 className="font-bold text-white mb-2">{entry.title}</h4>
-                      <p className="text-sm text-ios-gray mb-2 line-clamp-2">{entry.content}</p>
-                      <div className="flex items-center justify-between text-xs text-ios-gray">
-                        <span>{entry.location}</span>
-                        <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        )}
       </div>
     </div>
+    </div >
   );
 }

@@ -347,25 +347,42 @@ export default function TripPlanner() {
     }
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tripForm.destination || !tripForm.days || !tripForm.groupSize || !selectedStyle) {
       toast({ title: "Missing Information", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
-    const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
-    const tripData = {
-      destination: tripForm.destination,
-      budget: tripForm.budget || '0',
-      days: parseInt(tripForm.days) || 1,
-      groupSize: parseInt(tripForm.groupSize) || 1,
-      travelStyle: styleMap[selectedStyle] || 'standard',
-      transportMode: tripForm.transportMode || undefined,
-      isInternational: !!tripForm.isInternational,
-      status: 'planning',
-      notes: tripForm.notes
-    };
-    createTripMutation.mutate(tripData);
+
+    try {
+      // 1. Generate the plan first
+      const planData = await planTripMutation.mutateAsync();
+
+      // 2. Create the trip with the generated plan
+      const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
+      const tripData = {
+        destination: tripForm.destination,
+        budget: tripForm.budget ? parseFloat(tripForm.budget) : 0,
+        days: parseInt(tripForm.days) || 1,
+        groupSize: parseInt(tripForm.groupSize) || 1,
+        travelStyle: styleMap[selectedStyle] || 'standard',
+        transportMode: tripForm.transportMode || undefined,
+        isInternational: !!tripForm.isInternational,
+        status: 'planning',
+        notes: tripForm.notes,
+        itinerary: planData.itinerary,
+        costBreakdown: planData.costBreakdown,
+        // We can also save the packing list here if the API supports it, 
+        // but the original code created it separately in onSuccess.
+        // We'll keep the onSuccess logic for packing list creation to avoid breaking changes,
+        // but we'll pass the generated packing list to it via state or just let it use planTripMutation.data
+      };
+
+      createTripMutation.mutate(tripData);
+    } catch (error) {
+      console.error("Failed to generate plan or create trip", error);
+      // Error handling is already done in planTripMutation
+    }
   };
 
   const handleStyleSelect = (styleId: string) => {
@@ -522,14 +539,14 @@ export default function TripPlanner() {
 
               <Button
                 type="submit"
-                disabled={createTripMutation.isPending}
+                disabled={createTripMutation.isPending || planTripMutation.isPending}
                 className="w-full bg-gradient-to-r from-ios-blue to-purple-600 text-white py-4 radius-md text-lg font-semibold smooth-transition interactive-tap disabled:opacity-50"
                 data-testid="button-create-trip"
               >
-                {createTripMutation.isPending ? (
+                {(createTripMutation.isPending || planTripMutation.isPending) ? (
                   <>
                     <i className="fas fa-spinner fa-spin mr-2"></i>
-                    Creating Your Trip...
+                    Generating Your Itinerary...
                   </>
                 ) : (
                   <>
@@ -538,30 +555,9 @@ export default function TripPlanner() {
                   </>
                 )}
               </Button>
-              <div className="mt-4">
-                <Button
-                  type="button"
-                  disabled={planTripMutation.isPending || !tripForm.destination || !tripForm.days || !tripForm.groupSize || !selectedStyle}
-                  onClick={() => planTripMutation.mutate()}
-                  className="w-full bg-ios-blue hover:bg-blue-600 smooth-transition interactive-tap"
-                  data-testid="button-ai-json-plan"
-                >
-                  {planTripMutation.isPending ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
-                      Generating plan…
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-robot mr-2"></i>
-                      Generate Trip Plan
-                    </>
-                  )}
-                </Button>
-                {(!tripForm.budget || !tripForm.groupSize) && (
-                  <div className="text-xs text-ios-orange mt-2">Please provide Budget and People before generating.</div>
-                )}
-              </div>
+              {(!tripForm.budget || !tripForm.groupSize) && (
+                <div className="text-xs text-ios-orange mt-2 text-center">Please provide Budget and People for better results.</div>
+              )}
             </form>
           </CardContent>
         </Card>
