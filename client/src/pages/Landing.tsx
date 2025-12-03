@@ -288,17 +288,6 @@ export default function Landing() {
               <p className="text-ios-gray mb-4 max-w-md">
                 Your intelligent travel companion powered by AI. Plan smarter, travel better, and create unforgettable memories.
               </p>
-              <div className="flex space-x-4">
-                <a href="#" className="text-ios-gray hover:text-white transition-colors">
-                  <i className="fab fa-twitter text-xl"></i>
-                </a>
-                <a href="#" className="text-ios-gray hover:text-white transition-colors">
-                  <i className="fab fa-instagram text-xl"></i>
-                </a>
-                <a href="#" className="text-ios-gray hover:text-white transition-colors">
-                  <i className="fab fa-facebook text-xl"></i>
-                </a>
-              </div>
             </div>
 
             <div>
