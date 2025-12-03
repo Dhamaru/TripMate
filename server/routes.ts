@@ -1214,170 +1214,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lon = Number(req.query.lon);
       const cityQ = String(req.query.city || req.query.location || '').trim();
       const units = String(req.query.units || 'metric');
-      const lang = String(req.query.lang || 'en');
-      const providerMode = String(process.env.WEATHER_PROVIDER || 'hybrid');
-      const key = process.env.WEATHER_API_KEY;
-      const iconMap: Record<string, string> = {
-        Clear: 'fas fa-sun',
-        Clouds: 'fas fa-cloud',
-        Rain: 'fas fa-cloud-rain',
-        Drizzle: 'fas fa-cloud-rain',
-        Thunderstorm: 'fas fa-bolt',
-        Snow: 'fas fa-snowflake',
-        Mist: 'fas fa-smog',
-        Fog: 'fas fa-smog',
-        Wind: 'fas fa-wind',
-      };
-
-      const toDir = (deg: number) => {
-        const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-        const i = Math.round(((deg % 360) / 22.5)) % 16;
-        return dirs[i];
-      };
-      const oneCall = async (latNum: number, lonNum: number) => {
-        if (!key) return null;
-        const urlOneCall = `https://api.openweathermap.org/data/2.5/onecall?lat=${latNum}&lon=${lonNum}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}&appid=${key}`;
-        const r = await fetch(urlOneCall);
-        if (r.ok) {
-          const j = await r.json();
-          console.log('[weather:openweather:onecall]', { lat: latNum, lon: lonNum, units, lang, alerts: Array.isArray(j.alerts) ? j.alerts.length : 0 });
-          const condMain = j.current?.weather?.[0]?.main || 'Clear';
-          const day0 = Array.isArray(j.daily) && j.daily.length ? j.daily[0] : null;
-          const tempMin = Math.round(day0?.temp?.min ?? Math.max(0, Math.round(j.current?.temp ?? 22) - 5));
-          const tempMax = Math.round(day0?.temp?.max ?? Math.round(j.current?.temp ?? 22));
-          const windDeg = Number(j.current?.wind_deg ?? 0);
-          const current = {
-            temperature: Math.round(j.current?.temp ?? 22),
-            tempMin,
-            tempMax,
-            condition: condMain,
-            humidity: Math.round(j.current?.humidity ?? 60),
-            windSpeed: Math.round(j.current?.wind_speed ?? 10),
-            windDeg,
-            windDir: toDir(windDeg),
-            icon: iconMap[condMain] || 'fas fa-cloud',
-          };
-          const forecast = Array.isArray(j.daily) ? j.daily.slice(0, 7).map((d: any, i: number) => {
-            const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`;
-            const main = d.weather?.[0]?.main || 'Clear';
-            return { day: label, high: Math.round(d.temp?.max ?? current.temperature), low: Math.round(d.temp?.min ?? Math.max(0, current.temperature - 5)), condition: main, icon: iconMap[main] || 'fas fa-cloud' };
-          }) : [];
-          const hourly = Array.isArray(j.hourly) ? j.hourly.slice(0, 24).map((h: any) => {
-            const dt = Number(h.dt ?? 0) * 1000;
-            const hourLabel = new Date(dt).toLocaleTimeString(lang, { hour: 'numeric' });
-            const main = h.weather?.[0]?.main || 'Clear';
-            return { hour: hourLabel, temp: Math.round(h.temp ?? current.temperature), condition: main, icon: iconMap[main] || 'fas fa-cloud' };
-          }) : [];
-          const alerts = Array.isArray(j.alerts) ? j.alerts.map((a: any) => ({ event: a.event, description: a.description, start: a.start, end: a.end })) : [];
-          const recommendations: string[] = [];
-          if (current.temperature >= 30) recommendations.push('Stay hydrated');
-          if (current.condition.includes('Rain')) recommendations.push('Carry a raincoat');
-          recommendations.push('Use sunscreen during midday');
-          return { current, forecast, hourly, alerts, recommendations, source: 'openweather' };
-        }
-        // Fallback path: use current weather + 5-day/3-hour forecast if One Call fails
-        console.warn('[weather:onecall:fallback]', { lat: latNum, lon: lonNum, reason: r.status });
-        const urlCurrent = `https://api.openweathermap.org/data/2.5/weather?lat=${latNum}&lon=${lonNum}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}&appid=${key}`;
-        const urlForecast = `https://api.openweathermap.org/data/2.5/forecast?lat=${latNum}&lon=${lonNum}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}&appid=${key}`;
-        const [rc, rf] = await Promise.allSettled([fetch(urlCurrent), fetch(urlForecast)]);
-        if (rc.status !== 'fulfilled' || rf.status !== 'fulfilled' || !(rc.value as any).ok || !(rf.value as any).ok) {
-          if (providerMode === 'strict') return null;
-          try {
-            const om = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
-            if (om.ok) {
-              const j = await om.json();
-              const temp = Math.round(Number(j?.current?.temperature_2m ?? 22));
-              const current = {
-                temperature: temp,
-                condition: 'Clear',
-                humidity: Math.round(Number(j?.current?.relative_humidity_2m ?? 60)),
-                windSpeed: Math.round(Number(j?.current?.wind_speed_10m ?? 10)),
-                icon: 'fas fa-sun',
-              };
-              const days = Array.isArray(j?.daily?.time) ? j.daily.time : [];
-              const highs = Array.isArray(j?.daily?.temperature_2m_max) ? j.daily.temperature_2m_max : [];
-              const lows = Array.isArray(j?.daily?.temperature_2m_min) ? j.daily.temperature_2m_min : [];
-              const forecast = days.slice(0, 7).map((d: string, i: number) => ({
-                day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-                high: Math.round(Number(highs[i] ?? current.temperature)),
-                low: Math.round(Number(lows[i] ?? Math.max(0, current.temperature - 5))),
-                condition: 'Clear',
-                icon: 'fas fa-sun',
-              }));
-              const hourlyTemps = Array.isArray(j?.hourly?.temperature_2m) ? j.hourly.temperature_2m : [];
-              const hourlyTimes = Array.isArray(j?.hourly?.time) ? j.hourly.time : [];
-              const hourly = hourlyTemps.slice(0, 24).map((t: number, idx: number) => ({
-                hour: new Date(String(hourlyTimes[idx]).replace(' ', 'T')).toLocaleTimeString(lang, { hour: 'numeric' }),
-                temp: Math.round(Number(t)),
-                condition: 'Clear',
-                icon: 'fas fa-sun',
-              }));
-              const recommendations: string[] = [];
-              if (current.temperature >= 30) recommendations.push('Stay hydrated');
-              recommendations.push('Use sunscreen during midday');
-              return { current, forecast, hourly, alerts: [], recommendations, source: 'open-meteo' };
-            }
-          } catch { }
-          return null;
-        }
-        const currentJson = await (rc.value as any).json();
-        const forecastJson = await (rf.value as any).json();
-        const condMain = currentJson?.weather?.[0]?.main || 'Clear';
-        const windDeg = Number(currentJson?.wind?.deg ?? 0);
-        const current = {
-          temperature: Math.round(currentJson?.main?.temp ?? 22),
-          tempMin: Math.round(currentJson?.main?.temp_min ?? Math.max(0, Math.round(currentJson?.main?.temp ?? 22) - 5)),
-          tempMax: Math.round(currentJson?.main?.temp_max ?? Math.round(currentJson?.main?.temp ?? 22)),
-          condition: condMain,
-          humidity: Math.round(currentJson?.main?.humidity ?? 60),
-          windSpeed: Math.round(currentJson?.wind?.speed ?? 10),
-          windDeg,
-          windDir: toDir(windDeg),
-          icon: iconMap[condMain] || 'fas fa-cloud',
-        };
-        // Aggregate 3-hour forecast into daily high/low and main condition
-        const daysMap: Record<string, { high: number; low: number; main: string }> = {};
-        const list = Array.isArray(forecastJson?.list) ? forecastJson.list : [];
-        list.forEach((item: any) => {
-          const dtTxt = String(item?.dt_txt || '');
-          const dayKey = dtTxt.slice(0, 10);
-          const temp = Number(item?.main?.temp ?? current.temperature);
-          const main = item?.weather?.[0]?.main || 'Clear';
-          const d = daysMap[dayKey] || { high: -Infinity, low: Infinity, main };
-          d.high = Math.max(d.high, temp);
-          d.low = Math.min(d.low, temp);
-          // Prefer non-Clear conditions when setting representative main
-          if (d.main === 'Clear' && main !== 'Clear') d.main = main;
-          daysMap[dayKey] = d;
+      const key = process.env.GOOGLE_API_KEY;
+      
+      if (!key) {
+        console.error('[weather] GOOGLE_API_KEY not set');
+        return res.status(503).json({ 
+          current: {}, 
+          forecast: [], 
+          recommendations: [], 
+          alerts: [],
+          error: 'Weather service not configured'
         });
-        const keys = Object.keys(daysMap).sort().slice(0, 7);
-        const forecast = keys.map((k, i) => {
-          const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`;
-          const main = daysMap[k].main;
-          return { day: label, high: Math.round(daysMap[k].high), low: Math.round(daysMap[k].low), condition: main, icon: iconMap[main] || 'fas fa-cloud' };
-        });
-        const hourly = list.slice(0, 24).map((item: any) => {
-          const dtTxt = String(item?.dt_txt || '');
-          const hourLabel = new Date(dtTxt.replace(' ', 'T')).toLocaleTimeString(lang, { hour: 'numeric' });
-          const main = item?.weather?.[0]?.main || 'Clear';
-          return { hour: hourLabel, temp: Math.round(item?.main?.temp ?? current.temperature), condition: main, icon: iconMap[main] || 'fas fa-cloud' };
-        });
-        const recommendations: string[] = [];
-        if (current.temperature >= 30) recommendations.push('Stay hydrated');
-        if (current.condition.includes('Rain')) recommendations.push('Carry a raincoat');
-        recommendations.push('Use sunscreen during midday');
-        return { current, forecast, hourly, alerts: [], recommendations, source: 'openweather' };
       }
 
+      const iconMap: Record<string, string> = {
+        CLEAR: 'fas fa-sun',
+        PARTLY_CLOUDY: 'fas fa-cloud-sun',
+        CLOUDY: 'fas fa-cloud',
+        RAIN: 'fas fa-cloud-rain',
+        SCATTERED_SHOWERS: 'fas fa-cloud-rain',
+        DRIZZLE: 'fas fa-cloud-rain',
+        THUNDERSTORM: 'fas fa-bolt',
+        SNOW: 'fas fa-snowflake',
+        MIST: 'fas fa-smog',
+        FOG: 'fas fa-smog',
+        WIND: 'fas fa-wind',
+      };
+
+      const getWeatherData = async (latNum: number, lonNum: number) => {
+        try {
+          const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}`;
+          const currentRes = await fetch(currentUrl);
+          
+          if (!currentRes.ok) {
+            console.error('[weather:google] Current conditions failed:', currentRes.status);
+            return null;
+          }
+
+          const currentData = await currentRes.json();
+          
+          const forecastUrl = `https://weather.googleapis.com/v1/forecast/days:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}&days=7`;
+          const forecastRes = await fetch(forecastUrl);
+          
+          if (!forecastRes.ok) {
+            console.error('[weather:google] Forecast failed:', forecastRes.status);
+            return null;
+          }
+
+          const forecastData = await forecastRes.json();
+
+          const tempCelsius = currentData.temperature?.degrees ?? 22;
+          const temperature = units === 'metric' ? Math.round(tempCelsius) : Math.round(tempCelsius * 9/5 + 32);
+          const condition = currentData.weatherCondition?.description?.text || 'Clear';
+          const conditionType = currentData.weatherCondition?.type || 'CLEAR';
+          
+          const current = {
+            temperature,
+            tempMin: temperature - 5,
+            tempMax: temperature,
+            condition,
+            humidity: currentData.relativeHumidity ?? 60,
+            windSpeed: Math.round(currentData.wind?.speed?.value ?? 10),
+            windDeg: currentData.wind?.direction?.degrees ?? 0,
+            windDir: currentData.wind?.direction?.cardinal || 'N',
+            icon: iconMap[conditionType] || 'fas fa-cloud',
+          };
+
+          const forecast = (forecastData.forecastDays || []).slice(0, 7).map((day: any, i: number) => {
+            const maxTemp = day.maxTemperature?.degrees ?? temperature;
+            const minTemp = day.minTemperature?.degrees ?? (temperature - 5);
+            const dayCondition = day.daytimeForecast?.weatherCondition?.description?.text || 'Clear';
+            const dayType = day.daytimeForecast?.weatherCondition?.type || 'CLEAR';
+            
+            return {
+              day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
+              high: units === 'metric' ? Math.round(maxTemp) : Math.round(maxTemp * 9/5 + 32),
+              low: units === 'metric' ? Math.round(minTemp) : Math.round(minTemp * 9/5 + 32),
+              condition: dayCondition,
+              icon: iconMap[dayType] || 'fas fa-cloud',
+            };
+          });
+
+          if (forecast.length > 0) {
+            current.tempMax = forecast[0].high;
+            current.tempMin = forecast[0].low;
+          }
+
+          const recommendations: string[] = [];
+          if (current.temperature >= 30) recommendations.push('Stay hydrated');
+          if (condition.toLowerCase().includes('rain') || condition.toLowerCase().includes('shower')) {
+            recommendations.push('Carry a raincoat');
+          }
+          recommendations.push('Use sunscreen during midday');
+
+          return {
+            current,
+            forecast,
+            hourly: [],
+            alerts: [],
+            recommendations,
+            source: 'google-weather',
+          };
+        } catch (error) {
+          console.error('[weather:google] Error:', error);
+          return null;
+        }
+      };
+
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
-        console.log('[weather:req]', { lat, lon, cityQ, units, lang, providerMode, hasKey: !!key });
-        const oc = await oneCall(lat, lon);
-        if (oc) return res.json(oc);
-        // Final fallback when provider fails
+        console.log('[weather:req]', { lat, lon, cityQ, units });
+        const weatherData = await getWeatherData(lat, lon);
+        if (weatherData) return res.json(weatherData);
+        
         const now = new Date();
         const month = now.getMonth();
         const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
-        const current = { temperature: Math.round(baseTemp), humidity: 60, windSpeed: 10, condition: baseTemp >= 30 ? 'Sunny' : baseTemp >= 25 ? 'Partly Cloudy' : 'Cloudy', icon: 'fas fa-cloud-sun' };
+        const current = { 
+          temperature: Math.round(baseTemp), 
+          humidity: 60, 
+          windSpeed: 10, 
+          condition: baseTemp >= 30 ? 'Sunny' : baseTemp >= 25 ? 'Partly Cloudy' : 'Cloudy', 
+          icon: 'fas fa-cloud-sun' 
+        };
         const forecast = Array.from({ length: 7 }, (_, i) => ({
           day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
           high: Math.round(baseTemp + (i % 3) - 1),
@@ -1392,97 +1350,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
         return res.status(200).json({ current, forecast, recommendations, alerts: [], source: 'fallback-route' });
       }
-      if (!cityQ) return res.status(400).json({ current: {}, forecast: [], recommendations: [], alerts: [] });
-      const keyInvalid = !!key && String(key).startsWith('AIza');
-      const useOpenWeather = !!key && !keyInvalid && providerMode !== 'open_meteo';
-      if (useOpenWeather) {
-        const g = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityQ)}&limit=1&appid=${key}`);
-        if (g.ok) {
-          const arr = await g.json();
-          const first = Array.isArray(arr) && arr.length ? arr[0] : null;
-          if (first && Number.isFinite(first.lat) && Number.isFinite(first.lon)) {
-            console.log('[weather:geocode]', { cityQ, lat: first.lat, lon: first.lon, units, lang });
-            const oc = await oneCall(Number(first.lat), Number(first.lon));
-            if (oc) return res.json(oc);
-          }
-        }
+
+      if (!cityQ) {
+        return res.status(400).json({ current: {}, forecast: [], recommendations: [], alerts: [] });
       }
+
       try {
-        const limitFetch = 1;
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(cityQ)}&limit=${limitFetch}`;
-        const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': lang } });
-        if (r.ok) {
-          const arr = await r.json();
-          const first = Array.isArray(arr) && arr.length ? arr[0] : null;
-          const latStr = String(first?.lat || '');
-          const lonStr = String(first?.lon || '');
-          const latNum = Number(latStr);
-          const lonNum = Number(lonStr);
-          if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
-            const om = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
-            if (om.ok) {
-              const j = await om.json();
-              const temp = Math.round(Number(j?.current?.temperature_2m ?? 22));
-              const current = {
-                temperature: temp,
-                condition: 'Clear',
-                humidity: Math.round(Number(j?.current?.relative_humidity_2m ?? 60)),
-                windSpeed: Math.round(Number(j?.current?.wind_speed_10m ?? 10)),
-                icon: 'fas fa-sun',
-              };
-              const days = Array.isArray(j?.daily?.time) ? j.daily.time : [];
-              const highs = Array.isArray(j?.daily?.temperature_2m_max) ? j.daily.temperature_2m_max : [];
-              const lows = Array.isArray(j?.daily?.temperature_2m_min) ? j.daily.temperature_2m_min : [];
-              const forecast = days.slice(0, 7).map((d: string, i: number) => ({
-                day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-                high: Math.round(Number(highs[i] ?? current.temperature)),
-                low: Math.round(Number(lows[i] ?? Math.max(0, current.temperature - 5))),
-                condition: 'Clear',
-                icon: 'fas fa-sun',
-              }));
-              return res.json({ current, forecast, hourly: [], alerts: [], recommendations: [], source: 'open-meteo' });
-            }
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cityQ)}&key=${key}`;
+        const geocodeRes = await fetch(geocodeUrl);
+        
+        if (geocodeRes.ok) {
+          const geocodeData = await geocodeRes.json();
+          if (geocodeData.results && geocodeData.results.length > 0) {
+            const location = geocodeData.results[0].geometry.location;
+            const latNum = location.lat;
+            const lonNum = location.lng;
+            
+            console.log('[weather:geocode]', { cityQ, lat: latNum, lon: lonNum, units });
+            const weatherData = await getWeatherData(latNum, lonNum);
+            if (weatherData) return res.json(weatherData);
           }
         }
       } catch (e) {
-        console.warn('[weather:nominatim_openmeteo_fallback_failed]', { cityQ, error: String((e as any)?.message || e) });
+        console.warn('[weather:geocode:failed]', { cityQ, error: String((e as any)?.message || e) });
       }
-      try {
-        const g2 = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityQ)}&count=1&language=${encodeURIComponent(lang)}`);
-        if (g2.ok) {
-          const j2 = await g2.json();
-          const first = Array.isArray(j2?.results) && j2.results.length ? j2.results[0] : null;
-          const latNum = Number(first?.latitude ?? NaN);
-          const lonNum = Number(first?.longitude ?? NaN);
-          if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
-            const om = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
-            if (om.ok) {
-              const j = await om.json();
-              const temp = Math.round(Number(j?.current?.temperature_2m ?? 22));
-              const current = {
-                temperature: temp,
-                condition: 'Clear',
-                humidity: Math.round(Number(j?.current?.relative_humidity_2m ?? 60)),
-                windSpeed: Math.round(Number(j?.current?.wind_speed_10m ?? 10)),
-                icon: 'fas fa-sun',
-              };
-              const days = Array.isArray(j?.daily?.time) ? j.daily.time : [];
-              const highs = Array.isArray(j?.daily?.temperature_2m_max) ? j.daily.temperature_2m_max : [];
-              const lows = Array.isArray(j?.daily?.temperature_2m_min) ? j.daily.temperature_2m_min : [];
-              const forecast = days.slice(0, 7).map((d: string, i: number) => ({
-                day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-                high: Math.round(Number(highs[i] ?? current.temperature)),
-                low: Math.round(Number(lows[i] ?? Math.max(0, current.temperature - 5))),
-                condition: 'Clear',
-                icon: 'fas fa-sun',
-              }));
-              return res.json({ current, forecast, hourly: [], alerts: [], recommendations: [], source: 'open-meteo' });
-            }
-          }
-        }
-      } catch { }
+
       const result = await ai.weather(cityQ);
-      console.log('[weather:ai]', { cityQ, units, lang });
+      console.log('[weather:ai]', { cityQ, units });
       res.json({ ...result, alerts: [] });
     } catch (error) {
       console.error('weather route error:', error);
@@ -1507,6 +1401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get('/api/v1/currency', isJwtAuthenticated, aiLimiter, async (req: any, res) => {
+
     try {
       const amount = Number(req.query.amount || 0);
       const from = String(req.query.from || 'USD');
@@ -1603,114 +1498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return (euMap as any)[kind] || '';
   }
 
-  app.post('/api/tools/weather', isJwtAuthenticated, aiLimiter, async (req: any, res) => {
-    const location = String(req.body?.location || '').trim();
-    const coords = req.body?.coords;
-    const units = String(req.body?.units || 'metric');
-    const lang = String(req.body?.lang || 'en');
-    const userId = req.user?.claims?.sub || req.user?.id || 'anon';
-    const ts = new Date().toISOString();
-    try {
-      const providerMode = String(process.env.WEATHER_PROVIDER || 'hybrid');
-      const key = process.env.WEATHER_API_KEY || '';
-      const keyInvalid = !!key && String(key).startsWith('AIza');
-      const useOpenWeather = !!key && !keyInvalid && providerMode !== 'open_meteo';
 
-      const iconMap: Record<string, string> = {
-        Clear: 'fas fa-sun',
-        Clouds: 'fas fa-cloud',
-        Rain: 'fas fa-cloud-rain',
-        Drizzle: 'fas fa-cloud-rain',
-        Thunderstorm: 'fas fa-bolt',
-        Snow: 'fas fa-snowflake',
-        Mist: 'fas fa-smog',
-        Fog: 'fas fa-smog',
-        Wind: 'fas fa-wind',
-      };
-
-      const fetchOM = async (latNum: number, lonNum: number) => {
-        const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
-        if (!r.ok) return null;
-        const j = await r.json();
-        const temp = Math.round(Number(j?.current?.temperature_2m ?? 22));
-        const current = {
-          temperature: temp,
-          condition: 'Clear',
-          humidity: Math.round(Number(j?.current?.relative_humidity_2m ?? 60)),
-          windSpeed: Math.round(Number(j?.current?.wind_speed_10m ?? 10)),
-          icon: 'fas fa-sun',
-        };
-        const days = Array.isArray(j?.daily?.time) ? j.daily.time : [];
-        const highs = Array.isArray(j?.daily?.temperature_2m_max) ? j.daily.temperature_2m_max : [];
-        const lows = Array.isArray(j?.daily?.temperature_2m_min) ? j.daily.temperature_2m_min : [];
-        const forecast = days.slice(0, 7).map((d: string, i: number) => ({
-          day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-          high: Math.round(Number(highs[i] ?? temp)),
-          low: Math.round(Number(lows[i] ?? Math.max(0, temp - 5))),
-          condition: 'Clear',
-          icon: 'fas fa-sun',
-        }));
-        return { current, forecast, source: 'open-meteo' };
-      };
-
-      const geocodeCity = async (q: string): Promise<{ lat: number; lon: number } | null> => {
-        if (useOpenWeather) {
-          const g = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=1&appid=${key}`);
-          if (g.ok) {
-            const arr = await g.json();
-            const first = Array.isArray(arr) && arr.length ? arr[0] : null;
-            if (first && Number.isFinite(first.lat) && Number.isFinite(first.lon)) return { lat: Number(first.lat), lon: Number(first.lon) };
-          }
-        }
-        try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(q)}&limit=1`, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': lang } });
-          if (r.ok) {
-            const arr = await r.json();
-            const first = Array.isArray(arr) && arr.length ? arr[0] : null;
-            const latNum = Number(String(first?.lat || ''));
-            const lonNum = Number(String(first?.lon || ''));
-            if (Number.isFinite(latNum) && Number.isFinite(lonNum)) return { lat: latNum, lon: lonNum };
-          }
-        } catch { }
-        try {
-          const r2 = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=${encodeURIComponent(lang)}`);
-          if (r2.ok) {
-            const j2 = await r2.json();
-            const first = Array.isArray(j2?.results) && j2.results.length ? j2.results[0] : null;
-            const latNum = Number(first?.latitude ?? NaN);
-            const lonNum = Number(first?.longitude ?? NaN);
-            if (Number.isFinite(latNum) && Number.isFinite(lonNum)) return { lat: latNum, lon: lonNum };
-          }
-        } catch { }
-        return null;
-      };
-
-      const maskedLocation = location.replace(/\d/g, 'x');
-      console.log(JSON.stringify({ ts, tool: 'weather', user: String(userId).slice(0, 6) + '…', input: { location: maskedLocation, coords: coords && { lat: coords?.lat, lon: coords?.lon } } }));
-
-      let userWeather: any = null;
-      const latUser = Number(coords?.lat);
-      const lonUser = Number(coords?.lon);
-      if (Number.isFinite(latUser) && Number.isFinite(lonUser)) {
-        userWeather = await fetchOM(latUser, lonUser);
-      }
-
-      let searchWeather: any = null;
-      if (location) {
-        const geo = await geocodeCity(location);
-        if (geo) searchWeather = await fetchOM(geo.lat, geo.lon);
-      }
-
-      if (!userWeather && !searchWeather) {
-        return res.status(400).json({ error: 'invalid_input', message: 'invalid or missing inputs' });
-      }
-      res.json({ user: userWeather, searched: searchWeather });
-    } catch (err) {
-      res.status(500).json({ error: 'tool_error', message: 'Unexpected error' });
-    }
-  });
-
-  // Simple test route to validate weather tool in isolation
   app.post('/api/tools/weather/test', async (req: any, res) => {
     try {
       const location = String(req.body?.location || 'Mumbai, India');
