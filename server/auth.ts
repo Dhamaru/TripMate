@@ -67,7 +67,7 @@ export async function setupAuth(app: Express) {
     passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/api/v1/auth/google/callback`
+      callbackURL: `${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/api/v1/auth/google/callback`
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value;
@@ -147,7 +147,7 @@ export async function setupAuth(app: Express) {
         process.env.JWT_SECRET || "your-jwt-secret-key",
         { expiresIn: '7d' }
       );
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5000'}/signin?token=${token}`);
+      res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?token=${token}`);
     });
   } else {
     app.get("/api/v1/auth/google", (_req, res) => {
@@ -178,7 +178,7 @@ export async function setupAuth(app: Express) {
         process.env.JWT_SECRET || "your-jwt-secret-key",
         { expiresIn: '7d' }
       );
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5000'}/signin?token=${token}`);
+      res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?token=${token}`);
     });
   }
 
