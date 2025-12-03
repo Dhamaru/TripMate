@@ -2455,4 +2455,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-// Trigger restart for debugging
+// Trigger restart for debugging - updated
