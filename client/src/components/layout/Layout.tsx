@@ -59,14 +59,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
         <div
           className={cn(
-            "h-16 flex items-center border-b border-gray-800",
-            sidebarCollapsed ? "justify-center px-2" : "px-4 gap-3"
+            "h-16 flex items-center border-b border-gray-800 transition-all duration-300",
+            sidebarCollapsed ? "justify-center" : "px-4"
           )}
         >
-          <TripMateLogo size="sm" />
-          {!sidebarCollapsed && (
-            <span className="font-bold text-white whitespace-nowrap">TripMate</span>
-          )}
+          <TripMateLogo size="sm" showText={!sidebarCollapsed} />
         </div>
 
         <div className="flex-1 flex flex-col pt-4">
@@ -141,8 +138,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         />
         <div className="relative w-64 h-full bg-[#0d1117] border-r border-gray-800">
           <div className="h-16 flex items-center px-4 border-b border-gray-800">
-            <TripMateLogo size="sm" />
-            <span className="font-bold text-white ml-3">TripMate</span>
+            <TripMateLogo size="sm" showText={true} />
           </div>
           <nav className="p-3 space-y-1">
             {NAV_ITEMS.map((item) => {
