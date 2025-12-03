@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -8,6 +8,7 @@ import {
   Home,
   Compass,
   Grid,
+  User,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
@@ -24,36 +25,14 @@ const NAV_ITEMS = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user } = useAuth() as any;
-
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("tm:sidebarCollapsed") === "1";
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      document.body.classList.toggle("sidebar-expanded", !sidebarCollapsed);
-      localStorage.setItem("tm:sidebarCollapsed", sidebarCollapsed ? "1" : "0");
-    } catch { }
-  }, [sidebarCollapsed]);
-
-  const desktopMarginClass = sidebarCollapsed ? "md:ml-16" : "md:ml-64";
-
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen w-full bg-[#010409] text-white">
+    <div className="flex min-h-screen w-full bg-black text-white">
+      {/* Sidebar - Desktop */}
       <aside
-        aria-label="Primary"
         className={cn(
-          "hidden md:flex flex-col bg-[#0d1117] border-r border-gray-800 transition-all duration-200 ease-in-out fixed left-0 top-0 bottom-0 z-40",
+          "hidden md:flex flex-col bg-[#0d1117] border-r border-gray-800 transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
@@ -66,52 +45,49 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <TripMateLogo size="sm" showText={!sidebarCollapsed} />
         </div>
 
+        {/* Sidebar Content */}
         <div className="flex-1 flex flex-col pt-4">
-          <nav className="flex-1 px-2 space-y-1">
+          {/* Navigation Items */}
+          <nav className="flex-1 px-3 space-y-1">
             {NAV_ITEMS.map((item) => {
               const isActive = location === item.href || location.startsWith(item.href);
-              const Icon = item.icon;
               return (
                 <Link key={item.href} href={item.href}>
-                  <a
+                  <div
                     className={cn(
                       "flex items-center gap-3 rounded-md transition-all cursor-pointer relative group",
                       sidebarCollapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
                       isActive
-                        ? "bg-[#1f6feb] text-white"
+                        ? "bg-[#1f6feb] text-white" // GitHub blue
                         : "text-gray-400 hover:bg-gray-800 hover:text-white"
                     )}
-                    aria-current={isActive ? "page" : undefined}
+                    title={sidebarCollapsed ? item.label : undefined}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
                     {!sidebarCollapsed && (
-                      <span className="font-medium text-sm whitespace-nowrap">
-                        {item.label}
-                      </span>
+                      <span className="font-medium text-sm whitespace-nowrap">{item.label}</span>
                     )}
+                    {/* Tooltip for collapsed state */}
                     {sidebarCollapsed && (
-                      <span
-                        role="tooltip"
-                        className="absolute left-full ml-2 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-                      >
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                         {item.label}
-                      </span>
+                      </div>
                     )}
-                  </a>
+                  </div>
                 </Link>
               );
             })}
           </nav>
 
+          {/* Collapse Toggle Button - At Bottom */}
           <div className="p-3 border-t border-gray-800">
             <button
-              onClick={() => setSidebarCollapsed((s) => !s)}
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className={cn(
                 "w-full flex items-center gap-2 rounded-md text-gray-400 hover:bg-gray-800 hover:text-white transition-all",
                 sidebarCollapsed ? "px-2 py-2 justify-center" : "px-3 py-2"
               )}
-              aria-expanded={!sidebarCollapsed}
-              aria-pressed={!sidebarCollapsed}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
                 <ChevronRight className="h-5 w-5" />
@@ -126,106 +102,71 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div
-        className={cn(
-          "md:hidden fixed inset-0 z-50 transition-transform",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div
-          className="absolute inset-0 bg-black/50"
-          onClick={() => setMobileOpen(false)}
-        />
-        <div className="relative w-64 h-full bg-[#0d1117] border-r border-gray-800">
-          <div className="h-16 flex items-center px-4 border-b border-gray-800">
-            <TripMateLogo size="sm" showText={true} />
-          </div>
-          <nav className="p-3 space-y-1">
-            {NAV_ITEMS.map((item) => {
-              const isActive = location === item.href || location.startsWith(item.href);
-              const Icon = item.icon;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <a
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                      isActive
-                        ? "bg-[#1f6feb] text-white"
-                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                    )}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium text-sm">{item.label}</span>
-                  </a>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "flex-1 flex flex-col min-h-screen transition-all duration-200 ease-in-out",
-          desktopMarginClass
-        )}
-      >
+      {/* Main Content Wrapper */}
+      <div className={cn(
+        "flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out",
+        "md:ml-64", // Default margin
+        sidebarCollapsed && "md:ml-16" // Collapsed margin
+      )}>
+        {/* Top Navigation Bar - Glass Effect */}
         <header className="h-16 bg-[#010409]/80 backdrop-blur-md border-b border-gray-800 px-4 flex items-center justify-between sticky top-0 z-50">
+          {/* Left: Hamburger & Logo */}
           <div className="flex items-center gap-4">
             <button
-              className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-300 hover:bg-gray-800"
-              onClick={() => setMobileOpen(true)}
+              className="md:hidden p-1 text-gray-400 hover:text-white border border-gray-700 rounded-md hover:border-gray-500 transition-colors"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             >
               <Menu className="h-5 w-5" />
             </button>
+            {/* Logo only on mobile since desktop has it in sidebar */}
+            <div className="md:hidden flex items-center gap-2">
+              <TripMateLogo size="sm" />
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="hidden md:flex flex-col items-end mr-2">
-              <span className="text-sm font-bold text-white">
-                {user?.firstName} {user?.lastName}
-              </span>
-            </span>
-
-            <Link href="/app/profile">
-              <a className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-                <Avatar className="h-8 w-8 rounded-full overflow-hidden border border-gray-700">
-                  <AvatarImage src={user?.profileImageUrl} className="object-cover" />
-                  <AvatarFallback className="bg-[#1f6feb] text-white text-xs">
-                    {user?.firstName?.[0] || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </a>
-            </Link>
-          </div>
+          {/* Right: Profile */}
+          <Link href="/app/profile">
+            <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="hidden md:flex flex-col items-end">
+                <span className="text-sm font-bold text-white">
+                  {user?.firstName} {user?.lastName}
+                </span>
+              </div>
+              <Avatar className="h-8 w-8 rounded-full overflow-hidden border border-gray-700">
+                <AvatarImage src={user?.profileImageUrl} className="object-cover" />
+                <AvatarFallback className="bg-[#1f6feb] text-white text-xs">
+                  {user?.firstName?.[0] || "U"}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+          </Link>
         </header>
 
+        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 bg-[#0d1117]">
           {children}
         </main>
 
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#010409]/90 backdrop-blur-lg border-t border-gray-800 px-2 flex items-center justify-around z-50">
+        {/* Mobile Bottom Navigation */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#010409]/90 backdrop-blur-lg border-t border-gray-800 px-4 flex items-center justify-around z-50">
           {NAV_ITEMS.map((item) => {
             const isActive = location === item.href || location.startsWith(item.href);
-            const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}>
-                <a
+                <div
                   className={cn(
                     "flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors",
                     isActive ? "text-[#58a6ff]" : "text-gray-400"
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  <item.icon className={cn("h-5 w-5", isActive && "fill-current")} />
                   <span className="text-[10px] font-medium">{item.label}</span>
-                </a>
+                </div>
               </Link>
             );
           })}
-
           <Link href="/app/profile">
-            <a className="flex flex-col items-center justify-center gap-1 w-16 h-full">
+            <div className="flex flex-col items-center justify-center gap-1 w-16 h-full">
               <Avatar className="h-6 w-6 rounded-full overflow-hidden border border-gray-700">
                 <AvatarImage src={user?.profileImageUrl} />
                 <AvatarFallback className="bg-[#1f6feb] text-white text-xs">
@@ -233,7 +174,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </AvatarFallback>
               </Avatar>
               <span className="text-[10px] font-medium text-gray-400">Profile</span>
-            </a>
+            </div>
           </Link>
         </nav>
       </div>
