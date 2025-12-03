@@ -25,6 +25,9 @@ export default function WeatherPage() {
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    // Auto-load user's location weather on mount
+    useMyLocation();
+
     return () => { mountedRef.current = false; if (debounceRef.current) window.clearTimeout(debounceRef.current); if (abortRef.current) abortRef.current.abort(); };
   }, []);
 

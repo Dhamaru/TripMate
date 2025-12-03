@@ -48,6 +48,16 @@ const DEFAULT_REGIONS: MapRegion[] = [
   { id: "3", name: "New York City", country: "United States", size: "38 MB", downloaded: false, downloading: false, progress: 0, lat: 40.7128, lng: -74.0060, zoom: 12 },
   { id: "4", name: "London", country: "United Kingdom", size: "41 MB", downloaded: false, downloading: false, progress: 0, lat: 51.5074, lng: -0.1278, zoom: 12 },
   { id: "5", name: "Mumbai", country: "India", size: "52 MB", downloaded: false, downloading: false, progress: 0, lat: 19.0760, lng: 72.8777, zoom: 12 },
+  { id: "6", name: "Sydney", country: "Australia", size: "48 MB", downloaded: false, downloading: false, progress: 0, lat: -33.8688, lng: 151.2093, zoom: 12 },
+  { id: "7", name: "Dubai", country: "United Arab Emirates", size: "55 MB", downloaded: false, downloading: false, progress: 0, lat: 25.2048, lng: 55.2708, zoom: 12 },
+  { id: "8", name: "Singapore", country: "Singapore", size: "35 MB", downloaded: false, downloading: false, progress: 0, lat: 1.3521, lng: 103.8198, zoom: 12 },
+  { id: "9", name: "Rome", country: "Italy", size: "44 MB", downloaded: false, downloading: false, progress: 0, lat: 41.9028, lng: 12.4964, zoom: 12 },
+  { id: "10", name: "Barcelona", country: "Spain", size: "42 MB", downloaded: false, downloading: false, progress: 0, lat: 41.3851, lng: 2.1734, zoom: 12 },
+  { id: "11", name: "Bangkok", country: "Thailand", size: "50 MB", downloaded: false, downloading: false, progress: 0, lat: 13.7563, lng: 100.5018, zoom: 12 },
+  { id: "12", name: "Istanbul", country: "Turkey", size: "47 MB", downloaded: false, downloading: false, progress: 0, lat: 41.0082, lng: 28.9784, zoom: 12 },
+  { id: "13", name: "Los Angeles", country: "United States", size: "54 MB", downloaded: false, downloading: false, progress: 0, lat: 34.0522, lng: -118.2437, zoom: 12 },
+  { id: "14", name: "Berlin", country: "Germany", size: "43 MB", downloaded: false, downloading: false, progress: 0, lat: 52.5200, lng: 13.4050, zoom: 12 },
+  { id: "15", name: "Delhi", country: "India", size: "56 MB", downloaded: false, downloading: false, progress: 0, lat: 28.7041, lng: 77.1025, zoom: 12 },
 ];
 
 export function OfflineMaps({ className = "" }: OfflineMapsProps) {
