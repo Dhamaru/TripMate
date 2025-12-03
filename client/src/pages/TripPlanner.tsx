@@ -562,229 +562,258 @@ export default function TripPlanner() {
           </CardContent>
         </Card>
 
-        {planTripMutation.data && !planTripMutation.data.error && (
-          <div aria-live="polite" aria-atomic="true">
-            <Card className="bg-ios-card border-ios-gray elev-1 mt-8" role="region" aria-label="Trip Plan">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-white" tabIndex={-1} id="trip-plan-heading">
-                  Trip Plan — {String(planTripMutation.data.destination || 'Unknown Destination')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-ios-gray">
-                    <div><div className="text-white">Days</div><div>{Number(planTripMutation.data.days) || ''}</div></div>
-                    <div><div className="text-white">Persons</div><div>{Number(planTripMutation.data.persons) || ''}</div></div>
-                    <div><div className="text-white">Budget</div><div>{tripForm.budget ? `₹${Number(tripForm.budget).toLocaleString('en-IN')}` : '—'}</div></div>
-                    <div><div className="text-white">Estimated Total</div><div>₹{Number(planTripMutation.data.totalEstimatedCost || 0).toLocaleString('en-IN')}</div></div>
-                    <div><div className="text-white">Currency</div><div>{String(planTripMutation.data.currency || 'INR')}</div></div>
-                  </div>
-
-                  {planTripMutation.data.costBreakdown && (
-                    <div>
-                      <div className="font-bold text-white mb-2">Cost Breakdown</div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-ios-gray">
-                        {['accommodationINR', 'foodINR', 'transportINR', 'activitiesINR', 'miscINR', 'totalINR'].map((k) => (
-                          <div key={k}><span className="text-white capitalize">{k.replace('INR', '').replace(/([A-Z])/g, ' $1')}</span><div>₹{Number(planTripMutation.data.costBreakdown[k]).toLocaleString('en-IN')}</div></div>
-                        ))}
-                      </div>
+        {/* Loading Skeleton */}
+        {(createTripMutation.isPending || planTripMutation.isPending) && (
+          <Card className="bg-ios-card border-ios-gray elev-1 mt-8">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white">Generating Your Perfect Itinerary...</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-ios-darker border border-ios-gray rounded-lg p-4 space-y-3">
+                    <div className="h-6 w-24 bg-gray-800/50 rounded animate-pulse"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-full bg-gray-800/50 rounded animate-pulse"></div>
+                      <div className="h-4 w-5/6 bg-gray-800/50 rounded animate-pulse"></div>
                     </div>
-                  )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </form>
+    </CardContent>
+        </Card >
 
-                  <div className="space-y-3">
-                    {Array.isArray(planTripMutation.data.itinerary) && planTripMutation.data.itinerary.map((d: any) => (
-                      <Card key={`day-${d.day}`} className="bg-ios-darker border-ios-gray">
-                        <CardHeader>
-                          <CardTitle className="text-white">Day {Number(d.day)}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {Array.isArray(d.activities) && d.activities.map((a: any, idx: number) => (
-                            <div key={`act-${d.day}-${idx}`} className="space-y-1">
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <div className="text-sm text-ios-gray">{String(a.time)} • {String(a.placeName || a.title || '')}</div>
-                                  {a.address && (
-                                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">
-                                      {String(a.address)}
-                                    </a>
-                                  )}
-                                </div>
-                                <div className="text-sm text-ios-green">
-                                  {typeof a.entryFeeINR === 'number' ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : ''}
-                                </div>
-                              </div>
-                              <div className="text-xs text-ios-gray">
-                                {typeof a.duration_minutes === 'number' && <span>Duration: {Number(a.duration_minutes)} min</span>}
-                                {a.routeFromPrevious && (
-                                  <span className="ml-2">{String(a.routeFromPrevious.mode)} • {Number(a.routeFromPrevious.distance_km)} km • {Number(a.routeFromPrevious.travel_time_minutes)} min</span>
-                                )}
-                              </div>
-                              {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                  {a.localFoodRecommendations.map((f: any, i: number) => (
-                                    <span key={`food-${i}`} className="text-xs bg-ios-card text-white px-2 py-1 rounded-full">{String(f)}</span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </CardContent>
-                      </Card>
+  {
+    planTripMutation.data && !planTripMutation.data.error && (
+      <div aria-live="polite" aria-atomic="true">
+        <Card className="bg-ios-card border-ios-gray elev-1 mt-8" role="region" aria-label="Trip Plan">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white" tabIndex={-1} id="trip-plan-heading">
+              Trip Plan — {String(planTripMutation.data.destination || 'Unknown Destination')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-ios-gray">
+                <div><div className="text-white">Days</div><div>{Number(planTripMutation.data.days) || ''}</div></div>
+                <div><div className="text-white">Persons</div><div>{Number(planTripMutation.data.persons) || ''}</div></div>
+                <div><div className="text-white">Budget</div><div>{tripForm.budget ? `₹${Number(tripForm.budget).toLocaleString('en-IN')}` : '—'}</div></div>
+                <div><div className="text-white">Estimated Total</div><div>₹{Number(planTripMutation.data.totalEstimatedCost || 0).toLocaleString('en-IN')}</div></div>
+                <div><div className="text-white">Currency</div><div>{String(planTripMutation.data.currency || 'INR')}</div></div>
+              </div>
+
+              {planTripMutation.data.costBreakdown && (
+                <div>
+                  <div className="font-bold text-white mb-2">Cost Breakdown</div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-ios-gray">
+                    {['accommodationINR', 'foodINR', 'transportINR', 'activitiesINR', 'miscINR', 'totalINR'].map((k) => (
+                      <div key={k}><span className="text-white capitalize">{k.replace('INR', '').replace(/([A-Z])/g, ' $1')}</span><div>₹{Number(planTripMutation.data.costBreakdown[k]).toLocaleString('en-IN')}</div></div>
                     ))}
                   </div>
-
-                  {Array.isArray(planTripMutation.data.packingList) && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-bold text-white">Packing List - Select Items to Save</div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedPackingItems(planTripMutation.data.packingList)}
-                            className="text-xs bg-ios-darker border-ios-gray text-white hover:bg-ios-card"
-                            data-testid="button-select-all-packing"
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedPackingItems([])}
-                            className="text-xs bg-ios-darker border-ios-gray text-white hover:bg-ios-card"
-                            data-testid="button-deselect-all-packing"
-                          >
-                            Deselect All
-                          </Button>
-                        </div>
-                      </div>
-                      <ul className="text-sm text-ios-gray space-y-2">
-                        {planTripMutation.data.packingList.map((p: any, i: number) => {
-                          const itemName = String(p);
-                          const isSelected = selectedPackingItems.includes(itemName);
-                          return (
-                            <li key={`pack-${i}`} className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedPackingItems(prev => [...prev, itemName]);
-                                  } else {
-                                    setSelectedPackingItems(prev => prev.filter(item => item !== itemName));
-                                  }
-                                }}
-                                aria-label={`Pack ${p}`}
-                                className="cursor-pointer"
-                                data-testid={`checkbox-pack-${i}`}
-                              />
-                              <span className={isSelected ? 'text-white' : 'text-ios-gray line-through'}>{itemName}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      <p className="text-xs text-ios-gray mt-2">
-                        <i className="fas fa-info-circle mr-1"></i>
-                        {selectedPackingItems.length} of {planTripMutation.data.packingList.length} items selected
-                      </p>
-                    </div>
-                  )}
-
-                  {Array.isArray(planTripMutation.data.safetyTips) && (
-                    <div>
-                      <div className="font-bold text-white mb-2">Safety Tips</div>
-                      <ul className="list-disc ml-6 text-sm text-ios-gray">
-                        {planTripMutation.data.safetyTips.map((s: any, i: number) => (
-                          <li key={`safe-${i}`}>{String(s)}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 pt-2">
-                    <Button onClick={() => {
-                      const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
-                      createTripMutation.mutate({
-                        destination: tripForm.destination,
-                        budget: tripForm.budget ? Number(tripForm.budget) : 0,
-                        days: Number(tripForm.days || 1),
-                        groupSize: Number(tripForm.groupSize || 1),
-                        travelStyle: styleMap[selectedStyle] || 'standard',
-                        transportMode: tripForm.transportMode || undefined,
-                        isInternational: !!tripForm.isInternational,
-                        status: 'planning' as const,
-                        notes: tripForm.notes
-                      });
-                    }} className="bg-ios-blue">Save Trip</Button>
-                    <Button variant="outline" onClick={() => window.print()}>Export as PDF</Button>
-                    <Button variant="outline" onClick={() => {
-                      const shareData = { title: 'Trip Plan', text: `Plan for ${planTripMutation.data.destination}`, url: window.location.href };
-                      if (navigator.share) navigator.share(shareData as any); else navigator.clipboard?.writeText(shareData.url);
-                    }}>Share</Button>
-                    <Button variant="secondary" onClick={() => { if (!planTripMutation.isPending) planTripMutation.mutate(); }} disabled={planTripMutation.isPending}>Regenerate Plan</Button>
-                  </div>
-
-                  <details className="mt-4">
-                    <summary className="text-ios-gray">View Raw AI Output</summary>
-                    <pre className="mt-2 text-xs text-ios-gray whitespace-pre-wrap bg-ios-darker p-3 rounded-xl">{JSON.stringify(planTripMutation.data, null, 2)}</pre>
-                  </details>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              )}
 
-        {planTripMutation.data && planTripMutation.data.error && (
-          <Card className="bg-ios-card border-ios-gray elev-1 mt-8">
-            <CardContent className="p-6">
-              <div className="text-ios-red font-semibold mb-2">We couldn’t parse the plan — try regenerating.</div>
-              <Button variant="secondary" onClick={() => planTripMutation.mutate()} disabled={planTripMutation.isPending}>
-                {planTripMutation.isPending ? 'Generating…' : 'Regenerate'}
-              </Button>
+              <div className="space-y-3">
+                {Array.isArray(planTripMutation.data.itinerary) && planTripMutation.data.itinerary.map((d: any) => (
+                  <Card key={`day-${d.day}`} className="bg-ios-darker border-ios-gray">
+                    <CardHeader>
+                      <CardTitle className="text-white">Day {Number(d.day)}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {Array.isArray(d.activities) && d.activities.map((a: any, idx: number) => (
+                        <div key={`act-${d.day}-${idx}`} className="space-y-1">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="text-sm text-ios-gray">{String(a.time)} • {String(a.placeName || a.title || '')}</div>
+                              {a.address && (
+                                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">
+                                  {String(a.address)}
+                                </a>
+                              )}
+                            </div>
+                            <div className="text-sm text-ios-green">
+                              {typeof a.entryFeeINR === 'number' ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : ''}
+                            </div>
+                          </div>
+                          <div className="text-xs text-ios-gray">
+                            {typeof a.duration_minutes === 'number' && <span>Duration: {Number(a.duration_minutes)} min</span>}
+                            {a.routeFromPrevious && (
+                              <span className="ml-2">{String(a.routeFromPrevious.mode)} • {Number(a.routeFromPrevious.distance_km)} km • {Number(a.routeFromPrevious.travel_time_minutes)} min</span>
+                            )}
+                          </div>
+                          {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {a.localFoodRecommendations.map((f: any, i: number) => (
+                                <span key={`food-${i}`} className="text-xs bg-ios-card text-white px-2 py-1 rounded-full">{String(f)}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {Array.isArray(planTripMutation.data.packingList) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-bold text-white">Packing List - Select Items to Save</div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedPackingItems(planTripMutation.data.packingList)}
+                        className="text-xs bg-ios-darker border-ios-gray text-white hover:bg-ios-card"
+                        data-testid="button-select-all-packing"
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedPackingItems([])}
+                        className="text-xs bg-ios-darker border-ios-gray text-white hover:bg-ios-card"
+                        data-testid="button-deselect-all-packing"
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
+                  </div>
+                  <ul className="text-sm text-ios-gray space-y-2">
+                    {planTripMutation.data.packingList.map((p: any, i: number) => {
+                      const itemName = String(p);
+                      const isSelected = selectedPackingItems.includes(itemName);
+                      return (
+                        <li key={`pack-${i}`} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPackingItems(prev => [...prev, itemName]);
+                              } else {
+                                setSelectedPackingItems(prev => prev.filter(item => item !== itemName));
+                              }
+                            }}
+                            aria-label={`Pack ${p}`}
+                            className="cursor-pointer"
+                            data-testid={`checkbox-pack-${i}`}
+                          />
+                          <span className={isSelected ? 'text-white' : 'text-ios-gray line-through'}>{itemName}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="text-xs text-ios-gray mt-2">
+                    <i className="fas fa-info-circle mr-1"></i>
+                    {selectedPackingItems.length} of {planTripMutation.data.packingList.length} items selected
+                  </p>
+                </div>
+              )}
+
+              {Array.isArray(planTripMutation.data.safetyTips) && (
+                <div>
+                  <div className="font-bold text-white mb-2">Safety Tips</div>
+                  <ul className="list-disc ml-6 text-sm text-ios-gray">
+                    {planTripMutation.data.safetyTips.map((s: any, i: number) => (
+                      <li key={`safe-${i}`}>{String(s)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button onClick={() => {
+                  const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
+                  createTripMutation.mutate({
+                    destination: tripForm.destination,
+                    budget: tripForm.budget ? Number(tripForm.budget) : 0,
+                    days: Number(tripForm.days || 1),
+                    groupSize: Number(tripForm.groupSize || 1),
+                    travelStyle: styleMap[selectedStyle] || 'standard',
+                    transportMode: tripForm.transportMode || undefined,
+                    isInternational: !!tripForm.isInternational,
+                    status: 'planning' as const,
+                    notes: tripForm.notes
+                  });
+                }} className="bg-ios-blue">Save Trip</Button>
+                <Button variant="outline" onClick={() => window.print()}>Export as PDF</Button>
+                <Button variant="outline" onClick={() => {
+                  const shareData = { title: 'Trip Plan', text: `Plan for ${planTripMutation.data.destination}`, url: window.location.href };
+                  if (navigator.share) navigator.share(shareData as any); else navigator.clipboard?.writeText(shareData.url);
+                }}>Share</Button>
+                <Button variant="secondary" onClick={() => { if (!planTripMutation.isPending) planTripMutation.mutate(); }} disabled={planTripMutation.isPending}>Regenerate Plan</Button>
+              </div>
+
               <details className="mt-4">
                 <summary className="text-ios-gray">View Raw AI Output</summary>
                 <pre className="mt-2 text-xs text-ios-gray whitespace-pre-wrap bg-ios-darker p-3 rounded-xl">{JSON.stringify(planTripMutation.data, null, 2)}</pre>
               </details>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* AI Tips */}
-        <Card className="bg-ios-card border-ios-gray elev-1 mt-8">
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-ios-orange rounded-xl flex items-center justify-center mr-3">
-                <i className="fas fa-lightbulb text-white"></i>
-              </div>
-              <h3 className="text-lg font-bold text-white">AI Planning Tips</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-ios-gray">
-              <div>
-                <p className="mb-2">
-                  <i className="fas fa-check text-ios-green mr-2"></i>
-                  The more details you provide, the better your personalized itinerary will be.
-                </p>
-                <p className="mb-2">
-                  <i className="fas fa-check text-ios-green mr-2"></i>
-                  Budget helps us suggest appropriate accommodations and activities.
-                </p>
-              </div>
-              <div>
-                <p className="mb-2">
-                  <i className="fas fa-check text-ios-green mr-2"></i>
-                  Travel style influences the types of experiences we recommend.
-                </p>
-                <p className="mb-2">
-                  <i className="fas fa-check text-ios-green mr-2"></i>
-                  You can always edit and customize your itinerary after it's generated.
-                </p>
-              </div>
             </div>
           </CardContent>
         </Card>
       </div>
-    </div>
+    )
+  }
+
+  {
+    planTripMutation.data && planTripMutation.data.error && (
+      <Card className="bg-ios-card border-ios-gray elev-1 mt-8">
+        <CardContent className="p-6">
+          <div className="text-ios-red font-semibold mb-2">We couldn’t parse the plan — try regenerating.</div>
+          <Button variant="secondary" onClick={() => planTripMutation.mutate()} disabled={planTripMutation.isPending}>
+            {planTripMutation.isPending ? 'Generating…' : 'Regenerate'}
+          </Button>
+          <details className="mt-4">
+            <summary className="text-ios-gray">View Raw AI Output</summary>
+            <pre className="mt-2 text-xs text-ios-gray whitespace-pre-wrap bg-ios-darker p-3 rounded-xl">{JSON.stringify(planTripMutation.data, null, 2)}</pre>
+          </details>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  {/* AI Tips */ }
+  <Card className="bg-ios-card border-ios-gray elev-1 mt-8">
+    <CardContent className="p-6">
+      <div className="flex items-center mb-4">
+        <div className="w-10 h-10 bg-ios-orange rounded-xl flex items-center justify-center mr-3">
+          <i className="fas fa-lightbulb text-white"></i>
+        </div>
+        <h3 className="text-lg font-bold text-white">AI Planning Tips</h3>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-ios-gray">
+        <div>
+          <p className="mb-2">
+            <i className="fas fa-check text-ios-green mr-2"></i>
+            The more details you provide, the better your personalized itinerary will be.
+          </p>
+          <p className="mb-2">
+            <i className="fas fa-check text-ios-green mr-2"></i>
+            Budget helps us suggest appropriate accommodations and activities.
+          </p>
+        </div>
+        <div>
+          <p className="mb-2">
+            <i className="fas fa-check text-ios-green mr-2"></i>
+            Travel style influences the types of experiences we recommend.
+          </p>
+          <p className="mb-2">
+            <i className="fas fa-check text-ios-green mr-2"></i>
+            You can always edit and customize your itinerary after it's generated.
+          </p>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+      </div >
+    </div >
   );
 }

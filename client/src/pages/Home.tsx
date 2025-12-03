@@ -90,14 +90,14 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.6 }}
       >
-        <h2 className="text-xl font-semibold text-foreground mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <h2 className="text-xl font-semibold text-foreground mb-6">Quick Actions</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
-              <Card className="bg-card border-border hover:bg-accent/50 transition-colors cursor-pointer h-full">
-                <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full py-6">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${action.bg}`}>
-                    <action.icon className={`w-5 h-5 ${action.color}`} />
+              <Card className="bg-card border-border hover:bg-accent/50 transition-all duration-200 cursor-pointer h-full group">
+                <CardContent className="p-6 flex flex-col items-center justify-center text-center h-full">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${action.bg} group-hover:scale-110 transition-transform duration-200`}>
+                    <action.icon className={`w-6 h-6 ${action.color}`} />
                   </div>
                   <span className="font-medium text-sm">{action.title}</span>
                 </CardContent>

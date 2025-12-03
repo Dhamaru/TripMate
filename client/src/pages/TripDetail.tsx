@@ -677,59 +677,98 @@ export default function TripDetail() {
 
           {/* Itinerary Card */}
           {trip.itinerary && Array.isArray(trip.itinerary) && trip.itinerary.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-xl font-bold text-white">Your Itinerary</h3>
-              <div className="space-y-4">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white">Your Itinerary</h3>
+                <Button variant="outline" size="sm" className="text-ios-blue border-ios-blue hover:bg-ios-blue/10">
+                  <i className="fas fa-print mr-2"></i>
+                  Print
+                </Button>
+              </div>
+              <div className="space-y-6">
                 {trip.itinerary.map((d: any) => (
-                  <Card key={`day-${d.day}`} className="bg-ios-card border-ios-gray">
-                    <CardHeader>
-                      <CardTitle className="text-white text-lg">Day {Number(d.day)}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {Array.isArray(d.activities) && d.activities.map((a: any, idx: number) => (
-                        <div key={`act-${d.day}-${idx}`} className="relative pl-6 border-l-2 border-ios-gray last:border-0 pb-4 last:pb-0">
-                          <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-ios-blue border-2 border-[#0d1117]"></div>
-                          <div className="space-y-1">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <div className="text-sm font-semibold text-white">{String(a.time)}</div>
-                                <div className="text-base font-medium text-ios-blue">{String(a.placeName || a.title || '')}</div>
-                                {a.address && (
-                                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-gray hover:text-white underline transition-colors">
-                                    {String(a.address)}
-                                  </a>
-                                )}
-                              </div>
-                              <div className="text-sm text-ios-green font-medium">
-                                {typeof a.entryFeeINR === 'number' && a.entryFeeINR > 0 ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : 'Free'}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-ios-gray">
-                              {typeof a.duration_minutes === 'number' && (
-                                <span className="flex items-center gap-1">
-                                  <i className="fas fa-clock"></i> {Number(a.duration_minutes)} min
-                                </span>
-                              )}
-                              {a.routeFromPrevious && (
-                                <span className="flex items-center gap-1">
-                                  <i className={`fas fa-${a.routeFromPrevious.mode === 'walk' ? 'walking' : 'car'}`}></i>
-                                  {Number(a.routeFromPrevious.distance_km)} km
-                                  ({Number(a.routeFromPrevious.travel_time_minutes)} min)
-                                </span>
-                              )}
-                            </div>
-                            {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {a.localFoodRecommendations.map((f: any, i: number) => (
-                                  <span key={`food-${i}`} className="text-xs bg-ios-darker text-ios-gray px-2 py-1 rounded-full border border-gray-800">
-                                    <i className="fas fa-utensils mr-1 text-xs"></i> {String(f)}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                  <Card key={`day-${d.day}`} className="bg-ios-card border-ios-gray overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-ios-blue/10 to-purple-600/10 border-b border-ios-gray">
+                      <CardTitle className="text-white text-xl flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-ios-blue flex items-center justify-center mr-3">
+                          <span className="text-white font-bold">{Number(d.day)}</span>
                         </div>
-                      ))}
+                        Day {Number(d.day)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="relative space-y-6">
+                        {/* Vertical timeline line */}
+                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-ios-blue to-purple-600"></div>
+
+                        {Array.isArray(d.activities) && d.activities.map((a: any, idx: number) => (
+                          <div key={`act-${d.day}-${idx}`} className="relative pl-12">
+                            {/* Timeline dot */}
+                            <div className="absolute left-0 top-2 w-8 h-8 rounded-full bg-ios-blue border-4 border-[#0d1117] flex items-center justify-center">
+                              <i className="fas fa-map-marker-alt text-white text-xs"></i>
+                            </div>
+
+                            <div className="bg-ios-darker rounded-lg p-4 border border-ios-gray hover:border-ios-blue transition-colors">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-ios-blue/20 text-ios-blue border border-ios-blue/30">
+                                      <i className="fas fa-clock mr-1.5"></i>
+                                      {String(a.time)}
+                                    </span>
+                                    {typeof a.duration_minutes === 'number' && (
+                                      <span className="text-xs text-ios-gray">
+                                        {Number(a.duration_minutes)} min
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h4 className="text-lg font-semibold text-white mb-1">{String(a.placeName || a.title || '')}</h4>
+                                  {a.address && (
+                                    <a
+                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-sm text-ios-gray hover:text-ios-blue underline transition-colors inline-flex items-center gap-1"
+                                    >
+                                      <i className="fas fa-location-dot text-xs"></i>
+                                      {String(a.address)}
+                                    </a>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-lg font-bold text-ios-green">
+                                    {typeof a.entryFeeINR === 'number' && a.entryFeeINR > 0 ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : 'Free'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {a.routeFromPrevious && (
+                                <div className="flex items-center gap-2 text-sm text-ios-gray bg-ios-darker/50 rounded px-3 py-2 border border-gray-800">
+                                  <i className={`fas fa-${a.routeFromPrevious.mode === 'walk' ? 'walking' : 'car'} text-ios-blue`}></i>
+                                  <span>{Number(a.routeFromPrevious.distance_km).toFixed(1)} km</span>
+                                  <span>•</span>
+                                  <span>{Number(a.routeFromPrevious.travel_time_minutes)} min travel</span>
+                                </div>
+                              )}
+
+                              {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
+                                <div className="mt-3">
+                                  <div className="text-xs font-semibold text-ios-gray mb-2">
+                                    <i className="fas fa-utensils mr-1"></i> Local Food Recommendations
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {a.localFoodRecommendations.map((f: any, i: number) => (
+                                      <span key={`food-${i}`} className="text-xs bg-gradient-to-r from-ios-green/10 to-ios-blue/10 text-white px-3 py-1.5 rounded-full border border-ios-green/30">
+                                        {String(f)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}

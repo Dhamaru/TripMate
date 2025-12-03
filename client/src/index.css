@@ -52,24 +52,39 @@
   --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 1px 2px -1px hsl(0 0% 0% / 0.30);
   --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 2px 4px -1px hsl(0 0% 0% / 0.30);
   --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 4px 6px -1px hsl(0 0% 0% / 0.30);
-  --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 8px 10px -1px hsl(0 0% 0% / 0.30);
   --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.30);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
-  --transition-fast: 120ms;
-  --transition-medium: 200ms;
-  --transition-slow: 320ms;
-  --icon-sm: 0.875rem;
-  --icon-md: 1rem;
-  --icon-lg: 1.25rem;
-  --ios-blue: hsl(214 100% 50%);
-  --ios-orange: hsl(28 100% 50%);
-  --ios-green: hsl(145 63% 49%);
-  --ios-red: hsl(5 100% 58%);
-  --ios-gray: hsl(240 4% 55%);
-  --ios-dark: hsl(220 13% 11%);
-  --ios-darker: hsl(0 0% 0%);
-  --ios-card: hsl(220 13% 18%);
+  /* iOS-inspired dark theme colors */
+  --ios-darker: #000000;
+  --ios-card: #1c1c1e;
+  --ios-gray: #98989d; /* Improved from #8e8e93 for better contrast */
+  --ios-blue: #0a84ff;
+  --ios-green: #30d158;
+  --ios-orange: #ff9f0a;
+  --ios-red: #ff453a;
+  --ios-purple: #bf5af2;
+
+  /* Standardized spacing scale (4px base) */
+  --spacing-1: 0.25rem; /* 4px */
+  --spacing-2: 0.5rem;  /* 8px */
+  --spacing-3: 0.75rem; /* 12px */
+  --spacing-4: 1rem;    /* 16px */
+  --spacing-6: 1.5rem;  /* 24px */
+  --spacing-8: 2rem;    /* 32px */
+  --spacing-12: 3rem;   /* 48px */
+  --spacing-16: 4rem;   /* 64px */
+
+  /* Consistent transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Elevation shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
   --surface: hsl(220 13% 14%);
   --surface-2: hsl(220 13% 18%);
   --text-primary: hsl(200 7% 92%);
