@@ -1985,7 +1985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             let name = nameEn;
             if (!name) {
               // Try to use ASCII version if local name is non-ASCII
-              const asciiLocal = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const asciiLocal = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
               const al = asciiLocal(nameLocal);
               if (al !== nameLocal && al.length > 0) name = al;
               else if (/^[\x00-\x7F]+$/.test(displayNameFirst)) name = displayNameFirst;
