@@ -1393,94 +1393,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(200).json({ current, forecast, recommendations, alerts: [], source: 'fallback-route' });
       }
       if (!cityQ) return res.status(400).json({ current: {}, forecast: [], recommendations: [], alerts: [] });
-      const keyInvalid = !!key && String(key).startsWith('AIza');
-      const useOpenWeather = !!key && !keyInvalid && providerMode !== 'open_meteo';
-      if (useOpenWeather) {
-        const g = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityQ)}&limit=1&appid=${key}`);
-        if (g.ok) {
-          const arr = await g.json();
-          const first = Array.isArray(arr) && arr.length ? arr[0] : null;
-          if (first && Number.isFinite(first.lat) && Number.isFinite(first.lon)) {
-            console.log('[weather:geocode]', { cityQ, lat: first.lat, lon: first.lon, units, lang });
-            const oc = await oneCall(Number(first.lat), Number(first.lon));
-            if (oc) return res.json(oc);
-          }
-        }
-      }
+      
+      // Use Open-Meteo geocoding (free, no API key needed)
       try {
-        const limitFetch = 1;
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(cityQ)}&limit=${limitFetch}`;
-        const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': lang } });
-        if (r.ok) {
-          const arr = await r.json();
-          const first = Array.isArray(arr) && arr.length ? arr[0] : null;
-          const latStr = String(first?.lat || '');
-          const lonStr = String(first?.lon || '');
-          const latNum = Number(latStr);
-          const lonNum = Number(lonStr);
-          if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
-            const om = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
-            if (om.ok) {
-              const j = await om.json();
-              const temp = Math.round(Number(j?.current?.temperature_2m ?? 22));
-              const current = {
-                temperature: temp,
-                condition: 'Clear',
-                humidity: Math.round(Number(j?.current?.relative_humidity_2m ?? 60)),
-                windSpeed: Math.round(Number(j?.current?.wind_speed_10m ?? 10)),
-                icon: 'fas fa-sun',
-              };
-              const days = Array.isArray(j?.daily?.time) ? j.daily.time : [];
-              const highs = Array.isArray(j?.daily?.temperature_2m_max) ? j.daily.temperature_2m_max : [];
-              const lows = Array.isArray(j?.daily?.temperature_2m_min) ? j.daily.temperature_2m_min : [];
-              const forecast = days.slice(0, 7).map((d: string, i: number) => ({
-                day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-                high: Math.round(Number(highs[i] ?? current.temperature)),
-                low: Math.round(Number(lows[i] ?? Math.max(0, current.temperature - 5))),
-                condition: 'Clear',
-                icon: 'fas fa-sun',
-              }));
-              return res.json({ current, forecast, hourly: [], alerts: [], recommendations: [], source: 'open-meteo' });
+        console.log('[weather:open-meteo-geocode] Searching for:', cityQ);
+        const geocodeUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityQ)}&count=1&language=${encodeURIComponent(lang)}`;
+        const geocodeRes = await fetch(geocodeUrl);
+        
+        if (geocodeRes.ok) {
+          const geocodeData = await geocodeRes.json();
+          const first = Array.isArray(geocodeData?.results) && geocodeData.results.length ? geocodeData.results[0] : null;
+          
+          if (first) {
+            const latNum = Number(first.latitude);
+            const lonNum = Number(first.longitude);
+            
+            if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+              console.log('[weather:open-meteo-geocode] Found:', first.name, { lat: latNum, lon: lonNum });
+              
+              // Fetch weather data from Open-Meteo
+              const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+              const weatherRes = await fetch(weatherUrl);
+              
+              if (weatherRes.ok) {
+                const weatherData = await weatherRes.json();
+                const temp = Math.round(Number(weatherData?.current?.temperature_2m ?? 22));
+                
+                const current = {
+                  temperature: temp,
+                  condition: 'Clear',
+                  humidity: Math.round(Number(weatherData?.current?.relative_humidity_2m ?? 60)),
+                  windSpeed: Math.round(Number(weatherData?.current?.wind_speed_10m ?? 10)),
+                  icon: 'fas fa-sun',
+                };
+                
+                const days = Array.isArray(weatherData?.daily?.time) ? weatherData.daily.time : [];
+                const highs = Array.isArray(weatherData?.daily?.temperature_2m_max) ? weatherData.daily.temperature_2m_max : [];
+                const lows = Array.isArray(weatherData?.daily?.temperature_2m_min) ? weatherData.daily.temperature_2m_min : [];
+                
+                const forecast = days.slice(0, 7).map((d: string, i: number) => ({
+                  day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
+                  high: Math.round(Number(highs[i] ?? temp)),
+                  low: Math.round(Number(lows[i] ?? Math.max(0, temp - 5))),
+                  condition: 'Clear',
+                  icon: 'fas fa-sun',
+                }));
+                
+                console.log('[weather:open-meteo] Success for', cityQ);
+                return res.json({ current, forecast, hourly: [], alerts: [], recommendations: [], source: 'open-meteo' });
+              }
             }
           }
         }
       } catch (e) {
-        console.warn('[weather:nominatim_openmeteo_fallback_failed]', { cityQ, error: String((e as any)?.message || e) });
+        console.error('[weather:open-meteo-geocode] Error:', e);
       }
-      try {
-        const g2 = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityQ)}&count=1&language=${encodeURIComponent(lang)}`);
-        if (g2.ok) {
-          const j2 = await g2.json();
-          const first = Array.isArray(j2?.results) && j2.results.length ? j2.results[0] : null;
-          const latNum = Number(first?.latitude ?? NaN);
-          const lonNum = Number(first?.longitude ?? NaN);
-          if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
-            const om = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
-            if (om.ok) {
-              const j = await om.json();
-              const temp = Math.round(Number(j?.current?.temperature_2m ?? 22));
-              const current = {
-                temperature: temp,
-                condition: 'Clear',
-                humidity: Math.round(Number(j?.current?.relative_humidity_2m ?? 60)),
-                windSpeed: Math.round(Number(j?.current?.wind_speed_10m ?? 10)),
-                icon: 'fas fa-sun',
-              };
-              const days = Array.isArray(j?.daily?.time) ? j.daily.time : [];
-              const highs = Array.isArray(j?.daily?.temperature_2m_max) ? j.daily.temperature_2m_max : [];
-              const lows = Array.isArray(j?.daily?.temperature_2m_min) ? j.daily.temperature_2m_min : [];
-              const forecast = days.slice(0, 7).map((d: string, i: number) => ({
-                day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-                high: Math.round(Number(highs[i] ?? current.temperature)),
-                low: Math.round(Number(lows[i] ?? Math.max(0, current.temperature - 5))),
-                condition: 'Clear',
-                icon: 'fas fa-sun',
-              }));
-              return res.json({ current, forecast, hourly: [], alerts: [], recommendations: [], source: 'open-meteo' });
-            }
-          }
-        }
-      } catch { }
+      
+      // Fallback to AI-generated weather
       const result = await ai.weather(cityQ);
       console.log('[weather:ai]', { cityQ, units, lang });
       res.json({ ...result, alerts: [] });
