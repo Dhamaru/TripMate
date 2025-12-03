@@ -326,6 +326,25 @@ export default function TripPlanner() {
       setSelectedPackingItems(packingList);
       return { destination: dest, days, persons, totalEstimatedCost: totalINR, currency: 'INR', costBreakdown, itinerary: daysOut, packingList, safetyTips: ['Keep copies of documents', 'Use registered taxis', 'Stay aware in crowded areas'] } as any;
     },
+    onSuccess: (planData) => {
+      // Automatically create the trip with the generated itinerary
+      const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
+      const tripData = {
+        destination: tripForm.destination,
+        budget: tripForm.budget ? parseFloat(tripForm.budget) : 0,
+        days: parseInt(tripForm.days) || 1,
+        groupSize: parseInt(tripForm.groupSize) || 1,
+        travelStyle: styleMap[selectedStyle] || 'standard',
+        transportMode: tripForm.transportMode || undefined,
+        isInternational: !!tripForm.isInternational,
+        status: 'planning' as const,
+        notes: tripForm.notes,
+        itinerary: planData.itinerary,
+        costBreakdown: planData.costBreakdown,
+      };
+
+      createTripMutation.mutate(tripData);
+    },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: 'Unauthorized', description: 'You are logged out. Logging in again...', variant: 'destructive' });
@@ -354,35 +373,8 @@ export default function TripPlanner() {
       return;
     }
 
-    try {
-      // 1. Generate the plan first
-      const planData = await planTripMutation.mutateAsync();
-
-      // 2. Create the trip with the generated plan
-      const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
-      const tripData = {
-        destination: tripForm.destination,
-        budget: tripForm.budget ? parseFloat(tripForm.budget) : 0,
-        days: parseInt(tripForm.days) || 1,
-        groupSize: parseInt(tripForm.groupSize) || 1,
-        travelStyle: styleMap[selectedStyle] || 'standard',
-        transportMode: tripForm.transportMode || undefined,
-        isInternational: !!tripForm.isInternational,
-        status: 'planning',
-        notes: tripForm.notes,
-        itinerary: planData.itinerary,
-        costBreakdown: planData.costBreakdown,
-        // We can also save the packing list here if the API supports it, 
-        // but the original code created it separately in onSuccess.
-        // We'll keep the onSuccess logic for packing list creation to avoid breaking changes,
-        // but we'll pass the generated packing list to it via state or just let it use planTripMutation.data
-      };
-
-      createTripMutation.mutate(tripData);
-    } catch (error) {
-      console.error("Failed to generate plan or create trip", error);
-      // Error handling is already done in planTripMutation
-    }
+    // Trigger plan generation first
+    planTripMutation.mutate();
   };
 
   const handleStyleSelect = (styleId: string) => {
