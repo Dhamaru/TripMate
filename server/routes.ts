@@ -1978,7 +1978,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results = arr.map((it: any) => {
             const addr = it.address || {};
             const namedetails = it.namedetails || {};
-            const name = String(namedetails['name:en'] || it.localname || it.display_name?.split(',')[0] || '').trim();
+            const nameEn = String(namedetails['name:en'] || '').trim();
+            const nameLocal = String(it.localname || it.name || '').trim();
+            const displayNameFirst = String(it.display_name || '').split(',')[0].trim();
+
+            let name = nameEn;
+            if (!name) {
+              // Try to use ASCII version if local name is non-ASCII
+              const asciiLocal = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const al = asciiLocal(nameLocal);
+              if (al !== nameLocal && al.length > 0) name = al;
+              else if (/^[\x00-\x7F]+$/.test(displayNameFirst)) name = displayNameFirst;
+              else name = nameLocal;
+            }
+
             const state = String(addr.state || '').trim();
             const country = String(addr.country || '').trim();
             const lat = Number(it.lat);
@@ -2096,7 +2109,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const displayNameFirst = String(it.display_name || '').split(',')[0].trim();
 
         // Use English name if available, otherwise transliterate the local name to ASCII
-        const nameEn = nameEnRaw || toAscii(nameLocal) || displayNameFirst;
+        // If transliteration fails or is same as local (and local is non-ASCII), try to use the first part of display_name
+        let nameEn = nameEnRaw;
+        if (!nameEn) {
+          const asciiLocal = toAscii(nameLocal);
+          // If local name has non-ascii chars and ascii version is different, use it
+          if (asciiLocal !== nameLocal && asciiLocal.length > 0) {
+            nameEn = asciiLocal;
+          } else {
+            // Fallback to display name first part if it looks like English (ASCII)
+            const firstPart = displayNameFirst;
+            if (/^[\x00-\x7F]+$/.test(firstPart)) {
+              nameEn = firstPart;
+            } else {
+              nameEn = nameLocal; // Give up and use local
+            }
+          }
+        }
 
         const road = String(addr.road || addr.street || addr.residential || addr.pedestrian || addr.footway || addr.path || '').trim();
         const city = String(addr.city || addr.town || addr.village || addr.hamlet || addr.county || '').trim();

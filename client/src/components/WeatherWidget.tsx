@@ -51,10 +51,10 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
         if (entry && (Date.now() - entry.ts) < TTL_MS) {
           return entry.data;
         }
-      } catch {}
+      } catch { }
       try {
         const lang = typeof navigator !== 'undefined' ? String(navigator.language || 'en').slice(0, 2) : 'en';
-        const units = unit === 'F' ? 'imperial' : 'metric';
+        const units = 'metric';
         const url = coordStr
           ? `/api/v1/weather?lat=${encodeURIComponent(coordStr.split(',')[0])}&lon=${encodeURIComponent(coordStr.split(',')[1])}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}`
           : `/api/v1/weather?location=${encodeURIComponent(loc)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}`;
@@ -67,7 +67,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           const cache = raw ? JSON.parse(raw) as Record<string, { ts: number; data: WeatherData }> : {};
           cache[cacheKey] = { ts: Date.now(), data };
           localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-        } catch {}
+        } catch { }
         return data;
       } catch {
         const now = new Date();
@@ -135,7 +135,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
   function toggleUnit() {
     const next = unit === 'C' ? 'F' : 'C';
     setUnit(next);
-    try { localStorage.setItem(UNIT_KEY, next); } catch {}
+    try { localStorage.setItem(UNIT_KEY, next); } catch { }
   }
 
   return (
