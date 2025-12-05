@@ -1126,7 +1126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/v1/emergency/:location', apiLimiter, async (req, res) => {
     try {
       const location = req.params.location;
-      const key = process.env.GOOGLE_PLACES_API_KEY;
+      const key = process.env.GOOGLE_API_KEY;
       const types = ['hospital', 'police', 'embassy', 'pharmacy'];
       const results: Array<{ id: string; name: string; type: string; address: string; phone: string; distance: string; latitude: number; longitude: number }> = [];
       if (key) {
@@ -1714,7 +1714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let results: any[] = [];
 
       // Try Google Places API first
-      const googleKey = process.env.GOOGLE_PLACES_API_KEY;
+      const googleKey = process.env.GOOGLE_API_KEY;
       if (googleKey) {
         try {
           const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(sanitized)}&language=en&key=${googleKey}`;
@@ -1834,7 +1834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!list) {
-        const gkey = process.env.GOOGLE_PLACES_API_KEY || '';
+        const gkey = process.env.GOOGLE_API_KEY || '';
         if (gkey) {
           try {
             const limitFetch = autocomplete ? 10 : Math.max(pageSize, 50);
