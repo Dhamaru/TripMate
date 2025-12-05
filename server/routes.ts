@@ -1215,13 +1215,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cityQ = String(req.query.city || req.query.location || '').trim();
       const units = String(req.query.units || 'metric');
       const key = process.env.GOOGLE_API_KEY;
-      
+
       if (!key) {
         console.error('[weather] GOOGLE_API_KEY not set');
-        return res.status(503).json({ 
-          current: {}, 
-          forecast: [], 
-          recommendations: [], 
+        return res.status(503).json({
+          current: {},
+          forecast: [],
+          recommendations: [],
           alerts: [],
           error: 'Weather service not configured'
         });
@@ -1245,17 +1245,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}`;
           const currentRes = await fetch(currentUrl);
-          
+
           if (!currentRes.ok) {
             console.error('[weather:google] Current conditions failed:', currentRes.status);
             return null;
           }
 
           const currentData = await currentRes.json();
-          
+
           const forecastUrl = `https://weather.googleapis.com/v1/forecast/days:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}&days=7`;
           const forecastRes = await fetch(forecastUrl);
-          
+
           if (!forecastRes.ok) {
             console.error('[weather:google] Forecast failed:', forecastRes.status);
             return null;
@@ -1264,10 +1264,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const forecastData = await forecastRes.json();
 
           const tempCelsius = currentData.temperature?.degrees ?? 22;
-          const temperature = units === 'metric' ? Math.round(tempCelsius) : Math.round(tempCelsius * 9/5 + 32);
+          const temperature = units === 'metric' ? Math.round(tempCelsius) : Math.round(tempCelsius * 9 / 5 + 32);
           const condition = currentData.weatherCondition?.description?.text || 'Clear';
           const conditionType = currentData.weatherCondition?.type || 'CLEAR';
-          
+
           const current = {
             temperature,
             tempMin: temperature - 5,
@@ -1285,11 +1285,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const minTemp = day.minTemperature?.degrees ?? (temperature - 5);
             const dayCondition = day.daytimeForecast?.weatherCondition?.description?.text || 'Clear';
             const dayType = day.daytimeForecast?.weatherCondition?.type || 'CLEAR';
-            
+
             return {
               day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-              high: units === 'metric' ? Math.round(maxTemp) : Math.round(maxTemp * 9/5 + 32),
-              low: units === 'metric' ? Math.round(minTemp) : Math.round(minTemp * 9/5 + 32),
+              high: units === 'metric' ? Math.round(maxTemp) : Math.round(maxTemp * 9 / 5 + 32),
+              low: units === 'metric' ? Math.round(minTemp) : Math.round(minTemp * 9 / 5 + 32),
               condition: dayCondition,
               icon: iconMap[dayType] || 'fas fa-cloud',
             };
@@ -1325,16 +1325,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[weather:req]', { lat, lon, cityQ, units });
         const weatherData = await getWeatherData(lat, lon);
         if (weatherData) return res.json(weatherData);
-        
+
         const now = new Date();
         const month = now.getMonth();
         const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
-        const current = { 
-          temperature: Math.round(baseTemp), 
-          humidity: 60, 
-          windSpeed: 10, 
-          condition: baseTemp >= 30 ? 'Sunny' : baseTemp >= 25 ? 'Partly Cloudy' : 'Cloudy', 
-          icon: 'fas fa-cloud-sun' 
+        const current = {
+          temperature: Math.round(baseTemp),
+          humidity: 60,
+          windSpeed: 10,
+          condition: baseTemp >= 30 ? 'Sunny' : baseTemp >= 25 ? 'Partly Cloudy' : 'Cloudy',
+          icon: 'fas fa-cloud-sun'
         };
         const forecast = Array.from({ length: 7 }, (_, i) => ({
           day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
@@ -1358,21 +1358,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cityQ)}&key=${key}`;
         const geocodeRes = await fetch(geocodeUrl);
-        
-        if (geocodeRes.ok) {
+
+        if (!geocodeRes.ok) {
+          console.error('[weather:geocode:http-error]', {
+            status: geocodeRes.status,
+            statusText: geocodeRes.statusText,
+            cityQ
+          });
+        } else {
           const geocodeData = await geocodeRes.json();
-          if (geocodeData.results && geocodeData.results.length > 0) {
+          console.log('[weather:geocode:response]', {
+            status: geocodeData.status,
+            resultsCount: geocodeData.results?.length || 0,
+            cityQ
+          });
+
+          if (geocodeData.status === 'REQUEST_DENIED') {
+            console.error('[weather:geocode:denied]', {
+              error: geocodeData.error_message,
+              cityQ
+            });
+          } else if (geocodeData.results && geocodeData.results.length > 0) {
             const location = geocodeData.results[0].geometry.location;
             const latNum = location.lat;
             const lonNum = location.lng;
-            
-            console.log('[weather:geocode]', { cityQ, lat: latNum, lon: lonNum, units });
+
+            console.log('[weather:geocode:success]', { cityQ, lat: latNum, lon: lonNum, units });
             const weatherData = await getWeatherData(latNum, lonNum);
             if (weatherData) return res.json(weatherData);
+          } else {
+            console.warn('[weather:geocode:no-results]', { cityQ, status: geocodeData.status });
           }
         }
       } catch (e) {
-        console.warn('[weather:geocode:failed]', { cityQ, error: String((e as any)?.message || e) });
+        console.error('[weather:geocode:exception]', { cityQ, error: String((e as any)?.message || e) });
       }
 
       const result = await ai.weather(cityQ);
@@ -1400,7 +1419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-    app.get('/api/v1/currency', isJwtAuthenticated, aiLimiter, async (req: any, res) => {
+  app.get('/api/v1/currency', isJwtAuthenticated, aiLimiter, async (req: any, res) => {
     try {
       const amount = Number(req.query.amount || 0);
       const from = String(req.query.from || 'USD');
