@@ -1949,7 +1949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ error: 'Location not found' });
     } catch (error) {
       console.error('Geocode error:', error);
-      return res.status(500).json({ error: 'geocode failed' });
+      return res.status(500).json({ error: 'geocode failed', details: error.message, stack: error.stack });
     }
   });
 
