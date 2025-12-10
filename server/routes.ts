@@ -67,7 +67,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/v1/weather/random-cities', optionalAuth, async (req: any, res) => {
     try {
-      const key = process.env.GOOGLE_API_KEY || '';
+      const key = process.env.GOOGLE_PLACES_API_KEY || '';
       if (!key) return res.status(503).json({ status: 'error', code: 503, message: 'weather api key missing' });
       const count = Math.min(20, Math.max(1, Number(req.query.count || 5)));
       const list = [
@@ -1225,11 +1225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lon = Number(req.query.lon);
       const cityQ = String(req.query.city || req.query.location || '').trim();
       const units = String(req.query.units || 'metric');
-      // Using Google Weather API with GOOGLE_API_KEY
-      const key = process.env.GOOGLE_API_KEY;
-
-      // Using Google Weather API with GOOGLE_API_KEY or Open-Meteo Fallback
-      const key = process.env.GOOGLE_API_KEY;
+      // Using Google Weather API with GOOGLE_PLACES_API_KEY or Open-Meteo Fallback
+      const key = process.env.GOOGLE_PLACES_API_KEY;
 
       // Guard clause removed to allow Open-Meteo fallback
       // if (!key) ...
@@ -1855,7 +1852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let results: any[] = [];
 
       // Try Google Places API first
-      const googleKey = process.env.GOOGLE_API_KEY;
+      const googleKey = process.env.GOOGLE_PLACES_API_KEY;
       if (googleKey) {
         try {
           const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(sanitized)}&language=en&key=${googleKey}`;
@@ -1976,7 +1973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!list) {
-        const gkey = process.env.GOOGLE_API_KEY || '';
+        const gkey = process.env.GOOGLE_PLACES_API_KEY || '';
         if (gkey) {
           try {
             const limitFetch = autocomplete ? 10 : Math.max(pageSize, 50);
@@ -2016,10 +2013,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fallback: if Nominatim found nothing and we have weather key, try OpenWeather Direct Geocoding (city-level)
       if (Array.isArray(list) && list.length === 0) {
-        const key = process.env.GOOGLE_API_KEY || '';
-        if (key) {
+        const gkey = process.env.GOOGLE_PLACES_API_KEY || '';
+        if (gkey) {
           try {
-            const ro = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=${Math.max(5, autocomplete ? 5 : 10)}&appid=${key}`);
+            const ro = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=${Math.max(5, autocomplete ? 5 : 10)}&appid=${gkey}`);
             const jo = await ro.json().catch(() => []);
             if (Array.isArray(jo) && jo.length) {
               list = jo.map((o: any) => ({
