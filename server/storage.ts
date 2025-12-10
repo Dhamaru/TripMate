@@ -19,6 +19,7 @@ export interface IStorage {
   upsertUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
   getUserByResetToken(token: string): Promise<User | undefined>;
+  deleteAllUsers(): Promise<boolean>;
 
   // Trip operations
   getUserTrips(userId: string): Promise<Trip[]>;
@@ -83,6 +84,11 @@ export class DatabaseStorage implements IStorage {
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() },
     }).exec() || undefined;
+  }
+
+  async deleteAllUsers(): Promise<boolean> {
+    const result = await UserModel.deleteMany({}).exec();
+    return result.acknowledged;
   }
 
   // Trip operations

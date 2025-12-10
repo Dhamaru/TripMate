@@ -47,7 +47,7 @@ const upload = multer({
   }
 });
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
   const useMemoryStore = !process.env.MONGODB_URI;
   const memoryUsers = new Map<string, {
@@ -2628,6 +2628,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Feedback submission error:', error);
       res.status(500).json({ message: 'Failed to submit feedback' });
+    }
+  });
+
+  // Temporary endpoint for testing: Delete all users
+  app.delete("/api/v1/testing/reset-db", async (req, res) => {
+    const { secret } = req.query;
+    if (secret !== "antigravity_nuke") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    try {
+      if (useMemoryStore) {
+        memoryUsers.clear();
+        memorySessions.clear();
+      } else {
+        await storage.deleteAllUsers();
+      }
+      res.json({ message: "Database reset complete" });
+    } catch (error) {
+      console.error("Reset DB error:", error);
+      res.status(500).json({ message: "Failed to reset DB" });
     }
   });
 
