@@ -1228,16 +1228,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Using Google Weather API with GOOGLE_API_KEY
       const key = process.env.GOOGLE_API_KEY;
 
-      if (!key) {
-        console.error('[weather] GOOGLE_API_KEY not set');
-        return res.status(503).json({
-          current: {},
-          forecast: [],
-          recommendations: [],
-          alerts: [],
-          error: 'Weather service not configured'
-        });
-      }
+      // Using Google Weather API with GOOGLE_API_KEY or Open-Meteo Fallback
+      const key = process.env.GOOGLE_API_KEY;
+
+      // Guard clause removed to allow Open-Meteo fallback
+      // if (!key) ...
 
       const iconMap: Record<string, string> = {
         // Google Weather API types
