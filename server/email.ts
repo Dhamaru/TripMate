@@ -66,6 +66,29 @@ async function createTransporter() {
 // Initialize transporter wrapper
 let transporterPromise = createTransporter();
 
+export async function sendEmail(options: nodemailer.SendMailOptions) {
+    try {
+        const transporter = await transporterPromise;
+        if (!transporter) {
+            throw new Error("Email transporter not initialized");
+        }
+
+        const info = await transporter.sendMail(options);
+        console.log("Message sent to %s: %s", options.to, info.messageId);
+
+        // If using Ethereal (detected by host), log the preview URL
+        const isEthereal = info.messageId && ((transporter as any).transporter?.options as any)?.host === "smtp.ethereal.email";
+        if (isEthereal || !process.env.SMTP_HOST) {
+            console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info as any));
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Error sending email:", error);
+        return false;
+    }
+}
+
 export async function sendPasswordResetEmail(email: string, token: string) {
     const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5000"}/reset-password?token=${token}`;
     console.log("=================================================================");

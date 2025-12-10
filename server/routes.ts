@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       if (useMemoryStore) {
-        const u = memoryUsers.get(user.email);
+        const u = memoryUsers.get(user.email!);
         if (u) {
           u.password = hashedPassword;
           u.resetPasswordToken = undefined;
@@ -146,8 +146,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         await storage.updateUser(user.id, {
           password: hashedPassword,
-          resetPasswordToken: undefined, // undefined might not clear field in Mongo without $unset, but schema definition allows optional
-          resetPasswordExpires: undefined,
+          resetPasswordToken: undefined,
+          resetPasswordExpires: new Date(0), // Ensure it expires immediately
         });
         // Note: Mongoose might treat undefined as "ignore", so we might need null. 
         // But let's stick to the pattern used in auth.ts which used undefined.
@@ -291,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Auth middleware
-  await setupAuth(app);
+  // await setupAuth(app); // Already called at top of function
 
   // Cookies
   app.use(cookieParser());
@@ -2587,42 +2587,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Send email notification (if email service is configured)
-      try {
-        const nodemailer = await import('nodemailer');
-        const transporter = nodemailer.default.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: false,
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
+      const { sendEmail } = await import("./email");
 
-        const typeEmoji = type === 'bug' ? '🐛' : type === 'feature' ? '✨' : type === 'feedback' ? '💡' : '📝';
+      const typeEmoji = type === 'bug' ? '🐛' : type === 'feature' ? '✨' : type === 'feedback' ? '💡' : '📝';
 
-        await transporter.sendMail({
-          from: `"TripMate Feedback" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
-          to: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-          replyTo: email,
-          subject: `${typeEmoji} [${type.toUpperCase()}] ${subject}`,
-          html: `
-            <h2>New ${type.charAt(0).toUpperCase() + type.slice(1)} Submission</h2>
-            <p><strong>Type:</strong> ${type}</p>
-            <p><strong>Category:</strong> ${category}</p>
-            <p><strong>From:</strong> ${email}</p>
-            <p><strong>Subject:</strong> ${subject}</p>
-            <hr>
-            <p><strong>Description:</strong></p>
-            <p>${description.replace(/\n/g, '<br>')}</p>
-            <hr>
-            <p style="color: #666; font-size: 12px;">Submitted via TripMate Feedback Form</p>
-          `,
-        });
-      } catch (emailError) {
-        console.error('Failed to send feedback email:', emailError);
-        // Continue even if email fails
-      }
+      await sendEmail({
+        from: `"TripMate Feedback" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
+        to: process.env.SMTP_USER, // Explicitly send TO the admin (SMTP User)
+        replyTo: email,
+        subject: `${typeEmoji} [${type.toUpperCase()}] ${subject}`,
+        html: `
+          <h2>New ${type.charAt(0).toUpperCase() + type.slice(1)} Submission</h2>
+          <p><strong>Type:</strong> ${type}</p>
+          <p><strong>Category:</strong> ${category}</p>
+          <p><strong>From:</strong> ${email}</p>
+          <p><strong>Subject:</strong> ${subject}</p>
+          <hr>
+          <p><strong>Description:</strong></p>
+          <p>${description.replace(/\n/g, '<br>')}</p>
+          <hr>
+          <p style="color: #666; font-size: 12px;">Submitted via TripMate Feedback Form</p>
+        `,
+      });
 
       res.json({ success: true, message: 'Feedback submitted successfully' });
     } catch (error) {
