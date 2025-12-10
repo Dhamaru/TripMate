@@ -1225,6 +1225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lon = Number(req.query.lon);
       const cityQ = String(req.query.city || req.query.location || '').trim();
       const units = String(req.query.units || 'metric');
+      const key = process.env.GOOGLE_PLACES_API_KEY;
+
       const iconMap: Record<string, string> = {
         CLEAR: 'fas fa-sun',
         PARTLY_CLOUDY: 'fas fa-cloud-sun',
@@ -1254,6 +1256,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Tornado: 'fas fa-wind',
       };
 
+      const getWeatherData = async (latNum: number, lonNum: number) => {
+        // 1. Try Google Weather API first (if key exists)
+        if (key) {
+          try {
+            const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}`;
+            const currentRes = await fetch(currentUrl);
+
+            if (currentRes.ok) {
+              const currentData = await currentRes.json();
+              const forecastUrl = `https://weather.googleapis.com/v1/forecast/days:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}&days=7`;
+              const forecastRes = await fetch(forecastUrl);
+
+              if (forecastRes.ok) {
+                const forecastData = await forecastRes.json();
+
+                // Map Google Data (existing logic)
+                const tempCelsius = currentData.temperature?.degrees ?? 22;
+                const temperature = units === 'metric' ? Math.round(tempCelsius) : Math.round(tempCelsius * 9 / 5 + 32);
+                const condition = currentData.weatherCondition?.description?.text || 'Clear';
+                const conditionType = currentData.weatherCondition?.type || 'CLEAR';
+
+                const current = {
+                  temperature,
+                  tempMin: temperature - 5,
+                  tempMax: temperature,
+                  condition,
+                  humidity: currentData.relativeHumidity ?? 60,
+                  windSpeed: Math.round(currentData.wind?.speed?.value ?? 10),
+                  windDeg: currentData.wind?.direction?.degrees ?? 0,
+                  windDir: currentData.wind?.direction?.cardinal || 'N',
+                  icon: iconMap[conditionType] || 'fas fa-cloud',
+                };
+
+                const forecast = (forecastData.forecastDays || []).slice(0, 7).map((day: any, i: number) => {
+                  const maxTemp = day.maxTemperature?.degrees ?? temperature;
+                  const minTemp = day.minTemperature?.degrees ?? (temperature - 5);
+                  const dayCondition = day.daytimeForecast?.weatherCondition?.description?.text || 'Clear';
+                  const dayType = day.daytimeForecast?.weatherCondition?.type || 'CLEAR';
+                  return {
+                    day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
+                    high: units === 'metric' ? Math.round(maxTemp) : Math.round(maxTemp * 9 / 5 + 32),
+                    low: units === 'metric' ? Math.round(minTemp) : Math.round(minTemp * 9 / 5 + 32),
+                    condition: dayCondition,
+                    icon: iconMap[dayType] || 'fas fa-cloud',
+                  };
+                });
+
+                if (forecast.length > 0) {
+                  current.tempMax = forecast[0].high;
+                  current.tempMin = forecast[0].low;
+                }
+
+                const recommendations: string[] = [];
+                if (current.temperature >= 30) recommendations.push('Stay hydrated');
+                if (condition.toLowerCase().includes('rain') || condition.toLowerCase().includes('shower')) recommendations.push('Carry a raincoat');
+                recommendations.push('Use sunscreen during midday');
+
+                return {
+                  current,
+                  forecast,
+                  hourly: [],
+                  alerts: [],
+                  recommendations,
+                  source: 'google-weather',
+                };
+              }
+            }
+            console.warn('[weather:google] Failed or unauthorized, trying Open-Meteo fallback');
+          } catch (error) {
+            console.error('[weather:google] Exception:', error);
+          }
+        }
+
+        // 2. Open-Meteo Fallback
+        try {
+          console.log('[weather:fallback] Fetching from Open-Meteo for', latNum, lonNum);
+          const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lonNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+          // Correction: latitude should be latNum. The URL above has error, fixing it:
+          const realOmUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+
+          const omRes = await fetch(realOmUrl);
+          if (!omRes.ok) throw new Error(`Open-Meteo status: ${omRes.status}`);
+
+          const omData = await omRes.json();
+
+          const mapWmo = (code: number) => {
+            if (code === 0) return { desc: 'Clear', icon: 'fas fa-sun' };
+            if (code <= 3) return { desc: 'Partly Cloudy', icon: 'fas fa-cloud-sun' };
+            if (code <= 48) return { desc: 'Fog', icon: 'fas fa-smog' };
+            if (code <= 55) return { desc: 'Drizzle', icon: 'fas fa-cloud-rain' };
+            if (code <= 67) return { desc: 'Rain', icon: 'fas fa-cloud-showers-heavy' };
+            if (code <= 77) return { desc: 'Snow', icon: 'fas fa-snowflake' };
+            if (code <= 82) return { desc: 'Rain Showers', icon: 'fas fa-cloud-rain' };
+            if (code <= 86) return { desc: 'Snow Showers', icon: 'fas fa-snowflake' };
+            return { desc: 'Thunderstorm', icon: 'fas fa-bolt' };
+          };
+
+          const currentWmo = mapWmo(omData.current.weather_code);
+          const tempC = omData.current.temperature_2m;
+          const temp = units === 'metric' ? Math.round(tempC) : Math.round(tempC * 9 / 5 + 32);
+
+          const current = {
+            temperature: temp,
+            tempMin: temp - 5,
+            tempMax: temp + 5,
+            condition: currentWmo.desc,
+            humidity: omData.current.relative_humidity_2m || 60,
+            windSpeed: Math.round(omData.current.wind_speed_10m || 0),
+            windDeg: omData.current.wind_direction_10m || 0,
+            windDir: 'N',
+            icon: currentWmo.icon
+          };
+
+          const forecast = (omData.daily.time || []).slice(0, 7).map((t: string, i: number) => {
+            const maxC = omData.daily.temperature_2m_max[i];
+            const minC = omData.daily.temperature_2m_min[i];
+            const wmo = mapWmo(omData.daily.weather_code[i]);
+
+            return {
+              day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
+              high: units === 'metric' ? Math.round(maxC) : Math.round(maxC * 9 / 5 + 32),
+              low: units === 'metric' ? Math.round(minC) : Math.round(minC * 9 / 5 + 32),
+              condition: wmo.desc,
+              icon: wmo.icon
+            };
+          });
+
+          if (forecast.length > 0) {
+            current.tempMax = forecast[0].high;
+            current.tempMin = forecast[0].low;
+          }
+
+          const recommendations: string[] = [];
+          if (current.temperature >= 30) recommendations.push('Stay hydrated');
+          if (current.condition.toLowerCase().includes('rain')) recommendations.push('Carry a raincoat');
+
+          return {
+            current,
+            forecast,
+            hourly: [],
+            alerts: [],
+            recommendations,
+            source: 'open-meteo',
+          };
+
+        } catch (e) {
+          console.error('[weather:fallback] Open-Meteo failed:', e);
+          return null;
+        }
+      };
+
       if (!key) {
         const weatherData = await getWeatherData(lat, lon);
         if (weatherData) return res.json(weatherData);
@@ -1267,20 +1420,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 1. Try Google Weather API if key is present...
-      // [Previous Logic continues which is fine]
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        console.log('[weather:req]', { lat, lon, cityQ, units });
+        const weatherData = await getWeatherData(lat, lon);
+        if (weatherData) return res.json(weatherData);
+
+        // Fallback mock
+        const now = new Date();
+        const month = now.getMonth();
+        const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
+        return res.status(200).json({
+          current: {
+            temperature: Math.round(baseTemp),
+            humidity: 60,
+            windSpeed: 10,
+            condition: baseTemp >= 30 ? 'Sunny' : 'Cloudy',
+            icon: 'fas fa-cloud-sun'
+          },
+          forecast: [],
+          recommendations: [],
+          alerts: [],
+          source: 'fallback-route'
+        });
+      }
+
+      if (!cityQ) {
+        return res.status(400).json({ current: {}, forecast: [], recommendations: [], alerts: [] });
+      }
+
+      if (key) {
+        try {
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cityQ)}&key=${key}`;
+          const geocodeRes = await fetch(geocodeUrl);
+
+          if (geocodeRes.ok) {
+            const geocodeData = await geocodeRes.json();
+            if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
+              const location = geocodeData.results[0].geometry.location;
+              console.log('[weather:geocode:google:success]', { cityQ, lat: location.lat, lon: location.lng });
+              const weatherData = await getWeatherData(location.lat, location.lng);
+              if (weatherData) return res.json(weatherData);
+            }
+          }
+        } catch (e) {
+          console.error('[weather:geocode:google:error]', String(e));
+        }
+      }
+
+      // 2. Fallback to Nominatim
       try {
-        // ... existing google fetch ...
-        // Since we can't easily see the end of this block in replace_file_content without replacing HUGE chunks,
-        // I'll INSERT the emergency route BEFORE the weather route to be safe and clean.
-        // OR I can insert it AFTER the weather route block.
+        const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(cityQ)}`;
+        const nomRes = await fetch(nomUrl, { headers: { 'User-Agent': 'TripMate/1.0' } });
+        if (nomRes.ok) {
+          const nomData = await nomRes.json();
+          if (Array.isArray(nomData) && nomData.length > 0) {
+            const lat = parseFloat(nomData[0].lat);
+            const lon = parseFloat(nomData[0].lon);
+            console.log('[weather:geocode:nominatim:success]', { cityQ, lat, lon });
+            const weatherData = await getWeatherData(lat, lon);
+            if (weatherData) return res.json(weatherData);
+          }
+        }
+      } catch (e) {
+        console.error('[weather:geocode:nominatim:error]', String(e));
+      }
 
-        // actually, let's insert it AFTER /api/v1/geocode (line 1942 ish in original view)
-        // Searching for geocode route end is safer.
-      } catch (e) { }
+      const result = await ai.weather(cityQ);
+      console.log('[weather:ai]', { cityQ, units });
+      res.json({ ...result, alerts: [] });
 
-      // ...
-    });
+    } catch (error) {
+      console.error('weather route error:', error);
+      res.status(500).json({ message: 'Weather error' });
+    }
+  });
 
   // Emergency Services Route
   app.get('/api/v1/emergency', optionalAuth, async (req: any, res) => {
@@ -1288,30 +1501,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const location = String(req.query.location || '').trim();
       if (!location) return res.status(400).json({ error: 'Location required' });
 
-      // If location is lat,lon
       let lat = 0, lon = 0;
       const parts = location.split(',');
       if (parts.length === 2 && !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))) {
         lat = Number(parts[0]);
         lon = Number(parts[1]);
-      } else {
-        // Geocode first? For now assume client sends coordinates mostly, or do a text search
       }
 
       const key = process.env.GOOGLE_PLACES_API_KEY;
       if (!key) {
-        // Return mock data if no key, ensuring status 200 so UI doesn't crash
         return res.json([
           { id: 'mock1', name: 'General Hospital', type: 'hospital', address: 'Nearby', phone: '108', distance: '1.2 km', latitude: lat + 0.01, longitude: lon + 0.01 },
           { id: 'mock2', name: 'Central Police Station', type: 'police', address: 'Downtown', phone: '100', distance: '2.5 km', latitude: lat - 0.01, longitude: lon },
         ]);
       }
 
-      // Search for specific types
-      const types = ['hospital', 'police', 'embassy', 'fire_station', 'pharmacy'];
-      const results: any[] = [];
-
-      // We'll do a text search for "emergency services near [location]" or specific searches
       const query = `emergency services near ${location}`;
       const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
 
@@ -1327,7 +1531,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           else if (item.types?.includes('pharmacy')) type = 'pharmacy';
           else if (item.types?.includes('hospital') || item.types?.includes('health')) type = 'hospital';
 
-          // Simple distance calc if we have user lat/lon
           let distance = '—';
           if (lat && lon && item.geometry?.location) {
             const R = 6371;
@@ -1343,15 +1546,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: item.name,
             type,
             address: item.formatted_address,
-            phone: '112', // Places Text Search doesn't always return phone without simpler detail fetch, default to universal
+            phone: '112',
             distance,
             latitude: item.geometry?.location?.lat,
             longitude: item.geometry?.location?.lng
           };
         });
-        return res.json(mapped.slice(0, 10)); // return top 10
+        return res.json(mapped.slice(0, 10));
       }
-
       return res.json([]);
     } catch (error) {
       console.error('Emergency endpoint error:', error);
@@ -1359,635 +1561,421 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const getWeatherData = async (latNum: number, lonNum: number) => {
-    // 1. Try Google Weather API first (if key exists)
-    if (key) {
-      try {
-        const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}`;
-        const currentRes = await fetch(currentUrl);
-
-        if (currentRes.ok) {
-          const currentData = await currentRes.json();
-          const forecastUrl = `https://weather.googleapis.com/v1/forecast/days:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}&days=7`;
-          const forecastRes = await fetch(forecastUrl);
-
-          if (forecastRes.ok) {
-            const forecastData = await forecastRes.json();
-
-            // Map Google Data (existing logic)
-            const tempCelsius = currentData.temperature?.degrees ?? 22;
-            const temperature = units === 'metric' ? Math.round(tempCelsius) : Math.round(tempCelsius * 9 / 5 + 32);
-            const condition = currentData.weatherCondition?.description?.text || 'Clear';
-            const conditionType = currentData.weatherCondition?.type || 'CLEAR';
-
-            const current = {
-              temperature,
-              tempMin: temperature - 5,
-              tempMax: temperature,
-              condition,
-              humidity: currentData.relativeHumidity ?? 60,
-              windSpeed: Math.round(currentData.wind?.speed?.value ?? 10),
-              windDeg: currentData.wind?.direction?.degrees ?? 0,
-              windDir: currentData.wind?.direction?.cardinal || 'N',
-              icon: iconMap[conditionType] || 'fas fa-cloud',
-            };
-
-            const forecast = (forecastData.forecastDays || []).slice(0, 7).map((day: any, i: number) => {
-              const maxTemp = day.maxTemperature?.degrees ?? temperature;
-              const minTemp = day.minTemperature?.degrees ?? (temperature - 5);
-              const dayCondition = day.daytimeForecast?.weatherCondition?.description?.text || 'Clear';
-              const dayType = day.daytimeForecast?.weatherCondition?.type || 'CLEAR';
-              return {
-                day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-                high: units === 'metric' ? Math.round(maxTemp) : Math.round(maxTemp * 9 / 5 + 32),
-                low: units === 'metric' ? Math.round(minTemp) : Math.round(minTemp * 9 / 5 + 32),
-                condition: dayCondition,
-                icon: iconMap[dayType] || 'fas fa-cloud',
-              };
-            });
-
-            if (forecast.length > 0) {
-              current.tempMax = forecast[0].high;
-              current.tempMin = forecast[0].low;
-            }
-
-            const recommendations: string[] = [];
-            if (current.temperature >= 30) recommendations.push('Stay hydrated');
-            if (condition.toLowerCase().includes('rain') || condition.toLowerCase().includes('shower')) recommendations.push('Carry a raincoat');
-            recommendations.push('Use sunscreen during midday');
-
-            return {
-              current,
-              forecast,
-              hourly: [],
-              alerts: [],
-              recommendations,
-              source: 'google-weather',
-            };
-          }
-        }
-        // If we get here, Google failed (status not OK), so we fall through to Open-Meteo
-        console.warn('[weather:google] Failed or unauthorized, trying Open-Meteo fallback');
-      } catch (error) {
-        console.error('[weather:google] Exception:', error);
-        // Fall through to Open-Meteo
-      }
-    }
-
-    // 2. Open-Meteo Fallback (Free, No Key)
+  app.get('/api/v1/currency', isJwtAuthenticated, aiLimiter, async (req: any, res) => {
     try {
-      console.log('[weather:fallback] Fetching from Open-Meteo for', latNum, lonNum);
-      const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
-      const omRes = await fetch(omUrl);
-      if (!omRes.ok) throw new Error(`Open-Meteo status: ${omRes.status}`);
-
-      const omData = await omRes.json();
-
-      // Helper to map WMO codes to our types
-      const mapWmo = (code: number) => {
-        if (code === 0) return { desc: 'Clear', icon: 'fas fa-sun' };
-        if (code <= 3) return { desc: 'Partly Cloudy', icon: 'fas fa-cloud-sun' };
-        if (code <= 48) return { desc: 'Fog', icon: 'fas fa-smog' };
-        if (code <= 55) return { desc: 'Drizzle', icon: 'fas fa-cloud-rain' };
-        if (code <= 67) return { desc: 'Rain', icon: 'fas fa-cloud-showers-heavy' };
-        if (code <= 77) return { desc: 'Snow', icon: 'fas fa-snowflake' };
-        if (code <= 82) return { desc: 'Rain Showers', icon: 'fas fa-cloud-rain' };
-        if (code <= 86) return { desc: 'Snow Showers', icon: 'fas fa-snowflake' };
-        return { desc: 'Thunderstorm', icon: 'fas fa-bolt' }; // 95+
-      };
-
-      const currentWmo = mapWmo(omData.current.weather_code);
-      const tempC = omData.current.temperature_2m;
-      const temp = units === 'metric' ? Math.round(tempC) : Math.round(tempC * 9 / 5 + 32);
-
-      const current = {
-        temperature: temp,
-        tempMin: temp - 5,
-        tempMax: temp + 5,
-        condition: currentWmo.desc,
-        humidity: omData.current.relative_humidity_2m || 60,
-        windSpeed: Math.round(omData.current.wind_speed_10m || 0),
-        windDeg: omData.current.wind_direction_10m || 0,
-        windDir: 'N',
-        icon: currentWmo.icon
-      };
-
-      const forecast = (omData.daily.time || []).slice(0, 7).map((t: string, i: number) => {
-        const maxC = omData.daily.temperature_2m_max[i];
-        const minC = omData.daily.temperature_2m_min[i];
-        const wmo = mapWmo(omData.daily.weather_code[i]);
-
-        return {
-          day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-          high: units === 'metric' ? Math.round(maxC) : Math.round(maxC * 9 / 5 + 32),
-          low: units === 'metric' ? Math.round(minC) : Math.round(minC * 9 / 5 + 32),
-          condition: wmo.desc,
-          icon: wmo.icon
-        };
-      });
-
-      if (forecast.length > 0) {
-        current.tempMax = forecast[0].high;
-        current.tempMin = forecast[0].low;
-      }
-
-      const recommendations: string[] = [];
-      if (current.temperature >= 30) recommendations.push('Stay hydrated');
-      if (current.condition.toLowerCase().includes('rain')) recommendations.push('Carry a raincoat');
-
-      return {
-        current,
-        forecast,
-        hourly: [],
-        alerts: [],
-        recommendations,
-        source: 'open-meteo',
-      };
-
-    } catch (e) {
-      console.error('[weather:fallback] Open-Meteo failed:', e);
-      return null;
+      const amount = Number(req.query.amount || 0);
+      const from = String(req.query.from || 'USD');
+      const to = String(req.query.to || 'EUR');
+      const today = new Date().toISOString().slice(0, 10);
+      const result = await ai.currency(amount, from, to, today);
+      res.json(result);
+    } catch (error) {
+      console.error('AI currency error:', error);
+      res.status(500).json({ rate: 0, convertedAmount: 0, currencyName: '', disclaimer: 'Unavailable' });
     }
-  };
-
-  if (Number.isFinite(lat) && Number.isFinite(lon)) {
-    console.log('[weather:req]', { lat, lon, cityQ, units });
-    const weatherData = await getWeatherData(lat, lon);
-    if (weatherData) return res.json(weatherData);
-
-    const now = new Date();
-    const month = now.getMonth();
-    const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
-    const current = {
-      temperature: Math.round(baseTemp),
-      humidity: 60,
-      windSpeed: 10,
-      condition: baseTemp >= 30 ? 'Sunny' : baseTemp >= 25 ? 'Partly Cloudy' : 'Cloudy',
-      icon: 'fas fa-cloud-sun'
-    };
-    const forecast = Array.from({ length: 7 }, (_, i) => ({
-      day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-      high: Math.round(baseTemp + (i % 3) - 1),
-      low: Math.round(baseTemp - 5 + (i % 2)),
-      condition: i % 4 === 0 ? 'Sunny' : i % 4 === 1 ? 'Partly Cloudy' : i % 4 === 2 ? 'Cloudy' : 'Rain',
-      icon: 'fas fa-cloud-sun',
-    }));
-    const recommendations = [
-      'Carry light cotton clothing',
-      'Stay hydrated',
-      'Use sunscreen during midday',
-    ];
-    return res.status(200).json({ current, forecast, recommendations, alerts: [], source: 'fallback-route' });
-  }
-
-  if (!cityQ) {
-    return res.status(400).json({ current: {}, forecast: [], recommendations: [], alerts: [] });
-  }
-
-  // 1. Try Google Geocoding API if key is present
-  // 1. Try Google Geocoding API if key is present
-  // key is already declared at the top of the route handler
-  if (key) {
-    try {
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cityQ)}&key=${key}`;
-      const geocodeRes = await fetch(geocodeUrl);
-
-      if (geocodeRes.ok) {
-        const geocodeData = await geocodeRes.json();
-        if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
-          const location = geocodeData.results[0].geometry.location;
-          console.log('[weather:geocode:google:success]', { cityQ, lat: location.lat, lon: location.lng });
-          const weatherData = await getWeatherData(location.lat, location.lng);
-          if (weatherData) return res.json(weatherData);
-        } else {
-          console.warn('[weather:geocode:google:no-results]', { cityQ, status: geocodeData.status });
-        }
-      }
-    } catch (e) {
-      console.error('[weather:geocode:google:error]', String(e));
-    }
-  }
-
-  // 2. Fallback to Nominatim if Google failed or no key
-  try {
-    const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(cityQ)}`;
-    const nomRes = await fetch(nomUrl, { headers: { 'User-Agent': 'TripMate/1.0' } });
-    if (nomRes.ok) {
-      const nomData = await nomRes.json();
-      if (Array.isArray(nomData) && nomData.length > 0) {
-        const lat = parseFloat(nomData[0].lat);
-        const lon = parseFloat(nomData[0].lon);
-        console.log('[weather:geocode:nominatim:success]', { cityQ, lat, lon });
-        const weatherData = await getWeatherData(lat, lon);
-        if (weatherData) return res.json(weatherData);
-      }
-    }
-  } catch (e) {
-    console.error('[weather:geocode:nominatim:error]', String(e));
-  }
-
-  const result = await ai.weather(cityQ);
-  console.log('[weather:ai]', { cityQ, units });
-  res.json({ ...result, alerts: [] });
-} catch (error) {
-  console.error('weather route error:', error);
-  const now = new Date();
-  const month = now.getMonth();
-  const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
-  const current = { temperature: Math.round(baseTemp), humidity: 60, windSpeed: 10, condition: baseTemp >= 30 ? "Sunny" : baseTemp >= 25 ? "Partly Cloudy" : "Cloudy" };
-  const forecast = Array.from({ length: 7 }, (_, i) => ({
-    day: i === 0 ? "Today" : i === 1 ? "Tomorrow" : `Day ${i + 1}`,
-    high: Math.round(baseTemp + (i % 3) - 1),
-    low: Math.round(baseTemp - 5 + (i % 2)),
-    condition: i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",
-  }));
-  const recommendations = [
-    "Carry light cotton clothing",
-    "Stay hydrated",
-    "Use sunscreen during midday",
-    "Check local advisories for heat or rain",
-  ];
-  res.status(200).json({ current, forecast, recommendations, alerts: [], source: 'fallback-route' });
-}
   });
 
-app.get('/api/v1/currency', isJwtAuthenticated, aiLimiter, async (req: any, res) => {
-  try {
-    const amount = Number(req.query.amount || 0);
-    const from = String(req.query.from || 'USD');
-    const to = String(req.query.to || 'EUR');
-    const today = new Date().toISOString().slice(0, 10);
-    const result = await ai.currency(amount, from, to, today);
-    res.json(result);
-  } catch (error) {
-    console.error('AI currency error:', error);
-    res.status(500).json({ rate: 0, convertedAmount: 0, currencyName: '', disclaimer: 'Unavailable' });
-  }
-});
-
-app.get('/api/v1/emergency', optionalAuth, aiLimiter, async (req: any, res) => {
-  try {
-    const locRaw = String(req.query.location || req.query.city || '').trim();
-    if (!locRaw) return res.status(400).json([]);
-
-    let lat = 0, lon = 0;
-    const coordMatch = locRaw.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-
-    if (coordMatch) {
-      lat = parseFloat(coordMatch[1]);
-      lon = parseFloat(coordMatch[2]);
-    } else {
-      // Try generic geocoding logic: Google first, then Nominatim
-      let found = false;
-
-      // 1. Google
-      const key = process.env.GOOGLE_API_KEY;
-      if (key) {
-        try {
-          const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locRaw)}&key=${key}`;
-          const gRes = await fetch(gUrl);
-          if (gRes.ok) {
-            const gData = await gRes.json();
-            if (gData.status === 'OK' && gData.results?.length > 0) {
-              const loc = gData.results[0].geometry.location;
-              lat = loc.lat;
-              lon = loc.lng;
-              found = true;
-            }
-          }
-        } catch (e) { console.error('Emergency Google geocode error:', e); }
-      }
-
-      // 2. Nominatim fallback
-      if (!found) {
-        try {
-          const nUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(locRaw)}`;
-          const nRes = await fetch(nUrl, { headers: { 'User-Agent': 'TripMate/1.0' } });
-          if (nRes.ok) {
-            const nData = await nRes.json();
-            if (Array.isArray(nData) && nData.length > 0) {
-              lat = parseFloat(nData[0].lat);
-              lon = parseFloat(nData[0].lon);
-              found = true;
-            }
-          }
-        } catch (e) { console.error('Emergency Nominatim geocode error:', e); }
-      }
-
-      if (!found) {
-        // Only use AI fallback if we absolutely can't find coordinates
-        const byText = await ai.emergency(locRaw);
-        return res.json(byText);
-      }
-    }
-    const delta = 0.08; // ~9km bbox
-    const left = (lon - delta).toFixed(6);
-    const right = (lon + delta).toFixed(6);
-    const top = (lat + delta).toFixed(6);
-    const bottom = (lat - delta).toFixed(6);
-
-    let countryCode = 'xx';
-    let countryName = '';
+  app.get('/api/v1/emergency', optionalAuth, aiLimiter, async (req: any, res) => {
     try {
-      const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-        { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
-      const j = await rev.json();
-      countryCode = String(j?.address?.country_code || 'xx').toUpperCase();
-      countryName = String(j?.address?.country || '');
-    } catch { }
+      const locRaw = String(req.query.location || req.query.city || '').trim();
+      if (!locRaw) return res.status(400).json([]);
 
-    const types = ['hospital', 'police', 'embassy', 'pharmacy'] as const;
-    const results: Array<{ id: string; name: string; type: string; address: string; phone: string; distance: string; latitude: number; longitude: number }> = [];
-    for (const t of types) {
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(t)}&viewbox=${left},${top},${right},${bottom}&bounded=1`;
-        const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
-        const j = await r.json();
-        const arr = Array.isArray(j) ? j : [];
-        for (let i = 0; i < Math.min(arr.length, 3); i++) {
-          const it: any = arr[i];
-          const name = String(it.display_name?.split(',')[0] || t);
-          const address = String(it.display_name || '');
-          const latitude = parseFloat(it.lat);
-          const longitude = parseFloat(it.lon);
-          const phone = t === 'police' ? mapEmergencyNumber(countryCode, 'police') : t === 'hospital' ? mapEmergencyNumber(countryCode, 'medical') : t === 'embassy' ? '' : mapEmergencyNumber(countryCode, 'pharmacy');
-          results.push({ id: `${t}-${i}`, name, type: t, address, phone, distance: '—', latitude, longitude });
+      let lat = 0, lon = 0;
+      const coordMatch = locRaw.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+
+      if (coordMatch) {
+        lat = parseFloat(coordMatch[1]);
+        lon = parseFloat(coordMatch[2]);
+      } else {
+        // Try generic geocoding logic: Google first, then Nominatim
+        let found = false;
+
+        // 1. Google
+        const key = process.env.GOOGLE_API_KEY;
+        if (key) {
+          try {
+            const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locRaw)}&key=${key}`;
+            const gRes = await fetch(gUrl);
+            if (gRes.ok) {
+              const gData = await gRes.json();
+              if (gData.status === 'OK' && gData.results?.length > 0) {
+                const loc = gData.results[0].geometry.location;
+                lat = loc.lat;
+                lon = loc.lng;
+                found = true;
+              }
+            }
+          } catch (e) { console.error('Emergency Google geocode error:', e); }
         }
+
+        // 2. Nominatim fallback
+        if (!found) {
+          try {
+            const nUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(locRaw)}`;
+            const nRes = await fetch(nUrl, { headers: { 'User-Agent': 'TripMate/1.0' } });
+            if (nRes.ok) {
+              const nData = await nRes.json();
+              if (Array.isArray(nData) && nData.length > 0) {
+                lat = parseFloat(nData[0].lat);
+                lon = parseFloat(nData[0].lon);
+                found = true;
+              }
+            }
+          } catch (e) { console.error('Emergency Nominatim geocode error:', e); }
+        }
+
+        if (!found) {
+          // Only use AI fallback if we absolutely can't find coordinates
+          const byText = await ai.emergency(locRaw);
+          return res.json(byText);
+        }
+      }
+      const delta = 0.08; // ~9km bbox
+      const left = (lon - delta).toFixed(6);
+      const right = (lon + delta).toFixed(6);
+      const top = (lat + delta).toFixed(6);
+      const bottom = (lat - delta).toFixed(6);
+
+      let countryCode = 'xx';
+      let countryName = '';
+      try {
+        const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+          { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
+        const j = await rev.json();
+        countryCode = String(j?.address?.country_code || 'xx').toUpperCase();
+        countryName = String(j?.address?.country || '');
       } catch { }
-    }
 
-    // compute distances and sort
-    const toKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-      const R = 6371;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
-    const withDist = results.map(r => ({ ...r, distance: `${toKm(lat, lon, r.latitude, r.longitude).toFixed(1)} km` }));
-    withDist.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
-    const sortedLimited = withDist.slice(0, 10);
-    if (!sortedLimited.length) {
-      const fallback = await ai.emergency(`${countryName || countryCode}`);
-      return res.json(fallback);
-    }
-    return res.json(sortedLimited);
-  } catch (error) {
-    console.error('AI emergency error:', error);
-    res.status(500).json([]);
-  }
-});
-
-function mapEmergencyNumber(countryCode: string, kind: 'police' | 'medical' | 'fire' | 'pharmacy'): string {
-  const inMap = { police: '100', medical: '108', fire: '101', pharmacy: '1860-500-0100' };
-  const usMap = { police: '911', medical: '911', fire: '911', pharmacy: '' };
-  const euMap = { police: '112', medical: '112', fire: '112', pharmacy: '' };
-  const code = countryCode.toUpperCase();
-  if (code === 'IN') return (inMap as any)[kind] || '112';
-  if (code === 'US') return (usMap as any)[kind] || '';
-  // Default to EU single number for many countries
-  return (euMap as any)[kind] || '';
-}
-
-app.post('/api/v1/trips/sync', isJwtAuthenticated, async (req: any, res) => {
-  try {
-    const userId = req.user.claims?.sub || req.user.id;
-    const ops: Array<{ id?: string; tempId?: string; op: 'create' | 'update' | 'delete'; data?: any }> = Array.isArray(req.body?.operations) ? req.body.operations : [];
-    const results: Array<{ ok: boolean; id?: string; tempId?: string; error?: string }> = [];
-    for (const op of ops) {
-      try {
-        if (op.op === 'create' && op.data) {
-          const data = { ...op.data, userId };
-          const tripData = insertTripSchema.parse(data);
-          const created = await storage.createTrip(tripData);
-          results.push({ ok: true, id: String(created._id || created.id), tempId: op.tempId });
-        } else if (op.op === 'update' && op.id && op.data) {
-          const updates = insertTripSchema.partial().parse(op.data);
-          const updated = await storage.updateTrip(op.id, userId, updates);
-          results.push({ ok: !!updated, id: op.id });
-        } else if (op.op === 'delete' && op.id) {
-          const deleted = await storage.deleteTrip(op.id, userId);
-          results.push({ ok: !!deleted, id: op.id });
-        } else {
-          results.push({ ok: false, tempId: op.tempId, error: 'invalid_op' });
-        }
-      } catch (e: any) {
-        results.push({ ok: false, tempId: op.tempId, id: op.id, error: String(e?.message || 'error') });
+      const types = ['hospital', 'police', 'embassy', 'pharmacy'] as const;
+      const results: Array<{ id: string; name: string; type: string; address: string; phone: string; distance: string; latitude: number; longitude: number }> = [];
+      for (const t of types) {
+        try {
+          const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(t)}&viewbox=${left},${top},${right},${bottom}&bounded=1`;
+          const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
+          const j = await r.json();
+          const arr = Array.isArray(j) ? j : [];
+          for (let i = 0; i < Math.min(arr.length, 3); i++) {
+            const it: any = arr[i];
+            const name = String(it.display_name?.split(',')[0] || t);
+            const address = String(it.display_name || '');
+            const latitude = parseFloat(it.lat);
+            const longitude = parseFloat(it.lon);
+            const phone = t === 'police' ? mapEmergencyNumber(countryCode, 'police') : t === 'hospital' ? mapEmergencyNumber(countryCode, 'medical') : t === 'embassy' ? '' : mapEmergencyNumber(countryCode, 'pharmacy');
+            results.push({ id: `${t}-${i}`, name, type: t, address, phone, distance: '—', latitude, longitude });
+          }
+        } catch { }
       }
-    }
-    res.json({ results });
-  } catch (error) {
-    console.error('Trips sync error:', error);
-    res.status(500).json({ error: 'sync_failed' });
-  }
-});
 
-// Trip planning tool (strict JSON via OpenAI, server-side key only)
-app.post('/api/tools/planTrip', optionalAuth, aiLimit, async (req: any, res) => {
-  try {
-    const destination = String(req.body?.destination || '').trim();
-    const days = Number(req.body?.days || 0);
-    const persons = Number(req.body?.persons || 0);
-    const budgetRaw = req.body?.budget;
-    const budget = budgetRaw === undefined || budgetRaw === null ? undefined : Number(budgetRaw);
-    const typeOfTrip = String(req.body?.typeOfTrip || '').trim();
-    const travelMedium = String(req.body?.travelMedium || '').trim();
-
-    if (!destination || !days || !persons || !typeOfTrip || !travelMedium) {
-      return res.status(400).json({ error: 'invalid_input', message: 'destination, days, persons, typeOfTrip, travelMedium are required' });
-    }
-
-    const ts = new Date().toISOString();
-    const maskedDest = destination.replace(/\d/g, 'x');
-    console.log(JSON.stringify({ ts, tool: 'planTrip', input: { destination: maskedDest, days, persons, budget: typeof budget === 'number' ? 'n' : '—', typeOfTrip, travelMedium } }));
-
-    const inflightKey = `tool:${destination}:${days}:${persons}:${budget ?? 'x'}:${typeOfTrip}:${travelMedium}`;
-    const inflight = (app.locals as any).inflightPlanTrip || new Map<string, Promise<any>>();
-    (app.locals as any).inflightPlanTrip = inflight;
-    let task = inflight.get(inflightKey);
-    if (!task) {
-      task = ai.planTrip({ destination, days, persons, budget, typeOfTrip, travelMedium });
-      inflight.set(inflightKey, task);
-    }
-    const result = await task;
-    if (result && result.error === 'providers_unavailable') {
-      return res.status(503).json({ error: 'providers_unavailable', message: 'AI providers unavailable' });
-    }
-    if (result && result.error === 'invalid_model_output') {
-      return res.status(502).json(result);
-    }
-    inflight.delete(inflightKey);
-    return res.json(result);
-  } catch (error) {
-    console.error('PlanTrip tool error:', error);
-    res.status(500).json({ error: 'tool_error', message: 'Unexpected error' });
-  }
-});
-
-// Compatibility route: generate itinerary via server-side planTrip tool
-app.post('/api/v1/trips/generate-itinerary', isJwtAuthenticated, aiLimit, async (req: any, res) => {
-  try {
-    const BodySchema = z.object({
-      destination: z.string().min(2),
-      days: z.coerce.number().int().min(1),
-      persons: z.coerce.number().int().min(1),
-      budget: z.coerce.number().nonnegative().optional(),
-      typeOfTrip: z.string().min(2),
-      travelMedium: z.string().min(2),
-      preferences: z.string().optional(),
-    });
-    const parsed = BodySchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(422).json({ error: 'invalid_input', details: parsed.error.issues });
-    }
-    const { destination, days, persons, budget, typeOfTrip, travelMedium } = parsed.data;
-    const ts = new Date().toISOString();
-    console.log(JSON.stringify({ ts, endpoint: '/api/v1/trips/generate-itinerary', dest: destination.slice(0, 16) + '…', days, persons, budget: typeof budget === 'number' ? 'n' : '—', typeOfTrip, travelMedium }));
-    const inflightKey = `compat:${destination}:${days}:${persons}:${budget ?? 'x'}:${typeOfTrip}:${travelMedium}`;
-    const inflight = (app.locals as any).inflightCompatPlan || new Map<string, Promise<any>>();
-    (app.locals as any).inflightCompatPlan = inflight;
-    let task = inflight.get(inflightKey);
-    if (!task) {
-      task = ai.planTrip({ destination, days, persons, budget, typeOfTrip, travelMedium });
-      inflight.set(inflightKey, task);
-    }
-    const plan = await task;
-    if (plan && plan.error === 'providers_unavailable') {
-      return res.status(503).json({ error: 'providers_unavailable', message: 'AI providers unavailable' });
-    }
-    if (plan && plan.error === 'invalid_model_output') {
-      return res.status(502).json(plan);
-    }
-    inflight.delete(inflightKey);
-    return res.json(plan);
-  } catch (error: any) {
-    console.error('generate-itinerary error:', error?.message || error);
-    return res.status(500).json({ error: 'server_error', message: 'Failed to generate itinerary' });
-  }
-});
-
-// Health check to verify API availability
-app.get('/api/v1/health', async (_req, res) => {
-  res.json({ ok: true, ts: Date.now() });
-});
-
-// AI Trip Suggestions API
-app.post('/api/v1/trips/suggest', isJwtAuthenticated, async (req: any, res) => {
-  try {
-    const { destination, days, travelStyle, budget } = req.body;
-
-    // Mock AI suggestions - in production, integrate with OpenAI or similar
-    const suggestions = generateTripSuggestions(destination, days, travelStyle, budget);
-
-    res.json({
-      destination,
-      days,
-      travelStyle,
-      suggestions
-    });
-  } catch (error) {
-    console.error("Error generating trip suggestions:", error);
-    res.status(500).json({ message: "Failed to generate suggestions" });
-  }
-});
-
-// Version info and compatibility
-app.get('/api/v1/version', (_req, res) => {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
-    res.json({ version: pkg.version, node: process.version });
-  } catch {
-    res.json({ version: 'unknown', node: process.version });
-  }
-});
-
-// Readiness/Liveness endpoints
-app.get('/api/v1/liveness', (_req, res) => {
-  res.json({ ok: true, ts: Date.now() });
-});
-app.get('/api/v1/readiness', (req, res) => {
-  const ready = (req.app.locals as any).ready === true;
-  res.status(ready ? 200 : 503).json({ ok: ready, ts: Date.now() });
-});
-
-// Tools status endpoint
-app.get('/api/v1/tools/status', (_req, res) => {
-  try {
-    const tools = {
-      weather: true,
-      planTrip: true,
-      translate: true,
-      currency: true,
-      emergency: true,
-    };
-    res.json({ tools });
-  } catch {
-    res.status(500).json({ tools: {} });
-  }
-});
-
-// Geocoding proxy: Google Places API (primary) with OpenWeatherMap fallback
-app.get('/api/v1/geocode', optionalAuth, async (req: any, res) => {
-  try {
-    const raw = String(req.query.query || req.query.q || '').trim();
-    if (!raw) return res.status(400).json({ error: 'query required' });
-    const sanitized = raw
-      .replace(/[\u0000-\u001F]+/g, ' ')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    const cache: Map<string, { ts: number; value: any }> = (req.app.locals as any).geocodeCache || new Map();
-    (req.app.locals as any).geocodeCache = cache;
-    const TTL = 10 * 60 * 1000;
-    const cached = cache.get(sanitized);
-    if (cached && (Date.now() - cached.ts) < TTL) {
-      return res.json(cached.value);
-    }
-
-    let results: any[] = [];
-
-    // Try Google Places API first
-    const googleKey = process.env.GOOGLE_PLACES_API_KEY;
-    if (googleKey) {
-      try {
-        const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(sanitized)}&language=en&key=${googleKey}`;
-        const googleRes = await fetch(googleUrl);
-        const googleData = await googleRes.json();
-
-        if (googleData.status === 'OK' && googleData.results && googleData.results.length > 0) {
-          results = googleData.results.slice(0, 5).map((place: any) => ({
-            name: place.name || '',
-            lat: place.geometry?.location?.lat || 0,
-            lon: place.geometry?.location?.lng || 0,
-            display_name: place.formatted_address || place.name || '',
-            state: '',
-            country: '',
-            source: 'google'
-          }));
-          cache.set(sanitized, { ts: Date.now(), value: results });
-          return res.json(results);
-        }
-      } catch (err) {
-        console.error('Google Places API error:', err);
-        // Fall through to OpenWeather
+      // compute distances and sort
+      const toKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      };
+      const withDist = results.map(r => ({ ...r, distance: `${toKm(lat, lon, r.latitude, r.longitude).toFixed(1)} km` }));
+      withDist.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+      const sortedLimited = withDist.slice(0, 10);
+      if (!sortedLimited.length) {
+        const fallback = await ai.emergency(`${countryName || countryCode}`);
+        return res.json(fallback);
       }
+      return res.json(sortedLimited);
+    } catch (error) {
+      console.error('AI emergency error:', error);
+      res.status(500).json([]);
     }
+  });
 
-    // Fallback to OpenWeather if Google failed or not configured, AND if we actually have a weather key
-    // The previous code incorrectly used GOOGLE_API_KEY here.
-    const weatherKey = process.env.OPENWEATHER_API_KEY;
-    if (weatherKey) {
+  function mapEmergencyNumber(countryCode: string, kind: 'police' | 'medical' | 'fire' | 'pharmacy'): string {
+    const inMap = { police: '100', medical: '108', fire: '101', pharmacy: '1860-500-0100' };
+    const usMap = { police: '911', medical: '911', fire: '911', pharmacy: '' };
+    const euMap = { police: '112', medical: '112', fire: '112', pharmacy: '' };
+    const code = countryCode.toUpperCase();
+    if (code === 'IN') return (inMap as any)[kind] || '112';
+    if (code === 'US') return (usMap as any)[kind] || '';
+    // Default to EU single number for many countries
+    return (euMap as any)[kind] || '';
+  }
+
+  app.post('/api/v1/trips/sync', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const ops: Array<{ id?: string; tempId?: string; op: 'create' | 'update' | 'delete'; data?: any }> = Array.isArray(req.body?.operations) ? req.body.operations : [];
+      const results: Array<{ ok: boolean; id?: string; tempId?: string; error?: string }> = [];
+      for (const op of ops) {
+        try {
+          if (op.op === 'create' && op.data) {
+            const data = { ...op.data, userId };
+            const tripData = insertTripSchema.parse(data);
+            const created = await storage.createTrip(tripData);
+            results.push({ ok: true, id: String(created._id || created.id), tempId: op.tempId });
+          } else if (op.op === 'update' && op.id && op.data) {
+            const updates = insertTripSchema.partial().parse(op.data);
+            const updated = await storage.updateTrip(op.id, userId, updates);
+            results.push({ ok: !!updated, id: op.id });
+          } else if (op.op === 'delete' && op.id) {
+            const deleted = await storage.deleteTrip(op.id, userId);
+            results.push({ ok: !!deleted, id: op.id });
+          } else {
+            results.push({ ok: false, tempId: op.tempId, error: 'invalid_op' });
+          }
+        } catch (e: any) {
+          results.push({ ok: false, tempId: op.tempId, id: op.id, error: String(e?.message || 'error') });
+        }
+      }
+      res.json({ results });
+    } catch (error) {
+      console.error('Trips sync error:', error);
+      res.status(500).json({ error: 'sync_failed' });
+    }
+  });
+
+  // Trip planning tool (strict JSON via OpenAI, server-side key only)
+  app.post('/api/tools/planTrip', optionalAuth, aiLimit, async (req: any, res) => {
+    try {
+      const destination = String(req.body?.destination || '').trim();
+      const days = Number(req.body?.days || 0);
+      const persons = Number(req.body?.persons || 0);
+      const budgetRaw = req.body?.budget;
+      const budget = budgetRaw === undefined || budgetRaw === null ? undefined : Number(budgetRaw);
+      const typeOfTrip = String(req.body?.typeOfTrip || '').trim();
+      const travelMedium = String(req.body?.travelMedium || '').trim();
+
+      if (!destination || !days || !persons || !typeOfTrip || !travelMedium) {
+        return res.status(400).json({ error: 'invalid_input', message: 'destination, days, persons, typeOfTrip, travelMedium are required' });
+      }
+
+      const ts = new Date().toISOString();
+      const maskedDest = destination.replace(/\d/g, 'x');
+      console.log(JSON.stringify({ ts, tool: 'planTrip', input: { destination: maskedDest, days, persons, budget: typeof budget === 'number' ? 'n' : '—', typeOfTrip, travelMedium } }));
+
+      const inflightKey = `tool:${destination}:${days}:${persons}:${budget ?? 'x'}:${typeOfTrip}:${travelMedium}`;
+      const inflight = (app.locals as any).inflightPlanTrip || new Map<string, Promise<any>>();
+      (app.locals as any).inflightPlanTrip = inflight;
+      let task = inflight.get(inflightKey);
+      if (!task) {
+        task = ai.planTrip({ destination, days, persons, budget, typeOfTrip, travelMedium });
+        inflight.set(inflightKey, task);
+      }
+      const result = await task;
+      if (result && result.error === 'providers_unavailable') {
+        return res.status(503).json({ error: 'providers_unavailable', message: 'AI providers unavailable' });
+      }
+      if (result && result.error === 'invalid_model_output') {
+        return res.status(502).json(result);
+      }
+      inflight.delete(inflightKey);
+      return res.json(result);
+    } catch (error) {
+      console.error('PlanTrip tool error:', error);
+      res.status(500).json({ error: 'tool_error', message: 'Unexpected error' });
+    }
+  });
+
+  // Compatibility route: generate itinerary via server-side planTrip tool
+  app.post('/api/v1/trips/generate-itinerary', isJwtAuthenticated, aiLimit, async (req: any, res) => {
+    try {
+      const BodySchema = z.object({
+        destination: z.string().min(2),
+        days: z.coerce.number().int().min(1),
+        persons: z.coerce.number().int().min(1),
+        budget: z.coerce.number().nonnegative().optional(),
+        typeOfTrip: z.string().min(2),
+        travelMedium: z.string().min(2),
+        preferences: z.string().optional(),
+      });
+      const parsed = BodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(422).json({ error: 'invalid_input', details: parsed.error.issues });
+      }
+      const { destination, days, persons, budget, typeOfTrip, travelMedium } = parsed.data;
+      const ts = new Date().toISOString();
+      console.log(JSON.stringify({ ts, endpoint: '/api/v1/trips/generate-itinerary', dest: destination.slice(0, 16) + '…', days, persons, budget: typeof budget === 'number' ? 'n' : '—', typeOfTrip, travelMedium }));
+      const inflightKey = `compat:${destination}:${days}:${persons}:${budget ?? 'x'}:${typeOfTrip}:${travelMedium}`;
+      const inflight = (app.locals as any).inflightCompatPlan || new Map<string, Promise<any>>();
+      (app.locals as any).inflightCompatPlan = inflight;
+      let task = inflight.get(inflightKey);
+      if (!task) {
+        task = ai.planTrip({ destination, days, persons, budget, typeOfTrip, travelMedium });
+        inflight.set(inflightKey, task);
+      }
+      const plan = await task;
+      if (plan && plan.error === 'providers_unavailable') {
+        return res.status(503).json({ error: 'providers_unavailable', message: 'AI providers unavailable' });
+      }
+      if (plan && plan.error === 'invalid_model_output') {
+        return res.status(502).json(plan);
+      }
+      inflight.delete(inflightKey);
+      return res.json(plan);
+    } catch (error: any) {
+      console.error('generate-itinerary error:', error?.message || error);
+      return res.status(500).json({ error: 'server_error', message: 'Failed to generate itinerary' });
+    }
+  });
+
+  // Health check to verify API availability
+  app.get('/api/v1/health', async (_req, res) => {
+    res.json({ ok: true, ts: Date.now() });
+  });
+
+  // AI Trip Suggestions API
+  app.post('/api/v1/trips/suggest', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const { destination, days, travelStyle, budget } = req.body;
+
+      // Mock AI suggestions - in production, integrate with OpenAI or similar
+      const suggestions = generateTripSuggestions(destination, days, travelStyle, budget);
+
+      res.json({
+        destination,
+        days,
+        travelStyle,
+        suggestions
+      });
+    } catch (error) {
+      console.error("Error generating trip suggestions:", error);
+      res.status(500).json({ message: "Failed to generate suggestions" });
+    }
+  });
+
+  // Version info and compatibility
+  app.get('/api/v1/version', (_req, res) => {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
+      res.json({ version: pkg.version, node: process.version });
+    } catch {
+      res.json({ version: 'unknown', node: process.version });
+    }
+  });
+
+  // Readiness/Liveness endpoints
+  app.get('/api/v1/liveness', (_req, res) => {
+    res.json({ ok: true, ts: Date.now() });
+  });
+  app.get('/api/v1/readiness', (req, res) => {
+    const ready = (req.app.locals as any).ready === true;
+    res.status(ready ? 200 : 503).json({ ok: ready, ts: Date.now() });
+  });
+
+  // Tools status endpoint
+  app.get('/api/v1/tools/status', (_req, res) => {
+    try {
+      const tools = {
+        weather: true,
+        planTrip: true,
+        translate: true,
+        currency: true,
+        emergency: true,
+      };
+      res.json({ tools });
+    } catch {
+      res.status(500).json({ tools: {} });
+    }
+  });
+
+  // Geocoding proxy: Google Places API (primary) with OpenWeatherMap fallback
+  app.get('/api/v1/geocode', optionalAuth, async (req: any, res) => {
+    try {
+      const raw = String(req.query.query || req.query.q || '').trim();
+      if (!raw) return res.status(400).json({ error: 'query required' });
+      const sanitized = raw
+        .replace(/[\u0000-\u001F]+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+      const cache: Map<string, { ts: number; value: any }> = (req.app.locals as any).geocodeCache || new Map();
+      (req.app.locals as any).geocodeCache = cache;
+      const TTL = 10 * 60 * 1000;
+      const cached = cache.get(sanitized);
+      if (cached && (Date.now() - cached.ts) < TTL) {
+        return res.json(cached.value);
+      }
+
+      let results: any[] = [];
+
+      // Try Google Places API first
+      const googleKey = process.env.GOOGLE_PLACES_API_KEY;
+      if (googleKey) {
+        try {
+          const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(sanitized)}&language=en&key=${googleKey}`;
+          const googleRes = await fetch(googleUrl);
+          const googleData = await googleRes.json();
+
+          if (googleData.status === 'OK' && googleData.results && googleData.results.length > 0) {
+            results = googleData.results.slice(0, 5).map((place: any) => ({
+              name: place.name || '',
+              lat: place.geometry?.location?.lat || 0,
+              lon: place.geometry?.location?.lng || 0,
+              display_name: place.formatted_address || place.name || '',
+              state: '',
+              country: '',
+              source: 'google'
+            }));
+            cache.set(sanitized, { ts: Date.now(), value: results });
+            return res.json(results);
+          }
+        } catch (err) {
+          console.error('Google Places API error:', err);
+          // Fall through to OpenWeather
+        }
+      }
+
+      // Fallback to OpenWeather if Google failed or not configured, AND if we actually have a weather key
+      // The previous code incorrectly used GOOGLE_API_KEY here.
+      const weatherKey = process.env.OPENWEATHER_API_KEY;
+      if (weatherKey) {
+        try {
+          const r = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(sanitized)}&limit=5&appid=${weatherKey}`);
+          let list = await r.json().catch(() => []);
+          if (r.ok && Array.isArray(list) && list.length > 0) {
+            results = list.map((first: any) => {
+              const name = String((first.local_names && (first.local_names.en || first.local_names['en'])) || first.name || '').trim();
+              const state = String(first.state || '').trim();
+              const country = String(first.country || '').trim();
+              const lat = Number(first.lat);
+              const lon = Number(first.lon);
+              const displayName = [name, state, country].filter(Boolean).join(', ');
+              return { name, state, country, lat, lon, displayName };
+            });
+            cache.set(sanitized, { ts: Date.now(), value: results });
+            return res.json(results);
+          }
+        } catch (err) {
+          console.error('OpenWeather geocode error:', err);
+        }
+      }
+
+      // Last resort: try Nominatim
       try {
-        const r = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(sanitized)}&limit=5&appid=${weatherKey}`);
-        let list = await r.json().catch(() => []);
-        if (r.ok && Array.isArray(list) && list.length > 0) {
-          results = list.map((first: any) => {
-            const name = String((first.local_names && (first.local_names.en || first.local_names['en'])) || first.name || '').trim();
-            const state = String(first.state || '').trim();
-            const country = String(first.country || '').trim();
-            const lat = Number(first.lat);
-            const lon = Number(first.lon);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&dedupe=1&limit=5&q=${encodeURIComponent(sanitized)}`;
+        const rn = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
+        const arr = await rn.json();
+        if (Array.isArray(arr) && arr.length) {
+          results = arr.map((it: any) => {
+            const addr = it.address || {};
+            const namedetails = it.namedetails || {};
+            const nameEn = String(namedetails['name:en'] || '').trim();
+            const nameLocal = String(it.localname || it.name || '').trim();
+            const displayNameFirst = String(it.display_name || '').split(',')[0].trim();
+
+            let name = nameEn;
+            if (!name) {
+              // Try to use ASCII version if local name is non-ASCII
+              const asciiLocal = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const al = asciiLocal(nameLocal);
+              if (al !== nameLocal && al.length > 0) name = al;
+              else if (/^[\x00-\x7F]+$/.test(displayNameFirst)) name = displayNameFirst;
+              else name = nameLocal;
+            }
+
+            const state = String(addr.state || '').trim();
+            const country = String(addr.country || '').trim();
+            const lat = Number(it.lat);
+            const lon = Number(it.lon);
             const displayName = [name, state, country].filter(Boolean).join(', ');
             return { name, state, country, lat, lon, displayName };
           });
@@ -1995,274 +1983,236 @@ app.get('/api/v1/geocode', optionalAuth, async (req: any, res) => {
           return res.json(results);
         }
       } catch (err) {
-        console.error('OpenWeather geocode error:', err);
+        console.error('Nominatim geocode error:', err);
       }
-    }
 
-    // Last resort: try Nominatim
+      return res.status(404).json({ error: 'Location not found' });
+    } catch (error) {
+      console.error('Geocode error:', error);
+      return res.status(500).json({ error: 'geocode failed', details: error.message, stack: error.stack });
+    }
+  });
+
+  // Places search: Nominatim-backed full-text search with English display, pagination, and caching
+  app.get('/api/v1/places/search', optionalAuth, async (req: any, res) => {
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&dedupe=1&limit=5&q=${encodeURIComponent(sanitized)}`;
-      const rn = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
-      const arr = await rn.json();
-      if (Array.isArray(arr) && arr.length) {
-        results = arr.map((it: any) => {
-          const addr = it.address || {};
-          const namedetails = it.namedetails || {};
-          const nameEn = String(namedetails['name:en'] || '').trim();
-          const nameLocal = String(it.localname || it.name || '').trim();
-          const displayNameFirst = String(it.display_name || '').split(',')[0].trim();
+      const rawQ = String(req.query.query || req.query.q || '').trim();
+      const page = Math.max(1, Number(req.query.page || 1));
+      const pageSize = Math.min(50, Math.max(5, Number(req.query.pageSize || 20)));
+      const autocomplete = String(req.query.autocomplete || '0') === '1';
+      if (!rawQ || rawQ.length < 2) return res.status(400).json({ error: 'query_too_short' });
 
-          let name = nameEn;
-          if (!name) {
-            // Try to use ASCII version if local name is non-ASCII
-            const asciiLocal = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            const al = asciiLocal(nameLocal);
-            if (al !== nameLocal && al.length > 0) name = al;
-            else if (/^[\x00-\x7F]+$/.test(displayNameFirst)) name = displayNameFirst;
-            else name = nameLocal;
-          }
+      const q = rawQ
+        .replace(/[\u0000-\u001F]+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
 
-          const state = String(addr.state || '').trim();
-          const country = String(addr.country || '').trim();
-          const lat = Number(it.lat);
-          const lon = Number(it.lon);
-          const displayName = [name, state, country].filter(Boolean).join(', ');
-          return { name, state, country, lat, lon, displayName };
-        });
-        cache.set(sanitized, { ts: Date.now(), value: results });
-        return res.json(results);
+      const cache: Map<string, { ts: number; value: any[] }> = (req.app.locals as any).placesSearchCache || new Map();
+      (req.app.locals as any).placesSearchCache = cache;
+      const TTL = 10 * 60 * 1000;
+      const cacheKey = `q:${q}`;
+      const now = Date.now();
+      let list: any[] | undefined;
+      const cached = cache.get(cacheKey);
+      if (cached && (now - cached.ts) < TTL) {
+        list = cached.value;
       }
-    } catch (err) {
-      console.error('Nominatim geocode error:', err);
-    }
 
-    return res.status(404).json({ error: 'Location not found' });
-  } catch (error) {
-    console.error('Geocode error:', error);
-    return res.status(500).json({ error: 'geocode failed', details: error.message, stack: error.stack });
-  }
-});
-
-// Places search: Nominatim-backed full-text search with English display, pagination, and caching
-app.get('/api/v1/places/search', optionalAuth, async (req: any, res) => {
-  try {
-    const rawQ = String(req.query.query || req.query.q || '').trim();
-    const page = Math.max(1, Number(req.query.page || 1));
-    const pageSize = Math.min(50, Math.max(5, Number(req.query.pageSize || 20)));
-    const autocomplete = String(req.query.autocomplete || '0') === '1';
-    if (!rawQ || rawQ.length < 2) return res.status(400).json({ error: 'query_too_short' });
-
-    const q = rawQ
-      .replace(/[\u0000-\u001F]+/g, ' ')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    const cache: Map<string, { ts: number; value: any[] }> = (req.app.locals as any).placesSearchCache || new Map();
-    (req.app.locals as any).placesSearchCache = cache;
-    const TTL = 10 * 60 * 1000;
-    const cacheKey = `q:${q}`;
-    const now = Date.now();
-    let list: any[] | undefined;
-    const cached = cache.get(cacheKey);
-    if (cached && (now - cached.ts) < TTL) {
-      list = cached.value;
-    }
-
-    if (!list) {
-      const gkey = process.env.GOOGLE_PLACES_API_KEY || '';
-      if (gkey) {
-        try {
-          const limitFetch = autocomplete ? 10 : Math.max(pageSize, 50);
-          const gurl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&language=en&key=${gkey}`;
-          const gr = await fetch(gurl, { headers: { 'User-Agent': 'TripMate/1.0' } });
-          const gj = await gr.json().catch(() => ({}));
-          const gres = Array.isArray((gj as any).results) ? (gj as any).results : [];
-          list = gres.slice(0, limitFetch).map((it: any) => ({
-            osm_id: String(it.place_id || `${it.name || 'place'}-${Math.random()}`),
-            namedetails: { 'name:en': String(it.name || ''), name: String(it.name || '') },
-            address: { city: '', state: '', country: '', road: '' },
-            lat: Number(it.geometry?.location?.lat ?? 0),
-            lon: Number(it.geometry?.location?.lng ?? 0),
-            display_name: String(it.formatted_address || it.name || ''),
-            source: 'google',
-          }));
-          list = Array.isArray(list) ? list : [];
-          cache.set(cacheKey, { ts: now, value: list });
-        } catch {
-          // fall through to nominatim
-        }
-      }
-      if (!list || !Array.isArray(list) || list.length === 0) {
-        const limitFetch = autocomplete ? 10 : Math.max(pageSize, 50);
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&dedupe=1&q=${encodeURIComponent(q)}&limit=${limitFetch}`;
-        const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          const msg = String((j as any)?.message || 'search_failed');
-          return res.status(r.status).json({ error: msg });
-        }
-        const arr = await r.json();
-        list = Array.isArray(arr) ? arr : [];
-        cache.set(cacheKey, { ts: now, value: list });
-      }
-    }
-
-    // Fallback: if Nominatim found nothing and we have weather key, try OpenWeather Direct Geocoding (city-level)
-    if (Array.isArray(list) && list.length === 0) {
-      const owKey = process.env.OPENWEATHER_API_KEY || '';
-      if (owKey) {
-        try {
-          const ro = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=${Math.max(5, autocomplete ? 5 : 10)}&appid=${owKey}`);
-          const jo = await ro.json().catch(() => []);
-          if (Array.isArray(jo) && jo.length) {
-            list = jo.map((o: any) => ({
-              osm_id: `${o.lat}-${o.lon}-${o.name}`,
-              namedetails: { 'name:en': (o.local_names && (o.local_names.en || o.local_names['en'])) || o.name || '' },
-              address: { city: o.name || '', state: o.state || '', country: o.country || '' },
-              lat: o.lat,
-              lon: o.lon,
-              display_name: [o.name, o.state, o.country].filter(Boolean).join(', '),
+      if (!list) {
+        const gkey = process.env.GOOGLE_PLACES_API_KEY || '';
+        if (gkey) {
+          try {
+            const limitFetch = autocomplete ? 10 : Math.max(pageSize, 50);
+            const gurl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&language=en&key=${gkey}`;
+            const gr = await fetch(gurl, { headers: { 'User-Agent': 'TripMate/1.0' } });
+            const gj = await gr.json().catch(() => ({}));
+            const gres = Array.isArray((gj as any).results) ? (gj as any).results : [];
+            list = gres.slice(0, limitFetch).map((it: any) => ({
+              osm_id: String(it.place_id || `${it.name || 'place'}-${Math.random()}`),
+              namedetails: { 'name:en': String(it.name || ''), name: String(it.name || '') },
+              address: { city: '', state: '', country: '', road: '' },
+              lat: Number(it.geometry?.location?.lat ?? 0),
+              lon: Number(it.geometry?.location?.lng ?? 0),
+              display_name: String(it.formatted_address || it.name || ''),
+              source: 'google',
             }));
+            list = Array.isArray(list) ? list : [];
+            cache.set(cacheKey, { ts: now, value: list });
+          } catch {
+            // fall through to nominatim
           }
-        } catch { }
-      }
-    }
-
-    const toAscii = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const normalizeItem = (it: any) => {
-      const addr = it.address || {};
-      const namedetails = it.namedetails || {};
-
-      // Prioritize English name, then transliterated, then local as fallback
-      const nameEnRaw = String(namedetails['name:en'] || '').trim();
-      const nameLocal = String(namedetails.name || it.name || '').trim();
-      const displayNameFirst = String(it.display_name || '').split(',')[0].trim();
-
-      // Use English name if available, otherwise transliterate the local name to ASCII
-      // If transliteration fails or is same as local (and local is non-ASCII), try to use the first part of display_name
-      let nameEn = nameEnRaw;
-      if (!nameEn) {
-        const asciiLocal = toAscii(nameLocal);
-        // If local name has non-ascii chars and ascii version is different, use it
-        if (asciiLocal !== nameLocal && asciiLocal.length > 0) {
-          nameEn = asciiLocal;
-        } else {
-          // Fallback to display name first part if it looks like English (ASCII)
-          const firstPart = displayNameFirst;
-          if (/^[\x00-\x7F]+$/.test(firstPart)) {
-            nameEn = firstPart;
-          } else {
-            nameEn = nameLocal; // Give up and use local
+        }
+        if (!list || !Array.isArray(list) || list.length === 0) {
+          const limitFetch = autocomplete ? 10 : Math.max(pageSize, 50);
+          const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&dedupe=1&q=${encodeURIComponent(q)}&limit=${limitFetch}`;
+          const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            const msg = String((j as any)?.message || 'search_failed');
+            return res.status(r.status).json({ error: msg });
           }
+          const arr = await r.json();
+          list = Array.isArray(arr) ? arr : [];
+          cache.set(cacheKey, { ts: now, value: list });
         }
       }
 
-      const road = String(addr.road || addr.street || addr.residential || addr.pedestrian || addr.footway || addr.path || '').trim();
-      const city = String(addr.city || addr.town || addr.village || addr.hamlet || addr.county || '').trim();
-      const country = String(addr.country || '').trim();
-      const postcode = String(addr.postcode || '').trim();
-      const lat = Number(it.lat);
-      const lon = Number(it.lon);
-      const displayName = String(it.display_name || '').trim();
-      return {
-        id: String(it.osm_id || `${lat}-${lon}`),
-        name_en: nameEn,
-        name_local: nameLocal || nameEn,
-        transliteration: toAscii(nameLocal || nameEn || ''),
-        road,
-        city,
-        country,
-        postcode,
-        lat,
-        lon,
-        display_name: displayName,
-        source: String(it.source || 'nominatim'),
-      };
-    };
-
-    const items = (Array.isArray(list) ? list : []).map(normalizeItem);
-    const total = items.length;
-    const start = (page - 1) * pageSize;
-    const end = Math.min(start + pageSize, total);
-    const pageItems = autocomplete ? items.slice(0, Math.min(10, total)) : items.slice(start, end);
-    return res.json({ query: q, page, pageSize, total, items: pageItems });
-  } catch (error) {
-    console.error('Places search error:', error);
-    return res.status(500).json({ error: 'search_failed' });
-  }
-});
-
-// Reverse geocoding proxy: OpenWeatherMap Reverse Geocoding to convert lat/lon into display name
-app.get('/api/v1/reverse-geocode', optionalAuth, async (req: any, res) => {
-  try {
-    const lat = Number(req.query.lat);
-    const lon = Number(req.query.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return res.status(400).json({ error: 'lat_lon_required' });
-    const key = process.env.GOOGLE_API_KEY;
-    if (!key) return res.status(503).json({ error: 'weather api key missing' });
-
-    const cache: Map<string, { ts: number; value: any }> = (req.app.locals as any).revGeocodeCache || new Map();
-    (req.app.locals as any).revGeocodeCache = cache;
-    const TTL = 10 * 60 * 1000;
-    const k = `${lat.toFixed(4)},${lon.toFixed(4)}`;
-    const cached = cache.get(k);
-    if (cached && (Date.now() - cached.ts) < TTL) {
-      return res.json(cached.value);
-    }
-
-    const r = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&limit=1&appid=${key}`);
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      const msg = String((j as any)?.message || 'reverse geocode failed');
-      return res.status(r.status).json({ error: msg });
-    }
-    const list = await r.json();
-    const first = Array.isArray(list) && list.length ? list[0] : null;
-    if (!first) return res.status(404).json({ error: 'not_found' });
-    const name = String((first.local_names && (first.local_names.en || first.local_names['en'])) || first.name || '').trim();
-    const state = String(first.state || '').trim();
-    const country = String(first.country || '').trim();
-    const payload = { name, state, country, lat, lon, displayName: [name, state, country].filter(Boolean).join(', ') };
-    cache.set(k, { ts: Date.now(), value: payload });
-    return res.json(payload);
-  } catch (error) {
-    console.error('Reverse geocode error:', error);
-    return res.status(500).json({ error: 'reverse_geocode_failed' });
-  }
-});
-
-// Tourist attractions endpoint using Overpass API (OpenStreetMap)
-app.get('/api/v1/places/tourist-attractions', optionalAuth, async (req: any, res) => {
-  try {
-    const location = String(req.query.location || '').trim();
-    const pageSize = Math.min(50, Math.max(5, Number(req.query.pageSize || 20)));
-
-    if (!location) {
-      return res.status(400).json({ error: 'location_required' });
-    }
-
-    // Step 1: Geocode the location using Nominatim
-    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`;
-    const geocodeRes = await fetch(nominatimUrl, {
-      headers: {
-        'User-Agent': 'TripMate/1.0 (+https://example.com)',
-        'Accept-Language': 'en'
+      // Fallback: if Nominatim found nothing and we have weather key, try OpenWeather Direct Geocoding (city-level)
+      if (Array.isArray(list) && list.length === 0) {
+        const owKey = process.env.OPENWEATHER_API_KEY || '';
+        if (owKey) {
+          try {
+            const ro = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=${Math.max(5, autocomplete ? 5 : 10)}&appid=${owKey}`);
+            const jo = await ro.json().catch(() => []);
+            if (Array.isArray(jo) && jo.length) {
+              list = jo.map((o: any) => ({
+                osm_id: `${o.lat}-${o.lon}-${o.name}`,
+                namedetails: { 'name:en': (o.local_names && (o.local_names.en || o.local_names['en'])) || o.name || '' },
+                address: { city: o.name || '', state: o.state || '', country: o.country || '' },
+                lat: o.lat,
+                lon: o.lon,
+                display_name: [o.name, o.state, o.country].filter(Boolean).join(', '),
+              }));
+            }
+          } catch { }
+        }
       }
-    });
-    const geocodeData = await geocodeRes.json();
 
-    if (!Array.isArray(geocodeData) || geocodeData.length === 0) {
-      console.error('[tourist-attractions] Nominatim geocoding failed for:', location);
-      return res.status(404).json({ error: 'location_not_found', query: location, page: 1, pageSize, total: 0, items: [] });
+      const toAscii = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const normalizeItem = (it: any) => {
+        const addr = it.address || {};
+        const namedetails = it.namedetails || {};
+
+        // Prioritize English name, then transliterated, then local as fallback
+        const nameEnRaw = String(namedetails['name:en'] || '').trim();
+        const nameLocal = String(namedetails.name || it.name || '').trim();
+        const displayNameFirst = String(it.display_name || '').split(',')[0].trim();
+
+        // Use English name if available, otherwise transliterate the local name to ASCII
+        // If transliteration fails or is same as local (and local is non-ASCII), try to use the first part of display_name
+        let nameEn = nameEnRaw;
+        if (!nameEn) {
+          const asciiLocal = toAscii(nameLocal);
+          // If local name has non-ascii chars and ascii version is different, use it
+          if (asciiLocal !== nameLocal && asciiLocal.length > 0) {
+            nameEn = asciiLocal;
+          } else {
+            // Fallback to display name first part if it looks like English (ASCII)
+            const firstPart = displayNameFirst;
+            if (/^[\x00-\x7F]+$/.test(firstPart)) {
+              nameEn = firstPart;
+            } else {
+              nameEn = nameLocal; // Give up and use local
+            }
+          }
+        }
+
+        const road = String(addr.road || addr.street || addr.residential || addr.pedestrian || addr.footway || addr.path || '').trim();
+        const city = String(addr.city || addr.town || addr.village || addr.hamlet || addr.county || '').trim();
+        const country = String(addr.country || '').trim();
+        const postcode = String(addr.postcode || '').trim();
+        const lat = Number(it.lat);
+        const lon = Number(it.lon);
+        const displayName = String(it.display_name || '').trim();
+        return {
+          id: String(it.osm_id || `${lat}-${lon}`),
+          name_en: nameEn,
+          name_local: nameLocal || nameEn,
+          transliteration: toAscii(nameLocal || nameEn || ''),
+          road,
+          city,
+          country,
+          postcode,
+          lat,
+          lon,
+          display_name: displayName,
+          source: String(it.source || 'nominatim'),
+        };
+      };
+
+      const items = (Array.isArray(list) ? list : []).map(normalizeItem);
+      const total = items.length;
+      const start = (page - 1) * pageSize;
+      const end = Math.min(start + pageSize, total);
+      const pageItems = autocomplete ? items.slice(0, Math.min(10, total)) : items.slice(start, end);
+      return res.json({ query: q, page, pageSize, total, items: pageItems });
+    } catch (error) {
+      console.error('Places search error:', error);
+      return res.status(500).json({ error: 'search_failed' });
     }
+  });
 
-    const { lat, lon, display_name } = geocodeData[0];
-    console.log('[tourist-attractions] Geocoded location:', location, '-> lat:', lat, 'lon:', lon);
+  // Reverse geocoding proxy: OpenWeatherMap Reverse Geocoding to convert lat/lon into display name
+  app.get('/api/v1/reverse-geocode', optionalAuth, async (req: any, res) => {
+    try {
+      const lat = Number(req.query.lat);
+      const lon = Number(req.query.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return res.status(400).json({ error: 'lat_lon_required' });
+      const key = process.env.GOOGLE_API_KEY;
+      if (!key) return res.status(503).json({ error: 'weather api key missing' });
 
-    // Step 2: Query Overpass API for tourist attractions
-    // Search within ~5km radius
-    const radius = 5000;
-    const overpassQuery = `
+      const cache: Map<string, { ts: number; value: any }> = (req.app.locals as any).revGeocodeCache || new Map();
+      (req.app.locals as any).revGeocodeCache = cache;
+      const TTL = 10 * 60 * 1000;
+      const k = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+      const cached = cache.get(k);
+      if (cached && (Date.now() - cached.ts) < TTL) {
+        return res.json(cached.value);
+      }
+
+      const r = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&limit=1&appid=${key}`);
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        const msg = String((j as any)?.message || 'reverse geocode failed');
+        return res.status(r.status).json({ error: msg });
+      }
+      const list = await r.json();
+      const first = Array.isArray(list) && list.length ? list[0] : null;
+      if (!first) return res.status(404).json({ error: 'not_found' });
+      const name = String((first.local_names && (first.local_names.en || first.local_names['en'])) || first.name || '').trim();
+      const state = String(first.state || '').trim();
+      const country = String(first.country || '').trim();
+      const payload = { name, state, country, lat, lon, displayName: [name, state, country].filter(Boolean).join(', ') };
+      cache.set(k, { ts: Date.now(), value: payload });
+      return res.json(payload);
+    } catch (error) {
+      console.error('Reverse geocode error:', error);
+      return res.status(500).json({ error: 'reverse_geocode_failed' });
+    }
+  });
+
+  // Tourist attractions endpoint using Overpass API (OpenStreetMap)
+  app.get('/api/v1/places/tourist-attractions', optionalAuth, async (req: any, res) => {
+    try {
+      const location = String(req.query.location || '').trim();
+      const pageSize = Math.min(50, Math.max(5, Number(req.query.pageSize || 20)));
+
+      if (!location) {
+        return res.status(400).json({ error: 'location_required' });
+      }
+
+      // Step 1: Geocode the location using Nominatim
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`;
+      const geocodeRes = await fetch(nominatimUrl, {
+        headers: {
+          'User-Agent': 'TripMate/1.0 (+https://example.com)',
+          'Accept-Language': 'en'
+        }
+      });
+      const geocodeData = await geocodeRes.json();
+
+      if (!Array.isArray(geocodeData) || geocodeData.length === 0) {
+        console.error('[tourist-attractions] Nominatim geocoding failed for:', location);
+        return res.status(404).json({ error: 'location_not_found', query: location, page: 1, pageSize, total: 0, items: [] });
+      }
+
+      const { lat, lon, display_name } = geocodeData[0];
+      console.log('[tourist-attractions] Geocoded location:', location, '-> lat:', lat, 'lon:', lon);
+
+      // Step 2: Query Overpass API for tourist attractions
+      // Search within ~5km radius
+      const radius = 5000;
+      const overpassQuery = `
         [out:json][timeout:25];
         (
           node["tourism"="attraction"](around:${radius},${lat},${lon});
@@ -2276,216 +2226,216 @@ app.get('/api/v1/places/tourist-attractions', optionalAuth, async (req: any, res
         out body ${pageSize};
       `.trim();
 
-    const overpassUrl = 'https://overpass-api.de/api/interpreter';
-    const overpassRes = await fetch(overpassUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(overpassQuery)}`
-    });
-
-    if (!overpassRes.ok) {
-      console.error('[tourist-attractions] Overpass API error:', overpassRes.status);
-      return res.status(502).json({ error: 'overpass_api_error' });
-    }
-
-    const overpassData = await overpassRes.json();
-    const elements = overpassData.elements || [];
-    console.log('[tourist-attractions] Overpass API found', elements.length, 'elements');
-
-    // Transform to match the existing places/search format
-    const toAscii = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const items = elements.slice(0, pageSize).map((element: any, index: number) => {
-      // Prioritize English name, then transliterate local name, then fallback
-      const nameEn = element.tags?.['name:en'] || '';
-      const nameLocal = element.tags?.name || '';
-      const fallbackName = element.tags?.historic || element.tags?.tourism || `Attraction ${index + 1}`;
-
-      // Use English name if available, otherwise transliterate the local name
-      const finalNameEn = nameEn || toAscii(nameLocal) || fallbackName;
-      const finalNameLocal = nameLocal || nameEn || fallbackName;
-
-      const elLat = element.lat || element.center?.lat || 0;
-      const elLon = element.lon || element.center?.lon || 0;
-
-      return {
-        id: `osm-${element.type}-${element.id}`,
-        name_en: finalNameEn,
-        name_local: finalNameLocal,
-        transliteration: toAscii(finalNameLocal),
-        road: element.tags?.['addr:street'] || '',
-        city: element.tags?.['addr:city'] || location,
-        country: element.tags?.['addr:country'] || '',
-        postcode: element.tags?.['addr:postcode'] || '',
-        lat: elLat,
-        lon: elLon,
-        display_name: `${finalNameEn}, ${location}`,
-        source: 'overpass_api',
-      };
-    });
-
-    return res.json({
-      query: location,
-      page: 1,
-      pageSize,
-      total: items.length,
-      items,
-    });
-  } catch (error) {
-    console.error('[tourist-attractions] error:', error);
-    return res.status(500).json({ error: 'server_error' });
-  }
-});
-
-app.post('/api/v1/trips/:id/ai-plan', isJwtAuthenticated, aiLimit, async (req: any, res) => {
-  try {
-    const userId = req.user.claims?.sub || req.user.id;
-    const tripId = req.params.id;
-    const trip = await storage.getTrip(tripId, userId);
-    if (!trip) {
-      return res.status(404).json({ message: 'Trip not found' });
-    }
-
-    const input = req.body || {};
-    const destination = String(input.location || trip.destination || '').trim();
-    const budget = Number(input.budget ?? trip.budget ?? 0);
-    const people = Number(input.people ?? trip.groupSize ?? 1);
-    const notes = String(input.notes ?? trip.notes ?? '').trim();
-    const days = Number(input.days ?? trip.days ?? 3);
-    const style = String(input.travelStyle ?? trip.travelStyle ?? 'standard');
-    const transport = String(input.transportMode ?? trip.transportMode ?? '');
-    if (!destination || !Number.isFinite(days) || days <= 0 || !Number.isFinite(people) || people <= 0 || !Number.isFinite(budget) || budget < 0) {
-      return res.status(400).json({ message: 'Invalid input' });
-    }
-    // Idempotency: return existing plan if already generated
-    if (trip.aiPlanMarkdown && String(trip.aiPlanMarkdown).trim().length > 0) {
-      return res.json({ markdown: String(trip.aiPlanMarkdown) });
-    }
-
-    const inflightKey = `${userId}:${tripId}`;
-    if (inflightPlans.has(inflightKey)) {
-      const md = await inflightPlans.get(inflightKey)!;
-      return res.json({ markdown: md });
-    }
-
-    const prompt = [
-      `Create a detailed, practical trip plan in Markdown for ${destination}.`,
-      `Constraints: ${days} days, budget ₹${budget} total, group size ${people}.`,
-      style ? `Travel style: ${style}.` : '',
-      transport ? `Primary transport: ${transport}.` : '',
-      notes ? `Additional notes: ${notes}.` : '',
-      `Include sections with clear headings: Overview, Daily Itinerary (by day with times), Accommodation suggestions (2–3 per budget), Food recommendations, Local transport tips, Budget breakdown table, Safety and etiquette tips, Packing checklist, and Final reminders.`,
-      `Use only Markdown. Avoid code fences. Keep it concise, well-structured, and locally relevant.`
-    ].filter(Boolean).join(' ');
-
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-    const timeoutMs = 60000;
-    const task = (async () => {
-      let markdown = '';
-      const ts = new Date().toISOString();
-      try {
-        markdown = await generateMarkdownGemini(prompt, geminiKey, timeoutMs);
-        console.log(JSON.stringify({ ts, api_used: 'gemini', userId, tripId }));
-      } catch (e: any) {
-        const errMsg = String(e?.message || e || 'error');
-        console.warn(JSON.stringify({ ts, api_used: 'gemini', status: 'failed', reason: errMsg, userId, tripId }));
-        try {
-          markdown = await generateMarkdownOpenAI(prompt, timeoutMs);
-          console.log(JSON.stringify({ ts, api_used: 'openai', userId, tripId }));
-        } catch (e2: any) {
-          const errMsg2 = String(e2?.message || e2 || 'error');
-          console.error(JSON.stringify({ ts, api_used: 'openai', status: 'failed', reason: errMsg2, userId, tripId }));
-          throw new Error('providers_unavailable');
-        }
-      }
-      const updated = await storage.updateTrip(tripId, userId, { aiPlanMarkdown: markdown } as any);
-      return String(updated?.aiPlanMarkdown || markdown);
-    })();
-
-    inflightPlans.set(inflightKey, task);
-    try {
-      const md = await task;
-      return res.json({ markdown: md });
-    } finally {
-      inflightPlans.delete(inflightKey);
-    }
-  } catch (error) {
-    console.error('AI plan error:', error);
-    const msg = String((error as any)?.message || 'Failed to generate plan');
-    const status = msg === 'providers_unavailable' ? 503 : 500;
-    res.status(status).json({ message: 'Failed to generate plan' });
-  }
-});
-
-function generateTripSuggestions(
-  destination: string,
-  days: number,
-  travelStyle: string,
-  budget?: number
-) {
-  const baseActivities = [
-    { title: "City walking tour", time: "09:00", location: destination },
-    { title: "Local cuisine tasting", time: "13:00", location: destination },
-    { title: "Sunset viewpoint", time: "18:30", location: destination }
-  ];
-
-  const styleExtras: Record<string, any[]> = {
-    adventure: [
-      { title: "Hiking trail", time: "07:30", location: "National Park" },
-      { title: "Kayaking", time: "15:00", location: "River" }
-    ],
-    relaxed: [
-      { title: "Spa session", time: "11:00", location: "Wellness Center" },
-      { title: "Beach time", time: "16:00", location: "Coast" }
-    ],
-    cultural: [
-      { title: "Museum visit", time: "10:00", location: "City Museum" },
-      { title: "Historic district tour", time: "14:00", location: "Old Town" }
-    ],
-    culinary: [
-      { title: "Cooking class", time: "12:00", location: "Local Kitchen" },
-      { title: "Street food crawl", time: "19:00", location: "Night Market" }
-    ],
-    standard: []
-  };
-
-  const daysArray = Array.from({ length: Math.max(1, days) }, (_, i) => ({
-    dayIndex: i + 1,
-    activities: [...baseActivities, ...(styleExtras[travelStyle] || [])]
-  }));
-
-  return daysArray;
-}
-
-// Feedback submission endpoint
-app.post('/api/v1/feedback', async (req, res) => {
-  try {
-    const { type, category, subject, description, email } = req.body;
-
-    if (!type || !category || !subject || !description || !email) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    // Send email notification (if email service is configured)
-    try {
-      const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.default.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
+      const overpassUrl = 'https://overpass-api.de/api/interpreter';
+      const overpassRes = await fetch(overpassUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(overpassQuery)}`
       });
 
-      const typeEmoji = type === 'bug' ? '🐛' : type === 'feature' ? '✨' : type === 'feedback' ? '💡' : '📝';
+      if (!overpassRes.ok) {
+        console.error('[tourist-attractions] Overpass API error:', overpassRes.status);
+        return res.status(502).json({ error: 'overpass_api_error' });
+      }
 
-      await transporter.sendMail({
-        from: `"TripMate Feedback" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
-        to: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-        replyTo: email,
-        subject: `${typeEmoji} [${type.toUpperCase()}] ${subject}`,
-        html: `
+      const overpassData = await overpassRes.json();
+      const elements = overpassData.elements || [];
+      console.log('[tourist-attractions] Overpass API found', elements.length, 'elements');
+
+      // Transform to match the existing places/search format
+      const toAscii = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const items = elements.slice(0, pageSize).map((element: any, index: number) => {
+        // Prioritize English name, then transliterate local name, then fallback
+        const nameEn = element.tags?.['name:en'] || '';
+        const nameLocal = element.tags?.name || '';
+        const fallbackName = element.tags?.historic || element.tags?.tourism || `Attraction ${index + 1}`;
+
+        // Use English name if available, otherwise transliterate the local name
+        const finalNameEn = nameEn || toAscii(nameLocal) || fallbackName;
+        const finalNameLocal = nameLocal || nameEn || fallbackName;
+
+        const elLat = element.lat || element.center?.lat || 0;
+        const elLon = element.lon || element.center?.lon || 0;
+
+        return {
+          id: `osm-${element.type}-${element.id}`,
+          name_en: finalNameEn,
+          name_local: finalNameLocal,
+          transliteration: toAscii(finalNameLocal),
+          road: element.tags?.['addr:street'] || '',
+          city: element.tags?.['addr:city'] || location,
+          country: element.tags?.['addr:country'] || '',
+          postcode: element.tags?.['addr:postcode'] || '',
+          lat: elLat,
+          lon: elLon,
+          display_name: `${finalNameEn}, ${location}`,
+          source: 'overpass_api',
+        };
+      });
+
+      return res.json({
+        query: location,
+        page: 1,
+        pageSize,
+        total: items.length,
+        items,
+      });
+    } catch (error) {
+      console.error('[tourist-attractions] error:', error);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  app.post('/api/v1/trips/:id/ai-plan', isJwtAuthenticated, aiLimit, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) {
+        return res.status(404).json({ message: 'Trip not found' });
+      }
+
+      const input = req.body || {};
+      const destination = String(input.location || trip.destination || '').trim();
+      const budget = Number(input.budget ?? trip.budget ?? 0);
+      const people = Number(input.people ?? trip.groupSize ?? 1);
+      const notes = String(input.notes ?? trip.notes ?? '').trim();
+      const days = Number(input.days ?? trip.days ?? 3);
+      const style = String(input.travelStyle ?? trip.travelStyle ?? 'standard');
+      const transport = String(input.transportMode ?? trip.transportMode ?? '');
+      if (!destination || !Number.isFinite(days) || days <= 0 || !Number.isFinite(people) || people <= 0 || !Number.isFinite(budget) || budget < 0) {
+        return res.status(400).json({ message: 'Invalid input' });
+      }
+      // Idempotency: return existing plan if already generated
+      if (trip.aiPlanMarkdown && String(trip.aiPlanMarkdown).trim().length > 0) {
+        return res.json({ markdown: String(trip.aiPlanMarkdown) });
+      }
+
+      const inflightKey = `${userId}:${tripId}`;
+      if (inflightPlans.has(inflightKey)) {
+        const md = await inflightPlans.get(inflightKey)!;
+        return res.json({ markdown: md });
+      }
+
+      const prompt = [
+        `Create a detailed, practical trip plan in Markdown for ${destination}.`,
+        `Constraints: ${days} days, budget ₹${budget} total, group size ${people}.`,
+        style ? `Travel style: ${style}.` : '',
+        transport ? `Primary transport: ${transport}.` : '',
+        notes ? `Additional notes: ${notes}.` : '',
+        `Include sections with clear headings: Overview, Daily Itinerary (by day with times), Accommodation suggestions (2–3 per budget), Food recommendations, Local transport tips, Budget breakdown table, Safety and etiquette tips, Packing checklist, and Final reminders.`,
+        `Use only Markdown. Avoid code fences. Keep it concise, well-structured, and locally relevant.`
+      ].filter(Boolean).join(' ');
+
+      const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+      const timeoutMs = 60000;
+      const task = (async () => {
+        let markdown = '';
+        const ts = new Date().toISOString();
+        try {
+          markdown = await generateMarkdownGemini(prompt, geminiKey, timeoutMs);
+          console.log(JSON.stringify({ ts, api_used: 'gemini', userId, tripId }));
+        } catch (e: any) {
+          const errMsg = String(e?.message || e || 'error');
+          console.warn(JSON.stringify({ ts, api_used: 'gemini', status: 'failed', reason: errMsg, userId, tripId }));
+          try {
+            markdown = await generateMarkdownOpenAI(prompt, timeoutMs);
+            console.log(JSON.stringify({ ts, api_used: 'openai', userId, tripId }));
+          } catch (e2: any) {
+            const errMsg2 = String(e2?.message || e2 || 'error');
+            console.error(JSON.stringify({ ts, api_used: 'openai', status: 'failed', reason: errMsg2, userId, tripId }));
+            throw new Error('providers_unavailable');
+          }
+        }
+        const updated = await storage.updateTrip(tripId, userId, { aiPlanMarkdown: markdown } as any);
+        return String(updated?.aiPlanMarkdown || markdown);
+      })();
+
+      inflightPlans.set(inflightKey, task);
+      try {
+        const md = await task;
+        return res.json({ markdown: md });
+      } finally {
+        inflightPlans.delete(inflightKey);
+      }
+    } catch (error) {
+      console.error('AI plan error:', error);
+      const msg = String((error as any)?.message || 'Failed to generate plan');
+      const status = msg === 'providers_unavailable' ? 503 : 500;
+      res.status(status).json({ message: 'Failed to generate plan' });
+    }
+  });
+
+  function generateTripSuggestions(
+    destination: string,
+    days: number,
+    travelStyle: string,
+    budget?: number
+  ) {
+    const baseActivities = [
+      { title: "City walking tour", time: "09:00", location: destination },
+      { title: "Local cuisine tasting", time: "13:00", location: destination },
+      { title: "Sunset viewpoint", time: "18:30", location: destination }
+    ];
+
+    const styleExtras: Record<string, any[]> = {
+      adventure: [
+        { title: "Hiking trail", time: "07:30", location: "National Park" },
+        { title: "Kayaking", time: "15:00", location: "River" }
+      ],
+      relaxed: [
+        { title: "Spa session", time: "11:00", location: "Wellness Center" },
+        { title: "Beach time", time: "16:00", location: "Coast" }
+      ],
+      cultural: [
+        { title: "Museum visit", time: "10:00", location: "City Museum" },
+        { title: "Historic district tour", time: "14:00", location: "Old Town" }
+      ],
+      culinary: [
+        { title: "Cooking class", time: "12:00", location: "Local Kitchen" },
+        { title: "Street food crawl", time: "19:00", location: "Night Market" }
+      ],
+      standard: []
+    };
+
+    const daysArray = Array.from({ length: Math.max(1, days) }, (_, i) => ({
+      dayIndex: i + 1,
+      activities: [...baseActivities, ...(styleExtras[travelStyle] || [])]
+    }));
+
+    return daysArray;
+  }
+
+  // Feedback submission endpoint
+  app.post('/api/v1/feedback', async (req, res) => {
+    try {
+      const { type, category, subject, description, email } = req.body;
+
+      if (!type || !category || !subject || !description || !email) {
+        return res.status(400).json({ message: 'All fields are required' });
+      }
+
+      // Send email notification (if email service is configured)
+      try {
+        const nodemailer = await import('nodemailer');
+        const transporter = nodemailer.default.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        const typeEmoji = type === 'bug' ? '🐛' : type === 'feature' ? '✨' : type === 'feedback' ? '💡' : '📝';
+
+        await transporter.sendMail({
+          from: `"TripMate Feedback" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
+          to: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+          replyTo: email,
+          subject: `${typeEmoji} [${type.toUpperCase()}] ${subject}`,
+          html: `
             <h2>New ${type.charAt(0).toUpperCase() + type.slice(1)} Submission</h2>
             <p><strong>Type:</strong> ${type}</p>
             <p><strong>Category:</strong> ${category}</p>
@@ -2497,21 +2447,21 @@ app.post('/api/v1/feedback', async (req, res) => {
             <hr>
             <p style="color: #666; font-size: 12px;">Submitted via TripMate Feedback Form</p>
           `,
-      });
-    } catch (emailError) {
-      console.error('Failed to send feedback email:', emailError);
-      // Continue even if email fails
+        });
+      } catch (emailError) {
+        console.error('Failed to send feedback email:', emailError);
+        // Continue even if email fails
+      }
+
+      res.json({ success: true, message: 'Feedback submitted successfully' });
+    } catch (error) {
+      console.error('Feedback submission error:', error);
+      res.status(500).json({ message: 'Failed to submit feedback' });
     }
+  });
 
-    res.json({ success: true, message: 'Feedback submitted successfully' });
-  } catch (error) {
-    console.error('Feedback submission error:', error);
-    res.status(500).json({ message: 'Failed to submit feedback' });
-  }
-});
-
-const httpServer = createServer(app);
-return httpServer;
+  const httpServer = createServer(app);
+  return httpServer;
 }
 
 // Trigger restart for debugging - updated
