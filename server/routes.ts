@@ -1225,51 +1225,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lon = Number(req.query.lon);
       const cityQ = String(req.query.city || req.query.location || '').trim();
       const units = String(req.query.units || 'metric');
-      // Using Google Weather API with GOOGLE_PLACES_API_KEY or Open-Meteo Fallback
-      Rain: 'fas fa-cloud-rain',
+      const iconMap: Record<string, string> = {
+        CLEAR: 'fas fa-sun',
+        PARTLY_CLOUDY: 'fas fa-cloud-sun',
+        CLOUDY: 'fas fa-cloud',
+        RAIN: 'fas fa-cloud-rain',
+        SCATTERED_SHOWERS: 'fas fa-cloud-rain',
+        DRIZZLE: 'fas fa-cloud-rain',
+        THUNDERSTORM: 'fas fa-bolt',
+        SNOW: 'fas fa-snowflake',
+        MIST: 'fas fa-smog',
+        FOG: 'fas fa-smog',
+        WIND: 'fas fa-wind',
+        Clear: 'fas fa-sun',
+        Clouds: 'fas fa-cloud',
+        Rain: 'fas fa-cloud-rain',
         Drizzle: 'fas fa-cloud-rain',
-          Thunderstorm: 'fas fa-bolt',
-            Snow: 'fas fa-snowflake',
-              Mist: 'fas fa-smog',
-                Smoke: 'fas fa-smog',
-                  Haze: 'fas fa-smog',
-                    Dust: 'fas fa-smog',
-                      Fog: 'fas fa-smog',
-                        Sand: 'fas fa-smog',
-                          Ash: 'fas fa-smog',
-                            Squall: 'fas fa-wind',
-                              Tornado: 'fas fa-wind',
+        Thunderstorm: 'fas fa-bolt',
+        Snow: 'fas fa-snowflake',
+        Mist: 'fas fa-smog',
+        Smoke: 'fas fa-smog',
+        Haze: 'fas fa-smog',
+        Dust: 'fas fa-smog',
+        Fog: 'fas fa-smog',
+        Sand: 'fas fa-smog',
+        Ash: 'fas fa-smog',
+        Squall: 'fas fa-wind',
+        Tornado: 'fas fa-wind',
       };
 
-    if (!key) {
-      // Fallback to Open-Meteo if no Google Key
-      const weatherData = await getWeatherData(lat, lon);
-      if (weatherData) return res.json(weatherData);
+      if (!key) {
+        const weatherData = await getWeatherData(lat, lon);
+        if (weatherData) return res.json(weatherData);
 
-      // If Open-Meteo also explicitly failed (returned null), return error
-      return res.status(503).json({
-        current: {},
-        forecast: [],
-        recommendations: [],
-        alerts: [],
-        error: 'Weather service unavailable'
-      });
-    }
+        return res.status(503).json({
+          current: {},
+          forecast: [],
+          recommendations: [],
+          alerts: [],
+          error: 'Weather service unavailable'
+        });
+      }
 
-    // 1. Try Google Weather API if key is present...
-    // [Previous Logic continues which is fine]
-    try {
-      // ... existing google fetch ...
-      // Since we can't easily see the end of this block in replace_file_content without replacing HUGE chunks,
-      // I'll INSERT the emergency route BEFORE the weather route to be safe and clean.
-      // OR I can insert it AFTER the weather route block.
+      // 1. Try Google Weather API if key is present...
+      // [Previous Logic continues which is fine]
+      try {
+        // ... existing google fetch ...
+        // Since we can't easily see the end of this block in replace_file_content without replacing HUGE chunks,
+        // I'll INSERT the emergency route BEFORE the weather route to be safe and clean.
+        // OR I can insert it AFTER the weather route block.
 
-      // actually, let's insert it AFTER /api/v1/geocode (line 1942 ish in original view)
-      // Searching for geocode route end is safer.
-    } catch (e) { }
+        // actually, let's insert it AFTER /api/v1/geocode (line 1942 ish in original view)
+        // Searching for geocode route end is safer.
+      } catch (e) { }
 
-    // ...
-  });
+      // ...
+    });
 
   // Emergency Services Route
   app.get('/api/v1/emergency', optionalAuth, async (req: any, res) => {
