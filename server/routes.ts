@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
+import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, isJwtAuthenticated } from "./auth";
 import { insertTripSchema, insertJournalEntrySchema, insertPackingListSchema, SessionModel } from "@shared/schema";
