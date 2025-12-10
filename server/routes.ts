@@ -47,7 +47,7 @@ const upload = multer({
   }
 });
 
-export function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
   const useMemoryStore = !process.env.MONGODB_URI;
   const memoryUsers = new Map<string, {
