@@ -51,7 +51,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const memoryUsers = new Map<string, { id: string; email: string; password: string; firstName?: string; lastName?: string; profileImageUrl?: string; phoneNumber?: string }>();
   const memorySessions = new Map<string, Array<{ sessionId: string; tokenHash: string; device?: string; ip?: string; userAgent?: string; expiresAt: number; revoked?: boolean }>>();
   const devMode = process.env.NODE_ENV !== 'production';
-  const optionalAuth = (req: any, res: any, next: any) => devMode ? next() : isJwtAuthenticated(req, res, next);
+  const optionalAuth = (req: any, res: any, next: any) => {
+    if (devMode) return next();
+    passport.authenticate('jwt', { session: false }, (err: any, user: any) => {
+      // In optional auth, we just attach user if found, but don't error if not
+      if (!err && user) {
+        req.user = user;
+      }
+      next();
+    })(req, res, next);
+  };
   // Rate limiting (disabled globally to prevent app lockups; keep AI limits prod-only)
 
   app.get('/api/v1/weather/random-cities', optionalAuth, async (req: any, res) => {
