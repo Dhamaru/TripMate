@@ -17,10 +17,12 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { Eye, EyeOff } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const SignInSchema = z.object({ email: z.string().email(), password: z.string().min(6) });
 
 export default function SignInPage() {
+  const { toast } = useToast();
   const { scrollYProgress } = useScroll();
   const bgY = useTransform(scrollYProgress, [0, 1], [0, -200]);
   const [email, setEmail] = useState("");
@@ -99,7 +101,17 @@ export default function SignInPage() {
         navigate("/app/home");
       }, 100);
     } catch (err: any) {
-      setError(err.message || "Sign in failed");
+      console.error("Sign in error:", err);
+      const msg = err instanceof Error ? err.message : "Invalid credentials";
+      // Determine if it's a "Google account" error to suggest Google Sign-In
+      if (msg.includes("Google Sign-In")) {
+        toast({
+          title: "Use Google Sign-In",
+          description: msg,
+          variant: "default", // or subtle info variant
+        });
+      }
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

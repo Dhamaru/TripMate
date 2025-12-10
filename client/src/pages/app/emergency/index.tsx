@@ -162,6 +162,15 @@ export default function EmergencyPage() {
                   "Search"
                 )}
               </Button>
+              <Button
+                onClick={() => useMyLocation()}
+                variant="outline"
+                className="bg-ios-darker border-ios-gray hover:bg-ios-card text-white smooth-transition interactive-tap"
+                title="Use my location"
+                disabled={loading}
+              >
+                <i className="fas fa-location-arrow text-ios-blue" />
+              </Button>
             </div>
           </div>
           <div className="text-center text-sm text-ios-gray mb-2">

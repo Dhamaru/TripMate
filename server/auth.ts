@@ -70,8 +70,9 @@ export async function setupAuth(app: Express) {
       callbackURL: `${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/api/v1/auth/google/callback`
     }, async (accessToken, refreshToken, profile, done) => {
       try {
-        const email = profile.emails?.[0]?.value;
-        if (!email) return done(new Error("No email provided by Google"));
+        const rawEmail = profile.emails?.[0]?.value;
+        if (!rawEmail) return done(new Error("No email provided by Google"));
+        const email = rawEmail.toLowerCase();
 
         let user = await storage.getUser(email);
         if (!user) {
@@ -182,58 +183,8 @@ export async function setupAuth(app: Express) {
     });
   }
 
-  app.post("/api/v1/auth/forgot-password", async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) return res.status(400).json({ message: "Email is required" });
-
-      const user = await storage.getUser(email);
-      if (!user) return res.status(404).json({ message: "User not found" });
-
-      const token = crypto.randomBytes(20).toString("hex");
-      const expires = new Date(Date.now() + 3600000); // 1 hour
-
-      await storage.updateUser(user._id, {
-        resetPasswordToken: token,
-        resetPasswordExpires: expires,
-      });
-
-      const sent = await sendPasswordResetEmail(email, token);
-      if (sent) {
-        res.json({ message: "Password reset email sent" });
-      } else {
-        res.status(500).json({ message: "Error sending email" });
-      }
-    } catch (error) {
-      console.error("Forgot password error:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/v1/auth/reset-password", async (req, res) => {
-    try {
-      const { token, password } = req.body;
-      if (!token || !password) return res.status(400).json({ message: "Token and password are required" });
-
-      const user = await storage.getUserByResetToken(token);
-      if (!user) {
-        return res.status(400).json({ message: "Password reset token is invalid or has expired" });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      await storage.updateUser(user._id, {
-        password: hashedPassword,
-        resetPasswordToken: undefined,
-        resetPasswordExpires: undefined,
-      });
-
-      res.json({ message: "Password has been reset" });
-    } catch (error) {
-      console.error("Reset password error:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
+  // Routes for forgot/reset password have been moved to server/routes.ts
+  // to share access to memoryUsers/storage logic correctly.
 }
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {

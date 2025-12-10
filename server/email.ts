@@ -68,6 +68,10 @@ let transporterPromise = createTransporter();
 
 export async function sendPasswordResetEmail(email: string, token: string) {
     const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5000"}/reset-password?token=${token}`;
+    console.log("=================================================================");
+    console.log("PASSWORD RESET LINK (Dev/Test Helper):");
+    console.log(resetUrl);
+    console.log("=================================================================");
 
     const message = {
         from: '"TripMate Support" <kasivasi2005@gmail.com>',

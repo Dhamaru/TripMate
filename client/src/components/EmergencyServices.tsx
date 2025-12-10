@@ -26,34 +26,10 @@ export function EmergencyServices({ location = "Current Location", className = '
   const { toast } = useToast();
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locString, setLocString] = useState<string>(location);
-  const [geoError, setGeoError] = useState<string>("");
 
   useEffect(() => {
     setLocString(location);
   }, [location]);
-
-  const requestLocation = () => {
-    setGeoError("");
-    if (!("geolocation" in navigator)) {
-      setGeoError("Location not supported");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const lat = Number(latitude.toFixed(5));
-        const lon = Number(longitude.toFixed(5));
-        setCoords({ lat, lon });
-        setLocString(`${lat},${lon}`);
-        toast({ title: "Location Enabled", description: "Using your current location" });
-      },
-      () => {
-        setGeoError("Location permission denied");
-        toast({ title: "Location Denied", description: "Showing generic emergency info", variant: "destructive" });
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  };
 
   const { data: fetchedServices, isLoading, error } = useQuery<EmergencyService[]>({
     queryKey: ['/api/v1/emergency', locString],
@@ -79,7 +55,7 @@ export function EmergencyServices({ location = "Current Location", className = '
       const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2) ** 2;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
@@ -117,7 +93,7 @@ export function EmergencyServices({ location = "Current Location", className = '
     // Open directions in the user's preferred maps app
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${service.latitude},${service.longitude}&travelmode=driving`;
     window.open(mapsUrl, '_blank');
-    
+
     toast({
       title: "Directions Opened",
       description: `Getting directions to ${service.name}`,
@@ -135,13 +111,6 @@ export function EmergencyServices({ location = "Current Location", className = '
         <p className="text-sm text-ios-gray">{coords ? "Near your location" : `Near ${location}`}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Button onClick={requestLocation} className="bg-ios-blue hover:bg-blue-600" data-testid="button-enable-location">
-            <i className="fas fa-location-arrow mr-2"></i>
-            Enable Location
-          </Button>
-          {geoError && <span className="text-xs text-red-400">{geoError}</span>}
-        </div>
         <Button
           onClick={handleSOSCall}
           className="w-full bg-ios-red hover:bg-red-600 text-white font-bold py-4 text-lg"
@@ -155,8 +124,8 @@ export function EmergencyServices({ location = "Current Location", className = '
             <div className="text-center py-6 text-ios-gray" data-testid="emergency-loading">Loading…</div>
           )}
           {!isLoading && services.map((service, idx) => (
-            <motion.div 
-              key={service.id} 
+            <motion.div
+              key={service.id}
               className="bg-ios-darker rounded-xl p-4"
               data-testid={`emergency-service-${service.id}`}
               initial={{ opacity: 0, y: 20 }}
@@ -179,7 +148,7 @@ export function EmergencyServices({ location = "Current Location", className = '
                   {service.type.charAt(0).toUpperCase() + service.type.slice(1)}
                 </span>
               </div>
-              
+
               <div className="flex space-x-2 mt-3">
                 <Button
                   onClick={() => handleCallService(service)}
