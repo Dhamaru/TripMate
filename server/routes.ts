@@ -1341,24 +1341,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // New AI-only utility endpoints
+  // New AI-only utility endpoints
   app.post('/api/v1/translate', optionalAuth, aiLimiter, async (req: any, res) => {
     try {
       const { text = '', sourceLang = 'en', targetLang = 'en' } = req.body || {};
-      const body = { q: String(text), source: String(sourceLang), target: String(targetLang), format: 'text' };
-      const r = await fetch('https://libretranslate.de/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'TripMate/1.0' },
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) {
-        return res.status(502).json({ translatedText: '' });
+
+      // Use specific Translate key if available, otherwise fallback to general Google key
+      const key = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.GOOGLE_API_KEY;
+
+      if (!key) {
+        throw new Error("Missing Google API Key for translation");
       }
-      const j = await r.json();
-      const translatedText = String(j?.translatedText || j?.data?.translations?.[0]?.translatedText || '');
-      return res.json({ translatedText, pronunciation: undefined });
+
+      const url = `https://translation.googleapis.com/language/translate/v2?key=${key}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          q: text,
+          source: sourceLang,
+          target: targetLang,
+          format: 'text'
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Google Translate API error:', data);
+        return res.status(response.status).json({ message: 'Translation failed', details: data });
+      }
+
+      // Google API response structure: { data: { translations: [ { translatedText: "..." } ] } }
+      const translatedText = data.data?.translations?.[0]?.translatedText || '';
+
+      // Generate pronunciation (transliteration) using the 'transliteration' package
+      let pronunciation = '';
+      try {
+        const { transliterate } = await import('transliteration');
+        pronunciation = transliterate(translatedText);
+      } catch (tError) {
+        console.warn('Transliteration failed:', tError);
+        // Fallback: leave empty if package fails
+      }
+
+      return res.json({ translatedText, pronunciation });
+
     } catch (error) {
-      console.error('AI translate error:', error);
-      res.status(500).json({ translatedText: '', pronunciation: undefined });
+      console.error('Translation error:', error);
+      res.status(500).json({ translatedText: '', error: 'Internal server error' });
     }
   });
 

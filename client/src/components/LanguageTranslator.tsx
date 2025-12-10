@@ -26,6 +26,7 @@ const LANGUAGES = [
 
 interface TranslationResult {
   translatedText: string;
+  pronunciation?: string;
 }
 
 export function LanguageTranslator({ className = '' }: { className?: string }) {
@@ -38,18 +39,14 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
     enabled: false,
     queryFn: async ({ queryKey }) => {
       const [, from, to, inputRaw] = queryKey as [string, string, string, string];
-      const input = String(inputRaw);
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(input)}`;
-      try {
-        const response = await fetch(url);
-        const data: any = await response.json();
-        const translated = Array.isArray(data?.[0]) ? data[0].map((it: any) => it?.[0]).join("") : "";
-        if (translated) return { translatedText: translated };
-      } catch {}
-      const payload = { text: input, sourceLang: String(from), targetLang: String(to) };
+      const payload = { text: String(inputRaw), sourceLang: String(from), targetLang: String(to) };
       const res = await apiRequest('POST', '/api/v1/translate', payload);
-      const fallbackData = await res.json();
-      return { translatedText: String(fallbackData?.translatedText || '') };
+      const data = await res.json();
+      // data should be { translatedText, pronunciation }
+      return {
+        translatedText: String(data?.translatedText || ''),
+        pronunciation: String(data?.pronunciation || '')
+      };
     },
   });
 
@@ -111,7 +108,12 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
         ) : translation?.translatedText ? (
           <div className="p-3 border border-ios-gray rounded bg-ios-darker">
             <strong className="text-ios-blue">Result:</strong>
-            <p className="text-green-400 mt-1">{translation.translatedText}</p>
+            <p className="text-green-400 mt-1 text-lg">{translation.translatedText}</p>
+            {translation.pronunciation && (
+              <p className="text-gray-400 mt-2 text-sm italic border-t border-gray-700 pt-1">
+                Pronunciation: {translation.pronunciation}
+              </p>
+            )}
           </div>
         ) : null}
       </CardContent>
