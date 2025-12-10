@@ -27,6 +27,7 @@ const LANGUAGES = [
 interface TranslationResult {
   translatedText: string;
   pronunciation?: string;
+  meaning?: string;
 }
 
 export function LanguageTranslator({ className = '' }: { className?: string }) {
@@ -42,10 +43,10 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
       const payload = { text: String(inputRaw), sourceLang: String(from), targetLang: String(to) };
       const res = await apiRequest('POST', '/api/v1/translate', payload);
       const data = await res.json();
-      // data should be { translatedText, pronunciation }
       return {
         translatedText: String(data?.translatedText || ''),
-        pronunciation: String(data?.pronunciation || '')
+        pronunciation: String(data?.pronunciation || ''),
+        meaning: String(data?.meaning || '')
       };
     },
   });
@@ -112,6 +113,11 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
             {translation.pronunciation && (
               <p className="text-gray-400 mt-2 text-sm italic border-t border-gray-700 pt-1">
                 Pronunciation: {translation.pronunciation}
+              </p>
+            )}
+            {translation.meaning && (
+              <p className="text-gray-400 mt-1 text-sm border-t border-gray-700 pt-1">
+                Meaning: {translation.meaning}
               </p>
             )}
           </div>

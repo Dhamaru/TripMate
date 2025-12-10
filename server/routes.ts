@@ -1379,17 +1379,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Google API response structure: { data: { translations: [ { translatedText: "..." } ] } }
       const translatedText = data.data?.translations?.[0]?.translatedText || '';
 
-      // Generate pronunciation (transliteration) using the 'transliteration' package
+      // Generate pronunciation (transliteration)
       let pronunciation = '';
       try {
         const { transliterate } = await import('transliteration');
         pronunciation = transliterate(translatedText);
       } catch (tError) {
         console.warn('Transliteration failed:', tError);
-        // Fallback: leave empty if package fails
       }
 
-      return res.json({ translatedText, pronunciation });
+      // Determine 'Meaning' in English
+      let meaning = '';
+      if (sourceLang === 'en') {
+        meaning = text;
+      } else if (targetLang === 'en') {
+        meaning = translatedText;
+      } else {
+        // Double translation: Translate Source -> English to get meaning
+        try {
+          const meaningRes = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: text, source: sourceLang, target: 'en', format: 'text' })
+          });
+          const meaningData = await meaningRes.json();
+          meaning = meaningData.data?.translations?.[0]?.translatedText || '';
+        } catch (mError) {
+          console.warn('Meaning fetch failed:', mError);
+        }
+      }
+
+      return res.json({ translatedText, pronunciation, meaning });
 
     } catch (error) {
       console.error('Translation error:', error);
