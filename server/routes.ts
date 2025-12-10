@@ -1374,7 +1374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 1. Try Google Geocoding API if key is present
-      const key = process.env.GOOGLE_API_KEY;
+      // 1. Try Google Geocoding API if key is present
+      // key is already declared at the top of the route handler
       if (key) {
         try {
           const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cityQ)}&key=${key}`;
