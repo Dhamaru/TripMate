@@ -1373,43 +1373,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ current: {}, forecast: [], recommendations: [], alerts: [] });
       }
 
+      // 1. Try Google Geocoding API if key is present
+      const key = process.env.GOOGLE_API_KEY;
+      if (key) {
+        try {
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cityQ)}&key=${key}`;
+          const geocodeRes = await fetch(geocodeUrl);
+
+          if (geocodeRes.ok) {
+            const geocodeData = await geocodeRes.json();
+            if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
+              const location = geocodeData.results[0].geometry.location;
+              console.log('[weather:geocode:google:success]', { cityQ, lat: location.lat, lon: location.lng });
+              const weatherData = await getWeatherData(location.lat, location.lng);
+              if (weatherData) return res.json(weatherData);
+            } else {
+              console.warn('[weather:geocode:google:no-results]', { cityQ, status: geocodeData.status });
+            }
+          }
+        } catch (e) {
+          console.error('[weather:geocode:google:error]', String(e));
+        }
+      }
+
+      // 2. Fallback to Nominatim if Google failed or no key
       try {
-        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cityQ)}&key=${key}`;
-        const geocodeRes = await fetch(geocodeUrl);
-
-        if (!geocodeRes.ok) {
-          console.error('[weather:geocode:http-error]', {
-            status: geocodeRes.status,
-            statusText: geocodeRes.statusText,
-            cityQ
-          });
-        } else {
-          const geocodeData = await geocodeRes.json();
-          console.log('[weather:geocode:response]', {
-            status: geocodeData.status,
-            resultsCount: geocodeData.results?.length || 0,
-            cityQ
-          });
-
-          if (geocodeData.status === 'REQUEST_DENIED') {
-            console.error('[weather:geocode:denied]', {
-              error: geocodeData.error_message,
-              cityQ
-            });
-          } else if (geocodeData.results && geocodeData.results.length > 0) {
-            const location = geocodeData.results[0].geometry.location;
-            const latNum = location.lat;
-            const lonNum = location.lng;
-
-            console.log('[weather:geocode:success]', { cityQ, lat: latNum, lon: lonNum, units });
-            const weatherData = await getWeatherData(latNum, lonNum);
+        const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(cityQ)}`;
+        const nomRes = await fetch(nomUrl, { headers: { 'User-Agent': 'TripMate/1.0' } });
+        if (nomRes.ok) {
+          const nomData = await nomRes.json();
+          if (Array.isArray(nomData) && nomData.length > 0) {
+            const lat = parseFloat(nomData[0].lat);
+            const lon = parseFloat(nomData[0].lon);
+            console.log('[weather:geocode:nominatim:success]', { cityQ, lat, lon });
+            const weatherData = await getWeatherData(lat, lon);
             if (weatherData) return res.json(weatherData);
-          } else {
-            console.warn('[weather:geocode:no-results]', { cityQ, status: geocodeData.status });
           }
         }
       } catch (e) {
-        console.error('[weather:geocode:exception]', { cityQ, error: String((e as any)?.message || e) });
+        console.error('[weather:geocode:nominatim:error]', String(e));
       }
 
       const result = await ai.weather(cityQ);
@@ -1456,14 +1458,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const locRaw = String(req.query.location || req.query.city || '').trim();
       if (!locRaw) return res.status(400).json([]);
 
+      let lat: number, lon: number;
       const coordMatch = locRaw.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-      if (!coordMatch) {
-        const byText = await ai.emergency(locRaw);
-        return res.json(byText);
-      }
 
-      const lat = parseFloat(coordMatch[1]);
-      const lon = parseFloat(coordMatch[2]);
+      if (coordMatch) {
+        lat = parseFloat(coordMatch[1]);
+        lon = parseFloat(coordMatch[2]);
+      } else {
+        // Try generic geocoding logic: Google first, then Nominatim
+        let found = false;
+
+        // 1. Google
+        const key = process.env.GOOGLE_API_KEY;
+        if (key) {
+          try {
+            const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locRaw)}&key=${key}`;
+            const gRes = await fetch(gUrl);
+            if (gRes.ok) {
+              const gData = await gRes.json();
+              if (gData.status === 'OK' && gData.results?.length > 0) {
+                const loc = gData.results[0].geometry.location;
+                lat = loc.lat;
+                lon = loc.lng;
+                found = true;
+              }
+            }
+          } catch (e) { console.error('Emergency Google geocode error:', e); }
+        }
+
+        // 2. Nominatim fallback
+        if (!found) {
+          try {
+            const nUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(locRaw)}`;
+            const nRes = await fetch(nUrl, { headers: { 'User-Agent': 'TripMate/1.0' } });
+            if (nRes.ok) {
+              const nData = await nRes.json();
+              if (Array.isArray(nData) && nData.length > 0) {
+                lat = parseFloat(nData[0].lat);
+                lon = parseFloat(nData[0].lon);
+                found = true;
+              }
+            }
+          } catch (e) { console.error('Emergency Nominatim geocode error:', e); }
+        }
+
+        if (!found) {
+          // Only use AI fallback if we absolutely can't find coordinates
+          const byText = await ai.emergency(locRaw);
+          return res.json(byText);
+        }
+      }
       const delta = 0.08; // ~9km bbox
       const left = (lon - delta).toFixed(6);
       const right = (lon + delta).toFixed(6);
@@ -1758,8 +1802,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Fallback to OpenWeather if Google failed or not configured
-      const weatherKey = process.env.GOOGLE_API_KEY;
+      // Fallback to OpenWeather if Google failed or not configured, AND if we actually have a weather key
+      // The previous code incorrectly used GOOGLE_API_KEY here.
+      const weatherKey = process.env.OPENWEATHER_API_KEY;
       if (weatherKey) {
         try {
           const r = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(sanitized)}&limit=5&appid=${weatherKey}`);
