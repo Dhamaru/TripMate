@@ -1356,17 +1356,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const url = `https://translation.googleapis.com/language/translate/v2?key=${key}`;
 
+      // If sourceLang is 'auto', we omit the source parameter to let Google detect it
+      const apiBody: any = {
+        q: text,
+        target: targetLang,
+        format: 'text'
+      };
+      if (sourceLang !== 'auto') {
+        apiBody.source = sourceLang;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          q: text,
-          source: sourceLang,
-          target: targetLang,
-          format: 'text'
-        })
+        body: JSON.stringify(apiBody)
       });
 
       const data = await response.json();
@@ -1396,11 +1401,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         meaning = translatedText;
       } else {
         // Double translation: Translate Source -> English to get meaning
+        // If source is 'auto', we must translate to English to be sure
         try {
+          const meaningBody: any = { q: text, target: 'en', format: 'text' };
+          if (sourceLang !== 'auto') meaningBody.source = sourceLang;
+
           const meaningRes = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ q: text, source: sourceLang, target: 'en', format: 'text' })
+            body: JSON.stringify(meaningBody)
           });
           const meaningData = await meaningRes.json();
           meaning = meaningData.data?.translations?.[0]?.translatedText || '';

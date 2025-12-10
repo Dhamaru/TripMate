@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
 
 const LANGUAGES = [
+  { code: 'auto', name: 'Detect Language' },
   { code: 'en', name: 'English' },
   { code: 'hi', name: 'Hindi' },
   { code: 'ta', name: 'Tamil' },
