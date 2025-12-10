@@ -1260,56 +1260,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const getWeatherData = async (latNum: number, lonNum: number) => {
+        // 1. Try Google Weather API first (if key exists)
+        if (key) {
+          try {
+            // ... existing Google Weather logic ... 
+            const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}`;
+            const currentRes = await fetch(currentUrl);
+
+            if (currentRes.ok) {
+              const currentData = await currentRes.json();
+              const forecastUrl = `https://weather.googleapis.com/v1/forecast/days:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}&days=7`;
+              const forecastRes = await fetch(forecastUrl);
+
+              if (forecastRes.ok) {
+                const forecastData = await forecastRes.json();
+
+                // Map Google Data (existing logic)
+                const tempCelsius = currentData.temperature?.degrees ?? 22;
+                const temperature = units === 'metric' ? Math.round(tempCelsius) : Math.round(tempCelsius * 9 / 5 + 32);
+                const condition = currentData.weatherCondition?.description?.text || 'Clear';
+                const conditionType = currentData.weatherCondition?.type || 'CLEAR';
+
+                const current = {
+                  temperature,
+                  tempMin: temperature - 5,
+                  tempMax: temperature,
+                  condition,
+                  humidity: currentData.relativeHumidity ?? 60,
+                  windSpeed: Math.round(currentData.wind?.speed?.value ?? 10),
+                  windDeg: currentData.wind?.direction?.degrees ?? 0,
+                  windDir: currentData.wind?.direction?.cardinal || 'N',
+                  icon: iconMap[conditionType] || 'fas fa-cloud',
+                };
+
+                const forecast = (forecastData.forecastDays || []).slice(0, 7).map((day: any, i: number) => {
+                  const maxTemp = day.maxTemperature?.degrees ?? temperature;
+                  const minTemp = day.minTemperature?.degrees ?? (temperature - 5);
+                  const dayCondition = day.daytimeForecast?.weatherCondition?.description?.text || 'Clear';
+                  const dayType = day.daytimeForecast?.weatherCondition?.type || 'CLEAR';
+                  return {
+                    day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
+                    high: units === 'metric' ? Math.round(maxTemp) : Math.round(maxTemp * 9 / 5 + 32),
+                    low: units === 'metric' ? Math.round(minTemp) : Math.round(minTemp * 9 / 5 + 32),
+                    condition: dayCondition,
+                    icon: iconMap[dayType] || 'fas fa-cloud',
+                  };
+                });
+
+                if (forecast.length > 0) {
+                  current.tempMax = forecast[0].high;
+                  current.tempMin = forecast[0].low;
+                }
+
+                const recommendations: string[] = [];
+                if (current.temperature >= 30) recommendations.push('Stay hydrated');
+                if (condition.toLowerCase().includes('rain') || condition.toLowerCase().includes('shower')) recommendations.push('Carry a raincoat');
+                recommendations.push('Use sunscreen during midday');
+
+                return {
+                  current,
+                  forecast,
+                  hourly: [],
+                  alerts: [],
+                  recommendations,
+                  source: 'google-weather',
+                };
+              }
+            }
+            // If we get here, Google failed (status not OK), so we fall through to Open-Meteo
+            console.warn('[weather:google] Failed or unauthorized, trying Open-Meteo fallback');
+          } catch (error) {
+            console.error('[weather:google] Exception:', error);
+            // Fall through to Open-Meteo
+          }
+        }
+
+        // 2. Open-Meteo Fallback (Free, No Key)
         try {
-          const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}`;
-          const currentRes = await fetch(currentUrl);
+          console.log('[weather:fallback] Fetching from Open-Meteo for', latNum, lonNum);
+          const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latNum}&longitude=${lonNum}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+          const omRes = await fetch(omUrl);
+          if (!omRes.ok) throw new Error(`Open-Meteo status: ${omRes.status}`);
 
-          if (!currentRes.ok) {
-            console.error('[weather:google] Current conditions failed:', currentRes.status);
-            return null;
-          }
+          const omData = await omRes.json();
 
-          const currentData = await currentRes.json();
-
-          const forecastUrl = `https://weather.googleapis.com/v1/forecast/days:lookup?key=${key}&location.latitude=${latNum}&location.longitude=${lonNum}&days=7`;
-          const forecastRes = await fetch(forecastUrl);
-
-          if (!forecastRes.ok) {
-            console.error('[weather:google] Forecast failed:', forecastRes.status);
-            return null;
-          }
-
-          const forecastData = await forecastRes.json();
-
-          const tempCelsius = currentData.temperature?.degrees ?? 22;
-          const temperature = units === 'metric' ? Math.round(tempCelsius) : Math.round(tempCelsius * 9 / 5 + 32);
-          const condition = currentData.weatherCondition?.description?.text || 'Clear';
-          const conditionType = currentData.weatherCondition?.type || 'CLEAR';
-
-          const current = {
-            temperature,
-            tempMin: temperature - 5,
-            tempMax: temperature,
-            condition,
-            humidity: currentData.relativeHumidity ?? 60,
-            windSpeed: Math.round(currentData.wind?.speed?.value ?? 10),
-            windDeg: currentData.wind?.direction?.degrees ?? 0,
-            windDir: currentData.wind?.direction?.cardinal || 'N',
-            icon: iconMap[conditionType] || 'fas fa-cloud',
+          // Helper to map WMO codes to our types
+          const mapWmo = (code: number) => {
+            if (code === 0) return { desc: 'Clear', icon: 'fas fa-sun' };
+            if (code <= 3) return { desc: 'Partly Cloudy', icon: 'fas fa-cloud-sun' };
+            if (code <= 48) return { desc: 'Fog', icon: 'fas fa-smog' };
+            if (code <= 55) return { desc: 'Drizzle', icon: 'fas fa-cloud-rain' };
+            if (code <= 67) return { desc: 'Rain', icon: 'fas fa-cloud-showers-heavy' };
+            if (code <= 77) return { desc: 'Snow', icon: 'fas fa-snowflake' };
+            if (code <= 82) return { desc: 'Rain Showers', icon: 'fas fa-cloud-rain' };
+            if (code <= 86) return { desc: 'Snow Showers', icon: 'fas fa-snowflake' };
+            return { desc: 'Thunderstorm', icon: 'fas fa-bolt' }; // 95+
           };
 
-          const forecast = (forecastData.forecastDays || []).slice(0, 7).map((day: any, i: number) => {
-            const maxTemp = day.maxTemperature?.degrees ?? temperature;
-            const minTemp = day.minTemperature?.degrees ?? (temperature - 5);
-            const dayCondition = day.daytimeForecast?.weatherCondition?.description?.text || 'Clear';
-            const dayType = day.daytimeForecast?.weatherCondition?.type || 'CLEAR';
+          const currentWmo = mapWmo(omData.current.weather_code);
+          const tempC = omData.current.temperature_2m;
+          const temp = units === 'metric' ? Math.round(tempC) : Math.round(tempC * 9 / 5 + 32);
+
+          const current = {
+            temperature: temp,
+            tempMin: temp - 5,
+            tempMax: temp + 5,
+            condition: currentWmo.desc,
+            humidity: omData.current.relative_humidity_2m || 60,
+            windSpeed: Math.round(omData.current.wind_speed_10m || 0),
+            windDeg: omData.current.wind_direction_10m || 0,
+            windDir: 'N',
+            icon: currentWmo.icon
+          };
+
+          const forecast = (omData.daily.time || []).slice(0, 7).map((t: string, i: number) => {
+            const maxC = omData.daily.temperature_2m_max[i];
+            const minC = omData.daily.temperature_2m_min[i];
+            const wmo = mapWmo(omData.daily.weather_code[i]);
 
             return {
               day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
-              high: units === 'metric' ? Math.round(maxTemp) : Math.round(maxTemp * 9 / 5 + 32),
-              low: units === 'metric' ? Math.round(minTemp) : Math.round(minTemp * 9 / 5 + 32),
-              condition: dayCondition,
-              icon: iconMap[dayType] || 'fas fa-cloud',
+              high: units === 'metric' ? Math.round(maxC) : Math.round(maxC * 9 / 5 + 32),
+              low: units === 'metric' ? Math.round(minC) : Math.round(minC * 9 / 5 + 32),
+              condition: wmo.desc,
+              icon: wmo.icon
             };
           });
 
@@ -1320,10 +1394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const recommendations: string[] = [];
           if (current.temperature >= 30) recommendations.push('Stay hydrated');
-          if (condition.toLowerCase().includes('rain') || condition.toLowerCase().includes('shower')) {
-            recommendations.push('Carry a raincoat');
-          }
-          recommendations.push('Use sunscreen during midday');
+          if (current.condition.toLowerCase().includes('rain')) recommendations.push('Carry a raincoat');
 
           return {
             current,
@@ -1331,10 +1402,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             hourly: [],
             alerts: [],
             recommendations,
-            source: 'google-weather',
+            source: 'open-meteo',
           };
-        } catch (error) {
-          console.error('[weather:google] Error:', error);
+
+        } catch (e) {
+          console.error('[weather:fallback] Open-Meteo failed:', e);
           return null;
         }
       };
