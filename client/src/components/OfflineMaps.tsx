@@ -127,6 +127,16 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       setSelectedRegion(downloadedRegion);
     }
 
+    // Auto-center on user location if available
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo([latitude, longitude], 12);
+        }
+      }, (err) => console.log('Geolocation error', err));
+    }
+
     return () => {
       Object.values(intervalsRef.current).forEach((id) => clearInterval(id));
       if (mapInstanceRef.current) {

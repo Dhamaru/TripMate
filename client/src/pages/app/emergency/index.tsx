@@ -12,6 +12,16 @@ export default function EmergencyPage() {
 
   const [searchLocation, setSearchLocation] = useState<string>("");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+  // Auto-detect location on mount
+  useState(() => {
+    // useMyLocation is defined below, but we can call it in useEffect.
+    // effective way is to use useEffect
+  });
+
+  useEffect(() => {
+    useMyLocation();
+  }, []);
   const [displayName, setDisplayName] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
@@ -157,14 +167,6 @@ export default function EmergencyPage() {
                 ) : (
                   "Search"
                 )}
-              </Button>
-              <Button
-                onClick={() => useMyLocation()}
-                variant="outline"
-                className="ml-2 bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap"
-                disabled={loading}
-              >
-                Use My Location
               </Button>
             </div>
           </div>
