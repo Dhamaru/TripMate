@@ -1459,7 +1459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const locRaw = String(req.query.location || req.query.city || '').trim();
       if (!locRaw) return res.status(400).json([]);
 
-      let lat: number, lon: number;
+      let lat = 0, lon = 0;
       const coordMatch = locRaw.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
 
       if (coordMatch) {
