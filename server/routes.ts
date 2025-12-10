@@ -1214,10 +1214,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lon = Number(req.query.lon);
       const cityQ = String(req.query.city || req.query.location || '').trim();
       const units = String(req.query.units || 'metric');
-      const key = process.env.GOOGLE_API_KEY;
+      // NOTE: This endpoint currently calls Google Weather API (weather.googleapis.com)
+      // but uses WEATHER_API_KEY. For OpenWeatherMap, you need to replace the API calls below.
+      // The icon map supports both Google and OpenWeatherMap weather types.
+      const key = process.env.WEATHER_API_KEY;
 
       if (!key) {
-        console.error('[weather] GOOGLE_API_KEY not set');
+        console.error('[weather] WEATHER_API_KEY not set');
         return res.status(503).json({
           current: {},
           forecast: [],
@@ -1228,6 +1231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const iconMap: Record<string, string> = {
+        // Google Weather API types
         CLEAR: 'fas fa-sun',
         PARTLY_CLOUDY: 'fas fa-cloud-sun',
         CLOUDY: 'fas fa-cloud',
@@ -1239,6 +1243,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         MIST: 'fas fa-smog',
         FOG: 'fas fa-smog',
         WIND: 'fas fa-wind',
+        // OpenWeatherMap types
+        Clear: 'fas fa-sun',
+        Clouds: 'fas fa-cloud',
+        Rain: 'fas fa-cloud-rain',
+        Drizzle: 'fas fa-cloud-rain',
+        Thunderstorm: 'fas fa-bolt',
+        Snow: 'fas fa-snowflake',
+        Mist: 'fas fa-smog',
+        Fog: 'fas fa-smog',
+        Smoke: 'fas fa-smog',
+        Haze: 'fas fa-smog',
+        Dust: 'fas fa-smog',
+        Sand: 'fas fa-smog',
+        Ash: 'fas fa-smog',
+        Squall: 'fas fa-wind',
+        Tornado: 'fas fa-wind',
       };
 
       const getWeatherData = async (latNum: number, lonNum: number) => {

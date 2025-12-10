@@ -144,7 +144,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-bold text-white">Weather Today</CardTitle>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-ios-gray">v1.1</span>
+            <span className="text-[10px] text-ios-gray">v1.2</span>
             <button onClick={toggleUnit} className="px-2 py-1 rounded bg-ios-darker border border-ios-gray text-white text-xs hover:bg-ios-card" aria-label="Toggle units">°{unit}</button>
           </div>
         </div>
