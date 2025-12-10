@@ -1308,7 +1308,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/v1/emergency/:location', apiLimiter, async (req, res) => {
     try {
       const location = req.params.location;
-      const key = process.env.GOOGLE_API_KEY;
+      // Prioritize PLACES key as requested by user
+      const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
       const types = ['hospital', 'police', 'embassy', 'pharmacy'];
       const results: Array<{ id: string; name: string; type: string; address: string; phone: string; distance: string; latitude: number; longitude: number }> = [];
       if (key) {
@@ -1346,8 +1347,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { text = '', sourceLang = 'en', targetLang = 'en' } = req.body || {};
 
-      // Use specific Translate key if available, otherwise fallback to general Google key
-      const key = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.GOOGLE_API_KEY;
+      // Use specific Translate key if available, otherwise fallback to general Google keys (Places or generic)
+      const key = process.env.GOOGLE_TRANSLATE_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
 
       if (!key) {
         throw new Error("Missing Google API Key for translation");
