@@ -1214,13 +1214,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lon = Number(req.query.lon);
       const cityQ = String(req.query.city || req.query.location || '').trim();
       const units = String(req.query.units || 'metric');
-      // NOTE: This endpoint currently calls Google Weather API (weather.googleapis.com)
-      // but uses WEATHER_API_KEY. For OpenWeatherMap, you need to replace the API calls below.
-      // The icon map supports both Google and OpenWeatherMap weather types.
-      const key = process.env.WEATHER_API_KEY;
+      // Using Google Weather API with GOOGLE_API_KEY
+      const key = process.env.GOOGLE_API_KEY;
 
       if (!key) {
-        console.error('[weather] WEATHER_API_KEY not set');
+        console.error('[weather] GOOGLE_API_KEY not set');
         return res.status(503).json({
           current: {},
           forecast: [],
