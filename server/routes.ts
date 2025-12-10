@@ -811,6 +811,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(trip);
     } catch (error) {
       console.error("Error creating trip:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation failed", errors: error.errors });
+      }
       res.status(400).json({ message: "Invalid trip data" });
     }
   });
