@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,6 @@ export default function EmergencyPage() {
 
   const [searchLocation, setSearchLocation] = useState<string>("");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
-
-  // Auto-detect location on mount
-  useState(() => {
-    // useMyLocation is defined below, but we can call it in useEffect.
-    // effective way is to use useEffect
-  });
 
   useEffect(() => {
     useMyLocation();
