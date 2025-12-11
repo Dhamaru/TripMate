@@ -804,8 +804,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const processedBody = {
         ...req.body,
         userId,
-        budget: req.body.budget ? parseFloat(req.body.budget) : undefined
+        budget: req.body.budget ? parseFloat(req.body.budget) : undefined,
+        days: req.body.days ? parseInt(req.body.days) : undefined,
+        groupSize: req.body.groupSize ? parseInt(req.body.groupSize) : undefined
       };
+      console.log("Creating trip with:", JSON.stringify(processedBody, null, 2)); // Debug log
       const tripData = insertTripSchema.parse(processedBody);
       const trip = await storage.createTrip(tripData);
       res.status(201).json(trip);
