@@ -213,6 +213,10 @@ export default function TripDetail() {
 
   useEffect(() => {
     if (trip) {
+      console.log('Trip Details Loaded:', trip);
+      console.log('Trip Itinerary Type:', Array.isArray(trip.itinerary) ? 'Array' : typeof trip.itinerary);
+      console.log('Trip Itinerary Length:', Array.isArray(trip.itinerary) ? trip.itinerary.length : 'N/A');
+
       setTripForm({
         destination: trip.destination,
         budget: trip.budget?.toString() || '',
