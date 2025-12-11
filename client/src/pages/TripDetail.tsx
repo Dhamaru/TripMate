@@ -38,7 +38,7 @@ const statusColors = {
 export default function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const { user, isLoading: authLoading, isAuthenticated, token } = useAuth() as { user: User | undefined; isLoading: boolean; isAuthenticated: boolean; token: string | null };
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth() as { user: User | undefined; isLoading: boolean; isAuthenticated: boolean };
   const { toast, dismiss } = useToast();
   const activeToastId = useRef<string | null>(null);
   const queryClient = useQueryClient();
@@ -144,9 +144,9 @@ export default function TripDetail() {
 
   useEffect(() => {
     try {
-      logInfo('trip_detail_access_attempt', { tripId: id, isAuthenticated, hasToken: !!token });
+      logInfo('trip_detail_access_attempt', { tripId: id, isAuthenticated });
     } catch { }
-  }, [id, isAuthenticated, token]);
+  }, [id, isAuthenticated]);
 
   const { data: trip, isLoading: tripLoading, error } = useQuery<Trip>({
     queryKey: ['/api/v1/trips', id],

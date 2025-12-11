@@ -15,7 +15,7 @@ import { useEffect } from "react";
 import { logError } from "@/lib/logger";
 
 export default function TripsHistory() {
-    const { user, isAuthenticated, isLoading } = useAuth() as { user: User | undefined; isAuthenticated: boolean; isLoading: boolean };
+    const { user, isAuthenticated, isLoading, token } = useAuth() as { user: User | undefined; isAuthenticated: boolean; isLoading: boolean; token: string | null };
     const [, navigate] = useLocation();
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState("");
