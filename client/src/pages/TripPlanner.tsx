@@ -101,8 +101,13 @@ export default function TripPlanner() {
       if (targetId) {
         setLocation(`/app/trips/${targetId}`);
       } else {
-        console.warn("Trip ID missing in response, redirecting to list");
-        setLocation('/app/trips');
+        console.error("Trip ID missing in response:", trip);
+        toast({
+          title: "Error: Trip ID Missing",
+          description: "The trip was created but returned no ID. Please check the logs.",
+          variant: "destructive"
+        });
+        // Do not redirect so we can see the error
       }
     },
     onError: (error: any) => {

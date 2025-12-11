@@ -799,34 +799,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/v1/trips', isJwtAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
-      // Convert budget string to number if provided
-      const processedBody = {
+      console.log("[Trip Create] Request received from user:", req.user?.id);
+      console.log("[Trip Create] Payload keys:", Object.keys(req.body));
+
+      const tripData = insertTripSchema.parse({
         ...req.body,
-        userId,
-        budget: req.body.budget ? parseFloat(req.body.budget) : undefined,
-        days: req.body.days ? parseInt(req.body.days) : undefined,
-        groupSize: req.body.groupSize ? parseInt(req.body.groupSize) : undefined
-      };
-      console.log("Creating trip with:", JSON.stringify(processedBody, null, 2)); // Debug log
-      const tripData = insertTripSchema.parse(processedBody);
-      const trip = await storage.createTrip(tripData);
+        userId: req.user!.id,
+        days: typeof req.body.days === 'string' ? parseInt(req.body.days) : req.body.days,
+        groupSize: typeof req.body.groupSize === 'string' ? parseInt(req.body.groupSize) : req.body.groupSize,
+      });
 
-      // Explicitly ensure ID is standard string to prevent frontend 'undefined' navigation
-      const tripJson = trip.toJSON ? trip.toJSON() : trip;
-      const responsePayload = {
-        ...tripJson,
-        id: trip._id ? trip._id.toString() : tripJson.id
-      };
+      console.log("[Trip Create] Parsed data, attempting storage create...");
+      const savedTrip = await storage.createTrip(tripData);
+      console.log("[Trip Create] Storage create success. ID:", savedTrip._id, "Virtual ID:", savedTrip.id);
 
-      console.log("Trip created successfully, returning:", JSON.stringify(responsePayload, null, 2));
+      if (!savedTrip.id && !savedTrip._id) {
+        console.error("[Trip Create] CRITICAL: Saved trip has no ID!", savedTrip);
+      }
+
+      const responsePayload = { ...savedTrip.toJSON(), id: savedTrip.id || savedTrip._id };
       res.status(201).json(responsePayload);
     } catch (error) {
-      console.error("Error creating trip:", error);
+      console.error("[Trip Create] Error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation failed", errors: error.errors });
+        const issues = error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+        res.status(400).json({ message: `Invalid trip data: ${issues}` });
+      } else {
+        res.status(400).json({ message: "Invalid trip data" });
       }
-      res.status(400).json({ message: "Invalid trip data" });
     }
   });
 
