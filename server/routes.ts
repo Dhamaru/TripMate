@@ -813,11 +813,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const savedTrip = await storage.createTrip(tripData);
       console.log("[Trip Create] Storage create success. ID:", savedTrip._id, "Virtual ID:", savedTrip.id);
 
-      if (!savedTrip.id && !savedTrip._id) {
-        console.error("[Trip Create] CRITICAL: Saved trip has no ID!", savedTrip);
+      if (!savedTrip._id) {
+        console.error("[Trip Create] CRITICAL: Saved trip has no _id!", savedTrip);
+        throw new Error("Trip creation failed: no ID generated");
       }
 
-      const responsePayload = { ...savedTrip.toJSON(), id: savedTrip.id || savedTrip._id };
+      const responsePayload = {
+        ...savedTrip.toJSON(),
+        id: savedTrip._id.toString(),
+        _id: savedTrip._id.toString() // Ensure both are present for client compatibility
+      };
+      console.log("[Trip Create] Sending response payload:", JSON.stringify(responsePayload));
       res.status(201).json(responsePayload);
     } catch (error) {
       console.error("[Trip Create] Error:", error);

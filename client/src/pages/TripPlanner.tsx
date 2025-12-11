@@ -102,9 +102,11 @@ export default function TripPlanner() {
         setLocation(`/app/trips/${targetId}`);
       } else {
         console.error("Trip ID missing in response:", trip);
+        const keys = Object.keys(trip || {}).join(', ');
+        const preview = JSON.stringify(trip).slice(0, 100);
         toast({
           title: "Error: Trip ID Missing",
-          description: "The trip was created but returned no ID. Please check the logs.",
+          description: `Created but ID missing. Keys: [${keys}]. Preview: ${preview}`,
           variant: "destructive"
         });
         // Do not redirect so we can see the error
@@ -356,8 +358,12 @@ export default function TripPlanner() {
         notes: tripForm.notes,
         itinerary: Array.isArray(planData.itinerary) ? planData.itinerary.map((day: any, idx: number) => ({
           ...day,
-          dayIndex: typeof day.dayIndex === 'number' ? day.dayIndex : idx, // Ensure dayIndex exists for Zod
-          day: day.day || (idx + 1) // Ensure day exists for UI
+          dayIndex: typeof day.dayIndex === 'number' ? day.dayIndex : idx,
+          day: day.day || (idx + 1),
+          activities: Array.isArray(day.activities) ? day.activities.map((act: any) => ({
+            ...act,
+            title: act.placeName || act.title || 'Activity',
+          })) : []
         })) : [],
         costBreakdown: planData.costBreakdown,
       };

@@ -679,6 +679,33 @@ export default function TripDetail() {
             </CardContent>
           </Card>
 
+          {/* Cost Breakdown */}
+          {trip.costBreakdown && (
+            <Card className="bg-ios-card border-ios-gray">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-white">Estimated Cost Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {Object.entries(trip.costBreakdown).map(([key, value]) => {
+                    if (key === 'totalINR') return null; // Skip total as it's shown in header
+                    const label = key.replace(/INR$/, '').replace(/([A-Z])/g, ' $1').trim();
+                    return (
+                      <div key={key} className="bg-ios-darker p-3 rounded-lg border border-ios-gray/50">
+                        <p className="text-xs text-ios-gray capitalize mb-1">{label}</p>
+                        <p className="text-white font-semibold">₹{Number(value).toLocaleString('en-IN')}</p>
+                      </div>
+                    );
+                  })}
+                  <div className="bg-ios-blue/10 p-3 rounded-lg border border-ios-blue/30 col-span-2 md:col-span-1">
+                    <p className="text-xs text-ios-blue mb-1">Total Estimate</p>
+                    <p className="text-ios-blue font-bold text-lg">₹{Number(trip.costBreakdown.totalINR || 0).toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Itinerary Card */}
           {trip.itinerary && Array.isArray(trip.itinerary) && trip.itinerary.length > 0 && (
             <div className="space-y-6">

@@ -131,6 +131,7 @@ export interface ITrip extends Document {
   aiPlanMarkdown?: string;
   isDraft?: boolean;
   syncStatus?: "synced" | "pending" | "conflict";
+  costBreakdown?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -162,6 +163,7 @@ const tripSchema = new Schema<ITrip>(
     itinerary: { type: Schema.Types.Mixed },
     notes: { type: String },
     aiPlanMarkdown: { type: String },
+    costBreakdown: { type: Schema.Types.Mixed }, // JSON object for budget details
   },
   {
     timestamps: true,
@@ -211,6 +213,7 @@ export const insertTripSchema = z.object({
   aiPlanMarkdown: z.string().optional(),
   isDraft: z.boolean().optional(),
   syncStatus: z.enum(["synced", "pending", "conflict"]).optional(),
+  costBreakdown: z.record(z.any()).optional(), // Store flexible JSON cost data
 });
 export type InsertTrip = z.infer<typeof insertTripSchema>;
 export type Trip = ITrip;
