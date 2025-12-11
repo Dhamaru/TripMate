@@ -385,15 +385,16 @@ export class AiUtilitiesService {
         `Return STRICT JSON only. No prose, no markdown, no backticks.`,
         `Follow this EXACT schema: ${schema}.`,
         `Ensure "currency" is exactly "INR".`,
-        `Use real, verified place names and exact restaurants/cafes in ${destination}. No placeholders (e.g., "local café", "city highlights").`,
-        `Include route details between activities: distance_km, travel_time_minutes, and transport mode.`,
+        `Use real, verified place names and exact restaurants/cafes in ${destination}. No placeholders.`,
+        `CRITICAL: Ensure strictly unique activities for every single day. Do not repeat activities across days.`,
+        `CRITICAL: Ensure "day" fields are numbered 1, 2, 3... strictly integers. Do not use strings or NaN.`,
+        `Include route details: distance_km, travel_time_minutes, and transport mode.`,
         `Include entry fees (INR) and duration_minutes for each activity.`,
-        `Include packingList and safetyTips arrays.`,
         `The itinerary must match the trip type (${typeOfTrip}) and travel medium (${travelMedium}).`,
         budget !== undefined
-          ? `Distribute the budget \u20B9${budget} across accommodation, food, transport, and activities for ${persons} persons over ${days} days. Ensure costBreakdown sums correctly.`
-          : `Estimate reasonable costs per category; ensure costBreakdown total matches totalEstimatedCost for ${persons} persons over ${days} days.`,
-        `If destination is Vadodara (Baroda), include known places like Laxmi Vilas Palace, Sayaji Baug, Ratri Bazaar, Baroda Museum, EME Temple, with real restaurants/cafes.`,
+          ? `Distribute total budget \u20B9${budget} for ${persons} persons over ${days} days; ensure costBreakdown sums correctly and uses realistic local pricing.`
+          : `Estimate reasonable costs using realistic local pricing in INR; ensure costBreakdown total matches totalEstimatedCost for ${persons} persons over ${days} days.`,
+        `If destination is Vadodara (Baroda), include specific known places like Laxmi Vilas Palace, Sayaji Baug, Ratri Bazaar, Baroda Museum, EME Temple.`,
         `Always return exactly one JSON object and nothing else.`,
       ].join(' ');
 
@@ -435,7 +436,7 @@ export class AiUtilitiesService {
         if (!client) throw new Error('no_openai_key');
         const completion = client.chat.completions.create({
           model: "gpt-4o-mini",
-          temperature: 0,
+          temperature: 0.7, // Increased variance
           messages: [
             { role: "system", content: strictInstructions },
             { role: "user", content: JSON.stringify({ destination, days, persons, budget: budget ?? null, typeOfTrip, travelMedium }) },
@@ -469,7 +470,8 @@ export class AiUtilitiesService {
                   text: [
                     `Return STRICT JSON only. No prose, no markdown, no backticks.`,
                     `Follow this EXACT schema: ${schema}. Ensure "currency" is exactly "INR".`,
-                    `Itinerary must match trip type (${typeOfTrip}) and travel medium (${travelMedium}).`,
+                    `CRITICAL: Itinerary must strictly different for each day. Do NOT repeat activities for ${days} days.`,
+                    `Ensure "day" fields are numbered 1, 2, 3...`,
                     budget !== undefined
                       ? `Distribute total budget \u20B9${budget} for ${persons} persons over ${days} days; sum correctly.`
                       : `Estimate reasonable costs with a correct total for ${persons} persons over ${days} days.`,
@@ -617,39 +619,42 @@ export class AiUtilitiesService {
     const misc = safeBudget - (accommodation + food + transport + activities);
 
     const itinerary = [];
+    const activitiesList = ["City Center", "Museum", "Park", "Market", "Historical Site", "Lake/River", "Temple", "Shopping Mall"];
     for (let i = 1; i <= days; i++) {
+      const morn = activitiesList[(i * 2) % activitiesList.length];
+      const aft = activitiesList[(i * 2 + 1) % activitiesList.length];
       itinerary.push({
         day: i,
         activities: [
           {
             time: "09:00 AM",
-            placeName: `${destination} City Center`,
-            address: "City Center",
+            placeName: `${destination} ${morn}`,
+            address: `${morn} Area`,
             type: "sightseeing",
-            entryFeeINR: 0,
+            entryFeeINR: 100,
             duration_minutes: 120,
             localFoodRecommendations: ["Local Breakfast"],
-            routeFromPrevious: { mode: travelMedium, distance_km: 5, travel_time_minutes: 15, from: "Hotel", to: "City Center" }
+            routeFromPrevious: { mode: travelMedium, distance_km: 5, travel_time_minutes: 15, from: "Hotel", to: morn }
           },
           {
             time: "01:00 PM",
-            placeName: `Famous Restaurant in ${destination}`,
+            placeName: `Top Rated Restaurant`,
             address: "Downtown",
             type: "restaurant",
             entryFeeINR: 0,
             duration_minutes: 60,
-            localFoodRecommendations: ["Signature Dish"],
-            routeFromPrevious: { mode: "walk", distance_km: 1, travel_time_minutes: 10, from: "City Center", to: "Restaurant" }
+            localFoodRecommendations: ["Thali"],
+            routeFromPrevious: { mode: "walk", distance_km: 1, travel_time_minutes: 10, from: morn, to: "Restaurant" }
           },
           {
             time: "03:00 PM",
-            placeName: `${destination} Museum or Park`,
-            address: "Cultural District",
-            type: "museum",
-            entryFeeINR: 500,
+            placeName: `${destination} ${aft}`,
+            address: `${aft} Road`,
+            type: "park",
+            entryFeeINR: 50,
             duration_minutes: 120,
             localFoodRecommendations: [],
-            routeFromPrevious: { mode: "taxi", distance_km: 3, travel_time_minutes: 15, from: "Restaurant", to: "Museum" }
+            routeFromPrevious: { mode: "taxi", distance_km: 3, travel_time_minutes: 15, from: "Restaurant", to: aft }
           }
         ]
       });
@@ -672,7 +677,7 @@ export class AiUtilitiesService {
       itinerary,
       packingList: ["Clothes", "Toiletries", "Chargers", "Travel Documents", "First Aid Kit"],
       safetyTips: ["Keep valuables safe", "Stay hydrated", "Keep emergency numbers handy"],
-      notes: "This is a generated itinerary based on general recommendations. Please verify opening times and prices locally."
+      notes: "Fallback itinerary generated. Please verify details."
     };
   }
 }
