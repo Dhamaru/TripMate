@@ -468,7 +468,7 @@ export default function TripDetail() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Badge className={`${statusColors[trip.status as keyof typeof statusColors]} text-white`}>
+              <Badge className={`${statusColors[trip.status as keyof typeof statusColors] || 'bg-ios-gray'} text-white`}>
                 {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
               </Badge>
               {!isEditing && (
