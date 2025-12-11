@@ -64,6 +64,7 @@ export default function TripPlanner() {
       return response.json();
     },
     onSuccess: async (trip: any) => {
+      console.log("[Render Check] TripPlanner loaded with latest fixes.");
       queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
 
       console.log("Trip created response:", trip); // Debug log
