@@ -348,7 +348,11 @@ export default function TripPlanner() {
         isInternational: !!tripForm.isInternational,
         status: 'planning' as const,
         notes: tripForm.notes,
-        itinerary: planData.itinerary,
+        itinerary: Array.isArray(planData.itinerary) ? planData.itinerary.map((day: any, idx: number) => ({
+          ...day,
+          dayIndex: typeof day.dayIndex === 'number' ? day.dayIndex : idx, // Ensure dayIndex exists for Zod
+          day: day.day || (idx + 1) // Ensure day exists for UI
+        })) : [],
         costBreakdown: planData.costBreakdown,
       };
 
