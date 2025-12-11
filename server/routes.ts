@@ -811,7 +811,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Creating trip with:", JSON.stringify(processedBody, null, 2)); // Debug log
       const tripData = insertTripSchema.parse(processedBody);
       const trip = await storage.createTrip(tripData);
-      res.status(201).json(trip);
+
+      // Explicitly ensure ID is standard string to prevent frontend 'undefined' navigation
+      const tripJson = trip.toJSON ? trip.toJSON() : trip;
+      const responsePayload = {
+        ...tripJson,
+        id: trip._id ? trip._id.toString() : tripJson.id
+      };
+
+      console.log("Trip created successfully, returning:", JSON.stringify(responsePayload, null, 2));
+      res.status(201).json(responsePayload);
     } catch (error) {
       console.error("Error creating trip:", error);
       if (error instanceof z.ZodError) {

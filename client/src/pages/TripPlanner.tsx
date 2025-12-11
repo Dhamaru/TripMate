@@ -66,6 +66,8 @@ export default function TripPlanner() {
     onSuccess: async (trip: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
 
+      console.log("Trip created response:", trip); // Debug log
+
       // Create packing list with selected items if any are selected
       if (selectedPackingItems.length > 0 && planTripMutation.data?.packingList) {
         try {
@@ -93,7 +95,14 @@ export default function TripPlanner() {
         title: "Trip Created!",
         description: "Your trip has been successfully planned.",
       });
-      setLocation(`/app/trips/${trip.id || trip._id}`);
+
+      const targetId = trip.id || trip._id;
+      if (targetId) {
+        setLocation(`/app/trips/${targetId}`);
+      } else {
+        console.warn("Trip ID missing in response, redirecting to list");
+        setLocation('/app/trips');
+      }
     },
     onError: (error: any) => {
       console.error('Trip creation error:', error);
