@@ -186,15 +186,6 @@ export default function TripsHistory() {
                     ))}
                 </div>
             )}
-            {/* Debug Info */}
-            <div className="text-xs text-ios-gray/50 font-mono mt-8 p-4 border border-ios-gray/20 rounded">
-                <p>Debug Info:</p>
-                <p>User ID: {user?.id}</p>
-                <p>Total Trips Fetched: {trips?.length || 0}</p>
-                <p>Filtered Count: {filteredTrips.length}</p>
-                <p>Refresh Token: {!!token ? "Active" : "Missing"}</p>
-                <p>First Trip: {trips?.[0]?.destination || 'None'}</p>
-            </div>
         </div>
     );
 }
