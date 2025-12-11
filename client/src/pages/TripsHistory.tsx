@@ -171,7 +171,9 @@ export default function TripsHistory() {
                                             </div>
                                             <div>
                                                 <p className="text-ios-gray text-xs">Group</p>
-                                                <p className="text-white font-medium capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
+                                                <p className="text-white font-medium capitalize">
+                                                    {Number(trip.groupSize) === 1 ? 'Solo' : `${trip.groupSize} People`}
+                                                </p>
                                             </div>
                                         </div>
 

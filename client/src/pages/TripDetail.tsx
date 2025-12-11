@@ -649,7 +649,13 @@ export default function TripDetail() {
                 <div className="text-center p-4 bg-ios-darker radius-md">
                   <i className="fas fa-rupee-sign text-ios-green text-xl mb-2"></i>
                   <p className="text-sm text-ios-gray">Budget</p>
-                  <p className="font-bold text-white">₹{trip.budget}</p>
+                  <p className="font-bold text-white">
+                    {(() => {
+                      const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
+                      const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
+                      return `${symbol}${trip.budget}`;
+                    })()}
+                  </p>
                 </div>
                 <div className="text-center p-4 bg-ios-darker radius-md">
                   <i className="fas fa-users text-ios-orange text-xl mb-2"></i>
@@ -688,18 +694,41 @@ export default function TripDetail() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {Object.entries(trip.costBreakdown).map(([key, value]) => {
-                    if (key === 'totalINR') return null; // Skip total as it's shown in header
+                    if (key === 'totalINR' || key === 'total') return null; // Skip total
                     const label = key.replace(/INR$/, '').replace(/([A-Z])/g, ' $1').trim();
+                    const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
+                    const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
+
+                    let iconClass = 'fa-coins';
+                    let colorClass = 'text-ios-gray';
+                    if (key.includes('accommodation')) { iconClass = 'fa-bed'; colorClass = 'text-ios-blue'; }
+                    else if (key.includes('food')) { iconClass = 'fa-utensils'; colorClass = 'text-ios-orange'; }
+                    else if (key.includes('transport')) { iconClass = 'fa-plane'; colorClass = 'text-ios-green'; }
+                    else if (key.includes('activities')) { iconClass = 'fa-ticket-alt'; colorClass = 'text-ios-purple'; }
+                    else if (key.includes('misc')) { iconClass = 'fa-shopping-bag'; colorClass = 'text-ios-gray'; }
+
                     return (
-                      <div key={key} className="bg-ios-darker p-3 rounded-lg border border-ios-gray/50">
-                        <p className="text-xs text-ios-gray capitalize mb-1">{label}</p>
-                        <p className="text-white font-semibold">₹{Number(value).toLocaleString('en-IN')}</p>
+                      <div key={key} className="bg-ios-darker p-3 rounded-lg border border-ios-gray/30 flex flex-col justify-between">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-8 h-8 rounded-full bg-ios-card flex items-center justify-center ${colorClass}`}>
+                            <i className={`fas ${iconClass} text-sm`}></i>
+                          </div>
+                          <p className="text-xs text-ios-gray capitalize">{label}</p>
+                        </div>
+                        <p className="text-white font-semibold text-lg">{symbol}{Number(value).toLocaleString()}</p>
                       </div>
                     );
                   })}
-                  <div className="bg-ios-blue/10 p-3 rounded-lg border border-ios-blue/30 col-span-2 md:col-span-1">
-                    <p className="text-xs text-ios-blue mb-1">Total Estimate</p>
-                    <p className="text-ios-blue font-bold text-lg">₹{Number(trip.costBreakdown.totalINR || 0).toLocaleString('en-IN')}</p>
+                  <div className="bg-ios-blue/10 p-3 rounded-lg border border-ios-blue/30 col-span-2 md:col-span-1 flex flex-col justify-center">
+                    <p className="text-xs text-ios-blue mb-1 font-medium">ESTIMATED TOTAL</p>
+                    <p className="text-ios-blue font-bold text-2xl">
+                      {(() => {
+                        const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
+                        const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
+                        const total = trip.costBreakdown.total || trip.costBreakdown.totalINR || 0;
+                        return `${symbol}${Number(total).toLocaleString()}`;
+                      })()}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -721,10 +750,18 @@ export default function TripDetail() {
                   <Card key={`day-${d.day}`} className="bg-ios-card border-ios-gray overflow-hidden">
                     <CardHeader className="bg-gradient-to-r from-ios-blue/10 to-purple-600/10 border-b border-ios-gray">
                       <CardTitle className="text-white text-xl flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-ios-blue flex items-center justify-center mr-3">
+                        <div className="w-10 h-10 rounded-full bg-ios-blue flex items-center justify-center mr-3 shadow-lg group-hover:scale-110 transition-transform">
                           <span className="text-white font-bold">{Number(d.day)}</span>
                         </div>
-                        Day {Number(d.day)}
+                        {((dayNum) => {
+                          if (!Number.isFinite(dayNum)) return `Day ${d.day || '?'}`;
+                          const j = dayNum % 10,
+                            k = dayNum % 100;
+                          if (j === 1 && k !== 11) return `${dayNum}st Day`;
+                          if (j === 2 && k !== 12) return `${dayNum}nd Day`;
+                          if (j === 3 && k !== 13) return `${dayNum}rd Day`;
+                          return `${dayNum}th Day`;
+                        })(Number(d.day))}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
@@ -768,7 +805,12 @@ export default function TripDetail() {
                                 </div>
                                 <div className="text-right">
                                   <div className="text-lg font-bold text-ios-green">
-                                    {typeof a.entryFeeINR === 'number' && a.entryFeeINR > 0 ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : 'Free'}
+                                    {(() => {
+                                      const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
+                                      const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
+                                      const fee = a.entryFee !== undefined ? a.entryFee : a.entryFeeINR;
+                                      return typeof fee === 'number' && fee > 0 ? `${symbol}${Number(fee).toLocaleString()}` : 'Free';
+                                    })()}
                                   </div>
                                 </div>
                               </div>

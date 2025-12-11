@@ -8,11 +8,9 @@ import {
   Home,
   Compass,
   Grid,
-  User,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
-  Menu,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -29,7 +27,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full bg-black text-white">
-      {/* Sidebar - Desktop */}
+      {/* Sidebar - Desktop Only */}
       <aside
         className={cn(
           "hidden md:flex flex-col bg-[#0d1117] border-r border-gray-800 transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
@@ -58,7 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       "flex items-center gap-3 rounded-md transition-all cursor-pointer relative group",
                       sidebarCollapsed ? "px-2 py-2 justify-center" : "px-3 py-2",
                       isActive
-                        ? "bg-[#1f6feb] text-white" // GitHub blue
+                        ? "bg-[#1f6feb] text-white"
                         : "text-gray-400 hover:bg-gray-800 hover:text-white"
                     )}
                     title={sidebarCollapsed ? item.label : undefined}
@@ -105,20 +103,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Content Wrapper */}
       <div className={cn(
         "flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out",
-        "md:ml-64", // Default margin
-        sidebarCollapsed && "md:ml-16" // Collapsed margin
+        "md:ml-64",
+        sidebarCollapsed && "md:ml-16"
       )}>
         {/* Top Navigation Bar - Glass Effect */}
         <header className="h-16 bg-[#010409]/80 backdrop-blur-md border-b border-gray-800 px-4 flex items-center justify-between sticky top-0 z-50">
-          {/* Left: Hamburger & Logo */}
+          {/* Left: Logo on mobile */}
           <div className="flex items-center gap-4">
-            <button
-              className="md:hidden p-1 text-gray-400 hover:text-white border border-gray-700 rounded-md hover:border-gray-500 transition-colors"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            {/* Logo only on mobile since desktop has it in sidebar */}
             <div className="md:hidden flex items-center gap-2">
               <TripMateLogo size="sm" />
             </div>

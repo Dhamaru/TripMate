@@ -409,6 +409,42 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     region.name.toLowerCase().includes(searchQuery.toLowerCase()) || region.country.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+
+  const handleLocateUser = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Error", description: "Geolocation is not supported by your browser.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Locating", description: "Finding your location..." });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const map = mapInstanceRef.current;
+        if (map) {
+          map.flyTo([latitude, longitude], 14, { duration: 1.5 });
+
+          // User Location Marker
+          const userIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style="background-color: #3b82f6; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          });
+
+          // Remove potential existing user marker if tracked in a ref (or just add a new one distinct from selection)
+          // For now, simpler to just center. Custom marker optional but requested "icon that shows exact location".
+          L.marker([latitude, longitude], { icon: userIcon }).addTo(map).bindPopup("You are here").openPopup();
+        }
+        toast({ title: "Located", description: "Map centered on your location." });
+      },
+      (err) => {
+        console.error(err);
+        toast({ title: "Error", description: "Unable to retrieve your location.", variant: "destructive" });
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Map Display */}
@@ -430,14 +466,26 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           </p>
         </CardHeader>
         <CardContent>
-          <div
-            ref={mapContainerRef}
-            className="w-full h-96 bg-ios-darker rounded-xl overflow-hidden"
-            data-testid="map-container"
-            style={{ zIndex: 0 }}
-            role="region"
-            aria-label="Map preview"
-          />
+          <div className="relative w-full h-96 rounded-xl overflow-hidden group">
+            <div
+              ref={mapContainerRef}
+              className="w-full h-full bg-ios-darker"
+              data-testid="map-container"
+              style={{ zIndex: 0 }}
+              role="region"
+              aria-label="Map preview"
+            />
+            <Button
+              onClick={handleLocateUser}
+              variant="secondary"
+              size="icon"
+              className="absolute bottom-4 right-4 z-[400] bg-white text-black hover:bg-gray-200 shadow-lg border border-gray-300 rounded-full w-10 h-10 flex items-center justify-center transition-transform active:scale-95"
+              aria-label="Center on my location"
+              title="Locate Me"
+            >
+              <i className="fas fa-crosshairs text-lg"></i>
+            </Button>
+          </div>
           <p className="text-xs text-ios-gray mt-4 text-center">
             <i className="fas fa-info-circle mr-1" aria-hidden />
             Click on a city below to view its location on the map

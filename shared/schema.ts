@@ -109,7 +109,8 @@ export interface IItineraryActivity {
 }
 
 export interface IItineraryDay {
-  dayIndex: number;
+  dayIndex: number; // 0-based index
+  day?: number;     // 1-based day number (from AI)
   date?: Date;
   activities: IItineraryActivity[];
 }
@@ -117,6 +118,7 @@ export interface IItineraryDay {
 export interface ITrip extends Document {
   userId: string;
   destination: string;
+  currency?: string;
   budget?: number;
   days: number;
   groupSize: number;
@@ -140,6 +142,7 @@ const tripSchema = new Schema<ITrip>(
   {
     userId: { type: String, required: true, ref: "User", index: true },
     destination: { type: String, required: true },
+    currency: { type: String, default: "INR" },
     budget: { type: Number, min: 0 },
     days: { type: Number, required: true, min: 1 },
     groupSize: { type: Number, required: true, min: 1 },
@@ -181,6 +184,7 @@ export const TripModel: Model<ITrip> = mongoose.model<ITrip>("Trip", tripSchema)
 export const insertTripSchema = z.object({
   userId: z.string().min(1),
   destination: z.string().min(1),
+  currency: z.string().default("INR").optional(),
   budget: z.coerce.number().min(0).optional(),
   days: z.coerce.number().int().min(1),
   groupSize: z.coerce.number().int().min(1),
@@ -200,7 +204,8 @@ export const insertTripSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   itinerary: z.array(z.object({
-    dayIndex: z.number().int().min(0),
+    dayIndex: z.number().int().min(0).optional(), // Make optional if AI doesn't provide it
+    day: z.number().int().min(1).optional(),      // Allow 'day' from AI
     date: z.coerce.date().optional(),
     activities: z.array(z.object({
       time: z.string().optional(),

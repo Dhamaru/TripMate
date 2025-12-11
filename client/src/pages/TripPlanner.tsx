@@ -32,6 +32,7 @@ export default function TripPlanner() {
   const [tripForm, setTripForm] = useState({
     destination: '',
     budget: '',
+    currency: 'INR',
     days: '',
     groupSize: '',
     travelStyle: '',
@@ -42,6 +43,7 @@ export default function TripPlanner() {
 
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedPackingItems, setSelectedPackingItems] = useState<string[]>([]);
+
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -140,10 +142,11 @@ export default function TripPlanner() {
       const days = parseInt(tripForm.days) || 1;
       const persons = parseInt(tripForm.groupSize) || 1;
       const budget = tripForm.budget ? parseFloat(tripForm.budget) : undefined;
+      const currency = tripForm.currency || 'INR';
       const typeOfTrip = selectedStyle || 'relaxed';
       const travelMedium = tripForm.transportMode || 'road';
       const preferences = tripForm.notes || '';
-      const payload = { destination: dest, days, persons, budget, typeOfTrip, travelMedium, preferences } as any;
+      const payload = { destination: dest, days, persons, budget, currency, typeOfTrip, travelMedium, preferences } as any;
 
       const trySafeParse = (obj: any) => safeParsePlan(obj);
 
@@ -455,16 +458,36 @@ export default function TripPlanner() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Budget (₹ INR)</label>
-                  <Input
-                    type="number"
-                    placeholder="75000"
-                    value={tripForm.budget}
-                    onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
-                    className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
-                    min="0"
-                    data-testid="input-budget"
-                  />
+                  <label className="block text-sm font-semibold text-white mb-2">Budget</label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={tripForm.currency}
+                      onValueChange={(value) => setTripForm(prev => ({ ...prev, currency: value }))}
+                    >
+                      <SelectTrigger className="w-[100px] bg-ios-darker border-ios-gray text-white">
+                        <SelectValue placeholder="INR" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-ios-darker border-ios-gray">
+                        <SelectItem value="INR" className="text-white hover:bg-ios-card">₹ INR</SelectItem>
+                        <SelectItem value="USD" className="text-white hover:bg-ios-card">$ USD</SelectItem>
+                        <SelectItem value="GBP" className="text-white hover:bg-ios-card">£ GBP</SelectItem>
+                        <SelectItem value="EUR" className="text-white hover:bg-ios-card">€ EUR</SelectItem>
+                        <SelectItem value="AUD" className="text-white hover:bg-ios-card">A$ AUD</SelectItem>
+                        <SelectItem value="CAD" className="text-white hover:bg-ios-card">C$ CAD</SelectItem>
+                        <SelectItem value="JPY" className="text-white hover:bg-ios-card">¥ JPY</SelectItem>
+                        <SelectItem value="CNY" className="text-white hover:bg-ios-card">¥ CNY</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      placeholder="75000"
+                      value={tripForm.budget}
+                      onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
+                      className="flex-1 bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
+                      min="0"
+                      data-testid="input-budget"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">
@@ -560,10 +583,15 @@ export default function TripPlanner() {
                 className="w-full bg-gradient-to-r from-ios-blue to-purple-600 text-white py-4 radius-md text-lg font-semibold smooth-transition interactive-tap disabled:opacity-50"
                 data-testid="button-create-trip"
               >
-                {(createTripMutation.isPending || planTripMutation.isPending) ? (
+                {createTripMutation.isPending ? (
                   <>
-                    <i className="fas fa-spinner fa-spin mr-2"></i>
-                    Generating Your Itinerary...
+                    <i className="fas fa-save fa-spin mr-2"></i>
+                    Finalizing Your Trip...
+                  </>
+                ) : planTripMutation.isPending ? (
+                  <>
+                    <i className="fas fa-brain fa-spin mr-2"></i>
+                    Designing Your Experience...
                   </>
                 ) : (
                   <>
@@ -583,7 +611,9 @@ export default function TripPlanner() {
         {(createTripMutation.isPending || planTripMutation.isPending) && (
           <Card className="bg-ios-card border-ios-gray elev-1 mt-8">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">Generating Your Perfect Itinerary...</CardTitle>
+              <CardTitle className="text-xl font-bold text-white">
+                {planTripMutation.isPending ? "Designing Your Perfect Itinerary..." : "Finalizing details..."}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -651,12 +681,6 @@ export default function TripPlanner() {
                                 <div className="text-sm text-ios-green">
                                   {typeof a.entryFeeINR === 'number' ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : ''}
                                 </div>
-                              </div>
-                              <div className="text-xs text-ios-gray">
-                                {typeof a.duration_minutes === 'number' && <span>Duration: {Number(a.duration_minutes)} min</span>}
-                                {a.routeFromPrevious && (
-                                  <span className="ml-2">{String(a.routeFromPrevious.mode)} • {Number(a.routeFromPrevious.distance_km)} km • {Number(a.routeFromPrevious.travel_time_minutes)} min</span>
-                                )}
                               </div>
                               {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
                                 <div className="flex flex-wrap gap-2">

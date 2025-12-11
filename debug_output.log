@@ -1,0 +1,9 @@
+[SERVER]: > rest-express@1.0.0 dev
+> cross-env NODE_ENV=development tsx server/index.ts
+[SERVER]: MongoDB connected successfully
+[SERVER]: 11:53:54 AM [express] serving on port 5000 pid=26096
+[SERVER]: {"ts":"2025-12-11T06:24:00.989Z","endpoint":"/api/v1/trips/generate-itinerary","dest":"VijayawadaUnique…","days":3,"persons":1,"budget":"n","typeOfTrip":"relaxed","travelMedium":"flight"}
+[SERVER]: [AiUtilities] Validation failed (Model returned invalid JSON). Using Smart Fallback.
+[SERVER]: [AiUtilities] Generating Smart Fallback for: VijayawadaUnique1765434240950
+[SERVER]: [AiUtilities] Found 20 real places.
+[SERVER]: 11:54:11 AM [express] POST /api/v1/trips/generate-itinerary 200 in 10863ms :: {"destination":"Vijayaw…
