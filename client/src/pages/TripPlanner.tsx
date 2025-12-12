@@ -353,7 +353,7 @@ export default function TripPlanner() {
       const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
       const tripData = {
         destination: tripForm.destination,
-        budget: tripForm.budget ? parseFloat(tripForm.budget) : 0,
+        budget: tripForm.budget ? parseFloat(tripForm.budget) : (planData.costBreakdown?.totalINR || planData.costBreakdown?.total || 0),
         days: parseInt(tripForm.days) || 1,
         groupSize: parseInt(tripForm.groupSize) || 1,
         travelStyle: styleMap[selectedStyle] || 'standard',
