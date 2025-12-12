@@ -61,6 +61,11 @@ async function createTransporter() {
         }
     };
 
+    // Force IPv4 and add timeouts (helps with ETIMEDOUT on some cloud providers)
+    // @ts-ignore - 'family' is a valid option but might not be in the strict type definition we used
+    (config as any).family = 4;
+    (config as any).greetingTimeout = 10000; // 10s timeout
+
     console.log(`Configuring SMTP transport: Host=${config.host}, Port=${config.port}, Secure=${config.secure}`);
     return nodemailer.createTransport(config as any);
 }
