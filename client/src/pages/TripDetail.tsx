@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { motion } from "framer-motion";
@@ -23,10 +24,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 
 const travelStyles = [
-  { id: 'adventure', icon: 'fas fa-backpack', name: 'Adventure', color: 'text-ios-blue' },
-  { id: 'relaxed', icon: 'fas fa-spa', name: 'Relaxed', color: 'text-ios-orange' },
-  { id: 'cultural', icon: 'fas fa-landmark', name: 'Cultural', color: 'text-ios-blue' },
-  { id: 'culinary', icon: 'fas fa-utensils', name: 'Culinary', color: 'text-ios-green' }
+  { id: 'adventure', icon: Mountain, name: 'Adventure', color: 'text-ios-blue' },
+  { id: 'relaxed', icon: Armchair, name: 'Relaxed', color: 'text-ios-orange' },
+  { id: 'cultural', icon: Landmark, name: 'Cultural', color: 'text-ios-blue' },
+  { id: 'culinary', icon: Utensils, name: 'Culinary', color: 'text-ios-green' }
 ];
 
 const statusColors = {
@@ -500,7 +501,7 @@ export default function TripDetail() {
           <div className="relative radius-md overflow-hidden h-64 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center">
             <div className="text-center text-white">
               {selectedStyle && (
-                <i className={`${selectedStyle.icon} text-6xl mb-4 opacity-50`}></i>
+                <selectedStyle.icon className={`${selectedStyle.color} w-16 h-16 mb-4 opacity-50 mx-auto`} />
               )}
               <h2 className="text-2xl font-bold">{trip.destination}</h2>
               <p className="text-lg opacity-90 capitalize">
@@ -663,7 +664,7 @@ export default function TripDetail() {
                   <p className="font-bold text-white capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
                 </div>
                 <div className="text-center p-4 bg-ios-darker radius-md">
-                  {selectedStyle && <i className={`${selectedStyle.icon} ${selectedStyle.color} text-xl mb-2`}></i>}
+                  {selectedStyle && <selectedStyle.icon className={`${selectedStyle.color} w-6 h-6 mb-2 mx-auto`} />}
                   <p className="text-sm text-ios-gray">Style</p>
                   <p className="font-bold text-white capitalize">{trip.travelStyle.replace('-', ' ')}</p>
                 </div>

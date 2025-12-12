@@ -79,7 +79,7 @@ export default function Home() {
         transition={{ duration: 0.6 }}
       >
         <h1 className="text-3xl font-bold text-foreground mb-2">
-          Welcome back, {user?.firstName || 'Traveler'}!
+          {(!trips || trips.length === 0) ? 'Welcome' : 'Welcome back'}, {user?.firstName || 'Traveler'}!
         </h1>
         <p className="text-muted-foreground">Ready for your next adventure?</p>
       </motion.div>

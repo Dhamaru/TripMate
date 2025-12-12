@@ -1,4 +1,9 @@
 import { TripMateLogo } from "@/components/TripMateLogo";
+import {
+  Route, BookOpen, CloudSun, Languages, Banknote, Shield,
+  Mountain, Armchair, Landmark, Utensils,
+  Menu, Lightbulb, Code
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,37 +33,37 @@ export default function Landing() {
 
   const features = [
     {
-      icon: 'fas fa-route',
+      icon: Route,
       title: 'Smart Trip Planner',
       description: 'AI-powered itinerary generation based on your preferences, budget, and travel style.',
       color: 'bg-ios-blue'
     },
     {
-      icon: 'fas fa-book',
+      icon: BookOpen,
       title: 'Travel Journal',
       description: 'Capture memories with photos, notes, and stories. Create beautiful travel memories.',
       color: 'bg-ios-orange'
     },
     {
-      icon: 'fas fa-cloud-sun',
+      icon: CloudSun,
       title: 'Weather Insights',
       description: '7-day forecasts, weather alerts, and packing recommendations for any destination.',
       color: 'bg-ios-green'
     },
     {
-      icon: 'fas fa-language',
+      icon: Languages,
       title: 'Smart Translator',
       description: 'Offline translation for 10+ languages with voice input and conversation mode.',
       color: 'bg-ios-blue'
     },
     {
-      icon: 'fas fa-exchange-alt',
+      icon: Banknote,
       title: 'Currency Converter',
       description: 'Real-time exchange rates for 20+ currencies with offline rate caching.',
       color: 'bg-ios-orange'
     },
     {
-      icon: 'fas fa-shield-alt',
+      icon: Shield,
       title: 'Emergency Services',
       description: 'Locate nearby hospitals, police, and embassies with one-tap SOS calling.',
       color: 'bg-ios-red'
@@ -66,10 +71,10 @@ export default function Landing() {
   ];
 
   const travelStyles = [
-    { icon: 'fas fa-backpack', name: 'Adventure', color: 'text-ios-blue' },
-    { icon: 'fas fa-spa', name: 'Relaxation', color: 'text-ios-orange' },
-    { icon: 'fas fa-landmark', name: 'Cultural', color: 'text-ios-blue' },
-    { icon: 'fas fa-utensils', name: 'Culinary', color: 'text-ios-green' }
+    { icon: Mountain, name: 'Adventure', color: 'text-ios-blue' },
+    { icon: Armchair, name: 'Relaxation', color: 'text-ios-orange' },
+    { icon: Landmark, name: 'Cultural', color: 'text-ios-blue' },
+    { icon: Utensils, name: 'Culinary', color: 'text-ios-green' }
   ];
 
   return (
@@ -96,7 +101,7 @@ export default function Landing() {
             </div>
             <div className="md:hidden">
               <button className="text-ios-gray hover:text-white smooth-transition interactive-tap min-tap-target">
-                <i className="fas fa-bars text-xl"></i>
+                <Menu className="w-6 h-6" />
               </button>
             </div>
           </div>
@@ -154,7 +159,7 @@ export default function Landing() {
                 >
                   <CardContent className="p-6">
                     <div className={`w-12 h-12 ${feature.color} rounded-xl flex items-center justify-center mb-4`}>
-                      <i className={`${feature.icon} text-white text-xl`}></i>
+                      <feature.icon className="text-white w-6 h-6" />
                     </div>
                     <h3 className="text-xl font-bold mb-3 text-white">{feature.title}</h3>
                     <p className="text-ios-gray mb-4">{feature.description}</p>
@@ -257,7 +262,7 @@ export default function Landing() {
                           className="bg-ios-darker border border-ios-gray radius-md p-3 text-center hover:border-ios-blue smooth-transition"
                           data-testid={`travel-style-${index}`}
                         >
-                          <i className={`${style.icon} ${style.color} mb-2 text-lg`}></i>
+                          <style.icon className={`${style.color} mb-2 w-6 h-6 mx-auto`} />
                           <div className="text-sm font-medium text-white">{style.name}</div>
                         </button>
                       ))}
@@ -320,7 +325,7 @@ export default function Landing() {
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4">
                     <div className="w-12 h-12 bg-ios-blue rounded-full flex items-center justify-center flex-shrink-0">
-                      <i className="fas fa-lightbulb text-white text-xl"></i>
+                      <Lightbulb className="text-white w-6 h-6" />
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-lg mb-1">Sai Naidu .B</h4>
@@ -338,7 +343,7 @@ export default function Landing() {
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4">
                     <div className="w-12 h-12 bg-ios-green rounded-full flex items-center justify-center flex-shrink-0">
-                      <i className="fas fa-code text-white text-xl"></i>
+                      <Code className="text-white w-6 h-6" />
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-lg mb-1">Dhamarunath .K</h4>

@@ -2793,7 +2793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await sendEmail({
         from: `"TripMate Feedback" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
-        to: process.env.SMTP_USER, // Explicitly send TO the admin (SMTP User)
+        to: "kasivasi2005@gmail.com", // Send explicitly to the requested email
         replyTo: email,
         subject: `${typeEmoji} [${type.toUpperCase()}] ${subject}`,
         html: `
@@ -2839,6 +2839,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  // Packing List Routes
+  app.get('/api/v1/packing-lists', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const lists = await storage.getUserPackingLists(userId);
+      res.json(lists);
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to fetch packing lists' });
+    }
+  });
+
+  app.post('/api/v1/packing-lists', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const data = insertPackingListSchema.parse({ ...req.body, userId });
+      const list = await storage.createPackingList(data);
+      res.json(list);
+    } catch (e) {
+      res.status(400).json({ message: 'Invalid input' });
+    }
+  });
+
+  app.put('/api/v1/packing-lists/:id', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const id = req.params.id;
+      const updates = insertPackingListSchema.partial().parse(req.body);
+      const updated = await storage.updatePackingList(id, userId, updates);
+      if (!updated) return res.status(404).json({ message: 'Not found' });
+      res.json(updated);
+    } catch (e) {
+      res.status(400).json({ message: 'Invalid input' });
+    }
+  });
+
+  app.delete('/api/v1/packing-lists/:id', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const id = req.params.id;
+      const success = await storage.deletePackingList(id, userId);
+      if (!success) return res.status(404).json({ message: 'Not found' });
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to delete' });
+    }
+  });
+
   return httpServer;
 }
 

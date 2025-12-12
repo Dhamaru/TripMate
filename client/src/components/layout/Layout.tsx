@@ -26,7 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen w-full bg-black text-white">
+    <div className="flex h-screen w-full bg-black text-white overflow-hidden">
       {/* Sidebar - Desktop Only */}
       <aside
         className={cn(
@@ -102,7 +102,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Wrapper */}
       <div className={cn(
-        "flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out",
+        "flex-1 flex flex-col h-full transition-all duration-300 ease-in-out",
         "md:ml-64",
         sidebarCollapsed && "md:ml-16"
       )}>

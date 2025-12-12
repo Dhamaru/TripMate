@@ -127,8 +127,10 @@ export default function CropImagePage() {
   }, [resolvedImageUrl, imageUrl, crop, aspect, rotation, brightness, contrast, saturation, canvasSize]);
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       if (!dragging) return;
+      // Prevent scrolling while dragging
+      e.preventDefault();
       const dx = e.clientX - startPt.x;
       const dy = e.clientY - startPt.y;
       if (dragHandle === 'move') {
@@ -144,19 +146,14 @@ export default function CropImagePage() {
         if (aspect !== 'free') {
           // Maintain square aspect ratio
           const size = Math.min(next.w, next.h);
-          // Adjust position based on which handle is being dragged
           if (dragHandle.includes('n') && dragHandle.includes('w')) {
-            // NW corner: adjust both x and y
             next.x = nx + (nw - size);
             next.y = ny + (nh - size);
           } else if (dragHandle.includes('n') && dragHandle.includes('e')) {
-            // NE corner: adjust y only
             next.y = ny + (nh - size);
           } else if (dragHandle.includes('s') && dragHandle.includes('w')) {
-            // SW corner: adjust x only
             next.x = nx + (nw - size);
           }
-          // SE corner and edge handles: no position adjustment needed
           next.w = size;
           next.h = size;
         }
@@ -164,9 +161,9 @@ export default function CropImagePage() {
       }
     };
     const onUp = () => { setDragging(false); setDragHandle(''); };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
   }, [dragging, dragHandle, startPt, startCrop, canvasSize]);
 
   const openFileDialog = () => {
@@ -331,18 +328,14 @@ export default function CropImagePage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div ref={containerRef} className="relative">
-                <canvas ref={editorCanvasRef} width={canvasSize.w} height={canvasSize.h} className="w-full h-auto rounded border border-ios-gray touch-pan-y" aria-label="Image editor canvas" />
+                <canvas ref={editorCanvasRef} width={canvasSize.w} height={canvasSize.h} className="w-full h-auto rounded border border-ios-gray touch-none" aria-label="Image editor canvas" />
                 <div className="absolute inset-0">
-                  <div className="absolute border-2 border-blue-400" style={{ left: crop.x, top: crop.y, width: crop.w, height: crop.h, borderRadius: aspect === 'circle' ? '9999px' : '0' }}>
-                    <div className="absolute -left-2 -top-2 w-4 h-4 bg-blue-400 cursor-nw-resize" onMouseDown={(e) => { setDragHandle('nw'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute -right-2 -top-2 w-4 h-4 bg-blue-400 cursor-ne-resize" onMouseDown={(e) => { setDragHandle('ne'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute -left-2 -bottom-2 w-4 h-4 bg-blue-400 cursor-sw-resize" onMouseDown={(e) => { setDragHandle('sw'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute -right-2 -bottom-2 w-4 h-4 bg-blue-400 cursor-se-resize" onMouseDown={(e) => { setDragHandle('se'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 w-4 h-4 bg-blue-400 cursor-n-resize" onMouseDown={(e) => { setDragHandle('n'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-4 h-4 bg-blue-400 cursor-s-resize" onMouseDown={(e) => { setDragHandle('s'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute top-1/2 -translate-y-1/2 -left-2 w-4 h-4 bg-blue-400 cursor-w-resize" onMouseDown={(e) => { setDragHandle('w'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute top-1/2 -translate-y-1/2 -right-2 w-4 h-4 bg-blue-400 cursor-e-resize" onMouseDown={(e) => { setDragHandle('e'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
-                    <div className="absolute inset-0 cursor-move" onMouseDown={(e) => { setDragHandle('move'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
+                  <div className="absolute border-2 border-blue-400 touch-none" style={{ left: crop.x, top: crop.y, width: crop.w, height: crop.h, borderRadius: aspect === 'circle' ? '9999px' : '0' }}>
+                    <div className="absolute -left-2 -top-2 w-8 h-8 -ml-2 -mt-2 bg-blue-400/50 rounded-full cursor-nw-resize flex items-center justify-center touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('nw'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
+                    <div className="absolute -right-2 -top-2 w-8 h-8 -mr-2 -mt-2 bg-blue-400/50 rounded-full cursor-ne-resize flex items-center justify-center touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('ne'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
+                    <div className="absolute -left-2 -bottom-2 w-8 h-8 -ml-2 -mb-2 bg-blue-400/50 rounded-full cursor-sw-resize flex items-center justify-center touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('sw'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
+                    <div className="absolute -right-2 -bottom-2 w-8 h-8 -mr-2 -mb-2 bg-blue-400/50 rounded-full cursor-se-resize flex items-center justify-center touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('se'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
+                    <div className="absolute inset-0 cursor-move touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('move'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
                   </div>
                 </div>
               </div>
