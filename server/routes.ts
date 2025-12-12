@@ -1945,6 +1945,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  app.get('/api/v1/packing-lists', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const lists = await storage.getUserPackingLists(userId);
+      res.json(lists);
+    } catch (error) {
+      console.error('Get packing lists error:', error);
+      res.status(500).json({ message: 'Failed to fetch packing lists' });
+    }
+  });
+
+  app.post('/api/v1/packing-lists', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const data = insertPackingListSchema.parse({ ...req.body, userId });
+      const list = await storage.createPackingList(data);
+      res.status(201).json(list);
+    } catch (error) {
+      console.error('Create packing list error:', error);
+      res.status(400).json({ message: 'Invalid input' });
+    }
+  });
+
+  app.put('/api/v1/packing-lists/:id', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const updated = await storage.updatePackingList(req.params.id, userId, req.body);
+      if (!updated) return res.status(404).json({ message: 'List not found' });
+      res.json(updated);
+    } catch (error) {
+      console.error('Update packing list error:', error);
+      res.status(500).json({ message: 'Failed to update packing list' });
+    }
+  });
+
+  app.delete('/api/v1/packing-lists/:id', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const success = await storage.deletePackingList(req.params.id, userId);
+      if (!success) return res.status(404).json({ message: 'List not found' });
+      res.sendStatus(204);
+    } catch (error) {
+      console.error('Delete packing list error:', error);
+      res.status(500).json({ message: 'Failed to delete packing list' });
+    }
+  });
+
   app.get('/api/v1/emergency', optionalAuth, aiLimiter, async (req: any, res) => {
     try {
       const locRaw = String(req.query.location || req.query.city || '').trim();

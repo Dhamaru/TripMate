@@ -452,7 +452,7 @@ export default function TripDetail() {
 
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24">
         {/* Trip Header */}
         <div className="mb-4">
           <div className="flex items-start justify-between mb-4">

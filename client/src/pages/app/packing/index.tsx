@@ -1,5 +1,6 @@
+import { SortablePackingItem } from "@/components/SortablePackingItem";
 import { useState } from "react";
-// Added local type to extend IPackingListItem with optional fields used in UI
+
 type PackingItem = IPackingListItem & { is_mandatory?: boolean; category?: string };
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Reorder } from "framer-motion";
@@ -254,38 +255,18 @@ export default function PackingChecklist() {
                     <Reorder.Group axis="y" values={otherItems} onReorder={handleReorder}>
                         <div className="space-y-3">
                             {otherItems.map((item) => (
-                                <Reorder.Item key={item.name} value={item}>
-                                    <div
-                                        className="group flex items-center p-4 bg-gray-900 border border-gray-800 rounded-2xl hover:border-gray-700 transition-all cursor-pointer"
-                                        onClick={() => {
-                                            const originalIndex = items.indexOf(item);
-                                            if (originalIndex !== -1) handleToggle(originalIndex);
-                                        }}
-                                    >
-                                        <div className="cursor-grab active:cursor-grabbing mr-3 text-gray-600 hover:text-gray-400" onClick={(e) => e.stopPropagation()}>
-                                            <GripVertical className="w-5 h-5" />
-                                        </div>
-                                        <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${item.packed ? 'bg-blue-500 border-blue-500' : 'border-gray-600 group-hover:border-blue-400'}`}>
-                                            {item.packed && <CheckCircle2 className="w-4 h-4 text-white" />}
-                                        </div>
-                                        <div className="flex-1 flex items-center">
-                                            <span className={`font-medium ${item.packed ? "text-gray-500 line-through" : "text-white"}`}>{item.name}</span>
-                                            {item.category && <span className="ml-3 text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded-full">{item.category}</span>}
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full h-8 w-8 p-0"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const originalIndex = items.indexOf(item);
-                                                if (originalIndex !== -1) handleDelete(originalIndex);
-                                            }}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                </Reorder.Item>
+                                <SortablePackingItem
+                                    key={item.name}
+                                    item={item}
+                                    handleToggle={() => {
+                                        const originalIndex = items.indexOf(item);
+                                        if (originalIndex !== -1) handleToggle(originalIndex);
+                                    }}
+                                    handleDelete={() => {
+                                        const originalIndex = items.indexOf(item);
+                                        if (originalIndex !== -1) handleDelete(originalIndex);
+                                    }}
+                                />
                             ))}
                         </div>
                     </Reorder.Group>
