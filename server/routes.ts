@@ -64,6 +64,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ... (keeping existing variables)
 
+  // Debug: Email Verify Route
+  app.get("/api/v1/debug/email-config", async (req, res) => {
+    try {
+      const { verifySmtpConnection } = await import("./email");
+      const result = await verifySmtpConnection();
+
+      const configInfo = {
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        user: process.env.SMTP_USER,
+        passLength: process.env.SMTP_PASS?.length,
+        hasPlainAuth: !!process.env.SMTP_AUTH_METHOD
+      };
+
+      res.json({
+        message: "SMTP Configuration Status",
+        timestamp: new Date().toISOString(),
+        configSummary: configInfo,
+        verificationResult: result
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Forgot Password Route
   app.post("/api/v1/auth/forgot-password", async (req, res) => {
     try {

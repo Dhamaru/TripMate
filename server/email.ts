@@ -147,3 +147,23 @@ export async function sendPasswordResetEmail(email: string, token: string) {
         return false;
     }
 }
+
+export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: any }> {
+    try {
+        const transporter = await transporterPromise;
+        if (!transporter) return { ok: false, error: "Transporter not initialized" };
+        await transporter.verify();
+        return { ok: true };
+    } catch (error: any) {
+        console.error("SMTP Verify Error:", error);
+        return {
+            ok: false,
+            error: {
+                message: error.message,
+                code: error.code,
+                response: error.response
+            }
+        };
+    }
+}
+
