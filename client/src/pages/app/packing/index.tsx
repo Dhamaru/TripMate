@@ -250,31 +250,6 @@ export default function PackingChecklist() {
                 </Card>
 
                 <div className="mb-8">
-                    <div className="flex items-center mb-4 text-red-400">
-                        <AlertCircle className="w-5 h-5 mr-2" />
-                        <h2 className="font-bold text-lg">Government / ID Documents</h2>
-                    </div>
-                    <div className="space-y-3">
-                        {mandatoryItems.map((item, idx) => (
-                            <div
-                                key={`mandatory-${idx}`}
-                                className="group flex items-center p-4 bg-gray-900/50 border border-red-900/30 rounded-2xl hover:bg-gray-900 transition-colors cursor-pointer"
-                                onClick={() => {
-                                    const originalIndex = items.findIndex(i => i.name === item.name && i.is_mandatory);
-                                    if (originalIndex !== -1) handleToggle(originalIndex);
-                                }}
-                            >
-                                <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${item.packed ? 'bg-green-500 border-green-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
-                                    {item.packed && <CheckCircle2 className="w-4 h-4 text-white" />}
-                                </div>
-                                <span className={`flex-1 font-medium ${item.packed ? "text-gray-500 line-through" : "text-white"}`}>{item.name}</span>
-                                <div className="text-xs font-semibold text-red-400 bg-red-900/20 px-3 py-1 rounded-full">Mandatory</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="mb-8">
                     <h2 className="font-bold text-lg text-white mb-4">Seasonal Essentials</h2>
                     <Reorder.Group axis="y" values={otherItems} onReorder={handleReorder}>
                         <div className="space-y-3">
@@ -314,6 +289,31 @@ export default function PackingChecklist() {
                             ))}
                         </div>
                     </Reorder.Group>
+                </div>
+
+                <div className="mb-8">
+                    <div className="flex items-center mb-4 text-red-400">
+                        <AlertCircle className="w-5 h-5 mr-2" />
+                        <h2 className="font-bold text-lg">Government / ID Documents</h2>
+                    </div>
+                    <div className="space-y-3">
+                        {mandatoryItems.map((item, idx) => (
+                            <div
+                                key={`mandatory-${idx}`}
+                                className="group flex items-center p-4 bg-gray-900/50 border border-red-900/30 rounded-2xl hover:bg-gray-900 transition-colors cursor-pointer"
+                                onClick={() => {
+                                    const originalIndex = items.findIndex(i => i.name === item.name && i.is_mandatory);
+                                    if (originalIndex !== -1) handleToggle(originalIndex);
+                                }}
+                            >
+                                <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${item.packed ? 'bg-green-500 border-green-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
+                                    {item.packed && <CheckCircle2 className="w-4 h-4 text-white" />}
+                                </div>
+                                <span className={`flex-1 font-medium ${item.packed ? "text-gray-500 line-through" : "text-white"}`}>{item.name}</span>
+                                <div className="text-xs font-semibold text-red-400 bg-red-900/20 px-3 py-1 rounded-full">Mandatory</div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex gap-3 mb-12">
