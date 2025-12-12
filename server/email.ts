@@ -139,8 +139,10 @@ export async function sendPasswordResetEmail(email: string, token: string) {
         }
 
         return true;
-    } catch (error) {
-        console.error("Error sending email:", error);
+    } catch (error: any) {
+        console.error("Error sending email:", error?.message || error);
+        console.error("SMTP Error Code:", error?.code);
+        console.error("SMTP Error Response:", error?.response);
         // We might want to re-throw or handle this in the route
         return false;
     }
