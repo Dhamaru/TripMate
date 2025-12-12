@@ -75,7 +75,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (useMemoryStore) {
         user = memoryUsers.get(email);
       } else {
-        user = await storage.getUser(email);
+        // Use getUserByEmail to properly find Google OAuth users whose _id is not their email
+        user = await storage.getUserByEmail(email);
       }
 
       if (!user) return res.status(404).json({ message: "User not found" });

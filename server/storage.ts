@@ -16,6 +16,7 @@ import {
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
   getUserByResetToken(token: string): Promise<User | undefined>;
@@ -50,6 +51,16 @@ export class DatabaseStorage implements IStorage {
     return await UserModel.findById(id).exec() || undefined;
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    // First try to find by _id (for email/password users where _id === email)
+    let user = await UserModel.findById(email).exec();
+    if (user) return user;
+
+    // If not found, search by email field (for Google OAuth users)
+    user = await UserModel.findOne({ email: email.toLowerCase() }).exec();
+    return user || undefined;
+  }
+
   async upsertUser(userData: InsertUser): Promise<User> {
     const user = await UserModel.findByIdAndUpdate(
       userData._id,
@@ -67,13 +78,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
-    const clean: Record<string, any> = {};
+    const setFields: Record<string, any> = {};
+    const unsetFields: Record<string, any> = {};
+
     for (const [k, v] of Object.entries(updates)) {
-      if (v !== undefined) clean[k] = v;
+      if (v === undefined) {
+        // Use $unset to remove fields when undefined is explicitly passed
+        unsetFields[k] = 1;
+      } else {
+        setFields[k] = v;
+      }
     }
+
+    const updateOps: Record<string, any> = {};
+    if (Object.keys(setFields).length > 0) {
+      updateOps.$set = setFields;
+    }
+    if (Object.keys(unsetFields).length > 0) {
+      updateOps.$unset = unsetFields;
+    }
+
+    if (Object.keys(updateOps).length === 0) {
+      // Nothing to update
+      return await UserModel.findById(id).exec() || undefined;
+    }
+
     const user = await UserModel.findByIdAndUpdate(
       id,
-      { $set: clean },
+      updateOps,
       { new: true }
     ).exec();
     return user || undefined;
