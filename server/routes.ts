@@ -965,9 +965,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // `planTrip` returns: { itinerary, costBreakdown, packingList, ... }
           // `Trip` schema: { itinerary: json, costBreakdown: json, ... }
           // They should match since existing creation flow uses them.
-          (updates as any).itinerary = newPlan.itinerary;
-          (updates as any).costBreakdown = newPlan.costBreakdown;
-          (updates as any).packingList = newPlan.packingList;
+          (updates as any).itinerary = (newPlan as any).itinerary;
+          (updates as any).costBreakdown = (newPlan as any).costBreakdown;
+          (updates as any).packingList = (newPlan as any).packingList;
 
           // Sync main budget field with AI estimated total if not explicitly set by user to a non-zero value
           // or if the previous budget was 0 (implying "calculate for me")
