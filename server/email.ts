@@ -143,6 +143,25 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     }
 }
 
+export async function sendEmailDetailed(options: nodemailer.SendMailOptions): Promise<{ ok: boolean, error?: any, messageId?: string }> {
+    try {
+        const transporter = await transporterPromise;
+        if (!transporter) return { ok: false, error: "Transporter not initialized" };
+
+        const info = await transporter.sendMail(options);
+        return { ok: true, messageId: info.messageId };
+    } catch (error: any) {
+        return {
+            ok: false,
+            error: {
+                message: error.message,
+                code: error.code,
+                response: error.response
+            }
+        };
+    }
+}
+
 export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: any }> {
     try {
         const transporter = await transporterPromise;

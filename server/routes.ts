@@ -89,6 +89,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug: Send Test Email
+  app.post("/api/v1/debug/send-test-email", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const { sendEmailDetailed } = await import("./email");
+
+      const testEmailOptions = {
+        to: email || "kasivasi2005@gmail.com",
+        from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "test@tripmate.com",
+        subject: "Test Email from TripMate Debugger",
+        text: "This is a test email to verify SMTP sending capability.",
+        html: "<p>This is a test email to verify SMTP sending capability.</p>"
+      };
+
+      const result = await sendEmailDetailed(testEmailOptions);
+
+      if (result.ok) {
+        res.json({ success: true, message: "Email sent successfully", messageId: result.messageId });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "Email sending failed",
+          error: result.error
+        });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Forgot Password Route
   app.post("/api/v1/auth/forgot-password", async (req, res) => {
     try {
