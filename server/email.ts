@@ -43,23 +43,35 @@ async function createTransporter() {
 
     // Configure for provided SMTP credentials
     const port = parseInt(process.env.SMTP_PORT || "587");
+    const host = process.env.SMTP_HOST || "smtp.ethereal.email";
+
+    // For Gmail, use simplified service configuration
+    if (host === "smtp.gmail.com" || host.includes("gmail")) {
+        console.log("Configuring Gmail SMTP transport");
+        return nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.SMTP_USER || "",
+                pass: process.env.SMTP_PASS || "",
+            },
+        });
+    }
+
+    // For other SMTP providers
     const config: TransporterConfig = {
-        host: process.env.SMTP_HOST || "smtp.ethereal.email",
+        host: host,
         port: port,
         secure: port === 465, // true for 465, false for other ports
         auth: {
             user: process.env.SMTP_USER || "",
             pass: process.env.SMTP_PASS || "",
         },
-        // Allow explicit auth method override (e.g., "LOGIN" for some providers)
-        authMethod: process.env.SMTP_AUTH_METHOD || "PLAIN",
         tls: {
-            // In production with proper certs this should be true, but for flexibility we'll allow override
             rejectUnauthorized: process.env.NODE_ENV === "production",
         }
     };
 
-    console.log(`Configuring SMTP transport: Host=${config.host}, Port=${config.port}, Secure=${config.secure}, AuthMethod=${config.authMethod}`);
+    console.log(`Configuring SMTP transport: Host=${config.host}, Port=${config.port}, Secure=${config.secure}`);
     return nodemailer.createTransport(config as any);
 }
 
