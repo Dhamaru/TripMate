@@ -45,17 +45,7 @@ async function createTransporter() {
     const port = parseInt(process.env.SMTP_PORT || "587");
     const host = process.env.SMTP_HOST || "smtp.ethereal.email";
 
-    // For Gmail, use simplified service configuration
-    if (host === "smtp.gmail.com" || host.includes("gmail")) {
-        console.log("Configuring Gmail SMTP transport");
-        return nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.SMTP_USER || "",
-                pass: process.env.SMTP_PASS || "",
-            },
-        });
-    }
+
 
     // For other SMTP providers
     const config: TransporterConfig = {
