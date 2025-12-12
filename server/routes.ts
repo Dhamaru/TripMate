@@ -971,7 +971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Sync main budget field with AI estimated total if not explicitly set by user to a non-zero value
           // or if the previous budget was 0 (implying "calculate for me")
-          const estimatedTotal = newPlan.costBreakdown?.total || newPlan.costBreakdown?.totalINR;
+          const estimatedTotal = (newPlan as any).costBreakdown?.total || (newPlan as any).costBreakdown?.totalINR;
           if (estimatedTotal && (!updates.budget || updates.budget === 0)) {
             (updates as any).budget = estimatedTotal;
           }
