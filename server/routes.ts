@@ -968,9 +968,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (updates as any).itinerary = newPlan.itinerary;
           (updates as any).costBreakdown = newPlan.costBreakdown;
           (updates as any).packingList = newPlan.packingList;
+
+          // Sync main budget field with AI estimated total if not explicitly set by user to a non-zero value
+          // or if the previous budget was 0 (implying "calculate for me")
+          const estimatedTotal = newPlan.costBreakdown?.total || newPlan.costBreakdown?.totalINR;
+          if (estimatedTotal && (!updates.budget || updates.budget === 0)) {
+            (updates as any).budget = estimatedTotal;
+          }
+
           // Don't overwrite notes if user is passing them, but maybe append?
           // For now, let's keep user's manual notes update if provided, else keep existing.
-          // Or should we overwrite automatic notes? AI returns 'notes'.
           if (!updates.notes) {
             // If user didn't edit notes, maybe update them?
             // Often user notes are personal. Let's leave notes alone unless user edited them.
