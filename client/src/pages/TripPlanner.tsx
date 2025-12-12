@@ -16,11 +16,13 @@ import { useEffect } from "react";
 import type { User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
+import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
+
 const travelStyles = [
-  { id: 'adventure', icon: 'fas fa-backpack', name: 'Adventure', color: 'text-ios-blue' },
-  { id: 'relaxed', icon: 'fas fa-spa', name: 'Relaxed', color: 'text-ios-orange' },
-  { id: 'cultural', icon: 'fas fa-landmark', name: 'Cultural', color: 'text-ios-blue' },
-  { id: 'culinary', icon: 'fas fa-utensils', name: 'Culinary', color: 'text-ios-green' }
+  { id: 'adventure', icon: Mountain, name: 'Adventure', color: 'text-ios-blue' },
+  { id: 'relaxed', icon: Armchair, name: 'Relaxed', color: 'text-ios-orange' },
+  { id: 'cultural', icon: Landmark, name: 'Cultural', color: 'text-ios-blue' },
+  { id: 'culinary', icon: Utensils, name: 'Culinary', color: 'text-ios-green' }
 ];
 
 export default function TripPlanner() {
@@ -553,13 +555,13 @@ export default function TripPlanner() {
                       key={style.id}
                       type="button"
                       onClick={() => handleStyleSelect(style.id)}
-                      className={`bg-ios-darker border-2 radius-md p-4 text-center smooth-transition ${selectedStyle === style.id
+                      className={`bg-ios-darker border-2 radius-md p-4 text-center smooth-transition flex flex-col items-center justify-center ${selectedStyle === style.id
                         ? 'border-ios-blue bg-ios-blue/20'
                         : 'border-ios-gray hover:border-ios-blue'
                         }`}
                       data-testid={`travel-style-${style.id}`}
                     >
-                      <i className={`${style.icon} ${style.color} mb-2 text-xl`}></i>
+                      <style.icon className={`${style.color} mb-2 w-6 h-6`} />
                       <div className="text-sm font-medium text-white">{style.name}</div>
                     </button>
                   ))}
