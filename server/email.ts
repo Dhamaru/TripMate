@@ -104,7 +104,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     console.log("=================================================================");
 
     const message = {
-        from: `"TripMate Support" <${process.env.SMTP_USER || 'kasivasi2005@gmail.com'}>`,
+        from: `"TripMate Support" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'kasivasi2005@gmail.com'}>`,
         to: email,
         subject: "Password Reset Request",
         text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n` +
