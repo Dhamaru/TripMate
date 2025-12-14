@@ -43,6 +43,12 @@ export interface IStorage {
   createPackingList(packingList: InsertPackingList): Promise<PackingList>;
   updatePackingList(id: string, userId: string, updates: Partial<InsertPackingList>): Promise<PackingList | undefined>;
   deletePackingList(id: string, userId: string): Promise<boolean>;
+  duplicatePackingList(id: string, userId: string): Promise<PackingList | undefined>;
+
+  // Template operations
+  createPackingListTemplate(data: any): Promise<any>;
+  getUserPackingListTemplates(userId: string): Promise<any[]>;
+  deletePackingListTemplate(id: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -227,6 +233,43 @@ export class DatabaseStorage implements IStorage {
   async deletePackingList(id: string, userId: string): Promise<boolean> {
     const result = await PackingListModel.deleteOne({ _id: id, userId }).exec();
     return result.deletedCount > 0;
+  }
+
+  async duplicatePackingList(id: string, userId: string): Promise<PackingList | undefined> {
+    const originalList = await PackingListModel.findOne({ _id: id, userId }).exec();
+    if (!originalList) return undefined;
+
+    const newList = new PackingListModel({
+      userId,
+      tripId: originalList.tripId,
+      name: `${originalList.name} (Copy)`,
+      season: originalList.season,
+      isTemplate: false,
+      items: originalList.items.map(item => ({
+        ...item,
+        packed: false // Reset packed status
+      }))
+    });
+
+    return await newList.save();
+  }
+
+  // Template operations
+  async createPackingListTemplate(data: any): Promise<any> {
+    const { PackingListTemplateModel } = await import("@shared/schema");
+    const template = new PackingListTemplateModel(data);
+    return await template.save();
+  }
+
+  async getUserPackingListTemplates(userId: string): Promise<any[]> {
+    const { PackingListTemplateModel } = await import("@shared/schema");
+    return await PackingListTemplateModel.find({ userId }).sort({ createdAt: -1 }).exec();
+  }
+
+  async deletePackingListTemplate(id: string, userId: string): Promise<boolean> {
+    const { PackingListTemplateModel } = await import("@shared/schema");
+    const result = await PackingListTemplateModel.deleteOne({ _id: id, userId }).exec();
+    return result.deletedCount === 1;
   }
 }
 

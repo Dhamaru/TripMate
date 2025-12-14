@@ -3,14 +3,16 @@ import { Reorder, useDragControls } from "framer-motion";
 import { GripVertical, CheckCircle2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IPackingListItem } from "@shared/schema";
+import { QuantityControl } from "./QuantityControl";
 
 interface SortablePackingItemProps {
     item: IPackingListItem;
     handleToggle: () => void;
     handleDelete: () => void;
+    handleQuantityChange?: (newQuantity: number) => void;
 }
 
-export function SortablePackingItem({ item, handleToggle, handleDelete }: SortablePackingItemProps) {
+export function SortablePackingItem({ item, handleToggle, handleDelete, handleQuantityChange }: SortablePackingItemProps) {
     const controls = useDragControls();
     const [isPressing, setIsPressing] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -98,6 +100,13 @@ export function SortablePackingItem({ item, handleToggle, handleDelete }: Sortab
                             {item.category}
                         </span>
                     )}
+                </div>
+
+                <div className="mr-3" onPointerDown={(e) => e.stopPropagation()}>
+                    <QuantityControl
+                        quantity={item.quantity || 1}
+                        onChange={(newVal) => handleQuantityChange && handleQuantityChange(newVal)}
+                    />
                 </div>
 
                 <Button

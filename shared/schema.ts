@@ -280,12 +280,23 @@ export interface IPackingListItem {
   is_mandatory?: boolean;
 }
 
+export interface IPackingListTemplate extends Document {
+  userId: string;
+  name: string;
+  category?: string;
+  items: IPackingListItem[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IPackingList extends Document {
   userId: string;
   tripId?: mongoose.Types.ObjectId;
   name: string;
+  name: string;
   season?: string;
   items: IPackingListItem[];
+  isTemplate?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -300,13 +311,14 @@ const packingListItemSchema = new Schema<IPackingListItem>(
   }
 );
 
-const packingListSchema = new Schema<IPackingList>(
+export const packingListSchema = new Schema<IPackingList>(
   {
     userId: { type: String, required: true, ref: "User", index: true },
     tripId: { type: Schema.Types.ObjectId, ref: "Trip", index: true },
     name: { type: String, required: true },
     season: { type: String },
-    items: { type: [packingListItemSchema], required: true, default: [] },
+    items: [packingListItemSchema],
+    isTemplate: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -317,8 +329,27 @@ const packingListSchema = new Schema<IPackingList>(
 
 packingListSchema.index({ userId: 1, name: 1 }, { unique: false });
 
+export const packingListTemplateSchema = new Schema<IPackingListTemplate>(
+  {
+    userId: { type: String, required: true, ref: "User", index: true },
+    name: { type: String, required: true },
+    category: { type: String },
+    items: [packingListItemSchema],
+  },
+  {
+    timestamps: true,
+    toJSON: baseToJSON,
+    versionKey: false,
+  }
+);
+
+packingListTemplateSchema.index({ userId: 1, name: 1 }, { unique: false });
+
 export const PackingListModel: Model<IPackingList> =
   mongoose.model<IPackingList>("PackingList", packingListSchema);
+
+export const PackingListTemplateModel: Model<IPackingListTemplate> =
+  mongoose.model<IPackingListTemplate>("PackingListTemplate", packingListTemplateSchema);
 
 export const insertPackingListSchema = z.object({
   userId: z.string().min(1),

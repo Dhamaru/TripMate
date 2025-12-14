@@ -1145,6 +1145,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const ai = new AiUtilitiesService();
   const inflightPlans = new Map<string, Promise<string>>();
 
+  // List Duplication Route
+  app.post("/api/v1/packing-lists/:id/duplicate", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as any;
+      const newList = await storage.duplicatePackingList(req.params.id, user.id);
+      if (!newList) return res.status(404).json({ message: "List not found" });
+      res.json(newList);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Template Routes
+  app.post("/api/v1/packing-lists/templates", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as any;
+      const template = await storage.createPackingListTemplate({ ...req.body, userId: user.id });
+      res.status(201).json(template);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/v1/packing-lists/templates", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as any;
+      const templates = await storage.getUserPackingListTemplates(user.id);
+      res.json(templates);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/v1/packing-lists/templates/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as any;
+      const success = await storage.deletePackingListTemplate(req.params.id, user.id);
+      if (!success) return res.status(404).json({ message: "Template not found" });
+      res.json({ message: "Deleted successfully" });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
     let to: NodeJS.Timeout | null = null;
     return await Promise.race([
