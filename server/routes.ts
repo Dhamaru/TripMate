@@ -18,21 +18,9 @@ import crypto from "crypto";
 import { nanoid } from "nanoid";
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadDir = path.join(process.cwd(), 'uploads');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-  }),
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 2 * 1024 * 1024, // 2MB limit per file (to respect Mongo 16MB doc limit)
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
@@ -287,6 +275,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               windSpeed: Math.round(currentJson?.wind?.speed ?? 10),
               windDeg,
               windDir,
+              // Advanced metrics
+              uvi: 0, // Standard API doesn't provide UV
+              visibility: currentJson?.visibility ?? 10000,
+              pressure: currentJson?.main?.pressure ?? 1013,
+              sunrise: currentJson?.sys?.sunrise ?? 0,
+              sunset: currentJson?.sys?.sunset ?? 0,
             };
             const list3 = Array.isArray(forecastJson?.list) ? forecastJson.list : [];
             const daysMap: Record<string, { high: number; low: number; main: string }> = {};
@@ -326,6 +320,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             windSpeed: Math.round(j.current?.wind_speed ?? 10),
             windDeg,
             windDir,
+            // Advanced metrics
+            uvi: j.current?.uvi ?? 0,
+            visibility: j.current?.visibility ?? 10000,
+            pressure: j.current?.pressure ?? 1013,
+            sunrise: j.current?.sunrise ?? 0,
+            sunset: j.current?.sunset ?? 0,
           };
           const forecast = Array.isArray(j.daily) ? j.daily.slice(0, 7).map((d: any, i: number) => ({
             day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
@@ -342,6 +342,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('weather random cities error:', error);
       return res.status(500).json({ status: 'error', code: 500, message: 'server_error' });
+    }
+  });
+
+  app.get('/api/v1/weather/tiles/:layer/:z/:x/:y', async (req, res) => {
+    try {
+      const { layer, z, x, y } = req.params;
+      const key = process.env.OPENWEATHER_API_KEY;
+      if (!key) return res.status(503).send('API Key missing');
+
+      const url = `https://tile.openweathermap.org/map/${layer}/${z}/${x}/${y}.png?appid=${key}`;
+      const response = await fetch(url);
+
+      if (!response.ok) return res.status(response.status).send('Tile fetch failed');
+
+      const buffer = await response.arrayBuffer();
+      res.setHeader('Content-Type', 'image/png');
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      console.error('Tile proxy error:', error);
+      res.status(500).send('Proxy error');
     }
   });
 
@@ -579,6 +599,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Sign in error:", error);
       res.status(500).json({ message: "Sign in failed" });
+    }
+  });
+
+  // Profile Avatar Upload Route (Base64 Storage for Render Persistence)
+  app.post('/api/v1/auth/user/avatar', isJwtAuthenticated, upload.single('image'), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+      const userId = req.user.claims?.sub || req.user.id;
+      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+      const updatedUser = await storage.updateUser(userId, { profileImageUrl: base64Image });
+      if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+
+      res.json({
+        message: 'Avatar updated',
+        user: {
+          ...updatedUser,
+          password: undefined
+        }
+      });
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      res.status(500).json({ message: 'Failed to update avatar' });
+    }
+  });
+
+  // Update Profile Details Route
+  app.put('/api/v1/auth/user', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { firstName, lastName, phoneNumber } = req.body;
+
+      const updatedUser = await storage.updateUser(userId, {
+        firstName,
+        lastName,
+        phoneNumber
+      });
+
+      if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ message: 'Failed to update profile' });
+    }
+  });
+
+  // Get Current User Route
+  app.get('/api/v1/auth/user', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.sendStatus(401);
+      res.json(user);
+    } catch (e) {
+      res.sendStatus(500);
     }
   });
 
@@ -1117,7 +1193,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/v1/journal', isJwtAuthenticated, upload.array('photos', 5), async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
-      const photos = req.files ? req.files.map((file: any) => `/uploads/${file.filename}`) : [];
+      // Convert buffers to Base64 Data URIs
+      const photos = req.files ? req.files.map((file: any) =>
+        `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
+      ) : [];
       const entryData = insertJournalEntrySchema.parse({
         ...req.body,
         userId,
@@ -1137,9 +1216,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entryId = req.params.id;
 
       const updates = insertJournalEntrySchema.partial().parse(req.body);
-      const uploadedPhotos = req.files ? req.files.map((file: any) => `/uploads/${file.filename}`) : [];
+
+      // Convert new uploads to Base64
+      const uploadedPhotos = req.files ? req.files.map((file: any) =>
+        `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
+      ) : [];
+
       try {
-        fs.appendFileSync('server_debug.log', `DEBUG: Uploaded photos: ${JSON.stringify(uploadedPhotos)}\n`);
+        // Debug log size of uploads
+        const totalSize = uploadedPhotos.reduce((acc: number, p: string) => acc + p.length, 0);
+        fs.appendFileSync('server_debug.log', `DEBUG: Uploaded photo sizes: ${totalSize} bytes\n`);
       } catch (e) { console.error("Logging failed", e); }
 
       // Handle photos: New uploads + Kept existing photos

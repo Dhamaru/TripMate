@@ -149,7 +149,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link key={item.href} href={item.href}>
                   <div
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors",
+                      "flex flex-col items-center justify-center gap-1 flex-1 min-w-0 h-full transition-colors",
                       isActive ? "text-[#58a6ff]" : "text-gray-400"
                     )}
                   >
@@ -160,7 +160,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               );
             })}
             <Link href="/app/profile">
-              <div className="flex flex-col items-center justify-center gap-1 w-16 h-full">
+              <div className="flex flex-col items-center justify-center gap-1 flex-1 min-w-0 h-full">
                 <Avatar className="h-6 w-6 rounded-full overflow-hidden border border-gray-700">
                   <AvatarImage src={user?.profileImageUrl} />
                   <AvatarFallback className="bg-[#1f6feb] text-white text-xs">

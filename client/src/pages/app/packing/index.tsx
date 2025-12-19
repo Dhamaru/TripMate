@@ -30,7 +30,8 @@ import {
     FolderOpen,
     Loader2,
     ClipboardCopy,
-    ClipboardPaste
+    ClipboardPaste,
+    Lightbulb
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -418,6 +419,88 @@ export default function PackingChecklist() {
         window.print();
     };
 
+    const handleSmartSuggest = async () => {
+        let suggestedItems: PackingItem[] = [];
+
+        // 1. Always include Mandatory & Seasonal Defaults
+        const defaults = [
+            ...MANDATORY_ITEMS.map(i => ({ ...i, quantity: 1, packed: false, category: "Government / ID Documents", is_mandatory: true })),
+            ...SEASONAL_DEFAULTS[activeSeason].map(i => ({ ...i, quantity: 1, packed: false })),
+        ];
+        suggestedItems = [...defaults];
+
+        // 2. If Trip Selected, fetch weather-based suggestions
+        if (selectedTripId !== "none") {
+            const trip = userTrips?.find(t => String(t._id) === selectedTripId);
+            if (trip && trip.destination) {
+                try {
+                    toast({ title: "Analyzing Weather...", description: `Checking forecast for ${trip.destination}...` });
+                    const res = await apiRequest('GET', `/api/v1/weather?city=${encodeURIComponent(trip.destination)}`);
+                    const data = await res.json();
+
+                    const cond = String(data?.current?.condition || '').toLowerCase();
+                    const temp = Number(data?.current?.temperature ?? 22);
+
+                    const weatherAdditions: { name: string, category: string }[] = [];
+
+                    if (cond.includes('rain') || cond.includes('drizzle')) {
+                        weatherAdditions.push(
+                            { name: 'Umbrella', category: 'Weather Gear' },
+                            { name: 'Raincoat / Poncho', category: 'Weather Gear' },
+                            { name: 'Waterproof Shoes', category: 'Footwear' }
+                        );
+                    }
+                    if (temp < 15) {
+                        weatherAdditions.push(
+                            { name: 'Heavy Jacket', category: 'Clothing' },
+                            { name: 'Gloves', category: 'Accessories' },
+                            { name: 'Warm Beanie', category: 'Accessories' }
+                        );
+                    }
+                    if (temp > 28) {
+                        weatherAdditions.push(
+                            { name: 'Sunscreen (High SPF)', category: 'Toiletries' },
+                            { name: 'Sun Hat', category: 'Accessories' },
+                            { name: 'Aloe Vera Gel', category: 'Toiletries' }
+                        );
+                    }
+
+                    // Merchant/Transport specific? 
+                    // For now just weather.
+
+                    weatherAdditions.forEach(add => {
+                        suggestedItems.push({ ...add, quantity: 1, packed: false });
+                    });
+
+                } catch (e) {
+                    console.error("Weather fetch failed", e);
+                    toast({ title: "Weather Check Failed", description: "Could not fetch weather data, using standard seasonal list.", variant: "destructive" });
+                }
+            }
+        }
+
+        // Merge with existing logic: 
+        // We don't want to duplicate items that already exist by name.
+        const existingNames = new Set(items.map(i => i.name.toLowerCase()));
+        const newItems = [...items];
+        let addedCount = 0;
+
+        suggestedItems.forEach(s => {
+            if (!existingNames.has(s.name.toLowerCase())) {
+                newItems.push(s as PackingItem);
+                existingNames.add(s.name.toLowerCase());
+                addedCount++;
+            }
+        });
+
+        if (addedCount > 0) {
+            updateLocalItems(newItems);
+            toast({ title: "Suggestions Added", description: `Added ${addedCount} items based on ${activeSeason} ${selectedTripId !== 'none' ? '& Weather' : ''}.`, className: "bg-green-600 text-white border-none" });
+        } else {
+            toast({ title: "No New Suggestions", description: "Your list already contains all recommended items." });
+        }
+    };
+
     const handleDelete = (index: number) => {
         if (items[index].is_mandatory) {
             toast({ title: "Cannot Delete", description: "This is a mandatory government document.", variant: "destructive" });
@@ -544,6 +627,15 @@ export default function PackingChecklist() {
                     </div>
 
                     <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            title="Smart Suggest (AI)"
+                            onClick={handleSmartSuggest}
+                            className="border-blue-500/50 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                        >
+                            <Lightbulb className="w-4 h-4" />
+                        </Button>
                         <Button
                             variant="outline"
                             size="icon"

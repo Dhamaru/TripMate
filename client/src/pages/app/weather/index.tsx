@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TripMateLogo } from "@/components/TripMateLogo";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft } from "lucide-react";
 import { WeatherWidget } from "@/components/WeatherWidget";
 
 export default function WeatherPage() {
@@ -146,20 +144,21 @@ export default function WeatherPage() {
         const parsed = parseGeocodeResponse(j);
         if (parsed && !Number.isNaN(parsed.lat) && !Number.isNaN(parsed.lon)) {
           setCoords({ lat: parsed.lat, lon: parsed.lon });
-          setDisplayName(parsed.displayName ?? `${lat},${lon}`);
-          setLocation(parsed.displayName ?? `${lat},${lon}`);
-          setSearchLocation(parsed.displayName ?? "");
+          const name = parsed.displayName || "Current Location";
+          setDisplayName(name);
+          setLocation(name);
+          setSearchLocation(name);
         } else {
           setCoords({ lat, lon });
-          setDisplayName(`${lat},${lon}`);
-          setLocation(`${lat},${lon}`);
-          setSearchLocation("");
+          setDisplayName("Current Location");
+          setLocation("Current Location");
+          setSearchLocation(""); // Clear search to show placeholder or location
         }
       } catch {
         if (!mountedRef.current) return;
         setCoords({ lat, lon });
-        setDisplayName(`${lat},${lon}`);
-        setLocation(`${lat},${lon}`);
+        setDisplayName("Current Location");
+        setLocation("Current Location");
         setSearchLocation("");
       }
     } catch (err: any) {
@@ -288,6 +287,8 @@ export default function WeatherPage() {
 
           <WeatherWidget location={coords ? undefined : location} coords={coords} className="max-w-2xl mx-auto" />
         </motion.div>
+
+        {/* Radar Map Removed as per user request */}
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8">
           <div className="text-center">

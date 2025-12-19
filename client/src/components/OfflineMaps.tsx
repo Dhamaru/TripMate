@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,39 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [activeTab, setActiveTab] = useState<'explore' | 'navigation' | 'saved'>('explore');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
+  const [darkMode, setDarkMode] = useState(true);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const [offlineModeRegion, setOfflineModeRegion] = useState<MapRegion | null>(null);
+
+  function openOfflineMap(region: MapRegion) {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Simulate restricting map to this region
+    const bounds = L.latLngBounds(
+      [region.lat - 0.05, region.lng - 0.05],
+      [region.lat + 0.05, region.lng + 0.05]
+    );
+
+    map.setMaxBounds(bounds.pad(0.5)); // Allow a little padding buffer
+    map.fitBounds(bounds);
+    map.setMinZoom(11); // Don't allow zooming out too far
+
+    setOfflineModeRegion(region);
+    toast({ title: `Opened ${region.name}`, description: "You are now viewing the offline map area." });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function exitOfflineMap() {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    map.setMaxBounds([[-90, -180], [90, 180]]); // Clear restriction (World bounds)
+    map.setMinZoom(2);
+    map.setView([20, 0], 2);
+    setOfflineModeRegion(null);
+    toast({ title: "Exited Offline View", description: "Showing world map." });
+  }
 
   // Custom Pins State
   const [customPins, setCustomPins] = useState<CustomPin[]>(() => {
@@ -160,12 +194,20 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     });
 
     const map = L.map(mapContainerRef.current, { zoomControl: true }).setView([20, 0], 2);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png", {
+
+    const darkUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+    const lightUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
+
+    const layer = L.tileLayer(darkMode ? darkUrl : lightUrl, {
       attribution: '&copy; CARTO',
       maxZoom: 18,
     }).addTo(map);
 
+    tileLayerRef.current = layer;
+
     mapInstanceRef.current = map;
+
+
 
     // Map Click Listener for Custom Pins
     map.on('click', (e) => {
@@ -207,6 +249,18 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+
+  // Toggle Dark Mode
+  useEffect(() => {
+    if (tileLayerRef.current) {
+      tileLayerRef.current.setUrl(
+        darkMode
+          ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+          : "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png"
+      );
+    }
+  }, [darkMode]);
 
 
   // Live Navigation Logic
@@ -364,34 +418,59 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   }
 
   function downloadMap(regionId: string) {
+    if (intervalsRef.current[regionId]) return; // Prevent double clicks
+
     setMapRegions((prev) => prev.map((r) => (r.id === regionId ? { ...r, downloading: true, progress: 0 } : r)));
     toast({ title: "Download Started", description: "Downloading map for offline use..." });
-
-    if (intervalsRef.current[regionId]) { clearInterval(intervalsRef.current[regionId]); delete intervalsRef.current[regionId]; }
 
     const id = window.setInterval(() => {
       setMapRegions((prev) => {
         const idx = prev.findIndex((p) => p.id === regionId);
-        if (idx === -1) return prev;
-        const region = prev[idx];
-        const inc = Math.max(5, Math.random() * 18);
-        const nextProg = Math.min(100, region.progress + inc);
-        const updated = [...prev];
-        updated[idx] = { ...region, progress: nextProg, downloading: nextProg < 100, downloaded: nextProg >= 100 ? true : region.downloaded };
-        if (nextProg >= 100) {
-          setTimeout(() => toast({ title: "Download Complete", description: `${region.name} map is now available offline` }), 120);
+        if (idx === -1) {
+          // Region deleted while downloading
+          clearInterval(intervalsRef.current[regionId]);
+          delete intervalsRef.current[regionId];
+          return prev;
         }
+
+        const region = prev[idx];
+        // Simulate speed variation
+        const inc = Math.max(5, Math.random() * 15);
+        const nextProg = Math.min(100, region.progress + inc);
+
+        if (nextProg >= 100) {
+          clearInterval(intervalsRef.current[regionId]);
+          delete intervalsRef.current[regionId];
+
+          // Use setTimeout to avoid render-cycle conflict for toast, but ensure it only runs once per completion
+          setTimeout(() => {
+            toast({ title: "Download Complete", description: `${region.name} map is now available offline` });
+          }, 0);
+
+          const updated = [...prev];
+          updated[idx] = { ...region, progress: 100, downloading: false, downloaded: true };
+          return updated;
+        }
+
+        const updated = [...prev];
+        updated[idx] = { ...region, progress: nextProg, downloading: true };
         return updated;
       });
-    }, 600);
+    }, 500);
 
     intervalsRef.current[regionId] = id;
   }
 
   function deleteMap(regionId: string) {
-    setMapRegions((prev) => prev.map((region) => (region.id === regionId ? { ...region, downloaded: false, progress: 0 } : region)));
-    const region = mapRegions.find((r) => r.id === regionId);
-    toast({ title: "Map Deleted", description: `${region?.name} offline map has been removed` });
+    // Clear any active download interval
+    if (intervalsRef.current[regionId]) {
+      clearInterval(intervalsRef.current[regionId]);
+      delete intervalsRef.current[regionId];
+    }
+
+    // Remove from state (and thus from localStorage via useEffect)
+    setMapRegions((prev) => prev.filter((region) => region.id !== regionId));
+    toast({ title: "Map Deleted", description: "Offline map removed." });
   }
 
   // Stats
@@ -426,10 +505,32 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
       <Card className="bg-ios-card border-ios-gray" data-testid="offline-map-display">
         <CardHeader>
-          <CardTitle className="text-lg font-bold text-white flex justify-between">
-            <span>Interactive Map</span>
-            {isNavigating && <span className="text-green-400 text-sm animate-pulse">● Live Tracking</span>}
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg font-bold text-white flex gap-2 items-center">
+              {offlineModeRegion ? (
+                <>
+                  <span className="text-green-400">Offline View:</span> {offlineModeRegion.name}
+                  <Button variant="ghost" size="sm" onClick={exitOfflineMap} className="ml-3 h-7 w-7 p-0 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50 transition-colors flex items-center justify-center">
+                    <i className="fas fa-times text-xs"></i>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span>Interactive Map</span>
+                  {isNavigating && <span className="text-green-400 text-sm animate-pulse flex items-center gap-1"><i className="fas fa-circle text-[8px]"></i> Live</span>}
+                </>
+              )}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDarkMode(!darkMode)}
+              className="text-gray-400 hover:text-white"
+            >
+              {darkMode ? <i className="fas fa-sun mr-2"></i> : <i className="fas fa-moon mr-2"></i>}
+              {darkMode ? "Light Mode" : "Dark Mode"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="relative w-full h-[500px] rounded-xl overflow-hidden group">
@@ -557,22 +658,74 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         </Card>
       )}
 
-      {/* Region List (Persisted from original) */}
+      {/* Storage Dashboard */}
       <Card className="bg-ios-card border-ios-gray">
-        <CardHeader><CardTitle className="text-white">Downloaded Maps</CardTitle></CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {mapRegions.filter(r => r.downloaded).length === 0 && <div className="text-gray-500 text-sm">No maps downloaded yet.</div>}
-            {mapRegions.filter(r => r.downloaded).map(r => (
-              <div key={r.id} className="flex justify-between items-center bg-ios-darker p-3 rounded-lg text-white">
-                <span>{r.name}, {r.country}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-green-400">Ready</span>
-                  <Button size="sm" variant="destructive" onClick={() => deleteMap(r.id)}><i className="fas fa-trash"></i></Button>
-                </div>
-              </div>
-            ))}
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-white text-base">Storage Usage</CardTitle>
+            <span className="text-xs text-ios-gray">{totalSize} MB / 2 GB</span>
           </div>
+        </CardHeader>
+        <CardContent>
+          <Progress value={(totalSize / 2048) * 100} className="h-2 bg-gray-700 [&>div]:bg-blue-500" />
+          <p className="text-[10px] text-gray-400 mt-2 text-right">Offline maps auto-expire after 30 days of inactivity</p>
+        </CardContent>
+      </Card>
+
+      {/* Region Grid */}
+      <Card className="bg-ios-card border-ios-gray">
+        <CardHeader><CardTitle className="text-white">Saved Regions</CardTitle></CardHeader>
+        <CardContent>
+          {mapRegions.length === 0 ? (
+            <div className="text-gray-500 text-sm py-8 text-center border-2 border-dashed border-gray-700 rounded-lg">
+              <i className="fas fa-map-marked-alt text-4xl mb-3 opacity-50"></i>
+              <p>No saved regions yet.</p>
+              <p className="text-xs mt-1">Search for a city above to add it.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {mapRegions.map(r => (
+                <div key={r.id} className="bg-ios-darker rounded-xl overflow-hidden border border-gray-800 group relative">
+                  {/* Fake Map Preview Header */}
+                  <div className="h-24 bg-gradient-to-br from-gray-800 to-gray-900 relative">
+                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#9ca3af 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
+                    <div className="absolute bottom-2 left-3">
+                      <h3 className="font-bold text-lg text-white leading-tight">{r.name}</h3>
+                      <p className="text-xs text-gray-300">{r.country}</p>
+                    </div>
+                    {r.downloaded && <div className="absolute top-2 right-2 bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full border border-green-500/50">SAVED</div>}
+                  </div>
+
+                  <div className="p-3">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-xs text-gray-400 font-mono">{r.size}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-400/10" onClick={() => deleteMap(r.id)}>
+                        <i className="fas fa-trash text-xs"></i>
+                      </Button>
+                    </div>
+
+                    {r.downloaded ? (
+                      <Button size="sm" variant="secondary" onClick={() => openOfflineMap(r)} className="w-full bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/50 transition-all font-semibold shadow-sm hover:shadow-green-900/20">
+                        <i className="fas fa-map-marked-alt mr-2"></i> Open Map
+                      </Button>
+                    ) : r.downloading ? (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-blue-400">
+                          <span>Saving...</span>
+                          <span>{Math.round(r.progress)}%</span>
+                        </div>
+                        <Progress value={r.progress} className="h-1.5" />
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" className="w-full border-ios-blue text-ios-blue hover:bg-ios-blue hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
+                        <i className="fas fa-download mr-1"></i> Save Offline
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
