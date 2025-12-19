@@ -13,7 +13,7 @@ interface ItineraryManagerProps {
 }
 
 // Sortable Item Component
-function SortableActivity({ activity, index }: { activity: IItineraryActivity; index: number }) {
+function SortableActivity({ activity, index, onEdit }: { activity: IItineraryActivity; index: number; onEdit: () => void }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: activity.id });
 
     const style = {
@@ -29,7 +29,7 @@ function SortableActivity({ activity, index }: { activity: IItineraryActivity; i
             <div className="flex-1">
                 <div className="flex justify-between items-start">
                     <h4 className="font-medium text-white">{activity.title}</h4>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-ios-gray hover:text-white opacity-0 group-hover:opacity-100">
+                    <Button onClick={onEdit} variant="ghost" size="icon" className="h-6 w-6 text-ios-gray hover:text-white opacity-0 group-hover:opacity-100">
                         <Edit2 className="w-3 h-3" />
                     </Button>
                 </div>
@@ -53,7 +53,11 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
     // DnD Sensors
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -74,6 +78,16 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
             setItinerary(newItinerary);
             // Construct a new plan where we immediately sync to server or offer a save button
+        }
+    };
+
+    const handleEditActivity = (dayIndex: number, actIndex: number) => {
+        const activity = itinerary[dayIndex].activities[actIndex];
+        const newTitle = prompt("Edit activity:", activity.title); // Simple prompt for now
+        if (newTitle && newTitle !== activity.title) {
+            const newItinerary = [...itinerary];
+            newItinerary[dayIndex].activities[actIndex] = { ...activity, title: newTitle };
+            setItinerary(newItinerary);
         }
     };
 
@@ -107,7 +121,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                             <SortableContext items={day.activities.map(a => a.id)} strategy={verticalListSortingStrategy}>
                                 {day.activities.map((activity, actIdx) => (
                                     // Ensure ID exists, if not use index (fallback, though schema should enforce ID)
-                                    <SortableActivity key={activity.id || `temp-${actIdx}`} activity={activity} index={actIdx} />
+                                    <SortableActivity key={activity.id || `temp-${actIdx}`} activity={activity} index={actIdx} onEdit={() => handleEditActivity(dayIdx, actIdx)} />
                                 ))}
                             </SortableContext>
                         </DndContext>

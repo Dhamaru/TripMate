@@ -1249,6 +1249,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate/Fetch Trip Hero Image
+  app.post('/api/v1/trips/:id/image', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      if (trip.imageUrl) return res.json({ imageUrl: trip.imageUrl });
+
+      // Fetch from Google Places
+      const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!key) return res.status(503).json({ message: "Image service unavailable" });
+
+      const q = `${trip.destination} tourism scenery`;
+      const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
+      const searchData = await searchRes.json();
+
+      let imageUrl = null;
+      if (searchData.results && searchData.results.length > 0) {
+        const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
+        if (photoRef) {
+          imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
+        }
+      }
+
+      if (imageUrl) {
+        await storage.updateTrip(tripId, userId, { imageUrl } as any);
+        return res.json({ imageUrl });
+      }
+
+      res.status(404).json({ message: "No image found" });
+    } catch (error) {
+      console.error("Error fetching trip image:", error);
+      res.status(500).json({ message: "Failed to fetch image" });
+    }
+  });
+
   app.delete('/api/v1/trips/:id', async (req: any, res) => {
     try {
       const tripId = req.params.id;
