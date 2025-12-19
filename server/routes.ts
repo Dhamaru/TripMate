@@ -1257,13 +1257,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trip = await storage.getTrip(tripId, userId);
       if (!trip) return res.status(404).json({ message: "Trip not found" });
 
-      if (trip.imageUrl) return res.json({ imageUrl: trip.imageUrl });
+      if (trip.imageUrl && req.query.force !== 'true') return res.json({ imageUrl: trip.imageUrl });
 
       // Fetch from Google Places
       const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
       if (!key) return res.status(503).json({ message: "Image service unavailable" });
 
-      const q = `${trip.destination} tourism scenery`;
+      const q = trip.destination; // Changed from 'tourism scenery' to just destination for better matches
       const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
       const searchData = await searchRes.json();
 

@@ -53,11 +53,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
     // DnD Sensors
     const sensors = useSensors(
-        useSensor(MouseSensor, {
-            activationConstraint: {
-                distance: 10,
-            },
-        }),
+        useSensor(MouseSensor), // Instant drag for mouse
         useSensor(TouchSensor, {
             activationConstraint: {
                 delay: 2000,
