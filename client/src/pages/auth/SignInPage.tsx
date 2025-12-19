@@ -288,6 +288,19 @@ export default function SignInPage() {
                     {providers?.google ? "Sign in with Google" : "Google not available"}
                   </motion.button>
                 </div>
+
+                <div className="mt-4">
+                  <motion.button
+                    onClick={handleGuestLogin}
+                    className="w-full bg-ios-dark border border-ios-gray text-white rounded-md px-4 py-2 hover:bg-ios-card smooth-transition interactive-tap flex items-center justify-center font-medium"
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={isLoading}
+                  >
+                    Continue as Guest
+                  </motion.button>
+                </div>
               </motion.div>
 
               <motion.div className="mt-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} viewport={{ once: true }}>
@@ -305,6 +318,6 @@ export default function SignInPage() {
           </Card>
         </motion.div>
       </motion.div>
-    </div>
+    </div >
   );
 }
