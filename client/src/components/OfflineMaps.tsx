@@ -56,13 +56,7 @@ interface OfflineMapsProps {
 const STORAGE_KEY = "tripmate_offlinemaps_v1";
 const PINS_STORAGE_KEY = "tripmate_custom_pins_v1";
 
-const DEFAULT_REGIONS: MapRegion[] = [
-  { id: "1", name: "Paris", country: "France", size: "45 MB", downloaded: true, downloading: false, progress: 100, lat: 48.8566, lng: 2.3522, zoom: 12 },
-  { id: "2", name: "Tokyo", country: "Japan", size: "62 MB", downloaded: false, downloading: false, progress: 0, lat: 35.6762, lng: 139.6503, zoom: 12 },
-  { id: "3", name: "New York City", country: "United States", size: "38 MB", downloaded: false, downloading: false, progress: 0, lat: 40.7128, lng: -74.0060, zoom: 12 },
-  { id: "5", name: "Mumbai", country: "India", size: "52 MB", downloaded: false, downloading: false, progress: 0, lat: 19.0760, lng: 72.8777, zoom: 12 },
-  { id: "15", name: "Delhi", country: "India", size: "56 MB", downloaded: false, downloading: false, progress: 0, lat: 28.7041, lng: 77.1025, zoom: 12 },
-];
+const DEFAULT_REGIONS: MapRegion[] = [];
 
 export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [activeTab, setActiveTab] = useState<'explore' | 'navigation' | 'saved'>('explore');
@@ -237,6 +231,23 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
     if (downloadedRegion) {
       map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
+    } else {
+      // Auto-Locate if no regions
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+            // Add "You are here" marker
+            if (userMarkerRef.current) userMarkerRef.current.remove();
+            userMarkerRef.current = L.marker([pos.coords.latitude, pos.coords.longitude])
+              .addTo(map)
+              .bindPopup("You are here")
+              .openPopup();
+          },
+          (err) => console.error("Auto-locate failed", err),
+          { enableHighAccuracy: true }
+        );
+      }
     }
 
     refreshPinMarkers();
@@ -668,7 +679,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     </div>
                     <div className="flex gap-2 items-center">
                       <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); viewPlaceOnMap(p); }}>View</Button>
-                      <Button size="sm" variant="default" onClick={(e) => { e.stopPropagation(); addPlaceAsRegion(p); }}>Add</Button>
+                      <Button size="sm" variant="default" onClick={(e) => { e.stopPropagation(); addPlaceAsRegion(p); }}>Save</Button>
                     </div>
                   </div>
                 ))}
@@ -738,7 +749,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       </div>
                     ) : (
                       <Button size="sm" variant="outline" className="w-full border-ios-blue text-ios-blue hover:bg-ios-blue hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
-                        <i className="fas fa-download mr-1"></i> Save Offline
+                        <i className="fas fa-download mr-1"></i> Download
                       </Button>
                     )}
                   </div>
