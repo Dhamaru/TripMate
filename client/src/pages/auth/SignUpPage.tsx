@@ -69,10 +69,6 @@ export default function SignUpPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Join TripMate</h1>
-        <p className="text-ios-gray">Create your account to start planning amazing trips</p>
-      </div>
       <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
         <Card className="bg-ios-card border-ios-gray">
           <CardHeader>

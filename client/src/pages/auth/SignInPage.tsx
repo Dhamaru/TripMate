@@ -143,20 +143,16 @@ export default function SignInPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-          <p className="text-ios-gray">Sign in to TripMate to continue your journey</p>
-        </div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
           viewport={{ once: true, margin: "-50px" }}
         >
           <Card className="bg-ios-card border-ios-gray">
             <CardHeader>
               <CardTitle className="text-white">Sign In</CardTitle>
-              <CardDescription>Enter your credentials to access your account</CardDescription>
+              <CardDescription>Enter credentials to access your account</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
