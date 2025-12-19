@@ -9,9 +9,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 
 export default function Landing() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -24,6 +24,8 @@ export default function Landing() {
     groupSize: ''
   });
 
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   // Redirect authenticated users to home
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -31,7 +33,13 @@ export default function Landing() {
     }
   }, [isAuthenticated, isLoading, navigate]);
 
+  const navLinks = [
+    { name: 'Features', href: '#features' },
+    { name: 'Support', href: '#support' }
+  ];
+
   const features = [
+    // ... (rest of features stays same)
     {
       icon: Route,
       title: 'Smart Trip Planner',
@@ -85,12 +93,15 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16">
             <TripMateLogo size="md" />
             <div className="hidden md:flex items-center space-x-4">
-              <a href="#features" className="text-ios-gray hover:text-white px-3 py-2 rounded-lg text-sm font-medium smooth-transition interactive-tap min-tap-target">
-                Features
-              </a>
-              <a href="#support" className="text-ios-gray hover:text-white px-3 py-2 rounded-lg text-sm font-medium smooth-transition interactive-tap min-tap-target">
-                Support
-              </a>
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  className="text-ios-gray hover:text-white px-3 py-2 rounded-lg text-sm font-medium smooth-transition interactive-tap min-tap-target"
+                >
+                  {link.name}
+                </a>
+              ))}
               <Button
                 onClick={() => window.location.href = '/signin'}
                 className="bg-ios-blue hover:bg-blue-600"
@@ -100,12 +111,52 @@ export default function Landing() {
               </Button>
             </div>
             <div className="md:hidden">
-              <button className="text-ios-gray hover:text-white smooth-transition interactive-tap min-tap-target">
-                <Menu className="w-6 h-6" />
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="text-ios-gray hover:text-white smooth-transition interactive-tap min-tap-target p-2 focus:outline-none"
+              >
+                {isMenuOpen ? (
+                  <i className="fas fa-times w-6 h-6 flex items-center justify-center"></i>
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden bg-ios-dark border-b border-ios-card overflow-hidden"
+            >
+              <div className="px-4 py-6 space-y-4">
+                {navLinks.map((link) => (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block text-lg font-medium text-ios-gray hover:text-white smooth-transition"
+                  >
+                    {link.name}
+                  </a>
+                ))}
+                <div className="pt-4">
+                  <Button
+                    onClick={() => window.location.href = '/signin'}
+                    className="w-full bg-ios-blue hover:bg-blue-600"
+                  >
+                    Sign In
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* Hero Section */}
