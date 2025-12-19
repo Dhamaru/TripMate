@@ -447,7 +447,7 @@ export default function TripDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-ios-darker text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Navigation Header */}
 
 
@@ -645,15 +645,15 @@ export default function TripDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-ios-darker radius-md">
+                <div className="text-center p-4 bg-secondary/50 radius-md">
                   <i className="fas fa-calendar text-ios-blue text-xl mb-2"></i>
-                  <p className="text-sm text-ios-gray">Duration</p>
-                  <p className="font-bold text-white">{trip.days} days</p>
+                  <p className="text-sm text-muted-foreground">Duration</p>
+                  <p className="font-bold text-foreground">{trip.days} days</p>
                 </div>
-                <div className="text-center p-4 bg-ios-darker radius-md">
+                <div className="text-center p-4 bg-secondary/50 radius-md">
                   <i className="fas fa-rupee-sign text-ios-green text-xl mb-2"></i>
-                  <p className="text-sm text-ios-gray">Budget</p>
-                  <p className="font-bold text-white">
+                  <p className="text-sm text-muted-foreground">Budget</p>
+                  <p className="font-bold text-foreground">
                     {(() => {
                       const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
                       const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
@@ -661,21 +661,21 @@ export default function TripDetail() {
                     })()}
                   </p>
                 </div>
-                <div className="text-center p-4 bg-ios-darker radius-md">
+                <div className="text-center p-4 bg-secondary/50 radius-md">
                   <i className="fas fa-users text-ios-orange text-xl mb-2"></i>
-                  <p className="text-sm text-ios-gray">Group</p>
-                  <p className="font-bold text-white capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
+                  <p className="text-sm text-muted-foreground">Group</p>
+                  <p className="font-bold text-foreground capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
                 </div>
-                <div className="text-center p-4 bg-ios-darker radius-md">
+                <div className="text-center p-4 bg-secondary/50 radius-md">
                   {selectedStyle && <selectedStyle.icon className={`${selectedStyle.color} w-6 h-6 mb-2 mx-auto`} />}
-                  <p className="text-sm text-ios-gray">Style</p>
-                  <p className="font-bold text-white capitalize">{trip.travelStyle.replace('-', ' ')}</p>
+                  <p className="text-sm text-muted-foreground">Style</p>
+                  <p className="font-bold text-foreground capitalize">{trip.travelStyle.replace('-', ' ')}</p>
                 </div>
                 {trip.transportMode && (
-                  <div className="text-center p-4 bg-ios-darker radius-md">
+                  <div className="text-center p-4 bg-secondary/50 radius-md">
                     <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-ios-blue text-xl mb-2`}></i>
-                    <p className="text-sm text-ios-gray">Transport</p>
-                    <p className="font-bold text-white capitalize">{trip.transportMode}</p>
+                    <p className="text-sm text-muted-foreground">Transport</p>
+                    <p className="font-bold text-foreground capitalize">{trip.transportMode}</p>
                   </div>
                 )}
               </div>
@@ -712,14 +712,14 @@ export default function TripDetail() {
                     else if (key.includes('misc')) { iconClass = 'fa-shopping-bag'; colorClass = 'text-ios-gray'; }
 
                     return (
-                      <div key={key} className="bg-ios-darker p-3 rounded-lg border border-ios-gray/30 flex flex-col justify-between">
+                      <div key={key} className="bg-secondary/50 p-3 rounded-lg border border-border/50 flex flex-col justify-between">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className={`w-8 h-8 rounded-full bg-ios-card flex items-center justify-center ${colorClass}`}>
+                          <div className={`w-8 h-8 rounded-full bg-background flex items-center justify-center ${colorClass}`}>
                             <i className={`fas ${iconClass} text-sm`}></i>
                           </div>
-                          <p className="text-xs text-ios-gray capitalize">{label}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{label}</p>
                         </div>
-                        <p className="text-white font-semibold text-lg">{symbol}{Number(value).toLocaleString()}</p>
+                        <p className="text-foreground font-semibold text-lg">{symbol}{Number(value).toLocaleString()}</p>
                       </div>
                     );
                   })}
@@ -780,7 +780,7 @@ export default function TripDetail() {
                               <i className="fas fa-map-marker-alt text-white text-xs"></i>
                             </div>
 
-                            <div className="bg-ios-darker rounded-lg p-4 border border-ios-gray hover:border-ios-blue transition-colors">
+                            <div className="bg-secondary/50 rounded-lg p-4 border border-border hover:border-ios-blue transition-colors">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
