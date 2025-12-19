@@ -473,12 +473,12 @@ export default function TripDetail() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24">
         {/* Trip Header */}
         <div className="mb-4">
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2" data-testid="trip-title">
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2" data-testid="trip-title">
                 {trip.destination}
               </h1>
-              <div className="flex items-center space-x-4 text-ios-gray">
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm md:text-base text-ios-gray">
                 <span>{trip.days} {Number(trip.days) === 1 ? 'day' : 'days'}</span>
                 <span>•</span>
                 <span>₹{trip.budget} budget</span>
@@ -489,7 +489,7 @@ export default function TripDetail() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2 self-start">
               <Badge className={`${statusColors[trip.status as keyof typeof statusColors] || 'bg-ios-gray'} text-white`}>
                 {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
               </Badge>
@@ -498,20 +498,22 @@ export default function TripDetail() {
                   <Button
                     onClick={() => setIsEditing(true)}
                     variant="outline"
+                    size="sm"
                     className="bg-ios-darker border-border text-white hover:bg-card smooth-transition interactive-tap radius-md"
                     data-testid="button-edit-trip"
                   >
-                    <i className="fas fa-edit mr-2"></i>
-                    Edit
+                    <i className="fas fa-edit md:mr-2"></i>
+                    <span className="hidden md:inline">Edit</span>
                   </Button>
                   <Button
                     onClick={handleDelete}
                     variant="outline"
+                    size="sm"
                     className="bg-ios-darker border-ios-red text-ios-red hover:bg-ios-red hover:text-white smooth-transition interactive-tap radius-md"
                     data-testid="button-delete-trip"
                   >
-                    <i className="fas fa-trash mr-2"></i>
-                    Delete
+                    <i className="fas fa-trash md:mr-2"></i>
+                    <span className="hidden md:inline">Delete</span>
                   </Button>
                 </div>
               )}
@@ -519,7 +521,7 @@ export default function TripDetail() {
           </div>
 
           {/* Hero Image */}
-          <div className="relative radius-md overflow-hidden h-64 bg-secondary flex items-center justify-center group">
+          <div className="relative radius-md overflow-hidden h-48 md:h-64 bg-secondary flex items-center justify-center group">
             {trip.imageUrl ? (
               <>
                 <img
@@ -535,10 +537,10 @@ export default function TripDetail() {
 
             <div className="relative text-center text-white z-10 px-4">
               {selectedStyle && (
-                <selectedStyle.icon className={`${selectedStyle.color} w-16 h-16 mb-4 opacity-80 mx-auto drop-shadow-lg`} />
+                <selectedStyle.icon className={`${selectedStyle.color} w-12 h-12 md:w-16 md:h-16 mb-2 md:mb-4 opacity-80 mx-auto drop-shadow-lg`} />
               )}
-              <h2 className="text-4xl font-bold mb-2 shadow-text">{trip.destination}</h2>
-              <p className="text-xl font-medium opacity-90 capitalize shadow-text flex items-center justify-center gap-2">
+              <h2 className="text-3xl md:text-4xl font-bold mb-2 shadow-text">{trip.destination}</h2>
+              <p className="text-lg md:text-xl font-medium opacity-90 capitalize shadow-text flex items-center justify-center gap-2">
                 {trip.travelStyle.replace('-', ' ')} Adventure
               </p>
             </div>
