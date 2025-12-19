@@ -121,7 +121,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/app/profile">
             <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
               <div className="hidden md:flex flex-col items-end">
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold text-white flex items-center gap-2">
+                  {user?.isGuest && <span className="bg-yellow-500/20 text-yellow-500 text-[10px] px-2 py-0.5 rounded-full border border-yellow-500/50">GUEST</span>}
                   {user?.firstName} {user?.lastName}
                 </span>
               </div>

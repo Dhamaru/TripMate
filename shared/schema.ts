@@ -21,6 +21,7 @@ export interface IUser extends Document {
   phoneNumber?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  isGuest?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +37,7 @@ const userSchema = new Schema<IUser>(
     phoneNumber: { type: String },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
+    isGuest: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -59,6 +61,7 @@ export const insertUserSchema = z.object({
   phoneNumber: z.string().trim().optional(),
   resetPasswordToken: z.string().optional(),
   resetPasswordExpires: z.coerce.date().optional(),
+  isGuest: z.boolean().optional(),
 });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = IUser;

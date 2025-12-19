@@ -53,8 +53,8 @@ interface OfflineMapsProps {
   className?: string;
 }
 
-const STORAGE_KEY = "tripmate_offlinemaps_v1";
-const PINS_STORAGE_KEY = "tripmate_custom_pins_v1";
+const STORAGE_KEY = "tripmate_offlinemaps_v2";
+const PINS_STORAGE_KEY = "tripmate_custom_pins_v2"; // Sync versioning
 
 const DEFAULT_REGIONS: MapRegion[] = [];
 
@@ -227,26 +227,34 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     }) as EventListener);
 
 
-    // Initial state
-    const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
-    if (downloadedRegion) {
-      map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
+    // Initial state: Prioritize Geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          // Success: Center on User
+          map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+
+          if (userMarkerRef.current) userMarkerRef.current.remove();
+          userMarkerRef.current = L.marker([pos.coords.latitude, pos.coords.longitude])
+            .addTo(map)
+            .bindPopup("You are here")
+            .openPopup();
+        },
+        (err) => {
+          console.error("Auto-locate failed, falling back to downloaded regions", err);
+          // Fallback: Use downloaded region if available
+          const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
+          if (downloadedRegion) {
+            map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
     } else {
-      // Auto-Locate if no regions
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            map.setView([pos.coords.latitude, pos.coords.longitude], 13);
-            // Add "You are here" marker
-            if (userMarkerRef.current) userMarkerRef.current.remove();
-            userMarkerRef.current = L.marker([pos.coords.latitude, pos.coords.longitude])
-              .addTo(map)
-              .bindPopup("You are here")
-              .openPopup();
-          },
-          (err) => console.error("Auto-locate failed", err),
-          { enableHighAccuracy: true }
-        );
+      // No Geo support: specific fallback
+      const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
+      if (downloadedRegion) {
+        map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
       }
     }
 
