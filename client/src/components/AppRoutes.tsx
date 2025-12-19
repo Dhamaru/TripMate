@@ -15,6 +15,11 @@ import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import SignInPage from "@/pages/auth/SignInPage";
 import SignUpPage from "@/pages/auth/SignUpPage";
 
+import HelpCenter from "@/pages/support/HelpCenter";
+import PrivacyPolicy from "@/pages/support/PrivacyPolicy";
+import TermsOfService from "@/pages/support/TermsOfService";
+import ContactUs from "@/pages/support/ContactUs";
+
 import Home from "@/pages/Home";
 import Features from "@/pages/Features";
 import TripPlanner from "@/pages/TripPlanner";
@@ -91,6 +96,28 @@ function Router() {
           <AuthLayout>
             <ResetPasswordPage />
           </AuthLayout>
+        </PublicRoute>
+      </Route>
+
+      {/* Support Routes */}
+      <Route path="/help">
+        <PublicRoute>
+          <HelpCenter />
+        </PublicRoute>
+      </Route>
+      <Route path="/privacy">
+        <PublicRoute>
+          <PrivacyPolicy />
+        </PublicRoute>
+      </Route>
+      <Route path="/terms">
+        <PublicRoute>
+          <TermsOfService />
+        </PublicRoute>
+      </Route>
+      <Route path="/contact">
+        <PublicRoute>
+          <ContactUs />
         </PublicRoute>
       </Route>
 
