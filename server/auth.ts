@@ -134,54 +134,9 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: any, cb) => cb(null, user));
   passport.deserializeUser((user: any, cb) => cb(null, user));
 
-  if (process.env.GOOGLE_CLIENT_ID) {
-    app.get("/api/v1/auth/google", passport.authenticate('google', { scope: ['profile', 'email'] }));
-    app.get("/api/v1/auth/google/callback", passport.authenticate('google', { session: false }), (req: any, res) => {
-      const token = jwt.sign(
-        {
-          sub: req.user.id,
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName,
-          profileImageUrl: req.user.profileImageUrl,
-        },
-        process.env.JWT_SECRET || "your-jwt-secret-key",
-        { expiresIn: '7d' }
-      );
-      res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?token=${token}`);
-    });
-  } else {
-    app.get("/api/v1/auth/google", (_req, res) => {
-      res.status(500).json({ message: "Google OAuth not configured" });
-    });
-    app.get("/api/v1/auth/google/callback", (_req, res) => {
-      res.status(500).json({ message: "Google OAuth not configured" });
-    });
-  }
-
-  app.get("/api/v1/auth/providers", (_req, res) => {
-    const google = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-    const apple = Boolean(process.env.APPLE_CLIENT_ID);
-    res.json({ google, apple });
-  });
-
-  if (process.env.APPLE_CLIENT_ID) {
-    app.get("/api/v1/auth/apple", passport.authenticate('apple'));
-    app.post("/api/auth/apple/callback", passport.authenticate('apple', { session: false }), (req: any, res) => {
-      const token = jwt.sign(
-        {
-          sub: req.user.id,
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName,
-          profileImageUrl: req.user.profileImageUrl,
-        },
-        process.env.JWT_SECRET || "your-jwt-secret-key",
-        { expiresIn: '7d' }
-      );
-      res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?token=${token}`);
-    });
-  }
+  // OAuth routes have been moved to server/routes.ts 
+  // to ensure consistent session creation (Access+Refresh Tokens)
+  // using the shared session store logic.
 
   // Routes for forgot/reset password have been moved to server/routes.ts
   // to share access to memoryUsers/storage logic correctly.

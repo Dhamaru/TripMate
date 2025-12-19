@@ -418,6 +418,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // OAuth Routes - Moved from auth.ts to share session logic
+  app.get("/api/v1/auth/providers", (_req, res) => {
+    const google = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+    const apple = Boolean(process.env.APPLE_CLIENT_ID);
+    res.json({ google, apple });
+  });
+
+  if (process.env.GOOGLE_CLIENT_ID) {
+    app.get("/api/v1/auth/google", passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+    app.get("/api/v1/auth/google/callback", passport.authenticate('google', { session: false }), async (req: any, res) => {
+      try {
+        const user = req.user;
+        if (!user) return res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?error=auth_failed`);
+
+        // Create Session (Persistent for OAuth)
+        const accessToken = generateAccessToken(user);
+        const refreshToken = createRefreshToken();
+        const tokenHash = hashToken(refreshToken);
+        // OAuth logins are assumed to be "Remember Me" (Long TTL)
+        const ttlMs = REFRESH_TTL_LONG_DAYS * 24 * 60 * 60 * 1000;
+        const expiresAt = Date.now() + ttlMs;
+        const sessionId = nanoid();
+        const device = 'web'; // Default for OAuth callback
+        const ipAddr = String((req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '')).split(',')[0];
+        const userAgent = String(req.headers['user-agent'] || '');
+
+        if (useMemoryStore) {
+          const arr = memorySessions.get(user.id) || [];
+          arr.push({ sessionId, tokenHash, device, ip: ipAddr, userAgent, expiresAt, revoked: false });
+          memorySessions.set(user.id, arr);
+        } else {
+          await SessionModel.create({ userId: user.id, sessionId, tokenHash, device, ip: ipAddr, userAgent, expiresAt: new Date(expiresAt), revoked: false });
+        }
+
+        setRefreshCookie(res, refreshToken, ttlMs);
+
+        // Redirect with Access Token
+        res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?token=${accessToken}`);
+      } catch (error) {
+        console.error("Google OAuth callback error:", error);
+        res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?error=server_error`);
+      }
+    });
+  } else {
+    app.get("/api/v1/auth/google", (_req, res) => {
+      res.status(500).json({ message: "Google OAuth not configured" });
+    });
+    app.get("/api/v1/auth/google/callback", (_req, res) => {
+      res.status(500).json({ message: "Google OAuth not configured" });
+    });
+  }
+
+  if (process.env.APPLE_CLIENT_ID) {
+    app.get("/api/v1/auth/apple", passport.authenticate('apple'));
+    app.post("/api/auth/apple/callback", passport.authenticate('apple', { session: false }), async (req: any, res) => {
+      try {
+        const user = req.user;
+        if (!user) return res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?error=auth_failed`);
+
+        // Create Session (Persistent for OAuth)
+        const accessToken = generateAccessToken(user);
+        const refreshToken = createRefreshToken();
+        const tokenHash = hashToken(refreshToken);
+        const ttlMs = REFRESH_TTL_LONG_DAYS * 24 * 60 * 60 * 1000;
+        const expiresAt = Date.now() + ttlMs;
+        const sessionId = nanoid();
+        const device = 'web';
+        const ipAddr = String((req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '')).split(',')[0];
+        const userAgent = String(req.headers['user-agent'] || '');
+
+        if (useMemoryStore) {
+          const arr = memorySessions.get(user.id) || [];
+          arr.push({ sessionId, tokenHash, device, ip: ipAddr, userAgent, expiresAt, revoked: false });
+          memorySessions.set(user.id, arr);
+        } else {
+          await SessionModel.create({ userId: user.id, sessionId, tokenHash, device, ip: ipAddr, userAgent, expiresAt: new Date(expiresAt), revoked: false });
+        }
+
+        setRefreshCookie(res, refreshToken, ttlMs);
+
+        res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?token=${accessToken}`);
+      } catch (error) {
+        console.error("Apple OAuth callback error:", error);
+        res.redirect(`${process.env.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/signin?error=server_error`);
+      }
+    });
+  }
+
   // Auth routes - JWT only
   app.post('/api/v1/auth/signin', async (req, res) => {
     try {

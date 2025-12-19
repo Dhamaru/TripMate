@@ -136,39 +136,41 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 bg-background">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 bg-background">
           {children}
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-background/90 backdrop-blur-lg border-t border-gray-800 px-4 flex items-center justify-around z-50">
-          {NAV_ITEMS.map((item) => {
-            const isActive = location === item.href || location.startsWith(item.href);
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors",
-                    isActive ? "text-[#58a6ff]" : "text-gray-400"
-                  )}
-                >
-                  <item.icon className={cn("h-5 w-5", isActive && "fill-current")} />
-                  <span className="text-[10px] font-medium">{item.label}</span>
-                </div>
-              </Link>
-            );
-          })}
-          <Link href="/app/profile">
-            <div className="flex flex-col items-center justify-center gap-1 w-16 h-full">
-              <Avatar className="h-6 w-6 rounded-full overflow-hidden border border-gray-700">
-                <AvatarImage src={user?.profileImageUrl} />
-                <AvatarFallback className="bg-[#1f6feb] text-white text-xs">
-                  {user?.firstName?.[0] || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-[10px] font-medium text-gray-400">Profile</span>
-            </div>
-          </Link>
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-t border-gray-800 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex items-center justify-around h-16 px-4">
+            {NAV_ITEMS.map((item) => {
+              const isActive = location === item.href || location.startsWith(item.href);
+              return (
+                <Link key={item.href} href={item.href}>
+                  <div
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors",
+                      isActive ? "text-[#58a6ff]" : "text-gray-400"
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5", isActive && "fill-current")} />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+            <Link href="/app/profile">
+              <div className="flex flex-col items-center justify-center gap-1 w-16 h-full">
+                <Avatar className="h-6 w-6 rounded-full overflow-hidden border border-gray-700">
+                  <AvatarImage src={user?.profileImageUrl} />
+                  <AvatarFallback className="bg-[#1f6feb] text-white text-xs">
+                    {user?.firstName?.[0] || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-[10px] font-medium text-gray-400">Profile</span>
+              </div>
+            </Link>
+          </div>
         </nav>
       </div>
     </div>

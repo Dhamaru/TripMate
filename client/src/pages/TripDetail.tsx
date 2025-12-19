@@ -461,11 +461,14 @@ export default function TripDetail() {
                 {trip.destination}
               </h1>
               <div className="flex items-center space-x-4 text-ios-gray">
-                <span>{trip.days} days</span>
+                <span>{trip.days} {Number(trip.days) === 1 ? 'day' : 'days'}</span>
                 <span>•</span>
                 <span>₹{trip.budget} budget</span>
                 <span>•</span>
-                <span className="capitalize">{String(trip.groupSize).replace('-', ' ')}</span>
+                <span className="capitalize">
+                  {String(trip.groupSize).replace('-', ' ')}
+                  {/^\d+$/.test(String(trip.groupSize)) ? (Number(trip.groupSize) === 1 ? ' traveler' : ' travelers') : ''}
+                </span>
               </div>
             </div>
             <div className="flex items-center space-x-2">
