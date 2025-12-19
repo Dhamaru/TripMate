@@ -126,7 +126,7 @@ export default function SignInPage() {
         transition={{ duration: 0.6, delay: 0.2 }}
       >
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">TripMate</h1>
           <p className="text-ios-gray">Sign in to continue your journey</p>
         </div>
         <motion.div
