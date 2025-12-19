@@ -559,7 +559,9 @@ export default function TripDetail() {
               )}
               <h2 className="text-3xl md:text-4xl font-bold mb-2 shadow-text">{trip.destination}</h2>
               <p className="text-lg md:text-xl font-medium opacity-90 capitalize shadow-text flex items-center justify-center gap-2">
-                {trip.travelStyle.replace('-', ' ')} Adventure
+                {trip.travelStyle.toLowerCase().includes('adventure')
+                  ? trip.travelStyle.replace('-', ' ')
+                  : `${trip.travelStyle.replace('-', ' ')} Adventure`}
               </p>
             </div>
           </div>
