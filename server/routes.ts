@@ -62,6 +62,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     resetPasswordExpires?: Date;
   }>();
 
+  // Serve uploads directory
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
   // ... (keeping existing variables)
 
   // Debug: Email Verify Route
@@ -845,7 +848,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/v1/trips', isJwtAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
-      const trips = await storage.getUserTrips(userId);
+      const light = req.query.light === 'true';
+      const trips = await storage.getUserTrips(userId, { excludeHeavyFields: light });
       res.json(trips);
     } catch (error) {
       console.error("Error fetching trips:", error);
@@ -1038,11 +1042,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/v1/journal/:id', isJwtAuthenticated, async (req: any, res) => {
+  app.put('/api/v1/journal/:id', isJwtAuthenticated, upload.array('photos', 5), async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const entryId = req.params.id;
+
       const updates = insertJournalEntrySchema.partial().parse(req.body);
+      const uploadedPhotos = req.files ? req.files.map((file: any) => `/uploads/${file.filename}`) : [];
+      try {
+        fs.appendFileSync('server_debug.log', `DEBUG: Uploaded photos: ${JSON.stringify(uploadedPhotos)}\n`);
+      } catch (e) { console.error("Logging failed", e); }
+
+      // Handle photos: New uploads + Kept existing photos
+      // Client sends 'existingPhotos' as a JSON string of URL array
+      let keptPhotos: string[] = [];
+      if (req.body.existingPhotos) {
+        try {
+          const parsed = JSON.parse(req.body.existingPhotos);
+          if (Array.isArray(parsed)) keptPhotos = parsed;
+        } catch (e) {
+          // Maybe sent as plain strings if using simple append? Let's treat as single if logic fails or just array if repeated keys (but multer specific invalidation). 
+          // Better to stick to JSON parsing for safety if client sends it that way.
+          // Fallback for non-JSON format (simple FormData append)
+          if (Array.isArray(req.body.existingPhotos)) keptPhotos = req.body.existingPhotos;
+          else keptPhotos = [req.body.existingPhotos];
+        }
+      } else {
+        // Fallback: If no existingPhotos param, preserve current DB photos (standard append behavior)
+        const existingEntry = await storage.getJournalEntry(entryId, userId);
+        keptPhotos = existingEntry?.photos || [];
+      }
+
+      updates.photos = [...uploadedPhotos, ...keptPhotos];
+      fs.appendFileSync('server_debug.log', `DEBUG: Updates object before DB call: ${JSON.stringify(updates)}\n`);
+
       const entry = await storage.updateJournalEntry(entryId, userId, updates);
       if (!entry) {
         return res.status(404).json({ message: "Journal entry not found" });
@@ -1515,16 +1548,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (!results.length) {
         for (const t of types) {
+          // Respect Nominatim rate limits (Max 1 req/sec)
+          if (types.indexOf(t) > 0) await new Promise(resolve => setTimeout(resolve, 1200));
+
           const q = `${t} near ${location}`;
-          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
-          const j = await r.json();
+          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`, {
+            headers: {
+              'User-Agent': 'TripMate/1.0 (+https://example.com)',
+              'Accept-Language': 'en'
+            }
+          });
+          if (r.status === 429) {
+            console.warn(`Nominatim rate limit hit for ${t}`);
+            continue;
+          }
+          const j = await r.json().catch(() => []);
           const first = Array.isArray(j) ? j[0] : undefined;
           if (first) {
             results.push({ id: `${t}-${results.length}`, name: first.display_name?.split(',')[0] || t, type: t, address: first.display_name || '', phone: '+1 (555) 000-0000', distance: '—', latitude: parseFloat(first.lat), longitude: parseFloat(first.lon) });
           }
         }
       }
-      res.json(results);
+      let detectedCountry = 'EU'; // Default
+      if (results.length > 0) {
+        const addr = results[0].address.toLowerCase();
+        if (addr.includes('india') || addr.includes('delhi') || addr.includes('mumbai')) detectedCountry = 'IN';
+        else if (addr.includes('usa') || addr.includes('united states') || addr.includes('ny') || addr.includes('ca')) detectedCountry = 'US';
+        else if (addr.includes('uk') || addr.includes('united kingdom') || addr.includes('london')) detectedCountry = 'UK';
+      }
+
+      const sosNumbers = {
+        police: mapEmergencyNumber(detectedCountry, 'police'),
+        medical: mapEmergencyNumber(detectedCountry, 'medical'),
+        fire: mapEmergencyNumber(detectedCountry, 'fire'),
+        common: detectedCountry === 'US' ? '911' : (detectedCountry === 'IN' ? '112' : '112')
+      };
+
+      res.json({ services: results, countryCode: detectedCountry, sosNumbers });
     } catch (error) {
       console.error('Error fetching emergency services:', error);
       res.status(500).json({ message: 'Failed to fetch emergency services' });

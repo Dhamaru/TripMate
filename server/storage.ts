@@ -23,7 +23,7 @@ export interface IStorage {
   deleteAllUsers(): Promise<boolean>;
 
   // Trip operations
-  getUserTrips(userId: string): Promise<Trip[]>;
+  getUserTrips(userId: string, options?: { limit?: number; page?: number; sort?: string; status?: string; excludeHeavyFields?: boolean }): Promise<Trip[]>;
   createTrip(trip: InsertTrip): Promise<Trip>;
   getTrip(id: string, userId: string): Promise<Trip | undefined>;
   updateTrip(id: string, userId: string, updates: Partial<InsertTrip>): Promise<Trip | undefined>;
@@ -34,6 +34,7 @@ export interface IStorage {
   // Journal operations
   getUserJournalEntries(userId: string): Promise<JournalEntry[]>;
   getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]>;
+  getJournalEntry(id: string, userId: string): Promise<JournalEntry | undefined>;
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
   updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined>;
   deleteJournalEntry(id: string, userId: string): Promise<boolean>;
@@ -130,13 +131,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Trip operations
-  async getUserTrips(userId: string, options?: { limit?: number; page?: number; sort?: string; status?: string }): Promise<Trip[]> {
-    const { limit = 10, page = 1, sort = 'createdAt', status } = options || {};
+  async getUserTrips(userId: string, options?: { limit?: number; page?: number; sort?: string; status?: string; excludeHeavyFields?: boolean }): Promise<Trip[]> {
+    const { limit = 10, page = 1, sort = 'createdAt', status, excludeHeavyFields } = options || {};
 
     let query = TripModel.find({ userId });
 
     if (status) {
       query = query.where('status').equals(status);
+    }
+
+    if (excludeHeavyFields) {
+      query = query.select('-aiPlanMarkdown -itinerary -costBreakdown');
     }
 
     const sortOptions: any = {};
@@ -192,6 +197,10 @@ export class DatabaseStorage implements IStorage {
 
   async getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]> {
     return await JournalEntryModel.find({ tripId, userId }).sort({ createdAt: -1 }).exec();
+  }
+
+  async getJournalEntry(id: string, userId: string): Promise<JournalEntry | undefined> {
+    return await JournalEntryModel.findOne({ _id: id, userId }).exec() || undefined;
   }
 
   async createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry> {

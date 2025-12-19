@@ -7,7 +7,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { connectDB } from "./db";
 
 const app = express();
-app.locals.ready = false;
+app.locals.ready = false; // Server ready state
 app.set("etag", false);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -51,7 +51,7 @@ app.use((req, res, next) => {
     const message = err?.message || "Internal Server Error";
     try {
       res.status(status).json({ message });
-    } catch {}
+    } catch { }
     console.error('[error]', status, message);
     // do NOT throw, keep process alive
   });

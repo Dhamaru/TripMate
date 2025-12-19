@@ -410,6 +410,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   );
 
 
+  const [currentLocationName, setCurrentLocationName] = useState<string | null>(null);
+
   const handleLocateUser = () => {
     if (!navigator.geolocation) {
       toast({ title: "Error", description: "Geolocation is not supported by your browser.", variant: "destructive" });
@@ -417,7 +419,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     }
     toast({ title: "Locating", description: "Finding your location..." });
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const { latitude, longitude } = pos.coords;
         const map = mapInstanceRef.current;
         if (map) {
@@ -431,9 +433,30 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             iconAnchor: [10, 10]
           });
 
-          // Remove potential existing user marker if tracked in a ref (or just add a new one distinct from selection)
-          // For now, simpler to just center. Custom marker optional but requested "icon that shows exact location".
-          L.marker([latitude, longitude], { icon: userIcon }).addTo(map).bindPopup("You are here").openPopup();
+          // Remove potential existing user marker if needed
+          if (markerRef.current) markerRef.current.remove();
+          const marker = L.marker([latitude, longitude], { icon: userIcon }).addTo(map).bindPopup("You are here").openPopup();
+          markerRef.current = marker;
+
+          // Clear selected region immediately since we are at user location
+          setSelectedRegion(null);
+
+          // Reverse Geocode
+          try {
+            // Use Nominatim for reverse geocoding (OpenStreetMap)
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            if (res.ok) {
+              const data = await res.json();
+              const name = data.display_name || data.name || "My Location";
+              // Shorten name if too long
+              const shortName = name.split(',').slice(0, 2).join(',');
+              setCurrentLocationName(shortName);
+            } else {
+              setCurrentLocationName(`Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`);
+            }
+          } catch (e) {
+            setCurrentLocationName("Current Location");
+          }
         }
         toast({ title: "Located", description: "Map centered on your location." });
       },
@@ -455,9 +478,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               <i className="fas fa-map text-ios-blue mr-2" aria-hidden />
               <span>Interactive Map View</span>
             </div>
-            {selectedRegion && (
+            {(selectedRegion || currentLocationName) && (
               <span className="text-sm font-normal text-ios-gray" aria-live="polite">
-                Viewing: {selectedRegion.name}, {selectedRegion.country}
+                Viewing: {selectedRegion ? `${selectedRegion.name}, ${selectedRegion.country}` : currentLocationName}
               </span>
             )}
           </CardTitle>

@@ -13,6 +13,43 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import type { JournalEntry, User } from "@shared/schema";
 
+// Carousel Component for Journal Entry Images
+const JournalImageCarousel = ({ photos, title, children }: { photos: string[], title: string, children?: React.ReactNode }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (photos.length <= 1) return;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % photos.length);
+    }, 3000); // Change every 3 seconds
+    return () => clearInterval(interval);
+  }, [photos.length]);
+
+  return (
+    <div className="h-48 overflow-hidden relative bg-ios-darker">
+      {photos.map((photo, i) => (
+        <img
+          key={photo}
+          src={photo}
+          alt={`${title} ${i + 1}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === index ? 'opacity-100' : 'opacity-0'}`}
+        />
+      ))}
+
+      {/* Photo Counter Badge */}
+      {photos.length > 1 && (
+        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
+          <i className="fas fa-images mr-1"></i>
+          {index + 1} / {photos.length}
+        </div>
+      )}
+
+      {/* Action Buttons (passed as children) */}
+      {children}
+    </div>
+  );
+};
+
 export default function Journal() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth() as { user: User | undefined; isLoading: boolean; isAuthenticated: boolean };
   const { toast } = useToast();
@@ -21,6 +58,7 @@ export default function Journal() {
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const fileInputRef = useState<{ current: HTMLInputElement | null }>({ current: null })[0]; // Simple ref workaround or use useRef if imported
   const [entryForm, setEntryForm] = useState({
     title: "",
     content: "",
@@ -89,6 +127,7 @@ export default function Journal() {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/journal"] });
       toast({ title: "Entry Updated", description: "Your journal entry has been updated successfully." });
       setEditingEntry(null);
+      setIsCreateDialogOpen(false); // Close the dialog!
       resetForm();
     },
     onError: (error) => {
@@ -115,6 +154,32 @@ export default function Journal() {
 
   const resetForm = () => {
     setEntryForm({ title: "", content: "", location: "", latitude: "", longitude: "" });
+    setPhotos(null);
+    setKeptPhotos([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const [photos, setPhotos] = useState<FileList | null>(null);
+  const [keptPhotos, setKeptPhotos] = useState<string[]>([]);
+  const [isListening, setIsListening] = useState(false);
+
+  const startListening = () => {
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setEntryForm(prev => ({ ...prev, content: (prev.content + " " + transcript).trim() }));
+      };
+      recognition.start();
+    } else {
+      toast({ title: "Not Supported", description: "Voice recognition not supported in this browser.", variant: "destructive" });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,14 +191,36 @@ export default function Journal() {
     }
 
     if (editingEntry) {
-      const updates = {
-        title: entryForm.title,
-        content: entryForm.content,
-        location: entryForm.location || undefined,
-        latitude: entryForm.latitude ? parseFloat(entryForm.latitude) : undefined,
-        longitude: entryForm.longitude ? parseFloat(entryForm.longitude) : undefined,
-      };
-      updateEntryMutation.mutate({ id: editingEntry.id, updates });
+      const formData = new FormData();
+      formData.append("title", entryForm.title);
+      formData.append("content", entryForm.content);
+      if (entryForm.location) formData.append("location", entryForm.location);
+      if (entryForm.latitude) formData.append("latitude", entryForm.latitude);
+      if (entryForm.longitude) formData.append("longitude", entryForm.longitude);
+
+      // Append new photos if selected
+      if (photos) {
+        Array.from(photos).forEach(file => formData.append('photos', file));
+      }
+
+      // We need to cast our mutation to accept FormData or create a separate one, 
+      // but apiRequest handles FormData automatically if we pass it as data.
+      // The issue is updateEntryMutation expects { id: string; updates: Partial<JournalEntry> }
+      // We'll quickly patch the mutation call to satisfy TS or update the mutation definition.
+      // Actually, let's just cheat TS here for speed as the mutationFn is: 
+      // async (data: { id: string; updates: Partial<JournalEntry> }) => { apiRequest("PUT", ..., data.updates) }
+      // Wait, apiRequest takes 'data' as 3rd arg. If data.updates is FormData, it works.
+      // So we pass { id: editingEntry.id, updates: formData as any }
+
+      // Append existing photos (kept ones) as JSON string
+      if (keptPhotos.length > 0) {
+        formData.append('existingPhotos', JSON.stringify(keptPhotos));
+      } else {
+        // Explicitly send empty array if all deleted, so server knows to clear them
+        formData.append('existingPhotos', JSON.stringify([]));
+      }
+
+      updateEntryMutation.mutate({ id: editingEntry.id, updates: formData as any });
     } else {
       const formData = new FormData();
       formData.append("title", entryForm.title);
@@ -141,6 +228,9 @@ export default function Journal() {
       if (entryForm.location) formData.append("location", entryForm.location);
       if (entryForm.latitude) formData.append("latitude", entryForm.latitude);
       if (entryForm.longitude) formData.append("longitude", entryForm.longitude);
+      if (photos) {
+        Array.from(photos).forEach(file => formData.append('photos', file));
+      }
       createEntryMutation.mutate(formData);
     }
   };
@@ -154,6 +244,7 @@ export default function Journal() {
       latitude: entry.latitude?.toString() || "",
       longitude: entry.longitude?.toString() || "",
     });
+    setKeptPhotos(entry.photos || []);
     setIsCreateDialogOpen(true);
   };
 
@@ -244,9 +335,21 @@ export default function Journal() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
-                    Content <span className="text-ios-red">*</span>
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-white">
+                      Content <span className="text-ios-red">*</span>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={startListening}
+                      className={`${isListening ? 'text-red-500 animate-pulse' : 'text-ios-blue'}`}
+                    >
+                      <i className={`fas fa-microphone${isListening ? '' : '-alt'} mr-1`}></i>
+                      {isListening ? 'Listening...' : 'Dictate'}
+                    </Button>
+                  </div>
                   <Textarea
                     value={entryForm.content}
                     onChange={(e) => setEntryForm(prev => ({ ...prev, content: e.target.value }))}
@@ -255,6 +358,37 @@ export default function Journal() {
                     required
                     data-testid="textarea-content"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Photos</label>
+                  <Input
+                    ref={(el) => { if (el) fileInputRef.current = el; }} // Callback ref since I didn't import useRef
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => setPhotos(e.target.files)}
+                    className="bg-ios-darker border-ios-gray text-white file:bg-ios-blue file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:hover:bg-blue-600 cursor-pointer"
+                  />
+                  <p className="text-xs text-ios-gray mt-1">Upload memories from your trip.</p>
+
+                  {/* Existing Photos List (with delete option) */}
+                  {keptPhotos.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {keptPhotos.map((photo, i) => (
+                        <div key={i} className="relative w-20 h-20 rounded-md overflow-hidden group border border-ios-gray/30">
+                          <img src={photo} alt={`Existing ${i}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setKeptPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute top-0 right-0 p-1 bg-red-600/80 text-white rounded-bl-md opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <i className="fas fa-times text-xs"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex space-x-2 pt-4">
@@ -310,55 +444,67 @@ export default function Journal() {
             ))}
           </div>
         ) : journalEntries && journalEntries.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {journalEntries.map((entry) => (
-              <Card
-                key={entry.id}
-                className="bg-ios-card border-ios-gray elev-1 hover-lift smooth-transition overflow-hidden radius-md"
-                data-testid={`journal-entry-${entry.id}`}
-              >
-                <div className="h-32 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center relative">
-                  <div className="text-white text-center">
-                    <i className="fas fa-map-marker-alt text-2xl mb-2"></i>
-                    <p className="text-sm">{entry.location || 'Travel Memory'}</p>
-                  </div>
-                  <div className="absolute top-2 right-2 flex space-x-1">
-                    <Button
+          <div className="relative border-l-2 border-ios-gray/30 ml-4 md:ml-8 space-y-8 pb-12">
+            {Object.entries(
+              journalEntries.reduce((acc, entry) => {
+                const date = new Date(entry.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                if (!acc[date]) acc[date] = [];
+                acc[date].push(entry);
+                return acc;
+              }, {} as Record<string, JournalEntry[]>)
+            ).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime()).map(([date, entries]) => (
+              <div key={date} className="relative pl-6 md:pl-10">
+                {/* Timeline Dot */}
+                <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-ios-blue border-4 border-ios-darker shadow-lg shadow-ios-blue/20"></div>
+
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+                  <span className="opacity-80">{date}</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                  {entries.map((entry) => (
+                    <Card
+                      key={entry.id}
+                      className="bg-ios-card border-ios-gray elev-1 hover-lift smooth-transition overflow-hidden radius-md group cursor-pointer"
+                      data-testid={`journal-entry-${entry.id}`}
                       onClick={() => handleEdit(entry)}
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-white hover:bg-ios-card/20 smooth-transition interactive-tap min-tap-target"
-                      data-testid={`button-edit-${entry.id}`}
                     >
-                      <i className="fas fa-edit text-xs"></i>
-                    </Button>
-                    <Button
-                      onClick={() => handleDelete(entry.id)}
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-white hover:bg-ios-red/50 smooth-transition interactive-tap min-tap-target"
-                      data-testid={`button-delete-${entry.id}`}
-                    >
-                      <i className="fas fa-trash text-xs"></i>
-                    </Button>
-                  </div>
+                      {entry.photos && entry.photos.length > 0 ? (
+                        <JournalImageCarousel photos={entry.photos} title={entry.title}>
+                          <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                            <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-8 w-8 bg-black/50 text-white hover:bg-black/70 rounded-full"><i className="fas fa-edit"></i></Button>
+                            <Button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }} size="sm" variant="ghost" className="h-8 w-8 bg-red-500/50 text-white hover:bg-red-600/70 rounded-full"><i className="fas fa-trash"></i></Button>
+                          </div>
+                        </JournalImageCarousel>
+                      ) : (
+                        <div className="h-32 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center relative">
+                          <div className="text-white text-center">
+                            <i className="fas fa-map-marker-alt text-2xl mb-2"></i>
+                            <p className="text-sm">{entry.location || 'Travel Memory'}</p>
+                          </div>
+                          <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-ios-card/20"><i className="fas fa-edit"></i></Button>
+                            <Button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }} size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-ios-red/50"><i className="fas fa-trash"></i></Button>
+                          </div>
+                        </div>
+                      )}
+
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-white text-lg">{entry.title}</h4>
+                          {entry.location && <span className="text-xs text-ios-blue bg-ios-blue/10 px-2 py-1 rounded"><i className="fas fa-map-marker-alt mr-1"></i>{entry.location}</span>}
+                        </div>
+                        <p className="text-sm text-ios-gray mb-3 line-clamp-3 whitespace-pre-wrap">
+                          {entry.content}
+                        </p>
+                        <div className="flex items-center justify-between text-xs text-ios-gray pt-2 border-t border-ios-gray/10">
+                          <span><i className="far fa-clock mr-1"></i>{new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <CardContent className="p-4">
-                  <h4 className="font-bold mb-2 text-white">{entry.title}</h4>
-                  <p className="text-sm text-ios-gray mb-3 line-clamp-3">
-                    {entry.content}
-                  </p>
-                  <div className="flex items-center justify-between text-xs text-ios-gray">
-                    <span>{new Date(entry.createdAt as any).toLocaleDateString()}</span>
-                    {entry.photos && entry.photos.length > 0 && (
-                      <span className="flex items-center">
-                        <i className="fas fa-camera mr-1"></i>
-                        {entry.photos.length}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
             ))}
           </div>
         ) : (

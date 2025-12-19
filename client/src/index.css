@@ -6,9 +6,11 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(0 0% 0%);
+  --background: hsl(220 13% 13%);
   --foreground: hsl(200 6.6667% 91.1765%);
   --card: hsl(220 13% 18%);
+
+
   --card-foreground: hsl(200 6.6667% 91.1765%);
   --popover: hsl(0 0% 0%);
   --popover-foreground: hsl(200 6.6667% 91.1765%);
@@ -56,9 +58,10 @@
   --tracking-normal: 0em;
   --spacing: 0.25rem;
   /* iOS-inspired dark theme colors */
-  --ios-darker: #000000;
+  --ios-darker: hsl(220 13% 13%);
   --ios-card: #1c1c1e;
-  --ios-gray: #98989d; /* Improved from #8e8e93 for better contrast */
+  --ios-gray: #98989d;
+  /* Improved from #8e8e93 for better contrast */
   --ios-blue: #0a84ff;
   --ios-green: #30d158;
   --ios-orange: #ff9f0a;
@@ -66,14 +69,22 @@
   --ios-purple: #bf5af2;
 
   /* Standardized spacing scale (4px base) */
-  --spacing-1: 0.25rem; /* 4px */
-  --spacing-2: 0.5rem;  /* 8px */
-  --spacing-3: 0.75rem; /* 12px */
-  --spacing-4: 1rem;    /* 16px */
-  --spacing-6: 1.5rem;  /* 24px */
-  --spacing-8: 2rem;    /* 32px */
-  --spacing-12: 3rem;   /* 48px */
-  --spacing-16: 4rem;   /* 64px */
+  --spacing-1: 0.25rem;
+  /* 4px */
+  --spacing-2: 0.5rem;
+  /* 8px */
+  --spacing-3: 0.75rem;
+  /* 12px */
+  --spacing-4: 1rem;
+  /* 16px */
+  --spacing-6: 1.5rem;
+  /* 24px */
+  --spacing-8: 2rem;
+  /* 32px */
+  --spacing-12: 3rem;
+  /* 48px */
+  --spacing-16: 4rem;
+  /* 64px */
 
   /* Consistent transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -161,7 +172,12 @@
     scroll-behavior: smooth;
   }
 
-  a, button, input, select, textarea, [role='button'] {
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role='button'] {
     cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23007AFF'/><stop offset='100%' stop-color='%23FF9500'/></linearGradient></defs><path fill='url(%23g)' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
   }
 
@@ -193,8 +209,9 @@
 
 @layer utilities {
   .pt-header-gap {
-    padding-top: calc(64px + 10px);
+    padding-top: 1rem;
   }
+
   .responsive-container {
     width: 100%;
     max-width: 80rem;
@@ -203,25 +220,63 @@
     padding-left: 1rem;
     padding-right: 1rem;
   }
+
   @media (min-width: 640px) {
-    .responsive-container { padding-left: 1.5rem; padding-right: 1.5rem; }
-  }
-  @media (min-width: 1024px) {
-    .responsive-container { padding-left: 2rem; padding-right: 2rem; }
+    .responsive-container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
   }
 
-  .smooth-transition { transition: all 150ms ease-out; }
-  .hover-lift { transform: translateY(0); transition: transform 150ms ease-out; }
-  .hover-lift:hover { transform: translateY(-2px); }
-  .interactive-tap:active { transform: translateY(0.5px) scale(0.99); }
-  .icon { width: 1em; height: 1em; }
-  .elev-1 { box-shadow: var(--shadow-sm); }
-  .elev-2 { box-shadow: var(--shadow-md); }
-  .text-balance { text-wrap: balance; }
+  @media (min-width: 1024px) {
+    .responsive-container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  .smooth-transition {
+    transition: all 150ms ease-out;
+  }
+
+  .hover-lift {
+    transform: translateY(0);
+    transition: transform 150ms ease-out;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+
+  .interactive-tap:active {
+    transform: translateY(0.5px) scale(0.99);
+  }
+
+  .icon {
+    width: 1em;
+    height: 1em;
+  }
+
+  .elev-1 {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .elev-2 {
+    box-shadow: var(--shadow-md);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    .smooth-transition, .hover-lift { transition: none; }
+
+    .smooth-transition,
+    .hover-lift {
+      transition: none;
+    }
   }
+
   .text-ios-blue {
     color: hsl(214 100% 50%);
   }
@@ -267,7 +322,7 @@
   }
 
   .bg-ios-darker {
-    background-color: hsl(0 0% 0%);
+    background-color: var(--ios-darker);
   }
 
   .bg-ios-card {

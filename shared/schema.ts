@@ -293,7 +293,7 @@ export interface IPackingList extends Document {
   userId: string;
   tripId?: mongoose.Types.ObjectId;
   name: string;
-  name: string;
+
   season?: string;
   items: IPackingListItem[];
   isTemplate?: boolean;
@@ -328,6 +328,7 @@ export const packingListSchema = new Schema<IPackingList>(
 );
 
 packingListSchema.index({ userId: 1, name: 1 }, { unique: false });
+packingListSchema.index({ userId: 1, createdAt: -1 });
 
 export const packingListTemplateSchema = new Schema<IPackingListTemplate>(
   {

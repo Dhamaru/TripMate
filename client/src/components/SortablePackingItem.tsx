@@ -112,7 +112,7 @@ export function SortablePackingItem({ item, handleToggle, handleDelete, handleQu
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-full h-8 w-8 p-0"
+                    className="text-gray-400 hover:text-red-400 transition-colors rounded-full h-8 w-8 p-0"
                     onClick={(e) => {
                         e.stopPropagation(); // Don't toggle packed state
                         handleDelete();

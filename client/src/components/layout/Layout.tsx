@@ -11,11 +11,13 @@ import {
   MessageSquare,
   ChevronLeft,
   ChevronRight,
+  Book,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: "/app/home" },
   { label: "Trips", icon: Compass, href: "/app/trips" },
+  { label: "Journal", icon: Book, href: "/app/journal" },
   { label: "Tools", icon: Grid, href: "/app/tools" },
   { label: "Feedback", icon: MessageSquare, href: "/app/feedback" },
 ];
@@ -26,11 +28,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen w-full bg-black text-white overflow-hidden">
+    <div className="flex h-screen w-full bg-background text-white overflow-hidden">
       {/* Sidebar - Desktop Only */}
       <aside
         className={cn(
-          "hidden md:flex flex-col bg-[#0d1117] border-r border-gray-800 transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
+          "hidden md:flex flex-col bg-ios-darker border-r border-gray-800 transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
@@ -107,7 +109,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         sidebarCollapsed && "md:ml-16"
       )}>
         {/* Top Navigation Bar - Glass Effect */}
-        <header className="h-16 bg-[#010409]/80 backdrop-blur-md border-b border-gray-800 px-4 flex items-center justify-between sticky top-0 z-50">
+        <header className="h-16 bg-background/80 backdrop-blur-md border-b border-gray-800 px-4 flex items-center justify-between sticky top-0 z-50">
           {/* Left: Logo on mobile */}
           <div className="flex items-center gap-4">
             <div className="md:hidden flex items-center gap-2">
@@ -134,12 +136,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 bg-[#0d1117]">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 bg-background">
           {children}
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#010409]/90 backdrop-blur-lg border-t border-gray-800 px-4 flex items-center justify-around z-50">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-background/90 backdrop-blur-lg border-t border-gray-800 px-4 flex items-center justify-around z-50">
           {NAV_ITEMS.map((item) => {
             const isActive = location === item.href || location.startsWith(item.href);
             return (

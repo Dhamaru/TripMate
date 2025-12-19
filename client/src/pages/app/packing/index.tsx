@@ -1,7 +1,5 @@
 import { SortablePackingItem } from "@/components/SortablePackingItem";
-import { useState } from "react";
-
-type PackingItem = IPackingListItem & { is_mandatory?: boolean; category?: string };
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Reorder } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -29,7 +27,10 @@ import {
     ChevronRight,
     Save,
     MapPin,
-    FolderOpen
+    FolderOpen,
+    Loader2,
+    ClipboardCopy,
+    ClipboardPaste
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -59,8 +60,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { PackingList, IPackingListItem, Trip } from "@shared/schema";
-import { motion, AnimatePresence } from "framer-motion";
+import { IPackingListItem, PackingList, Trip } from "@shared/schema";
+import { AnimatePresence, motion } from "framer-motion";
+
+type PackingItem = IPackingListItem & { is_mandatory?: boolean; category?: string };
+
 
 const SEASONS = ["Summer", "Winter", "Spring", "Autumn"] as const;
 type Season = typeof SEASONS[number];
@@ -128,7 +132,7 @@ export default function PackingChecklist() {
     const [templateName, setTemplateName] = useState("");
 
     const { data: userTrips } = useQuery<Trip[]>({
-        queryKey: ["/api/v1/trips"],
+        queryKey: ["/api/v1/trips?light=true"],
     });
 
     const { data: templates } = useQuery<any[]>({
@@ -139,27 +143,57 @@ export default function PackingChecklist() {
         queryKey: ["/api/v1/packing-lists"],
     });
 
-    const currentList = packingLists?.find((list) => list.season === activeSeason || list.name.includes(activeSeason));
+    const currentList = packingLists?.find((list) => {
+        if (selectedTripId !== "none") {
+            return String(list.tripId) === selectedTripId;
+        }
+        // For general list (no trip selected), exclude lists that belong to a trip
+        return (list.season === activeSeason || list.name.includes(activeSeason)) && !list.tripId;
+    });
 
-    const getItems = (): PackingItem[] => {
+    const [localItems, setLocalItems] = useState<PackingItem[]>([]);
+    const [isDirty, setIsDirty] = useState(false);
+
+    // Sync local state with server state when switching lists/seasons
+    useEffect(() => {
         if (currentList) {
-            return currentList.items;
-        } else if (!isLoading && packingLists) {
-            return [
+            setLocalItems(currentList.items);
+        } else if (!isLoading) {
+            // Load defaults if no list exists
+            const defaults = [
                 ...MANDATORY_ITEMS.map(i => ({ ...i, quantity: 1, packed: false, category: "Documents", is_mandatory: true })),
                 ...SEASONAL_DEFAULTS[activeSeason].map(i => ({ ...i, quantity: 1, packed: false })),
             ];
+            setLocalItems(defaults as PackingItem[]);
         }
-        return [];
-    };
+        setIsDirty(false);
+    }, [currentList, activeSeason, isLoading, selectedTripId]);
 
-    const items: PackingItem[] = getItems();
+    // Debounced Save
+    useEffect(() => {
+        if (!isDirty) return;
+
+        const timer = setTimeout(() => {
+            handleSave(localItems);
+            setIsDirty(false);
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [localItems, isDirty]);
+
+    const items = localItems;
 
     const createListMutation = useMutation({
         mutationFn: async (newItems: IPackingListItem[]) => {
+            const tripId = selectedTripId !== "none" ? selectedTripId : undefined;
+            const tripName = tripId
+                ? userTrips?.find(t => String(t._id) === tripId)?.destination || "Trip"
+                : activeSeason;
+
             const res = await apiRequest("POST", "/api/v1/packing-lists", {
-                name: `${activeSeason} Packing List`,
+                name: `${tripName} Packing List`,
                 season: activeSeason,
+                tripId: tripId,
                 items: newItems,
             });
             return res.json();
@@ -167,10 +201,16 @@ export default function PackingChecklist() {
         onMutate: async (newItems) => {
             await queryClient.cancelQueries({ queryKey: ["/api/v1/packing-lists"] });
             const previousLists = queryClient.getQueryData<PackingList[]>(["/api/v1/packing-lists"]);
+            const tripId = selectedTripId !== "none" ? selectedTripId : undefined;
+            const tripName = tripId
+                ? userTrips?.find(t => String(t._id) === tripId)?.destination || "Trip"
+                : activeSeason;
+
             const optimisticList: PackingList = {
                 _id: "optimistic-" + Date.now(),
-                name: `${activeSeason} Packing List`,
+                name: `${tripName} Packing List`,
                 season: activeSeason,
+                tripId: tripId as any,
                 items: newItems,
                 userId: "current-user",
                 createdAt: new Date(),
@@ -178,6 +218,9 @@ export default function PackingChecklist() {
             } as PackingList;
             queryClient.setQueryData<PackingList[]>(["/api/v1/packing-lists"], (old) => old ? [...old, optimisticList] : [optimisticList]);
             return { previousLists };
+        },
+        onSuccess: () => {
+            toast({ title: "List Saved", description: "Your packing list has been saved successfully.", className: "bg-green-600 text-white border-none" });
         },
         onError: (err, newItems, context) => {
             queryClient.setQueryData(["/api/v1/packing-lists"], context?.previousLists);
@@ -201,6 +244,9 @@ export default function PackingChecklist() {
             );
             return { previousLists };
         },
+        onSuccess: () => {
+            toast({ title: "List Saved", description: "Your packing list has been updated successfully.", className: "bg-green-600 text-white border-none" });
+        },
         onError: (err, variables, context) => {
             queryClient.setQueryData(["/api/v1/packing-lists"], context?.previousLists);
             toast({ title: "Error", description: "Failed to update packing list", variant: "destructive" });
@@ -217,9 +263,52 @@ export default function PackingChecklist() {
         },
         onSuccess: (newList) => {
             queryClient.invalidateQueries({ queryKey: ["/api/v1/packing-lists"] });
-            toast({ title: "List Duplicated", description: `Created copy: ${newList.name}` });
+            toast({ title: "List Duplicated", description: `Created copy: ${newList.name}`, className: "bg-blue-600 text-white border-none" });
         }
     });
+
+    const handleCopyToClipboard = async () => {
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(items, null, 2));
+            toast({ title: "Copied to Clipboard", description: "Items copied! You can now paste them into another trip.", className: "bg-blue-600 text-white border-none" });
+        } catch (err) {
+            toast({ title: "Copy Failed", description: "Could not copy items to clipboard.", variant: "destructive" });
+        }
+    };
+
+    const handlePasteFromClipboard = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            const importedItems = JSON.parse(text);
+            if (!Array.isArray(importedItems)) throw new Error("Invalid format");
+
+            // Merge items, avoiding exact duplicates by name
+            const existingNames = new Set(items.map(i => i.name.toLowerCase()));
+            const newItems = [...items];
+            let addedCount = 0;
+
+            importedItems.forEach((item: any) => {
+                if (item.name && !existingNames.has(item.name.toLowerCase())) {
+                    newItems.push({
+                        ...item,
+                        quantity: item.quantity || 1,
+                        packed: false // Reset packed status on paste
+                    });
+                    existingNames.add(item.name.toLowerCase());
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                updateLocalItems(newItems);
+                toast({ title: "Items Pasted", description: `Successfully added ${addedCount} items.`, className: "bg-green-600 text-white border-none" });
+            } else {
+                toast({ title: "No New Items", description: "All items in clipboard already exist in this list." });
+            }
+        } catch (err) {
+            toast({ title: "Paste Failed", description: "Clipboard content is not a valid item list.", variant: "destructive" });
+        }
+    };
 
     const createTemplateMutation = useMutation({
         mutationFn: async (data: { name: string, items: IPackingListItem[] }) => {
@@ -233,6 +322,24 @@ export default function PackingChecklist() {
             toast({ title: "Template Saved", description: "You can now reuse this list for future trips." });
         }
     });
+
+    // ... (rest of the file until return)
+
+    // In the JSX (Actions Bar):
+    // Previously:
+    // <Button ... onClick={() => handleSave(items)} ...> <Save ... /> </Button>
+    // <Button ... onClick={handleDuplicate} ...> <Copy ... /> </Button>
+    // <Button ... onClick={handlePrint} ...> <Printer ... /> </Button>
+
+    /* 
+       We need to replace the Actions Bar section in the JSX.
+       I will use a wider replacement range to cover mutations AND the UI.
+       Wait, the tool only allows replacing contiguous blocks but I can update mutations here.
+       I'll update mutations first, then separate call for UI?
+       No, `multi_replace` is better or just replace the component body parts.
+       Actually, `replace_file_content` with a larger scope spanning mutations.
+    */
+
 
     const deleteTemplateMutation = useMutation({
         mutationFn: async (id: string) => {
@@ -258,19 +365,24 @@ export default function PackingChecklist() {
         } else {
             // Include selectedTripId if set
             const tripData = selectedTripId !== "none" ? { tripId: selectedTripId } : {};
-            createListMutation.mutate(newItems); // TODO: pass tripId properly if creating new
+            createListMutation.mutate(newItems);
         }
+    };
+
+    const updateLocalItems = (newItems: PackingItem[]) => {
+        setLocalItems(newItems);
+        setIsDirty(true);
     };
 
     const handleQuantityChange = (index: number, newQty: number) => {
         const newItems = [...items];
         newItems[index] = { ...newItems[index], quantity: newQty };
-        handleSave(newItems);
+        updateLocalItems(newItems);
     };
 
     const handleToggle = (index: number) => {
         const newItems = items.map((item, i) => (i === index ? { ...item, packed: !item.packed } : item));
-        handleSave(newItems);
+        updateLocalItems(newItems);
     };
 
     const toggleCategory = (cat: string) => {
@@ -298,7 +410,7 @@ export default function PackingChecklist() {
             ...items.filter(i => i.is_mandatory),
             ...template.items.map((i: any) => ({ ...i, packed: false }))
         ];
-        handleSave(newItems);
+        updateLocalItems(newItems);
         toast({ title: "Template Loaded", description: `Loaded items from ${template.name}` });
     };
 
@@ -312,7 +424,7 @@ export default function PackingChecklist() {
             return;
         }
         const newItems = items.filter((_, i) => i !== index);
-        handleSave(newItems);
+        updateLocalItems(newItems);
     };
 
     const handleAdd = () => {
@@ -323,18 +435,12 @@ export default function PackingChecklist() {
             packed: false,
             category: "Misc",
         };
-        handleSave([...items, newItem]);
+        updateLocalItems([...items, newItem]);
         setNewItemName("");
     };
 
     const handleReorder = (newOrder: PackingItem[]) => {
-        const mandatoryItems = items.filter(i => i.is_mandatory);
-        const otherItems = items.filter(i => !i.is_mandatory);
-        // Only reordering other items usually? Or strictly respecting newOrder?
-        // Let's assume reorder passes the relevant list subset.
-        // If reordering ENTIRE list, logic needs care.
-        // Updated logic: if category grouping is active, reordering usually happens WITHIN category.
-        // For simplicity, we might disable reordering when filtering/searching.
+        // Implementation for reordering if needed in future
     };
 
     // Filter Logic
@@ -345,15 +451,17 @@ export default function PackingChecklist() {
     });
 
     const itemsByCategory = filteredItems.reduce((acc, item) => {
-        const cat = item.category || "Misc";
+        // Rename 'Documents' category to 'Government / ID Documents' for display if needed
+        let cat = item.category || "Misc";
+        if (cat === "Documents") cat = "Government / ID Documents";
+
         if (!acc[cat]) acc[cat] = [];
         acc[cat].push(item);
         return acc;
-    }, {} as Record<string, typeof items[]>);
+    }, {} as Record<string, PackingItem[]>);
 
     const mandatoryItems = items.filter(i => i.is_mandatory);
     const packedCount = items.filter(i => i.packed).length;
-    const progress = items.length > 0 ? (packedCount / items.length) * 100 : 0;
 
     const getSeasonIcon = (season: Season) => {
         switch (season) {
@@ -365,8 +473,31 @@ export default function PackingChecklist() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 font-sans" >
-            <div className="max-w-3xl mx-auto px-4 pt-header-gap">
+        <div className="min-h-screen bg-background text-white pb-20 font-sans print:bg-white print:text-black print:pb-0">
+            <style>{`
+                @media print {
+                    @page { margin: 1cm; size: auto; }
+                    body, #root, main, .min-h-screen { 
+                        background-color: white !important; 
+                        color: black !important; 
+                        overflow: visible !important; 
+                        height: auto !important; 
+                        width: auto !important;
+                        position: relative !important;
+                        display: block !important;
+                    }
+                    .no-print, button, [role="tablist"], header, nav, .fixed { display: none !important; }
+                    .print-visible { display: block !important; }
+                    /* Expands scrollable areas */
+                    .overflow-y-auto, .overflow-hidden { overflow: visible !important; height: auto !important; }
+                }
+            `}</style>
+            <div className="max-w-3xl mx-auto px-4 pt-6">
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold text-white mb-2">Smart Packing List</h1>
+                    <p className="text-gray-400">Review your customized packing checklist based on the season.</p>
+                </div>
+
                 <Tabs value={activeSeason} onValueChange={(v) => setActiveSeason(v as Season)} className="mb-8">
                     <TabsList className="grid grid-cols-4 bg-gray-900 rounded-full p-1 h-12">
                         {SEASONS.map(season => {
@@ -400,61 +531,41 @@ export default function PackingChecklist() {
                             </SelectTrigger>
                             <SelectContent className="bg-gray-800 border-gray-700 text-white">
                                 <SelectItem value="none">General List (No Trip)</SelectItem>
-                                {userTrips?.map(trip => (
-                                    <SelectItem key={trip._id as string} value={String(trip._id)}>
-                                        {trip.destination} ({new Date(trip.startDate).toLocaleDateString()})
-                                    </SelectItem>
-                                ))}
+                                {userTrips?.map(trip => {
+                                    const tId = String(trip._id || (trip as any).id || "unknown");
+                                    return (
+                                        <SelectItem key={tId} value={tId}>
+                                            {trip.destination} {trip.startDate ? `(${new Date(trip.startDate).toLocaleDateString()})` : ''}
+                                        </SelectItem>
+                                    );
+                                })}
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            title="Save List"
+                            onClick={() => handleSave(items)}
+                            className={`border-gray-700 hover:bg-gray-800 ${isDirty ? 'text-blue-400 border-blue-400' : 'text-gray-400'}`}
+                        >
+                            <Save className="w-4 h-4" />
+                        </Button>
                         <Button variant="outline" size="icon" title="Duplicate List" onClick={handleDuplicate} className="border-gray-700 hover:bg-gray-800">
                             <Copy className="w-4 h-4 text-gray-400" />
+                        </Button>
+                        <Button variant="outline" size="icon" title="Copy Items to Clipboard" onClick={handleCopyToClipboard} className="border-gray-700 hover:bg-gray-800">
+                            <ClipboardCopy className="w-4 h-4 text-gray-400" />
+                        </Button>
+                        <Button variant="outline" size="icon" title="Paste Items from Clipboard" onClick={handlePasteFromClipboard} className="border-gray-700 hover:bg-gray-800">
+                            <ClipboardPaste className="w-4 h-4 text-gray-400" />
                         </Button>
                         <Button variant="outline" size="icon" title="Print" onClick={handlePrint} className="border-gray-700 hover:bg-gray-800">
                             <Printer className="w-4 h-4 text-gray-400" />
                         </Button>
-                        <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" size="icon" title="Save/Load Template" className="border-gray-700 hover:bg-gray-800">
-                                    <FolderOpen className="w-4 h-4 text-gray-400" />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-gray-900 border-gray-800 text-white">
-                                <DialogHeader>
-                                    <DialogTitle>Template Manager</DialogTitle>
-                                    <DialogDescription className="text-gray-400">Save current list or load existing template.</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="flex gap-2">
-                                        <Input
-                                            placeholder="New Template Name"
-                                            value={templateName}
-                                            onChange={(e) => setTemplateName(e.target.value)}
-                                            className="bg-gray-800 border-gray-700"
-                                        />
-                                        <Button onClick={handleSaveTemplate}><Save className="w-4 h-4 mr-2" /> Save</Button>
-                                    </div>
-                                    <div className="border-t border-gray-800 pt-4">
-                                        <Label className="mb-2 block text-gray-400">Load Template</Label>
-                                        <div className="space-y-2">
-                                            {templates?.length === 0 && <p className="text-sm text-gray-500">No saved templates</p>}
-                                            {templates?.map(t => (
-                                                <div key={t._id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
-                                                    <span>{t.name}</span>
-                                                    <div className="flex gap-2">
-                                                        <Button size="sm" variant="secondary" onClick={() => handleLoadTemplate(t)}>Load</Button>
-                                                        <Button size="sm" variant="destructive" onClick={() => deleteTemplateMutation.mutate(t._id)}><Trash2 className="w-3 h-3" /></Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
+
                     </div>
                 </div>
 
@@ -484,47 +595,11 @@ export default function PackingChecklist() {
                     </DropdownMenu>
                 </div>
 
-                <Card className="bg-gray-900 border-gray-800 mb-8 rounded-3xl overflow-hidden">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between text-sm mb-3">
-                            <span className="text-gray-400">Progress</span>
-                            <span className="font-bold text-blue-400">{packedCount} / {items.length} items</span>
-                        </div>
-                        <Progress value={progress} className="h-3 rounded-full bg-gray-800" />
-                    </CardContent>
-                </Card>
-
-                <div className="mb-8">
-                    <div className="flex items-center mb-4 text-red-400">
-                        <AlertCircle className="w-5 h-5 mr-2" />
-                        <h2 className="font-bold text-lg">Government / ID Documents</h2>
-                    </div>
-                    <div className="space-y-3">
-                        {mandatoryItems.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase())).map((item, idx) => (
-                            <div
-                                key={`mandatory-${idx}`}
-                                className="group flex items-center p-4 bg-gray-900/50 border border-red-900/30 rounded-2xl hover:bg-gray-900 transition-colors cursor-pointer"
-                                onClick={() => {
-                                    const originalIndex = items.findIndex(i => i.name === item.name && i.is_mandatory);
-                                    if (originalIndex !== -1) handleToggle(originalIndex);
-                                }}
-                            >
-                                <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${item.packed ? 'bg-green-500 border-green-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
-                                    {item.packed && <CheckCircle2 className="w-4 h-4 text-white" />}
-                                </div>
-                                <span className={`flex-1 font-medium ${item.packed ? "text-gray-500 line-through" : "text-white"}`}>{item.name}</span>
-                                <div className="text-xs font-semibold text-red-400 bg-red-900/20 px-3 py-1 rounded-full">Mandatory</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                {/* PROGRESS BAR REMOVED */}
 
                 <div className="space-y-6 mb-8">
                     {Object.entries(itemsByCategory).map(([category, catItems]) => {
-                        if (category === "Documents" && catItems.every(i => i.is_mandatory)) return null; // Skip if handled above
-
-                        // Filter out mandatory items from general categories to avoid duplication if they appear there
-                        const displayItems = catItems.filter(i => !i.is_mandatory);
+                        const displayItems = catItems;
                         if (displayItems.length === 0) return null;
 
                         return (
@@ -600,7 +675,7 @@ export default function PackingChecklist() {
                         className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white rounded-full"
                         onClick={() => {
                             const newItems = items.map(i => ({ ...i, packed: true }));
-                            handleSave(newItems);
+                            updateLocalItems(newItems);
                         }}
                     >
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Mark All Packed
@@ -610,13 +685,14 @@ export default function PackingChecklist() {
                         className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white rounded-full"
                         onClick={() => {
                             const newItems = items.map(i => ({ ...i, packed: false }));
-                            handleSave(newItems);
+                            updateLocalItems(newItems);
                         }}
                     >
                         Clear All
                     </Button>
                 </div>
+
             </div>
-        </div >
+        </div>
     );
 }

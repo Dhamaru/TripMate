@@ -12,19 +12,22 @@ export default function EmergencyPage() {
 
   const [searchLocation, setSearchLocation] = useState<string>("");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [displayName, setDisplayName] = useState<string>("");
+  const [shortName, setShortName] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>("");
 
   useEffect(() => {
     useMyLocation();
   }, []);
-  const [displayName, setDisplayName] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [message, setMessage] = useState<string>("");
 
   // helper to parse geocode response (supports array or single object)
   function parseGeocodeResponse(json: any) {
     if (!json) return null;
+    let shortName = "";
     if (Array.isArray(json) && json.length > 0) {
       const first = json[0];
+      shortName = first.name ?? first.locality ?? first.city ?? first.town ?? first.village ?? "";
       return {
         lat: Number(first.lat ?? first.latitude ?? first.lat),
         lon: Number(first.lon ?? first.longitude ?? first.lon),
@@ -32,13 +35,16 @@ export default function EmergencyPage() {
           first.display_name ?? first.name ?? [first.locality, first.state, first.country]
             .filter(Boolean)
             .join(", "),
+        shortName: shortName || first.name || "",
       };
     }
     if (typeof json === "object" && (json.lat || json.lat === 0 || json.latitude || json.lon || json.longitude)) {
+      shortName = json.name ?? json.city ?? json.town ?? "";
       return {
         lat: Number(json.lat ?? json.latitude),
         lon: Number(json.lon ?? json.longitude),
         displayName: String(json.display_name ?? json.name ?? json.address ?? ""),
+        shortName: shortName || String(json.name || ""),
       };
     }
     return null;
@@ -73,15 +79,19 @@ export default function EmergencyPage() {
               const parsed = parseGeocodeResponse(j) ?? {
                 lat: latitude,
                 lon: longitude,
-                displayName: `Lat ${latitude.toFixed(4)}, Lon ${longitude.toFixed(4)}`,
+                displayName: "Current location",
+                shortName: "Current location",
               };
               setCoords({ lat: parsed.lat, lon: parsed.lon });
               setDisplayName(parsed.displayName ?? "Current location");
+              setShortName(parsed.shortName ?? "Current location");
               setSearchLocation(parsed.displayName ?? "");
             } catch {
               setCoords({ lat: Number(latitude), lon: Number(longitude) });
-              setDisplayName(`Lat ${latitude.toFixed(4)}, Lon ${longitude.toFixed(4)}`);
-              setSearchLocation("");
+              // Fallback: don't show specific lat/lon in search bar to avoid confusion
+              setDisplayName("Current location");
+              setShortName("Current location");
+              setSearchLocation("Current location");
             } finally {
               resolve();
             }
@@ -110,17 +120,20 @@ export default function EmergencyPage() {
       if (!parsed || Number.isNaN(parsed.lat) || Number.isNaN(parsed.lon)) {
         setCoords(null);
         setDisplayName("");
+        setShortName("");
         setMessage("Location not found");
         return;
       }
       setCoords({ lat: parsed.lat, lon: parsed.lon });
       setDisplayName(parsed.displayName ?? query);
+      setShortName(parsed.shortName ?? query);
       setSearchLocation(parsed.displayName ?? query);
       setMessage("");
     } catch {
       setMessage("Location not found");
       setCoords(null);
       setDisplayName("");
+      setShortName("");
     } finally {
       setLoading(false);
     }
@@ -139,7 +152,10 @@ export default function EmergencyPage() {
               <Input
                 type="text"
                 value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
+                onChange={(e) => {
+                  setSearchLocation(e.target.value);
+                  setCoords(null); // Clear GPS coords when typing manually
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSearch();
                 }}
@@ -172,13 +188,22 @@ export default function EmergencyPage() {
                 <i className="fas fa-location-arrow text-ios-blue" />
               </Button>
             </div>
+            {message && <p className="text-red-400 mt-2 text-sm">{message}</p>}
           </div>
           <div className="text-center text-sm text-ios-gray mb-2">
             {loading ? "Searching…" : coords ? `Emergency services near ${displayName}` : message || "Search a location to find nearby emergency services"}
           </div>
           <EmergencyServices
             className="max-w-2xl mx-auto"
-            location={coords ? `${coords.lat},${coords.lon}` : searchLocation || ""}
+            location={
+              shortName && shortName !== "Current location"
+                ? shortName
+                : displayName && displayName !== "Current location"
+                  ? displayName
+                  : coords
+                    ? `${coords.lat},${coords.lon}`
+                    : searchLocation || ""
+            }
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-4">

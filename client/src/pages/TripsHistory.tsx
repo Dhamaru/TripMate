@@ -145,7 +145,7 @@ export default function TripsHistory() {
                             transition={{ delay: index * 0.1, duration: 0.4 }}
                         >
                             <Link href={`/app/trips/${trip.id}`}>
-                                <Card className="bg-ios-card border-ios-gray hover:border-ios-blue transition-all cursor-pointer h-full group">
+                                <Card className="bg-ios-card border-ios-gray hover:border-ios-blue transition-all cursor-pointer h-full group overflow-hidden rounded-2xl shadow-sm hover:shadow-md">
                                     {/* Trip Image/Header */}
                                     <div className="relative h-40 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center overflow-hidden">
                                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
