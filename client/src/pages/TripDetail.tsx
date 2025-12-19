@@ -410,7 +410,7 @@ export default function TripDetail() {
   if (hasTripError) {
     return (
       <div className="min-h-screen bg-ios-darker flex items-center justify-center">
-        <Card className="bg-ios-card border-ios-gray max-w-md">
+        <Card className="bg-card border-border max-w-md">
           <CardContent className="p-8 text-center">
             <div className="text-ios-red mb-4">
               <i className="fas fa-exclamation-triangle text-5xl"></i>
@@ -480,7 +480,7 @@ export default function TripDetail() {
                   <Button
                     onClick={() => setIsEditing(true)}
                     variant="outline"
-                    className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap radius-md"
+                    className="bg-ios-darker border-border text-white hover:bg-card smooth-transition interactive-tap radius-md"
                     data-testid="button-edit-trip"
                   >
                     <i className="fas fa-edit mr-2"></i>
@@ -517,7 +517,7 @@ export default function TripDetail() {
 
         {/* Edit Form */}
         {isEditing && (
-          <Card className="bg-ios-card border-ios-gray mb-8">
+          <Card className="bg-card border-border mb-8">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-white">Edit Trip Details</CardTitle>
             </CardHeader>
@@ -532,7 +532,7 @@ export default function TripDetail() {
                       type="text"
                       value={tripForm.destination}
                       onChange={(e) => setTripForm(prev => ({ ...prev, destination: e.target.value }))}
-                      className="bg-ios-darker border-ios-gray text-white"
+                      className="bg-ios-darker border-border text-white"
                       data-testid="input-edit-destination"
                     />
                   </div>
@@ -542,7 +542,7 @@ export default function TripDetail() {
                       type="number"
                       value={tripForm.budget}
                       onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
-                      className="bg-ios-darker border-ios-gray text-white"
+                      className="bg-ios-darker border-border text-white"
                       data-testid="input-edit-budget"
                     />
                   </div>
@@ -555,14 +555,14 @@ export default function TripDetail() {
                       onValueChange={(value) => setTripForm(prev => ({ ...prev, days: value }))}
                     >
                       <SelectTrigger
-                        className="bg-ios-darker border-ios-gray text-white"
+                        className="bg-ios-darker border-border text-white"
                         data-testid="select-edit-duration"
                       >
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-ios-darker border-ios-gray">
+                      <SelectContent className="bg-ios-darker border-border">
                         {[1, 2, 3, 4, 5, 7, 10, 14, 21, 30].map(days => (
-                          <SelectItem key={days} value={days.toString()} className="text-white hover:bg-ios-card">
+                          <SelectItem key={days} value={days.toString()} className="text-white hover:bg-card">
                             {days} {days === 1 ? 'day' : 'days'}
                           </SelectItem>
                         ))}
@@ -576,15 +576,15 @@ export default function TripDetail() {
                       onValueChange={(value: 'planning' | 'active' | 'completed') => setTripForm(prev => ({ ...prev, status: value }))}
                     >
                       <SelectTrigger
-                        className="bg-ios-darker border-ios-gray text-white"
+                        className="bg-ios-darker border-border text-white"
                         data-testid="select-edit-status"
                       >
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-ios-darker border-ios-gray">
-                        <SelectItem value="planning" className="text-white hover:bg-ios-card">Planning</SelectItem>
-                        <SelectItem value="active" className="text-white hover:bg-ios-card">Active</SelectItem>
-                        <SelectItem value="completed" className="text-white hover:bg-ios-card">Completed</SelectItem>
+                      <SelectContent className="bg-ios-darker border-border">
+                        <SelectItem value="planning" className="text-white hover:bg-card">Planning</SelectItem>
+                        <SelectItem value="active" className="text-white hover:bg-card">Active</SelectItem>
+                        <SelectItem value="completed" className="text-white hover:bg-card">Completed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -596,7 +596,7 @@ export default function TripDetail() {
                     value={tripForm.notes}
                     onChange={(e) => setTripForm(prev => ({ ...prev, notes: e.target.value }))}
                     placeholder="Add any notes about your trip..."
-                    className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray min-h-[100px]"
+                    className="bg-ios-darker border-border text-white placeholder-ios-gray min-h-[100px]"
                     data-testid="textarea-edit-notes"
                   />
                 </div>
@@ -606,7 +606,7 @@ export default function TripDetail() {
                     type="button"
                     onClick={handleCancel}
                     variant="outline"
-                    className="flex-1 bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap radius-md"
+                    className="flex-1 bg-ios-darker border-border text-white hover:bg-card smooth-transition interactive-tap radius-md"
                     data-testid="button-cancel-edit"
                   >
                     Cancel
@@ -639,18 +639,18 @@ export default function TripDetail() {
         {/* Trip Content */}
         <div className="space-y-6">
           {/* Trip Details */}
-          <Card className="bg-ios-card border-ios-gray">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-white">Trip Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-secondary/50 radius-md">
+                <div className="text-center p-4 bg-secondary radius-md">
                   <i className="fas fa-calendar text-ios-blue text-xl mb-2"></i>
                   <p className="text-sm text-muted-foreground">Duration</p>
                   <p className="font-bold text-foreground">{trip.days} days</p>
                 </div>
-                <div className="text-center p-4 bg-secondary/50 radius-md">
+                <div className="text-center p-4 bg-secondary radius-md">
                   <i className="fas fa-rupee-sign text-ios-green text-xl mb-2"></i>
                   <p className="text-sm text-muted-foreground">Budget</p>
                   <p className="font-bold text-foreground">
@@ -661,18 +661,18 @@ export default function TripDetail() {
                     })()}
                   </p>
                 </div>
-                <div className="text-center p-4 bg-secondary/50 radius-md">
+                <div className="text-center p-4 bg-secondary radius-md">
                   <i className="fas fa-users text-ios-orange text-xl mb-2"></i>
                   <p className="text-sm text-muted-foreground">Group</p>
                   <p className="font-bold text-foreground capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
                 </div>
-                <div className="text-center p-4 bg-secondary/50 radius-md">
+                <div className="text-center p-4 bg-secondary radius-md">
                   {selectedStyle && <selectedStyle.icon className={`${selectedStyle.color} w-6 h-6 mb-2 mx-auto`} />}
                   <p className="text-sm text-muted-foreground">Style</p>
                   <p className="font-bold text-foreground capitalize">{trip.travelStyle.replace('-', ' ')}</p>
                 </div>
                 {trip.transportMode && (
-                  <div className="text-center p-4 bg-secondary/50 radius-md">
+                  <div className="text-center p-4 bg-secondary radius-md">
                     <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-ios-blue text-xl mb-2`}></i>
                     <p className="text-sm text-muted-foreground">Transport</p>
                     <p className="font-bold text-foreground capitalize">{trip.transportMode}</p>
@@ -691,7 +691,7 @@ export default function TripDetail() {
 
           {/* Cost Breakdown */}
           {trip.costBreakdown && (
-            <Card className="bg-ios-card border-ios-gray">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-white">Estimated Cost Breakdown</CardTitle>
               </CardHeader>
@@ -712,7 +712,7 @@ export default function TripDetail() {
                     else if (key.includes('misc')) { iconClass = 'fa-shopping-bag'; colorClass = 'text-ios-gray'; }
 
                     return (
-                      <div key={key} className="bg-secondary/50 p-3 rounded-lg border border-border/50 flex flex-col justify-between">
+                      <div key={key} className="bg-secondary p-3 rounded-lg border border-border/50 flex flex-col justify-between">
                         <div className="flex items-center gap-2 mb-2">
                           <div className={`w-8 h-8 rounded-full bg-background flex items-center justify-center ${colorClass}`}>
                             <i className={`fas ${iconClass} text-sm`}></i>
@@ -751,8 +751,8 @@ export default function TripDetail() {
               </div>
               <div className="space-y-6">
                 {trip.itinerary.map((d: any) => (
-                  <Card key={`day-${d.day}`} className="bg-ios-card border-ios-gray overflow-hidden">
-                    <CardHeader className="bg-gradient-to-r from-ios-blue/10 to-purple-600/10 border-b border-ios-gray">
+                  <Card key={`day-${d.day}`} className="bg-card border-border overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-ios-blue/10 to-purple-600/10 border-b border-border">
                       <CardTitle className="text-white text-xl flex items-center">
                         <div className="w-10 h-10 rounded-full bg-ios-blue flex items-center justify-center mr-3 shadow-lg group-hover:scale-110 transition-transform">
                           <span className="text-white font-bold">{Number(d.day)}</span>
@@ -780,7 +780,7 @@ export default function TripDetail() {
                               <i className="fas fa-map-marker-alt text-white text-xs"></i>
                             </div>
 
-                            <div className="bg-secondary/50 rounded-lg p-4 border border-border hover:border-ios-blue transition-colors">
+                            <div className="bg-secondary rounded-lg p-4 border border-border hover:border-ios-blue transition-colors">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
@@ -853,7 +853,7 @@ export default function TripDetail() {
             </div>
           )}
 
-          <Card className="bg-ios-card border-ios-gray">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-white">AI Trip Planner</CardTitle>
             </CardHeader>
@@ -861,18 +861,18 @@ export default function TripDetail() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">Location</label>
-                  <Input type="text" value={tripForm.destination} disabled className="bg-ios-darker border-ios-gray text-white" />
+                  <Input type="text" value={tripForm.destination} disabled className="bg-ios-darker border-border text-white" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
-                  <Input type="number" value={aiBudget} onChange={(e) => setAiBudget(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
+                  <Input type="number" value={aiBudget} onChange={(e) => setAiBudget(e.target.value)} className="bg-ios-darker border-border text-white" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">Number of People</label>
-                  <Input type="number" value={aiGroupSize} onChange={(e) => setAiGroupSize(e.target.value)} className="bg-ios-darker border-ios-gray text-white" />
+                  <Input type="number" value={aiGroupSize} onChange={(e) => setAiGroupSize(e.target.value)} className="bg-ios-darker border-border text-white" />
                 </div>
               </div>
-              <Card className="bg-ios-card border-ios-gray">
+              <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="text-white text-base">Weather Forecast</CardTitle>
                 </CardHeader>
@@ -898,7 +898,7 @@ export default function TripDetail() {
               </Card>
               <div>
                 <label className="block text-sm font-semibold text-white mb-2">Additional Notes</label>
-                <Textarea value={aiNotes} onChange={(e) => setAiNotes(e.target.value)} placeholder="Preferences, constraints, must-see places…" className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray min-h-[100px]" />
+                <Textarea value={aiNotes} onChange={(e) => setAiNotes(e.target.value)} placeholder="Preferences, constraints, must-see places…" className="bg-ios-darker border-border text-white placeholder-ios-gray min-h-[100px]" />
               </div>
               <div className="flex justify-end">
                 <Button onClick={() => generatePlanMutation.mutate()} disabled={generatePlanMutation.isPending} className="bg-ios-blue hover:bg-ios-blue smooth-transition interactive-tap radius-md">
@@ -924,7 +924,7 @@ export default function TripDetail() {
 
               {openApiPlanning.length > 0 && (
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="bg-ios-card border-ios-gray">
+                  <Card className="bg-card border-border">
                     <CardHeader>
                       <CardTitle className="text-white text-base">Geocoded Places</CardTitle>
                     </CardHeader>
@@ -943,7 +943,7 @@ export default function TripDetail() {
                   </Card>
 
                   {segments.length > 0 && (
-                    <Card className="bg-ios-card border-ios-gray">
+                    <Card className="bg-card border-border">
                       <CardHeader>
                         <CardTitle className="text-white text-base">Travel Distances & Durations</CardTitle>
                       </CardHeader>
@@ -966,7 +966,7 @@ export default function TripDetail() {
 
 
               {(Array.isArray(hotelResults) || Array.isArray(foodResults) || Array.isArray(sightsResults)) && (
-                <Card className="bg-ios-card border-ios-gray mt-6">
+                <Card className="bg-card border-border mt-6">
                   <CardHeader>
                     <CardTitle className="text-white text-base">Suggestions: Hotels, Restaurants, Tourist Spots</CardTitle>
                   </CardHeader>
@@ -1031,12 +1031,12 @@ export default function TripDetail() {
 
           {/* Journal Entries for this Trip */}
           {tripJournalEntries.length > 0 && (
-            <Card className="bg-ios-card border-ios-gray">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-bold text-white">Trip Journal</CardTitle>
                   <Link href="/app/journal">
-                    <Button variant="outline" size="sm" className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap radius-md">
+                    <Button variant="outline" size="sm" className="bg-ios-darker border-border text-white hover:bg-card smooth-transition interactive-tap radius-md">
                       View All
                     </Button>
                   </Link>

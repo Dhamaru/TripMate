@@ -66,7 +66,7 @@ app.use((req, res, next) => {
   }
 
   // Serve app on fixed port 5000 by default
-  const port = 5000;
+  const port = Number(process.env.PORT) || 5000;
   server.listen(port, "0.0.0.0", () => {
     app.locals.ready = true;
     log(`serving on port ${port} pid=${process.pid}`);
