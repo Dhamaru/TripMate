@@ -4,6 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { motion } from "framer-motion";
 import { PackingList } from "@/components/PackingList";
+import { TripMap } from "@/components/TripMap";
+import { BudgetTracker } from "@/components/budget/BudgetTracker";
+import { ItineraryManager } from "@/components/itinerary/ItineraryManager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -98,7 +101,7 @@ export default function TripDetail() {
     },
   });
 
-  const { data: weather } = useQuery<any>({
+  const { data: weather, isLoading: weatherLoading, isError: weatherError } = useQuery<any>({
     queryKey: ['weather_forecast', tripForm.destination],
     enabled: !!tripForm.destination,
     queryFn: async () => {
@@ -107,6 +110,7 @@ export default function TripDetail() {
       const j = await r.json();
       return j;
     },
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -159,6 +163,20 @@ export default function TripDetail() {
       try { logError('trip_detail_unauthorized', { tripId: id }); } catch { }
     }
   }, [error, id]);
+
+  // Auto-fetch hero image if missing
+  useEffect(() => {
+    if (trip && !trip.imageUrl && isAuthenticated) {
+      apiRequest('POST', `/api/v1/trips/${id}/image`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.imageUrl) {
+            queryClient.setQueryData(['/api/v1/trips', id], (old: Trip | undefined) => old ? { ...old, imageUrl: data.imageUrl } : old);
+          }
+        })
+        .catch(() => { });
+    }
+  }, [trip, id, isAuthenticated, queryClient]);
 
   const { data: journalEntries } = useQuery<JournalEntry[]>({
     queryKey: ['/api/v1/journal'],
@@ -501,13 +519,26 @@ export default function TripDetail() {
           </div>
 
           {/* Hero Image */}
-          <div className="relative radius-md overflow-hidden h-64 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center">
-            <div className="text-center text-white">
+          <div className="relative radius-md overflow-hidden h-64 bg-secondary flex items-center justify-center group">
+            {trip.imageUrl ? (
+              <>
+                <img
+                  src={trip.imageUrl}
+                  alt={trip.destination}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+              </>
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-ios-blue to-purple-600 transition-opacity"></div>
+            )}
+
+            <div className="relative text-center text-white z-10 px-4">
               {selectedStyle && (
-                <selectedStyle.icon className={`${selectedStyle.color} w-16 h-16 mb-4 opacity-50 mx-auto`} />
+                <selectedStyle.icon className={`${selectedStyle.color} w-16 h-16 mb-4 opacity-80 mx-auto drop-shadow-lg`} />
               )}
-              <h2 className="text-2xl font-bold">{trip.destination}</h2>
-              <p className="text-lg opacity-90 capitalize">
+              <h2 className="text-4xl font-bold mb-2 shadow-text">{trip.destination}</h2>
+              <p className="text-xl font-medium opacity-90 capitalize shadow-text flex items-center justify-center gap-2">
                 {trip.travelStyle.replace('-', ' ')} Adventure
               </p>
             </div>
@@ -671,6 +702,29 @@ export default function TripDetail() {
                   <p className="text-sm text-muted-foreground">Style</p>
                   <p className="font-bold text-foreground capitalize">{trip.travelStyle.replace('-', ' ')}</p>
                 </div>
+                <div className="text-center p-4 bg-secondary radius-md">
+                  {weather ? (
+                    <>
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <i className={`${weather.current.icon} text-ios-blue text-2xl`}></i>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{weather.current.condition}</p>
+                      <p className="font-bold text-foreground">{Math.round(weather.current.temperature)}°C</p>
+                    </>
+                  ) : weatherLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-ios-blue mx-auto mb-2"></div>
+                      <p className="text-sm text-muted-foreground">Weather</p>
+                      <p className="font-bold text-foreground text-xs">Loading...</p>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-exclamation-circle text-ios-gray text-xl mb-2"></i>
+                      <p className="text-sm text-muted-foreground">Weather</p>
+                      <p className="font-bold text-ios-gray text-xs">Unavailable</p>
+                    </>
+                  )}
+                </div>
                 {trip.transportMode && (
                   <div className="text-center p-4 bg-secondary radius-md">
                     <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-ios-blue text-xl mb-2`}></i>
@@ -689,169 +743,19 @@ export default function TripDetail() {
             </CardContent>
           </Card>
 
-          {/* Cost Breakdown */}
-          {trip.costBreakdown && (
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">Estimated Cost Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {Object.entries(trip.costBreakdown).map(([key, value]) => {
-                    if (key === 'totalINR' || key === 'total') return null; // Skip total
-                    const label = key.replace(/INR$/, '').replace(/([A-Z])/g, ' $1').trim();
-                    const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
-                    const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
+          {/* Trip Map */}
+          <TripMap destination={trip.destination} itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []} />
 
-                    let iconClass = 'fa-coins';
-                    let colorClass = 'text-ios-gray';
-                    if (key.includes('accommodation')) { iconClass = 'fa-bed'; colorClass = 'text-ios-blue'; }
-                    else if (key.includes('food')) { iconClass = 'fa-utensils'; colorClass = 'text-ios-orange'; }
-                    else if (key.includes('transport')) { iconClass = 'fa-plane'; colorClass = 'text-ios-green'; }
-                    else if (key.includes('activities')) { iconClass = 'fa-ticket-alt'; colorClass = 'text-ios-purple'; }
-                    else if (key.includes('misc')) { iconClass = 'fa-shopping-bag'; colorClass = 'text-ios-gray'; }
+          {/* Cost Breakdown & Budget Tracker */}
+          <BudgetTracker trip={trip} />
 
-                    return (
-                      <div key={key} className="bg-secondary p-3 rounded-lg border border-border/50 flex flex-col justify-between">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className={`w-8 h-8 rounded-full bg-background flex items-center justify-center ${colorClass}`}>
-                            <i className={`fas ${iconClass} text-sm`}></i>
-                          </div>
-                          <p className="text-xs text-muted-foreground capitalize">{label}</p>
-                        </div>
-                        <p className="text-foreground font-semibold text-lg">{symbol}{Number(value).toLocaleString()}</p>
-                      </div>
-                    );
-                  })}
-                  <div className="bg-ios-blue/10 p-3 rounded-lg border border-ios-blue/30 col-span-2 md:col-span-1 flex flex-col justify-center">
-                    <p className="text-xs text-ios-blue mb-1 font-medium">ESTIMATED TOTAL</p>
-                    <p className="text-ios-blue font-bold text-2xl">
-                      {(() => {
-                        const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
-                        const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
-                        const total = trip.costBreakdown.total || trip.costBreakdown.totalINR || 0;
-                        return `${symbol}${Number(total).toLocaleString()}`;
-                      })()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Itinerary Card */}
-          {trip.itinerary && Array.isArray(trip.itinerary) && trip.itinerary.length > 0 && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-white">Your Itinerary</h3>
-                <Button variant="outline" size="sm" className="text-ios-blue border-ios-blue hover:bg-ios-blue/10">
-                  <i className="fas fa-print mr-2"></i>
-                  Print
-                </Button>
-              </div>
-              <div className="space-y-6">
-                {trip.itinerary.map((d: any) => (
-                  <Card key={`day-${d.day}`} className="bg-card border-border overflow-hidden">
-                    <CardHeader className="bg-gradient-to-r from-ios-blue/10 to-purple-600/10 border-b border-border">
-                      <CardTitle className="text-white text-xl flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-ios-blue flex items-center justify-center mr-3 shadow-lg group-hover:scale-110 transition-transform">
-                          <span className="text-white font-bold">{Number(d.day)}</span>
-                        </div>
-                        {((dayNum) => {
-                          if (!Number.isFinite(dayNum)) return `Day ${d.day || '?'}`;
-                          const j = dayNum % 10,
-                            k = dayNum % 100;
-                          if (j === 1 && k !== 11) return `${dayNum}st Day`;
-                          if (j === 2 && k !== 12) return `${dayNum}nd Day`;
-                          if (j === 3 && k !== 13) return `${dayNum}rd Day`;
-                          return `${dayNum}th Day`;
-                        })(Number(d.day))}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="relative space-y-6">
-                        {/* Vertical timeline line */}
-                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-ios-blue to-purple-600"></div>
-
-                        {Array.isArray(d.activities) && d.activities.map((a: any, idx: number) => (
-                          <div key={`act-${d.day}-${idx}`} className="relative pl-12">
-                            {/* Timeline dot */}
-                            <div className="absolute left-0 top-2 w-8 h-8 rounded-full bg-ios-blue border-4 border-[#0d1117] flex items-center justify-center">
-                              <i className="fas fa-map-marker-alt text-white text-xs"></i>
-                            </div>
-
-                            <div className="bg-secondary rounded-lg p-4 border border-border hover:border-ios-blue transition-colors">
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-ios-blue/20 text-ios-blue border border-ios-blue/30">
-                                      <i className="fas fa-clock mr-1.5"></i>
-                                      {String(a.time)}
-                                    </span>
-                                    {typeof a.duration_minutes === 'number' && (
-                                      <span className="text-xs text-ios-gray">
-                                        {Number(a.duration_minutes)} min
-                                      </span>
-                                    )}
-                                  </div>
-                                  <h4 className="text-lg font-semibold text-white mb-1">{String(a.placeName || a.title || '')}</h4>
-                                  {a.address && (
-                                    <a
-                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-sm text-ios-gray hover:text-ios-blue underline transition-colors inline-flex items-center gap-1"
-                                    >
-                                      <i className="fas fa-location-dot text-xs"></i>
-                                      {String(a.address)}
-                                    </a>
-                                  )}
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-lg font-bold text-ios-green">
-                                    {(() => {
-                                      const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$', JPY: '¥', CNY: '¥' };
-                                      const symbol = symbols[trip.currency || 'INR'] || trip.currency || '₹';
-                                      const fee = a.entryFee !== undefined ? a.entryFee : a.entryFeeINR;
-                                      return typeof fee === 'number' && fee > 0 ? `${symbol}${Number(fee).toLocaleString()}` : 'Free';
-                                    })()}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {a.routeFromPrevious && (
-                                <div className="flex items-center gap-2 text-sm text-ios-gray bg-ios-darker/50 rounded px-3 py-2 border border-gray-800">
-                                  <i className={`fas fa-${a.routeFromPrevious.mode === 'walk' ? 'walking' : 'car'} text-ios-blue`}></i>
-                                  <span>{Number(a.routeFromPrevious.distance_km).toFixed(1)} km</span>
-                                  <span>•</span>
-                                  <span>{Number(a.routeFromPrevious.travel_time_minutes)} min travel</span>
-                                </div>
-                              )}
-
-                              {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
-                                <div className="mt-3">
-                                  <div className="text-xs font-semibold text-ios-gray mb-2">
-                                    <i className="fas fa-utensils mr-1"></i> Local Food Recommendations
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {a.localFoodRecommendations.map((f: any, i: number) => (
-                                      <span key={`food-${i}`} className="text-xs bg-gradient-to-r from-ios-green/10 to-ios-blue/10 text-white px-3 py-1.5 rounded-full border border-ios-green/30">
-                                        {String(f)}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+          {/* Itinerary Manager */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">Your Itinerary</h3>
             </div>
-          )}
+            <ItineraryManager trip={trip} />
+          </div>
 
           <Card className="bg-card border-border">
             <CardHeader>

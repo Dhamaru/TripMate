@@ -100,7 +100,17 @@ export const SessionModel: Model<ISession> = mongoose.model<ISession>("Session",
 export type TripStatus = "planning" | "active" | "completed";
 export type TravelStyle = "budget" | "standard" | "luxury" | "adventure" | "relaxed" | "family" | "cultural" | "culinary";
 
+export interface IExpense {
+  id: string;
+  amount: number;
+  currency: string;
+  category: "Accommodation" | "Food" | "Transport" | "Activities" | "Shopping" | "Other";
+  description: string;
+  date: Date;
+}
+
 export interface IItineraryActivity {
+  id: string;
   time?: string;
   title: string;
   location?: string;
@@ -118,6 +128,7 @@ export interface IItineraryDay {
 export interface ITrip extends Document {
   userId: string;
   destination: string;
+  imageUrl?: string;
   currency?: string;
   budget?: number;
   days: number;
@@ -129,6 +140,7 @@ export interface ITrip extends Document {
   startDate?: Date;
   endDate?: Date;
   itinerary?: IItineraryDay[];
+  expenses?: IExpense[];
   notes?: string;
   aiPlanMarkdown?: string;
   isDraft?: boolean;
@@ -142,6 +154,7 @@ const tripSchema = new Schema<ITrip>(
   {
     userId: { type: String, required: true, ref: "User", index: true },
     destination: { type: String, required: true },
+    imageUrl: { type: String },
     currency: { type: String, default: "INR" },
     budget: { type: Number, min: 0 },
     days: { type: Number, required: true, min: 1 },
@@ -164,6 +177,14 @@ const tripSchema = new Schema<ITrip>(
     startDate: { type: Date },
     endDate: { type: Date },
     itinerary: { type: Schema.Types.Mixed },
+    expenses: [{
+      id: { type: String, required: true },
+      amount: { type: Number, required: true },
+      currency: { type: String, required: true },
+      category: { type: String, required: true },
+      description: { type: String, default: "" },
+      date: { type: Date, default: Date.now },
+    }],
     notes: { type: String },
     aiPlanMarkdown: { type: String },
     costBreakdown: { type: Schema.Types.Mixed }, // JSON object for budget details
@@ -184,6 +205,7 @@ export const TripModel: Model<ITrip> = mongoose.model<ITrip>("Trip", tripSchema)
 export const insertTripSchema = z.object({
   userId: z.string().min(1),
   destination: z.string().min(1),
+  imageUrl: z.string().url().optional(),
   currency: z.string().default("INR").optional(),
   budget: z.coerce.number().min(0).optional(),
   days: z.coerce.number().int().min(1),
@@ -208,6 +230,7 @@ export const insertTripSchema = z.object({
     day: z.number().int().min(1).optional(),      // Allow 'day' from AI
     date: z.coerce.date().optional(),
     activities: z.array(z.object({
+      id: z.string().optional(), // Inbound from AI might lack ID, but we should generate one
       time: z.string().optional(),
       title: z.string().min(1),
       location: z.string().optional(),
@@ -219,6 +242,14 @@ export const insertTripSchema = z.object({
   isDraft: z.boolean().optional(),
   syncStatus: z.enum(["synced", "pending", "conflict"]).optional(),
   costBreakdown: z.record(z.any()).optional(), // Store flexible JSON cost data
+  expenses: z.array(z.object({
+    id: z.string(),
+    amount: z.number(),
+    currency: z.string(),
+    category: z.enum(["Accommodation", "Food", "Transport", "Activities", "Shopping", "Other"]),
+    description: z.string().default(""),
+    date: z.coerce.date(),
+  })).optional(),
 });
 export type InsertTrip = z.infer<typeof insertTripSchema>;
 export type Trip = ITrip;

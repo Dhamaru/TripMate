@@ -202,8 +202,8 @@ export default function Profile() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-24 h-24 relative group cursor-pointer" onClick={openFileDialog} title="Change picture">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 space-x-0 sm:space-x-4">
+              <div className="w-24 h-24 relative group cursor-pointer shrink-0" onClick={openFileDialog} title="Change picture">
                 <Avatar className="w-24 h-24 rounded-full overflow-hidden bg-muted ring-2 ring-offset-2 ring-offset-background ring-ios-blue">
                   <AvatarImage src={profileImageUrl} alt="Profile" className="object-cover transition-transform group-hover:scale-105" />
                   <AvatarFallback className="text-2xl">{firstName?.[0] || email?.[0] || 'U'}</AvatarFallback>
@@ -212,8 +212,8 @@ export default function Profile() {
                   <i className="fas fa-camera text-white text-xl"></i>
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 items-center sm:items-start w-full">
+                <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -250,7 +250,7 @@ export default function Profile() {
                   </Button>
                 </div>
                 {selectedFileName && (
-                  <span className="text-sm text-muted-foreground" aria-live="polite">{selectedFileName}</span>
+                  <span className="text-sm text-muted-foreground text-center sm:text-left" aria-live="polite">{selectedFileName}</span>
                 )}
               </div>
             </div>

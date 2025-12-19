@@ -2155,71 +2155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Emergency Services Route
-  app.get('/api/v1/emergency', optionalAuth, async (req: any, res) => {
-    try {
-      const location = String(req.query.location || '').trim();
-      if (!location) return res.status(400).json({ error: 'Location required' });
 
-      let lat = 0, lon = 0;
-      const parts = location.split(',');
-      if (parts.length === 2 && !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))) {
-        lat = Number(parts[0]);
-        lon = Number(parts[1]);
-      }
-
-      const key = process.env.GOOGLE_PLACES_API_KEY;
-      if (!key) {
-        return res.json([
-          { id: 'mock1', name: 'General Hospital', type: 'hospital', address: 'Nearby', phone: '108', distance: '1.2 km', latitude: lat + 0.01, longitude: lon + 0.01 },
-          { id: 'mock2', name: 'Central Police Station', type: 'police', address: 'Downtown', phone: '100', distance: '2.5 km', latitude: lat - 0.01, longitude: lon },
-        ]);
-      }
-
-      const query = `emergency services near ${location}`;
-      const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
-
-      const r = await fetch(url);
-      const data = await r.json();
-
-      if (data.status === 'OK' && data.results) {
-        const mapped = data.results.map((item: any) => {
-          let type = 'hospital';
-          if (item.types?.includes('police')) type = 'police';
-          else if (item.types?.includes('embassy')) type = 'embassy';
-          else if (item.types?.includes('fire_station')) type = 'fire';
-          else if (item.types?.includes('pharmacy')) type = 'pharmacy';
-          else if (item.types?.includes('hospital') || item.types?.includes('health')) type = 'hospital';
-
-          let distance = '—';
-          if (lat && lon && item.geometry?.location) {
-            const R = 6371;
-            const dLat = (item.geometry.location.lat - lat) * Math.PI / 180;
-            const dLon = (item.geometry.location.lng - lon) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat * Math.PI / 180) * Math.cos(item.geometry.location.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            distance = `${(R * c).toFixed(1)} km`;
-          }
-
-          return {
-            id: item.place_id,
-            name: item.name,
-            type,
-            address: item.formatted_address,
-            phone: '112',
-            distance,
-            latitude: item.geometry?.location?.lat,
-            longitude: item.geometry?.location?.lng
-          };
-        });
-        return res.json(mapped.slice(0, 10));
-      }
-      return res.json([]);
-    } catch (error) {
-      console.error('Emergency endpoint error:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
-  });
 
   app.get('/api/v1/currency', isJwtAuthenticated, aiLimiter, async (req: any, res) => {
     try {
@@ -2531,6 +2467,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ ok: true, ts: Date.now() });
   });
 
+  // Auto-fetch trip image
+  app.post('/api/v1/trips/:id/image', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+      if (trip.userId !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
+
+      // If already has image and not force refresh, return it
+      if (trip.imageUrl && !req.query.force) {
+        return res.json({ imageUrl: trip.imageUrl });
+      }
+
+      const gkey = process.env.GOOGLE_PLACES_API_KEY;
+      if (!gkey) return res.status(503).json({ error: 'No Places API key' });
+
+      const gurl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(trip.destination + ' travel')}&key=${gkey}`;
+      const gr = await fetch(gurl);
+      const gj = await gr.json();
+
+      let imageUrl = '';
+      if (gj.status === 'OK' && gj.results && gj.results.length > 0) {
+        const place = gj.results[0];
+        if (place.photos && place.photos.length > 0) {
+          imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${place.photos[0].photo_reference}&key=${gkey}`;
+        }
+      }
+
+      if (imageUrl) {
+        const updated = await storage.updateTrip(trip.id, req.user.id, { imageUrl });
+        return res.json({ imageUrl: updated?.imageUrl });
+      }
+
+      return res.json({ imageUrl: null });
+    } catch (error) {
+      console.error('Fetch trip image error:', error);
+      res.status(500).json({ error: 'Failed to fetch image' });
+    }
+  });
+
+  // Update Itinerary (Reorder/Edit)
+  app.put('/api/v1/trips/:id/itinerary', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      const { itinerary } = req.body;
+      if (!Array.isArray(itinerary)) return res.status(400).json({ error: 'Invalid itinerary format' });
+
+      // Ensure every activity has an ID
+      const updatedItinerary = itinerary.map((day: any) => ({
+        ...day,
+        activities: Array.isArray(day.activities) ? day.activities.map((act: any) => ({
+          ...act,
+          id: act.id || Math.random().toString(36).substring(7)
+        })) : []
+      }));
+
+      const updated = await storage.updateTrip(trip.id, req.user.id, { itinerary: updatedItinerary });
+      res.json(updated?.itinerary);
+    } catch (error) {
+      console.error('Update itinerary error:', error);
+      res.status(500).json({ error: 'Failed to update itinerary' });
+    }
+  });
+
+  // Add Expense
+  app.post('/api/v1/trips/:id/expenses', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      const newExpense = {
+        id: Math.random().toString(36).substring(7),
+        ...req.body,
+        date: new Date(req.body.date || Date.now())
+      };
+
+      const currentExpenses = trip.expenses || [];
+      const updated = await storage.updateTrip(trip.id, req.user.id, {
+        expenses: [...currentExpenses, newExpense]
+      });
+
+      res.json(updated?.expenses);
+    } catch (error) {
+      console.error('Add expense error:', error);
+      res.status(500).json({ error: 'Failed to add expense' });
+    }
+  });
+
+  // Delete Expense
+  app.delete('/api/v1/trips/:id/expenses/:expenseId', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      const currentExpenses = trip.expenses || [];
+      const filtered = currentExpenses.filter((e: any) => e.id !== req.params.expenseId);
+
+      const updated = await storage.updateTrip(trip.id, req.user.id, { expenses: filtered });
+      res.json(updated?.expenses);
+    } catch (error) {
+      console.error('Delete expense error:', error);
+      res.status(500).json({ error: 'Failed to delete expense' });
+    }
+  });
+
   // AI Trip Suggestions API
   app.post('/api/v1/trips/suggest', isJwtAuthenticated, async (req: any, res) => {
     try {
@@ -2743,6 +2785,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lat: Number(it.geometry?.location?.lat ?? 0),
               lon: Number(it.geometry?.location?.lng ?? 0),
               display_name: String(it.formatted_address || it.name || ''),
+              photoUrl: it.photos && it.photos.length > 0
+                ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${it.photos[0].photo_reference}&key=${gkey}`
+                : undefined,
               source: 'google',
             }));
             list = Array.isArray(list) ? list : [];

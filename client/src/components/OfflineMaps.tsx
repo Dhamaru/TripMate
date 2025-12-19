@@ -37,6 +37,7 @@ interface PlaceResult {
   city?: string;
   country?: string;
   postcode?: string;
+  photoUrl?: string;
 }
 
 interface CustomPin {
@@ -363,7 +364,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       lat, lon,
       category: it.type,
       city: it.address?.city,
-      country: it.address?.country
+      country: it.address?.country,
+      photoUrl: it.photoUrl, // Added photoUrl
     };
   }
 
@@ -641,14 +643,32 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             {placesResults.length > 0 && (
               <div className="grid gap-2 max-h-60 overflow-y-auto">
                 {placesResults.map(p => (
-                  <div key={p.id} className="bg-ios-darker p-3 rounded-lg flex justify-between items-center text-white">
-                    <div>
-                      <div className="font-semibold">{p.name}</div>
-                      <div className="text-xs text-gray-400">{p.displayName}</div>
+                  <div
+                    key={p.id}
+                    className="p-3 border-b border-border hover:bg-secondary/50 cursor-pointer transition-colors flex gap-3"
+                    onClick={() => {
+                      viewPlaceOnMap(p); // Assuming handlePlaceSelect is viewPlaceOnMap
+                    }}
+                  >
+                    {p.photoUrl && (
+                      <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-muted">
+                        <img src={p.photoUrl} alt={p.name} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground truncate">{p.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{p.displayName}</div>
+                      {p.category && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-ios-blue/10 text-ios-blue capitalize">
+                            {p.category.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => viewPlaceOnMap(p)}>View</Button>
-                      <Button size="sm" variant="default" onClick={() => addPlaceAsRegion(p)}>Add</Button>
+                    <div className="flex gap-2 items-center">
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); viewPlaceOnMap(p); }}>View</Button>
+                      <Button size="sm" variant="default" onClick={(e) => { e.stopPropagation(); addPlaceAsRegion(p); }}>Add</Button>
                     </div>
                   </div>
                 ))}
