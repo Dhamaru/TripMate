@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type Trip, type IItineraryDay, type IItineraryActivity } from "@shared/schema";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,9 +53,15 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
     // DnD Sensors
     const sensors = useSensors(
-        useSensor(PointerSensor, {
+        useSensor(MouseSensor, {
             activationConstraint: {
-                distance: 8,
+                distance: 10,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 2000,
+                tolerance: 5,
             },
         }),
         useSensor(KeyboardSensor, {
