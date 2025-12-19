@@ -142,32 +142,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Bottom Navigation */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-t border-gray-800 pb-[env(safe-area-inset-bottom)]">
-          <div className="flex items-center justify-around h-16 px-4">
+          <div className="grid grid-cols-6 h-16 w-full">
             {NAV_ITEMS.map((item) => {
               const isActive = location === item.href || location.startsWith(item.href);
               return (
                 <Link key={item.href} href={item.href}>
                   <div
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 flex-1 min-w-0 h-full transition-colors",
+                      "flex flex-col items-center justify-center gap-1 w-full h-full transition-colors",
                       isActive ? "text-[#58a6ff]" : "text-gray-400"
                     )}
                   >
                     <item.icon className={cn("h-5 w-5", isActive && "fill-current")} />
-                    <span className="text-[10px] font-medium">{item.label}</span>
+                    <span className="text-[9px] font-medium truncate w-full text-center px-0.5">{item.label}</span>
                   </div>
                 </Link>
               );
             })}
             <Link href="/app/profile">
-              <div className="flex flex-col items-center justify-center gap-1 flex-1 min-w-0 h-full">
+              <div className="flex flex-col items-center justify-center gap-1 w-full h-full">
                 <Avatar className="h-6 w-6 rounded-full overflow-hidden border border-gray-700">
                   <AvatarImage src={user?.profileImageUrl} />
                   <AvatarFallback className="bg-[#1f6feb] text-white text-xs">
                     {user?.firstName?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-[10px] font-medium text-gray-400">Profile</span>
+                <span className="text-[9px] font-medium text-gray-400 truncate w-full text-center px-0.5">Profile</span>
               </div>
             </Link>
           </div>
