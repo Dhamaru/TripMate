@@ -12,39 +12,60 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import type { JournalEntry, User } from "@shared/schema";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, Calendar, Clock, Image as ImageIcon } from "lucide-react";
 
 // Carousel Component for Journal Entry Images
-const JournalImageCarousel = ({ photos, title, children }: { photos: string[], title: string, children?: React.ReactNode }) => {
+const JournalImageCarousel = ({ photos, title, children, height = "h-48" }: { photos: string[], title: string, children?: React.ReactNode, height?: string }) => {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     if (photos.length <= 1) return;
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % photos.length);
-    }, 3000); // Change every 3 seconds
+    }, 4000);
     return () => clearInterval(interval);
   }, [photos.length]);
 
-  return (
-    <div className="h-48 overflow-hidden relative bg-ios-darker">
-      {photos.map((photo, i) => (
-        <img
-          key={photo}
-          src={photo}
-          alt={`${title} ${i + 1}`}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === index ? 'opacity-100' : 'opacity-0'}`}
-        />
-      ))}
+  if (!photos || photos.length === 0) {
+    return (
+      <div className={`${height} overflow-hidden relative bg-ios-darker flex items-center justify-center`}>
+        <ImageIcon className="text-ios-gray w-8 h-8 opacity-20" />
+        {children}
+      </div>
+    );
+  }
 
-      {/* Photo Counter Badge */}
+  return (
+    <div className={`${height} overflow-hidden relative bg-ios-darker`}>
+      <AnimatePresence mode="wait">
+        <motion.img
+          key={photos[index]}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1 }}
+          src={photos[index]}
+          alt={`${title} ${index + 1}`}
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+      </AnimatePresence>
+
+      <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-black/40 to-transparent pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
+
       {photos.length > 1 && (
-        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
-          <i className="fas fa-images mr-1"></i>
-          {index + 1} / {photos.length}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {photos.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1 rounded-full transition-all duration-300 ${i === index ? 'bg-white w-4' : 'bg-white/40 w-1'}`}
+            />
+          ))}
         </div>
       )}
 
-      {/* Action Buttons (passed as children) */}
       {children}
     </div>
   );
@@ -82,7 +103,7 @@ export default function Journal() {
   const { data: journalEntries = [], isLoading } = useQuery<JournalEntry[]>({
     queryKey: ["/api/v1/journal"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/v1/journal");
+      const res = await apiRequest("GET", "/api/v1/journal?light=true");
       if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
       return res.json();
     },
@@ -278,12 +299,16 @@ export default function Journal() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6"
+        >
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2" data-testid="journal-title">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2" data-testid="journal-title">
               Travel Journal
             </h1>
-            <p className="text-ios-gray">Capture your travel memories and experiences</p>
+            <p className="text-ios-gray text-lg">Capture your travel memories and experiences</p>
           </div>
 
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -423,7 +448,8 @@ export default function Journal() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+        </motion.div>
+
 
         {/* Journal Entries */}
         {isLoading ? (
@@ -461,46 +487,57 @@ export default function Journal() {
                   <span className="opacity-80">{date}</span>
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   {entries.map((entry) => (
                     <Card
                       key={entry.id}
-                      className="bg-ios-card border-ios-gray elev-1 hover-lift smooth-transition overflow-hidden radius-md group cursor-pointer"
-                      data-testid={`journal-entry-${entry.id}`}
-                      onClick={() => handleEdit(entry)}
+                      className="bg-ios-card border-ios-gray/20 hover:border-ios-blue/30 elev-1 radius-md group cursor-pointer overflow-hidden transition-all duration-300"
+                      onClick={() => navigate(`/app/journal/${entry.id}`)}
                     >
-                      {entry.photos && entry.photos.length > 0 ? (
-                        <JournalImageCarousel photos={entry.photos} title={entry.title}>
-                          <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                            <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-8 w-8 bg-black/50 text-white hover:bg-black/70 rounded-full"><i className="fas fa-edit"></i></Button>
-                            <Button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }} size="sm" variant="ghost" className="h-8 w-8 bg-red-500/50 text-white hover:bg-red-600/70 rounded-full"><i className="fas fa-trash"></i></Button>
-                          </div>
-                        </JournalImageCarousel>
-                      ) : (
-                        <div className="h-32 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center relative">
-                          <div className="text-white text-center">
-                            <i className="fas fa-map-marker-alt text-2xl mb-2"></i>
-                            <p className="text-sm">{entry.location || 'Travel Memory'}</p>
-                          </div>
-                          <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-ios-card/20"><i className="fas fa-edit"></i></Button>
-                            <Button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }} size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-ios-red/50"><i className="fas fa-trash"></i></Button>
-                          </div>
+                      <div className="flex flex-row h-32 sm:h-40">
+                        {/* Image Side (1/3) */}
+                        <div className="w-1/3 min-w-[100px] border-r border-ios-gray/10">
+                          {entry.photos && entry.photos.length > 0 ? (
+                            <JournalImageCarousel photos={entry.photos} title={entry.title} height="h-full">
+                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20">
+                                <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-6 w-6 bg-black/50 text-white hover:bg-black/70 rounded-full p-0"><i className="fas fa-edit text-[10px]"></i></Button>
+                                <Button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }} size="sm" variant="ghost" className="h-6 w-6 bg-red-500/50 text-white hover:bg-red-600/70 rounded-full p-0"><i className="fas fa-trash text-[10px]"></i></Button>
+                              </div>
+                            </JournalImageCarousel>
+                          ) : (
+                            <div className="h-full bg-gradient-to-br from-ios-blue/20 to-purple-600/20 flex items-center justify-center relative">
+                              <ImageIcon className="w-6 h-6 text-ios-blue opacity-40" />
+                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-6 w-6 p-0 text-white hover:bg-ios-card/20"><i className="fas fa-edit text-[10px]"></i></Button>
+                                <Button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }} size="sm" variant="ghost" className="h-6 w-6 p-0 text-white hover:bg-ios-red/50"><i className="fas fa-trash text-[10px]"></i></Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
 
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-bold text-white text-lg">{entry.title}</h4>
-                          {entry.location && <span className="text-xs text-ios-blue bg-ios-blue/10 px-2 py-1 rounded"><i className="fas fa-map-marker-alt mr-1"></i>{entry.location}</span>}
-                        </div>
-                        <p className="text-sm text-ios-gray mb-3 line-clamp-3 whitespace-pre-wrap">
-                          {entry.content}
-                        </p>
-                        <div className="flex items-center justify-between text-xs text-ios-gray pt-2 border-t border-ios-gray/10">
-                          <span><i className="far fa-clock mr-1"></i>{new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      </CardContent>
+                        {/* Content Side (2/3) */}
+                        <CardContent className="w-2/3 p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
+                          <div>
+                            <div className="flex justify-between items-start mb-1 gap-2">
+                              <h4 className="font-bold text-white text-base sm:text-lg truncate">{entry.title}</h4>
+                              {entry.location && (
+                                <span className="text-[10px] text-ios-blue bg-ios-blue/10 px-1.5 py-0.5 rounded flex-shrink-0 flex items-center">
+                                  <MapPin className="w-2.5 h-2.5 mr-1" />
+                                  <span className="truncate max-w-[80px]">{entry.location}</span>
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs sm:text-sm text-ios-gray line-clamp-2 sm:line-clamp-3 whitespace-pre-wrap leading-relaxed">
+                              {entry.content}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] text-ios-gray/60 mt-2">
+                            <span className="flex items-center"><Clock className="w-3 h-3 mr-1" />{new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" />{new Date(entry.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </CardContent>
+                      </div>
                     </Card>
                   ))}
                 </div>
@@ -533,6 +570,6 @@ export default function Journal() {
           </Card>
         )}
       </div>
-    </div>
+    </div >
   );
 }

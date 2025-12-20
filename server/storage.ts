@@ -32,7 +32,7 @@ export interface IStorage {
   deleteAllTrips(userId: string): Promise<boolean>;
 
   // Journal operations
-  getUserJournalEntries(userId: string): Promise<JournalEntry[]>;
+  getUserJournalEntries(userId: string, options?: { excludeHeavyFields?: boolean; limit?: number; page?: number }): Promise<JournalEntry[]>;
   getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]>;
   getJournalEntry(id: string, userId: string): Promise<JournalEntry | undefined>;
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
@@ -191,8 +191,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Journal operations
-  async getUserJournalEntries(userId: string): Promise<JournalEntry[]> {
-    return await JournalEntryModel.find({ userId }).sort({ createdAt: -1 }).exec();
+  async getUserJournalEntries(userId: string, options?: { excludeHeavyFields?: boolean; limit?: number; page?: number }): Promise<JournalEntry[]> {
+    const { excludeHeavyFields, limit = 0, page = 1 } = options || {};
+    let query = JournalEntryModel.find({ userId }).sort({ createdAt: -1 });
+
+    if (excludeHeavyFields) {
+      // Simplify: we will handle the "first photo only" logic in the route for now
+      // This ensures we get the thumbnail for the "cute and short" card layout.
+    }
+
+    if (limit > 0) {
+      query = query.limit(limit).skip((page - 1) * limit);
+    }
+
+    return await query.lean().exec() as JournalEntry[];
   }
 
   async getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]> {

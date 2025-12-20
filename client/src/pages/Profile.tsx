@@ -203,7 +203,11 @@ export default function Profile() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 space-x-0 sm:space-x-4">
-              <div className="w-24 h-24 relative group cursor-pointer shrink-0" onClick={openFileDialog} title="Change picture">
+              <div
+                className="w-24 h-24 relative group cursor-pointer shrink-0"
+                onClick={openFileDialog}
+                title="Change picture"
+              >
                 <Avatar className="w-24 h-24 rounded-full overflow-hidden bg-muted ring-2 ring-offset-2 ring-offset-background ring-ios-blue">
                   <AvatarImage src={profileImageUrl} alt="Profile" className="object-cover transition-transform group-hover:scale-105" />
                   <AvatarFallback className="text-2xl">{firstName?.[0] || email?.[0] || 'U'}</AvatarFallback>

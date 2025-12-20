@@ -142,7 +142,7 @@ export default function TripsHistory() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                     {filteredTrips.map((trip, index) => (
                         <motion.div
                             key={trip.id}
@@ -151,43 +151,63 @@ export default function TripsHistory() {
                             transition={{ delay: index * 0.1, duration: 0.4 }}
                         >
                             <Link href={`/app/trips/${trip.id}`}>
-                                <Card className="bg-ios-card border-ios-gray hover:border-ios-blue transition-all cursor-pointer h-full group overflow-hidden rounded-2xl shadow-sm hover:shadow-md">
-                                    {/* Trip Image/Header */}
-                                    <div className="relative h-40 bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center overflow-hidden">
-                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-                                        <div className="relative text-center text-white px-4">
-                                            <Compass className="w-10 h-10 mx-auto mb-2 opacity-90" />
-                                            <h3 className="text-xl font-bold truncate">{trip.destination}</h3>
+                                <Card className="bg-ios-card border-ios-gray/20 hover:border-ios-blue/30 transition-all cursor-pointer group overflow-hidden rounded-2xl shadow-sm hover:shadow-md h-32 sm:h-40">
+                                    <div className="flex flex-row h-full">
+                                        {/* Trip Image/Header Side (1/3) */}
+                                        <div className="w-1/3 min-w-[120px] relative bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center overflow-hidden border-r border-ios-gray/10">
+                                            {trip.imageUrl ? (
+                                                <>
+                                                    <img
+                                                        src={trip.imageUrl}
+                                                        alt={trip.destination}
+                                                        className="absolute inset-0 w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
+                                                    <div className="relative text-center text-white px-2">
+                                                        <Compass className="w-8 h-8 mx-auto mb-1 opacity-80" />
+                                                        <h3 className="text-xs font-bold truncate max-w-full italic">Trip Mate</h3>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
+
+                                        {/* Trip Details Side (2/3) */}
+                                        <CardContent className="w-2/3 p-3 sm:p-4 flex flex-col justify-between">
+                                            <div className="space-y-2">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <h3 className="text-lg sm:text-xl font-bold text-white truncate">{trip.destination}</h3>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${getStatusColor(trip.status)}`}>
+                                                        {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+                                                    </span>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] sm:text-xs">
+                                                    <div>
+                                                        <p className="text-ios-gray">Budget</p>
+                                                        <p className="text-white font-medium">₹{trip.budget?.toLocaleString() || 'N/A'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-ios-gray">Duration</p>
+                                                        <p className="text-white font-medium">{trip.days} days</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-ios-gray">Group</p>
+                                                        <p className="text-white font-medium truncate">
+                                                            {Number(trip.groupSize) === 1 ? 'Solo' : `${trip.groupSize} People`}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-ios-gray">Style</p>
+                                                        <p className="text-white font-medium capitalize truncate">{trip.travelStyle.replace('-', ' ')}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
                                     </div>
-
-                                    {/* Trip Details */}
-                                    <CardContent className="p-4 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className={`text-xs px-3 py-1 rounded-full border ${getStatusColor(trip.status)}`}>
-                                                {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
-                                            </span>
-                                            <span className="text-sm text-ios-gray">{trip.days} days</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div>
-                                                <p className="text-ios-gray text-xs">Budget</p>
-                                                <p className="text-white font-medium">₹{trip.budget?.toLocaleString() || 'N/A'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-ios-gray text-xs">Group</p>
-                                                <p className="text-white font-medium capitalize">
-                                                    {Number(trip.groupSize) === 1 ? 'Solo' : `${trip.groupSize} People`}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-ios-gray text-xs mb-1">Travel Style</p>
-                                            <p className="text-white text-sm capitalize">{trip.travelStyle.replace('-', ' ')}</p>
-                                        </div>
-                                    </CardContent>
                                 </Card>
                             </Link>
                         </motion.div>

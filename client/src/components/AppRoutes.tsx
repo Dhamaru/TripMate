@@ -24,6 +24,7 @@ import Home from "@/pages/Home";
 import Features from "@/pages/Features";
 import TripPlanner from "@/pages/TripPlanner";
 import Journal from "@/pages/Journal";
+import JournalDetail from "@/pages/JournalDetail";
 import TripDetail from "@/pages/TripDetail";
 import CropImagePage from "@/pages/CropImage";
 import Maps from "@/pages/Maps";
@@ -163,6 +164,13 @@ function Router() {
         <ProtectedRoute>
           <AppLayout>
             <Journal />
+          </AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/app/journal/:id">
+        <ProtectedRoute>
+          <AppLayout>
+            <JournalDetail />
           </AppLayout>
         </ProtectedRoute>
       </Route>

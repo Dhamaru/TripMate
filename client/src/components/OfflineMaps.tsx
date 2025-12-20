@@ -231,14 +231,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          // Success: Center on User
+          // Auto-locate: Just center the map, don't add a marker until requested
           map.setView([pos.coords.latitude, pos.coords.longitude], 13);
-
-          if (userMarkerRef.current) userMarkerRef.current.remove();
-          userMarkerRef.current = L.marker([pos.coords.latitude, pos.coords.longitude])
-            .addTo(map)
-            .bindPopup("You are here")
-            .openPopup();
         },
         (err) => {
           console.error("Auto-locate failed, falling back to downloaded regions", err);
@@ -611,9 +605,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
             <Button
               onClick={() => {
-                navigator.geolocation.getCurrentPosition(p =>
-                  mapInstanceRef.current?.flyTo([p.coords.latitude, p.coords.longitude], 15)
-                )
+                navigator.geolocation.getCurrentPosition(p => {
+                  const map = mapInstanceRef.current;
+                  if (!map) return;
+                  const { latitude, longitude } = p.coords;
+                  map.flyTo([latitude, longitude], 15);
+
+                  // Add marker only when locating
+                  if (userMarkerRef.current) userMarkerRef.current.remove();
+                  userMarkerRef.current = L.marker([latitude, longitude])
+                    .addTo(map)
+                    .bindPopup("You are here")
+                    .openPopup();
+                });
               }}
               variant="secondary"
               size="icon"

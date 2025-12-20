@@ -536,23 +536,6 @@ export default function TripDetail() {
             )}
 
             <div className="relative text-center text-white z-10 px-4 group/text">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-[-2rem] right-0 text-white/50 hover:text-white hover:bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Trigger image refresh
-                  fetch(`/api/v1/trips/${trip._id}/image?force=true`, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data.imageUrl) window.location.reload(); // Simple reload for now to reflect change
-                    });
-                }}
-                title="Refresh Image"
-              >
-                <i className="fas fa-sync-alt"></i>
-              </Button>
 
               {selectedStyle && (
                 <selectedStyle.icon className={`${selectedStyle.color} w-12 h-12 md:w-16 md:h-16 mb-2 md:mb-4 opacity-80 mx-auto drop-shadow-lg`} />

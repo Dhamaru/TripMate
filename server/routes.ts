@@ -1136,6 +1136,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         _id: savedTrip._id.toString() // Ensure both are present for client compatibility
       };
       console.log("[Trip Create] Sending response payload:", JSON.stringify(responsePayload));
+
+      // Automatically fetch destination image in the background (non-blocking)
+      const tripId = savedTrip._id.toString();
+      const destination = savedTrip.destination;
+      setImmediate(async () => {
+        try {
+          const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
+          if (!key) return;
+
+          const q = `${destination} tourism scenery landmark`;
+          const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
+          const searchData = await searchRes.json();
+
+          if (searchData.results && searchData.results.length > 0) {
+            const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
+            if (photoRef) {
+              const imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
+              await storage.updateTrip(tripId, userId, { imageUrl } as any);
+              console.log(`[Trip Create] Auto-fetched image for trip ${tripId}: ${imageUrl}`);
+            }
+          }
+        } catch (err) {
+          console.error(`[Trip Create] Failed to auto-fetch image for trip ${tripId}:`, err);
+        }
+      });
+
       res.status(201).json(responsePayload);
     } catch (error) {
       console.error("[Trip Create] Error:", error);
@@ -1263,7 +1289,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
       if (!key) return res.status(503).json({ message: "Image service unavailable" });
 
-      const q = trip.destination; // Changed from 'tourism scenery' to just destination for better matches
+      // Improved query: destination + landmark/scenery to avoid people and get "highlight" images
+      const q = `${trip.destination} tourism scenery landmark`;
       const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
       const searchData = await searchRes.json();
 
@@ -1307,11 +1334,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/v1/journal', isJwtAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
-      const entries = await storage.getUserJournalEntries(userId);
-      res.json(entries);
+      const light = req.query.light === 'true';
+      const limit = parseInt(req.query.limit as string) || (light ? 50 : 0);
+      const page = parseInt(req.query.page as string) || 1;
+
+      const entries = await storage.getUserJournalEntries(userId, {
+        excludeHeavyFields: light,
+        limit,
+        page
+      });
+
+      if (light) {
+        // Performance optimization: minimize payload for list view
+        const lightEntries = entries.map(entry => {
+          const doc = entry as any;
+          return {
+            ...doc,
+            id: doc.id || doc._id?.toString(),
+            // Only keep first photo (thumbnail) and truncate content
+            photos: doc.photos && doc.photos.length > 0 ? [doc.photos[0]] : [],
+            content: doc.content ? doc.content.substring(0, 200) + (doc.content.length > 200 ? '...' : '') : ''
+          };
+        });
+        return res.json(lightEntries);
+      }
+
+      // Ensure full entries also have id field if lean
+      const processedEntries = entries.map(entry => {
+        const doc = entry as any;
+        if (!doc.id && doc._id) doc.id = doc._id.toString();
+        return doc;
+      });
+
+      res.json(processedEntries);
     } catch (error) {
       console.error("Error fetching journal entries:", error);
-      res.status(500).json({ message: "Failed to fetch journal entries" });
+      res.status(500).json({ message: "Failed to fetch journal entries", detail: (error as Error).message });
+    }
+  });
+
+  app.get('/api/v1/journal/:id', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const entryId = req.params.id;
+      const entry = await storage.getJournalEntry(entryId, userId);
+
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+
+      res.json(entry);
+    } catch (error) {
+      console.error("Error fetching journal entry:", error);
+      res.status(500).json({ message: "Failed to fetch journal entry" });
     }
   });
 
