@@ -1,19 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type Trip, type IItineraryDay, type IItineraryActivity } from "@shared/schema";
 import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Clock, MapPin, Edit2 } from "lucide-react";
+import { GripVertical, Clock, MapPin, Edit2, ChevronUp, ChevronDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface ItineraryManagerProps {
     trip: Trip;
 }
 
-// Sortable Item Component
-function SortableActivity({ activity, index, onEdit }: { activity: IItineraryActivity; index: number; onEdit: () => void }) {
+// Sortable Item Component with Move Buttons
+function SortableActivity({
+    activity,
+    index,
+    total,
+    onEdit,
+    onMove
+}: {
+    activity: IItineraryActivity;
+    index: number;
+    total: number;
+    onEdit: () => void;
+    onMove: (direction: 'up' | 'down') => void;
+}) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: activity.id });
 
     const style = {
@@ -22,16 +34,39 @@ function SortableActivity({ activity, index, onEdit }: { activity: IItineraryAct
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="bg-secondary p-3 rounded-lg mb-2 flex items-start gap-3 group">
-            <div {...attributes} {...listeners} className="mt-1 cursor-grab text-ios-gray hover:text-white">
+        <div ref={setNodeRef} style={style} className="bg-secondary/50 border border-ios-gray/20 p-3 rounded-lg mb-2 flex items-start gap-3 group relative">
+            <div {...attributes} {...listeners} className="mt-1 cursor-grab text-ios-gray hover:text-white flex-shrink-0">
                 <GripVertical className="w-5 h-5" />
             </div>
-            <div className="flex-1">
-                <div className="flex justify-between items-start">
-                    <h4 className="font-medium text-white">{activity.title}</h4>
-                    <Button onClick={onEdit} variant="ghost" size="icon" className="h-6 w-6 text-ios-gray hover:text-white opacity-0 group-hover:opacity-100">
-                        <Edit2 className="w-3 h-3" />
-                    </Button>
+
+            <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start gap-2">
+                    <h4 className="font-medium text-white truncate">{activity.title}</h4>
+                    <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <Button
+                            onClick={() => onMove('up')}
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-ios-gray hover:text-ios-blue disabled:opacity-30"
+                            disabled={index === 0}
+                            title="Move Up"
+                        >
+                            <ChevronUp className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            onClick={() => onMove('down')}
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-ios-gray hover:text-ios-blue disabled:opacity-30"
+                            disabled={index === total - 1}
+                            title="Move Down"
+                        >
+                            <ChevronDown className="w-4 h-4" />
+                        </Button>
+                        <Button onClick={onEdit} variant="ghost" size="icon" className="h-7 w-7 text-ios-gray hover:text-white">
+                            <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                    </div>
                 </div>
                 <div className="flex flex-wrap gap-3 mt-1 text-xs text-ios-gray">
                     {activity.time && (
@@ -41,7 +76,7 @@ function SortableActivity({ activity, index, onEdit }: { activity: IItineraryAct
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {activity.location}</span>
                     )}
                 </div>
-                {activity.notes && <p className="text-xs text-ios-gray mt-1 italic">{activity.notes}</p>}
+                {activity.notes && <p className="text-xs text-ios-gray mt-1 italic line-clamp-2">{activity.notes}</p>}
             </div>
         </div>
     );
@@ -53,7 +88,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
     // DnD Sensors
     const sensors = useSensors(
-        useSensor(MouseSensor), // Instant drag for mouse
+        useSensor(MouseSensor),
         useSensor(TouchSensor, {
             activationConstraint: {
                 delay: 2000,
@@ -64,6 +99,19 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
+
+    const moveActivity = (dayIndex: number, actIndex: number, direction: 'up' | 'down') => {
+        const newItinerary = [...itinerary];
+        const dayActivities = [...newItinerary[dayIndex].activities];
+
+        const targetIndex = direction === 'up' ? actIndex - 1 : actIndex + 1;
+
+        if (targetIndex >= 0 && targetIndex < dayActivities.length) {
+            const moved = arrayMove(dayActivities, actIndex, targetIndex);
+            newItinerary[dayIndex] = { ...newItinerary[dayIndex], activities: moved };
+            setItinerary(newItinerary);
+        }
+    };
 
     const handleDragEnd = (event: DragEndEvent, dayIndex: number) => {
         const { active, over } = event;
@@ -79,15 +127,15 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
             newItinerary[dayIndex] = { ...newItinerary[dayIndex], activities: newActivities };
 
             setItinerary(newItinerary);
-            // Construct a new plan where we immediately sync to server or offer a save button
         }
     };
 
     const handleEditActivity = (dayIndex: number, actIndex: number) => {
         const activity = itinerary[dayIndex].activities[actIndex];
-        const newTitle = prompt("Edit activity:", activity.title); // Simple prompt for now
+        const newTitle = prompt("Edit activity:", activity.title);
         if (newTitle && newTitle !== activity.title) {
             const newItinerary = [...itinerary];
+            newItinerary[dayIndex].activities = [...newItinerary[dayIndex].activities];
             newItinerary[dayIndex].activities[actIndex] = { ...activity, title: newTitle };
             setItinerary(newItinerary);
         }
@@ -105,29 +153,45 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         }
     };
 
-    if (!itinerary || itinerary.length === 0) return <div className="text-ios-gray text-center">No itinerary generated yet.</div>;
+    if (!itinerary || itinerary.length === 0) return <div className="text-ios-gray text-center pt-8 pb-8 bg-secondary/20 rounded-xl border border-dashed border-ios-gray/30">No itinerary generated yet.</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-end">
-                <Button onClick={saveItinerary} disabled={isSaving} className="bg-ios-blue text-white">
-                    {isSaving ? "Saving..." : "Save Order"}
+            <div className="flex justify-between items-center bg-secondary/30 p-3 rounded-lg border border-ios-gray/10">
+                <span className="text-sm text-ios-gray">Drag items or use arrows to reorder</span>
+                <Button onClick={saveItinerary} disabled={isSaving} className="bg-ios-blue hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20">
+                    {isSaving ? (
+                        <div className="flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Saving...
+                        </div>
+                    ) : "Save Order"}
                 </Button>
             </div>
             {itinerary.map((day, dayIdx) => (
-                <Card key={dayIdx} className="bg-card border-border">
+                <Card key={dayIdx} className="bg-ios-card/50 border-ios-gray/20 backdrop-blur-sm">
                     <CardContent className="pt-6">
-                        <h3 className="font-bold text-lg text-white mb-4">Day {day.day || dayIdx + 1}</h3>
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-xl text-white">Day {day.day || dayIdx + 1}</h3>
+                            <span className="text-xs text-ios-gray bg-ios-gray/10 px-2 py-1 rounded-full">{day.activities.length} Activities</span>
+                        </div>
 
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, dayIdx)}>
                             <SortableContext items={day.activities.map(a => a.id)} strategy={verticalListSortingStrategy}>
-                                {day.activities.map((activity, actIdx) => (
-                                    // Ensure ID exists, if not use index (fallback, though schema should enforce ID)
-                                    <SortableActivity key={activity.id || `temp-${actIdx}`} activity={activity} index={actIdx} onEdit={() => handleEditActivity(dayIdx, actIdx)} />
-                                ))}
+                                <div className="space-y-3">
+                                    {day.activities.map((activity, actIdx) => (
+                                        <SortableActivity
+                                            key={activity.id || `temp-${actIdx}`}
+                                            activity={activity}
+                                            index={actIdx}
+                                            total={day.activities.length}
+                                            onEdit={() => handleEditActivity(dayIdx, actIdx)}
+                                            onMove={(dir) => moveActivity(dayIdx, actIdx, dir)}
+                                        />
+                                    ))}
+                                </div>
                             </SortableContext>
                         </DndContext>
-
                     </CardContent>
                 </Card>
             ))}
