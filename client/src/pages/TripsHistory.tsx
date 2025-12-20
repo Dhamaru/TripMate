@@ -87,6 +87,12 @@ export default function TripsHistory() {
                                 placeholder="Search destinations..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        // Filter is automatic via state, but feedback is nice
+                                    }
+                                }}
                                 className="pl-10 bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
                             />
                         </div>

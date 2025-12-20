@@ -38,6 +38,12 @@ export default function HelpCenter() {
                         </div>
                         <Input
                             placeholder="Search for answers..."
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    // Placeholder for search logic if added later
+                                }
+                            }}
                             className="pl-10 bg-ios-card border-ios-gray text-white h-12 rounded-xl"
                         />
                     </div>

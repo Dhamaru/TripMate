@@ -321,7 +321,7 @@ export default function Landing() {
                   </div>
 
                   <Button
-                    type="button"
+                    type="submit"
                     onClick={() => window.location.href = '/signin'}
                     className="w-full bg-gradient-to-r from-ios-blue to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-4 rounded-xl text-lg font-semibold transition-all transform hover:scale-105"
                     data-testid="button-generate-itinerary"

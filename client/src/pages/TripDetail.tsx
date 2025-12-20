@@ -791,11 +791,31 @@ export default function TripDetail() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
-                  <Input type="number" value={aiBudget} onChange={(e) => setAiBudget(e.target.value)} className="bg-ios-darker border-border text-white" />
+                  <Input
+                    type="number"
+                    value={aiBudget}
+                    onChange={(e) => setAiBudget(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        generatePlanMutation.mutate();
+                      }
+                    }}
+                    className="bg-ios-darker border-border text-white"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">Number of People</label>
-                  <Input type="number" value={aiGroupSize} onChange={(e) => setAiGroupSize(e.target.value)} className="bg-ios-darker border-border text-white" />
+                  <Input
+                    type="number"
+                    value={aiGroupSize}
+                    onChange={(e) => setAiGroupSize(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        generatePlanMutation.mutate();
+                      }
+                    }}
+                    className="bg-ios-darker border-border text-white"
+                  />
                 </div>
               </div>
               <Card className="bg-card border-border">

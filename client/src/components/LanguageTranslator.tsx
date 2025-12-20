@@ -69,7 +69,18 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
       <CardContent className="space-y-4">
         <div>
           <label className="block text-sm text-white mb-1">Text to Translate</label>
-          <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Enter text..." className="bg-ios-darker border-ios-gray text-white" />
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleTranslate();
+              }
+            }}
+            placeholder="Enter text..."
+            className="bg-ios-darker border-ios-gray text-white"
+          />
         </div>
         <div className="flex gap-3">
           <div className="flex-1">

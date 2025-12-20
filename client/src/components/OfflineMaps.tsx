@@ -638,6 +638,12 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 placeholder="Search city..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    fetchPlaces(searchQuery);
+                  }
+                }}
                 className="bg-ios-darker border-ios-gray text-white"
               />
               <Button onClick={() => fetchPlaces(searchQuery)} className="bg-ios-blue">Search</Button>
