@@ -770,11 +770,11 @@ export default function TripDetail() {
           <div className="mt-8 mb-8 space-y-6">
             <div className="flex flex-col items-center gap-4">
               <h3 className="text-white font-semibold">What are you looking for?</h3>
-              <div className="flex flex-wrap gap-4 justify-center">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg mx-auto">
                 <Button
                   onClick={() => setShowHotels(!showHotels)}
                   variant={showHotels ? "default" : "outline"}
-                  className={`smooth-transition interactive-tap ${showHotels ? 'bg-ios-blue text-white hover:bg-ios-blue/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
+                  className={`smooth-transition interactive-tap h-12 ${showHotels ? 'bg-ios-blue text-white hover:bg-ios-blue/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
                 >
                   <i className="fas fa-bed mr-2"></i>
                   Hotels
@@ -782,7 +782,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowRestaurants(!showRestaurants)}
                   variant={showRestaurants ? "default" : "outline"}
-                  className={`smooth-transition interactive-tap ${showRestaurants ? 'bg-ios-green text-white hover:bg-ios-green/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
+                  className={`smooth-transition interactive-tap h-12 ${showRestaurants ? 'bg-ios-green text-white hover:bg-ios-green/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
                 >
                   <i className="fas fa-utensils mr-2"></i>
                   Restaurants
@@ -790,7 +790,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowSpots(!showSpots)}
                   variant={showSpots ? "default" : "outline"}
-                  className={`smooth-transition interactive-tap ${showSpots ? 'bg-ios-orange text-white hover:bg-ios-orange/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
+                  className={`smooth-transition interactive-tap h-12 ${showSpots ? 'bg-ios-orange text-white hover:bg-ios-orange/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
                 >
                   <i className="fas fa-camera mr-2"></i>
                   Tourist Spots
