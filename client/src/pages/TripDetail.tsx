@@ -540,18 +540,8 @@ export default function TripDetail() {
               <div className="absolute inset-0 bg-gradient-to-br from-ios-blue to-purple-600 transition-opacity"></div>
             )}
 
-            <div className="relative text-center text-white z-10 px-4 group/text">
-
-              {selectedStyle && (
-                <selectedStyle.icon className={`${selectedStyle.color} w-12 h-12 md:w-16 md:h-16 mb-2 md:mb-4 opacity-80 mx-auto drop-shadow-lg`} />
-              )}
-              <h2 className="text-3xl md:text-4xl font-bold mb-2 shadow-text">{trip.destination}</h2>
-              <p className="text-lg md:text-xl font-medium opacity-90 capitalize shadow-text flex items-center justify-center gap-2">
-                {trip.travelStyle.toLowerCase().includes('adventure')
-                  ? trip.travelStyle.replace('-', ' ')
-                  : `${trip.travelStyle.replace('-', ' ')} Adventure`}
-              </p>
-            </div>
+            {/* Text overlay removed to prevent duplication with the main header */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
           </div>
         </div>
 
