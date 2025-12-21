@@ -189,8 +189,8 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                     <div className="w-10 h-10 rounded-full bg-ios-blue/10 flex items-center justify-center text-ios-blue">
                                         <i className={`fas fa-${expense.category === 'Food' ? 'utensils' : expense.category === 'Transport' ? 'car' : 'tag'}`}></i>
                                     </div>
-                                    <div>
-                                        <div className="font-medium text-white">{expense.description}</div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-medium text-white truncate">{expense.description}</div>
                                         <div className="text-xs text-ios-gray">{expense.category} • {new Date(expense.date).toLocaleDateString()}</div>
                                     </div>
                                 </div>

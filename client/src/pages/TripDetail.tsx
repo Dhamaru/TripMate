@@ -805,10 +805,10 @@ export default function TripDetail() {
                       </div>
                     ) : (
                       <div className={`grid gap-6 ${[showHotels, showRestaurants, showSpots].filter(Boolean).length === 1
-                        ? 'grid-cols-1'
-                        : [showHotels, showRestaurants, showSpots].filter(Boolean).length === 2
-                          ? 'grid-cols-1 md:grid-cols-2'
-                          : 'grid-cols-1 md:grid-cols-3'
+                          ? 'grid-cols-1'
+                          : [showHotels, showRestaurants, showSpots].filter(Boolean).length === 2
+                            ? 'grid-cols-1 sm:grid-cols-2'
+                            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
                         }`}>
                         {/* Hotels */}
                         {showHotels && (
