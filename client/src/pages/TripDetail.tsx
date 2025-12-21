@@ -62,6 +62,9 @@ export default function TripDetail() {
   const [aiGroupSize, setAiGroupSize] = useState('');
   const [aiNotes, setAiNotes] = useState('');
   const [planStage, setPlanStage] = useState<'idle' | 'fetching' | 'generating' | 'done' | 'error'>('idle');
+  const [showHotels, setShowHotels] = useState(false);
+  const [showRestaurants, setShowRestaurants] = useState(false);
+  const [showSpots, setShowSpots] = useState(false);
   const [openApiLocations, setOpenApiLocations] = useState<Array<{ id: string; name_en: string; name_local: string; transliteration: string; road?: string; city?: string; country: string; postcode?: string; lat: number; lon: number; display_name: string; source: string }>>([]);
   const [openApiPlanning, setOpenApiPlanning] = useState<Array<{ id: string; title: string; coords: { lat: number; lon: number }; address: string; displayName: string }>>([]);
 
@@ -71,9 +74,9 @@ export default function TripDetail() {
     }
   }, [planStage]);
 
-  const { data: hotelResults } = useQuery<any>({
+  const { data: hotelResults, isLoading: hotelsLoading } = useQuery<any>({
     queryKey: ['places_hotels', id, tripForm.destination],
-    enabled: !!tripForm.destination,
+    enabled: showHotels && !!tripForm.destination,
     queryFn: async () => {
       const r = await apiRequest('GET', `/api/v1/places/search?query=${encodeURIComponent('hotels near ' + String(tripForm.destination || ''))}&pageSize=10`);
       const j = await r.json();
@@ -81,9 +84,9 @@ export default function TripDetail() {
     },
   });
 
-  const { data: foodResults } = useQuery<any>({
+  const { data: foodResults, isLoading: foodLoading } = useQuery<any>({
     queryKey: ['places_food', id, tripForm.destination],
-    enabled: !!tripForm.destination,
+    enabled: showRestaurants && !!tripForm.destination,
     queryFn: async () => {
       const r = await apiRequest('GET', `/api/v1/places/search?query=${encodeURIComponent('restaurants near ' + String(tripForm.destination || ''))}&pageSize=10`);
       const j = await r.json();
@@ -91,11 +94,13 @@ export default function TripDetail() {
     },
   });
 
-  const { data: sightsResults } = useQuery<any>({
+  const { data: sightsResults, isLoading: sightsLoading } = useQuery<any>({
     queryKey: ['places_sights', id, tripForm.destination],
-    enabled: !!tripForm.destination,
+    enabled: showSpots && !!tripForm.destination,
     queryFn: async () => {
-      const r = await apiRequest('GET', `/api/v1/places/tourist-attractions?location=${encodeURIComponent(String(tripForm.destination || ''))}&pageSize=10`);
+      // Use the generic search endpoint which is more reliable (uses Google Places + fallbacks)
+      // instead of the dedicated tourist-attractions endpoint which uses Overpass and can be flaky (502 errors)
+      const r = await apiRequest('GET', `/api/v1/places/search?query=${encodeURIComponent('tourist attractions in ' + String(tripForm.destination || ''))}&pageSize=10`);
       const j = await r.json();
       return Array.isArray(j?.items) ? j.items : [];
     },
@@ -762,201 +767,154 @@ export default function TripDetail() {
             <ItineraryManager trip={trip} />
           </div>
 
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">AI Trip Planner</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Location</label>
-                  <Input type="text" value={tripForm.destination} disabled className="bg-ios-darker border-border text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Budget (INR)</label>
-                  <Input
-                    type="number"
-                    value={aiBudget}
-                    onChange={(e) => setAiBudget(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        generatePlanMutation.mutate();
-                      }
-                    }}
-                    className="bg-ios-darker border-border text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Number of People</label>
-                  <Input
-                    type="number"
-                    value={aiGroupSize}
-                    onChange={(e) => setAiGroupSize(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        generatePlanMutation.mutate();
-                      }
-                    }}
-                    className="bg-ios-darker border-border text-white"
-                  />
-                </div>
-              </div>
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="text-white text-base">Weather Forecast</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {weather ? (
-                    <div className="space-y-3">
-                      <div className="text-sm text-white">
-                        <span className="font-semibold">Current:</span> {Number(weather?.current?.temperature)}°C • {String(weather?.current?.condition || '')}
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {(Array.isArray(weather?.forecast) ? weather.forecast.slice(0, 6) : []).map((d: any, idx: number) => (
-                          <div key={`wf-${idx}`} className="text-xs text-white bg-ios-darker radius-md p-2">
-                            <div className="font-semibold">{String(d.day)}</div>
-                            <div className="text-ios-gray">{Number(d.low)}° / {Number(d.high)}° • {String(d.condition)}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-ios-gray">Fetching weather forecast...</div>
-                  )}
-                </CardContent>
-              </Card>
-              <div>
-                <label className="block text-sm font-semibold text-white mb-2">Additional Notes</label>
-                <Textarea value={aiNotes} onChange={(e) => setAiNotes(e.target.value)} placeholder="Preferences, constraints, must-see places…" className="bg-ios-darker border-border text-white placeholder-ios-gray min-h-[100px]" />
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={() => generatePlanMutation.mutate()} disabled={generatePlanMutation.isPending} className="bg-ios-blue hover:bg-ios-blue smooth-transition interactive-tap radius-md">
-                  {generatePlanMutation.isPending ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-2"></i>
-                      {planStage === 'fetching' ? 'Fetching locations…' : planStage === 'generating' ? 'Generating Plan…' : 'Processing…'}
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-robot mr-2"></i>
-                      Generate AI Plan
-                    </>
-                  )}
+          <div className="mt-8 mb-8 space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <h3 className="text-white font-semibold">What are you looking for?</h3>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <Button
+                  onClick={() => setShowHotels(!showHotels)}
+                  variant={showHotels ? "default" : "outline"}
+                  className={`smooth-transition interactive-tap ${showHotels ? 'bg-ios-blue text-white hover:bg-ios-blue/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
+                >
+                  <i className="fas fa-bed mr-2"></i>
+                  Hotels
+                </Button>
+                <Button
+                  onClick={() => setShowRestaurants(!showRestaurants)}
+                  variant={showRestaurants ? "default" : "outline"}
+                  className={`smooth-transition interactive-tap ${showRestaurants ? 'bg-ios-green text-white hover:bg-ios-green/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
+                >
+                  <i className="fas fa-utensils mr-2"></i>
+                  Restaurants
+                </Button>
+                <Button
+                  onClick={() => setShowSpots(!showSpots)}
+                  variant={showSpots ? "default" : "outline"}
+                  className={`smooth-transition interactive-tap ${showSpots ? 'bg-ios-orange text-white hover:bg-ios-orange/90' : 'bg-ios-darker border-border text-ios-gray hover:text-white'}`}
+                >
+                  <i className="fas fa-camera mr-2"></i>
+                  Tourist Spots
                 </Button>
               </div>
+            </div>
 
-              {trip.aiPlanMarkdown && (
-                <div className="mt-6 prose prose-invert max-w-none">
-                  <ReactMarkdown>{trip.aiPlanMarkdown}</ReactMarkdown>
-                </div>
-              )}
-
-              {openApiPlanning.length > 0 && (
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="text-white text-base">Geocoded Places</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {openApiPlanning.slice(0, 8).map((p) => (
-                          <div key={`geo-${p.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                            <div className="font-semibold">{p.title}</div>
-                            <div className="text-ios-gray">{p.address}</div>
-                            <div className="text-xs text-ios-gray">{p.coords.lat}, {p.coords.lon}</div>
-                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(p.displayName || p.title || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {segments.length > 0 && (
-                    <Card className="bg-card border-border">
-                      <CardHeader>
-                        <CardTitle className="text-white text-base">Travel Distances & Durations</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          {segments.map((s, i) => (
-                            <div key={`seg-${i}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{s.from.title} → {s.to.title}</div>
-                              <div className="text-ios-gray">{s.km} km • ~{s.mins} min ({s.mode})</div>
-                              <a href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(`${s.from.coords.lat},${s.from.coords.lon}`)}&destination=${encodeURIComponent(`${s.to.coords.lat},${s.to.coords.lon}`)}&travelmode=${s.mode === 'walk' ? 'walking' : 'transit'}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Directions</a>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )}
-
-
-
-              {(Array.isArray(hotelResults) || Array.isArray(foodResults) || Array.isArray(sightsResults)) && (
-                <Card className="bg-card border-border mt-6">
+            {(showHotels || showRestaurants || showSpots) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Card className="bg-card border-border">
                   <CardHeader>
-                    <CardTitle className="text-white text-base">Suggestions: Hotels, Restaurants, Tourist Spots</CardTitle>
+                    <CardTitle className="text-white text-base">Suggested Places</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <div className="text-white font-semibold mb-2">Hotels</div>
-                        <div className="space-y-2">
-                          {(hotelResults || []).slice(0, 5).map((i: any) => (
-                            <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
-                            </div>
-                          ))}
-                        </div>
+                    {(hotelsLoading || foodLoading || sightsLoading) && !(hotelResults || foodResults || sightsResults) ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ios-blue"></div>
                       </div>
-                      <div>
-                        <div className="text-white font-semibold mb-2">Restaurants</div>
-                        <div className="space-y-2">
-                          {(foodResults || []).slice(0, 5).map((i: any) => (
-                            <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue underline">Open Map</a>
+                    ) : (
+                      <div className={`grid gap-6 ${[showHotels, showRestaurants, showSpots].filter(Boolean).length === 1
+                        ? 'grid-cols-1'
+                        : [showHotels, showRestaurants, showSpots].filter(Boolean).length === 2
+                          ? 'grid-cols-1 md:grid-cols-2'
+                          : 'grid-cols-1 md:grid-cols-3'
+                        }`}>
+                        {/* Hotels */}
+                        {showHotels && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3 text-white font-semibold border-b border-ios-gray pb-2">
+                              <i className="fas fa-bed text-ios-blue"></i> Hotels
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-white font-semibold mb-2">Tourist Spots</div>
-                        <div className="space-y-2">
-                          {(sightsResults || []).slice(0, 5).map((i: any) => (
-                            <div key={`s-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3">
-                              <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                              <div className="text-ios-gray">{String(i.display_name || '')}</div>
-                              <div className="text-xs text-ios-gray">{Number(i.lat)}, {Number(i.lon)}</div>
-                              <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-ios-blue underline"
-                                onClick={() => {
-                                  try { logInfo('place_open_map', { id: String(i.id), type: 'tourist_spot', lat: Number(i.lat), lon: Number(i.lon), name: String(i.name_en || i.name_local || i.display_name || '') }); } catch { }
-                                }}
-                              >
-                                Open Map
-                              </a>
+                            <div className="space-y-3">
+                              {hotelsLoading ? (
+                                <div className="text-ios-gray text-xs">Loading hotels...</div>
+                              ) : (
+                                <>
+                                  {(hotelResults || []).slice(0, 5).map((i: any) => (
+                                    <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
+                                      <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
+                                        Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
+                                      </a>
+                                    </div>
+                                  ))}
+                                  {(!hotelResults || hotelResults.length === 0) && <div className="text-ios-gray text-xs italic">No hotels found</div>}
+                                </>
+                              )}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
+
+                        {/* Restaurants */}
+                        {showRestaurants && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3 text-white font-semibold border-b border-ios-gray pb-2">
+                              <i className="fas fa-utensils text-ios-green"></i> Restaurants
+                            </div>
+                            <div className="space-y-3">
+                              {foodLoading ? (
+                                <div className="text-ios-gray text-xs">Loading restaurants...</div>
+                              ) : (
+                                <>
+                                  {(foodResults || []).slice(0, 5).map((i: any) => (
+                                    <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
+                                      <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
+                                        Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
+                                      </a>
+                                    </div>
+                                  ))}
+                                  {(!foodResults || foodResults.length === 0) && <div className="text-ios-gray text-xs italic">No restaurants found</div>}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tourist Spots */}
+                        {showSpots && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3 text-white font-semibold border-b border-ios-gray pb-2">
+                              <i className="fas fa-camera text-ios-orange"></i> Tourist Spots
+                            </div>
+                            <div className="space-y-3">
+                              {sightsLoading ? (
+                                <div className="text-ios-gray text-xs">Loading spots...</div>
+                              ) : (
+                                <>
+                                  {(sightsResults || []).slice(0, 5).map((i: any) => (
+                                    <div key={`s-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
+                                      <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
+                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
+                                      <a
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(i.display_name || i.name_en || i.name_local || ''))}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center"
+                                        onClick={() => {
+                                          try { logInfo('place_open_map', { id: String(i.id), type: 'tourist_spot', lat: Number(i.lat), lon: Number(i.lon), name: String(i.name_en || i.name_local || i.display_name || '') }); } catch { }
+                                        }}
+                                      >
+                                        Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
+                                      </a>
+                                    </div>
+                                  ))}
+                                  {(!sightsResults || sightsResults.length === 0) && <div className="text-ios-gray text-xs italic">No spots found</div>}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
-              )}
-
-            </CardContent>
-          </Card>
+              </motion.div>
+            )}
+          </div>
 
           {/* Journal Entries for this Trip */}
           {tripJournalEntries.length > 0 && (

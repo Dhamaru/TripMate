@@ -544,7 +544,8 @@ ${instructions}`;
           types: p.types || [],
           rating: p.rating,
           user_ratings_total: p.user_ratings_total,
-          price_level: p.price_level
+          price_level: p.price_level,
+          geometry: p.geometry // Include location data (lat/lng)
         }));
       }
       return [];
@@ -609,6 +610,8 @@ ${instructions}`;
         type: "sightseeing",
         entryFee: 0,
         duration_minutes: 120,
+        lat: p1.geometry?.location?.lat,
+        lon: p1.geometry?.location?.lng,
         localFoodRecommendations: ["Local Breakfast"],
         routeFromPrevious: { mode: travelMedium, distance_km: 5, travel_time_minutes: 15, from: "Hotel", to: p1.name || "Site" }
       });
@@ -630,6 +633,8 @@ ${instructions}`;
         entryFee: 0,
         cost: lunchCost,
         duration_minutes: 60,
+        lat: pFood.geometry?.location?.lat,
+        lon: pFood.geometry?.location?.lng,
         localFoodRecommendations: ["Local Dish"],
         routeFromPrevious: { mode: "walk", distance_km: 1, travel_time_minutes: 10, from: p1.name || "Site", to: "Restaurant" }
       });
@@ -644,6 +649,8 @@ ${instructions}`;
         type: "sightseeing",
         entryFee: 0,
         duration_minutes: 120,
+        lat: p2.geometry?.location?.lat,
+        lon: p2.geometry?.location?.lng,
         localFoodRecommendations: ["Street Food"],
         routeFromPrevious: { mode: "taxi", distance_km: 3, travel_time_minutes: 15, from: "Restaurant", to: p2.name || "Park" }
       });

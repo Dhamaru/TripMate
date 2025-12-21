@@ -5,8 +5,11 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Clock, MapPin, Edit2, ChevronUp, ChevronDown } from "lucide-react";
+import { GripVertical, Clock, MapPin, Edit2, ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ActivityFormDialog } from "./ActivityFormDialog";
+import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface ItineraryManagerProps {
     trip: Trip;
@@ -18,12 +21,14 @@ function SortableActivity({
     index,
     total,
     onEdit,
+    onDelete,
     onMove
 }: {
     activity: IItineraryActivity;
     index: number;
     total: number;
     onEdit: () => void;
+    onDelete: () => void;
     onMove: (direction: 'up' | 'down') => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: activity.id });
@@ -63,8 +68,11 @@ function SortableActivity({
                         >
                             <ChevronDown className="w-4 h-4" />
                         </Button>
-                        <Button onClick={onEdit} variant="ghost" size="icon" className="h-7 w-7 text-ios-gray hover:text-white">
+                        <Button onClick={onEdit} variant="ghost" size="icon" className="h-7 w-7 text-ios-gray hover:text-white" title="Edit">
                             <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button onClick={onDelete} variant="ghost" size="icon" className="h-7 w-7 text-ios-gray hover:text-red-500" title="Delete">
+                            <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                     </div>
                 </div>
@@ -85,6 +93,9 @@ function SortableActivity({
 export function ItineraryManager({ trip }: ItineraryManagerProps) {
     const [itinerary, setItinerary] = useState<IItineraryDay[]>(trip.itinerary || []);
     const [isSaving, setIsSaving] = useState(false);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editingActivity, setEditingActivity] = useState<{ dayIndex: number; activity: any } | null>(null);
+    const { toast } = useToast();
 
     // DnD Sensors
     const sensors = useSensors(
@@ -132,20 +143,98 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
     const handleEditActivity = (dayIndex: number, actIndex: number) => {
         const activity = itinerary[dayIndex].activities[actIndex];
-        const newTitle = prompt("Edit activity:", activity.title);
-        if (newTitle && newTitle !== activity.title) {
-            const newItinerary = [...itinerary];
-            newItinerary[dayIndex].activities = [...newItinerary[dayIndex].activities];
-            newItinerary[dayIndex].activities[actIndex] = { ...activity, title: newTitle };
-            setItinerary(newItinerary);
+        setEditingActivity({ dayIndex, activity });
+        setDialogOpen(true);
+    };
+
+    const handleAddActivity = (dayIndex: number) => {
+        setEditingActivity({ dayIndex, activity: null });
+        setDialogOpen(true);
+    };
+
+    const handleDeleteActivity = (dayIndex: number, actIndex: number) => {
+        const activity = itinerary[dayIndex].activities[actIndex];
+        deleteActivityMutation.mutate({ dayIndex, activityId: activity.id });
+    };
+
+    // Add Activity Mutation
+    const addActivityMutation = useMutation({
+        mutationFn: async ({ dayIndex, activity }: { dayIndex: number; activity: any }) => {
+            const response = await apiRequest('POST', `/api/v1/trips/${trip.id}/itinerary/activities`, {
+                dayIndex,
+                activity
+            });
+            return response.json();
+        },
+        onSuccess: (data) => {
+            setItinerary(data.itinerary);
+            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip.id}`] });
+            toast({ title: "Activity added", description: "Activity has been added to your itinerary." });
+        },
+        onError: () => {
+            toast({ title: "Error", description: "Failed to add activity.", variant: "destructive" });
+        }
+    });
+
+    // Update Activity Mutation
+    const updateActivityMutation = useMutation({
+        mutationFn: async ({ dayIndex, activityId, updates }: { dayIndex: number; activityId: string; updates: any }) => {
+            const response = await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary/activities/${activityId}`, {
+                dayIndex,
+                updates
+            });
+            return response.json();
+        },
+        onSuccess: (data) => {
+            setItinerary(data.itinerary);
+            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip.id}`] });
+            toast({ title: "Activity updated", description: "Activity has been updated." });
+        },
+        onError: () => {
+            toast({ title: "Error", description: "Failed to update activity.", variant: "destructive" });
+        }
+    });
+
+    // Delete Activity Mutation
+    const deleteActivityMutation = useMutation({
+        mutationFn: async ({ dayIndex, activityId }: { dayIndex: number; activityId: string }) => {
+            const response = await apiRequest('DELETE', `/api/v1/trips/${trip.id}/itinerary/activities/${activityId}?dayIndex=${dayIndex}`);
+            return response.json();
+        },
+        onSuccess: (data) => {
+            setItinerary(data.itinerary);
+            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip.id}`] });
+            toast({ title: "Activity deleted", description: "Activity has been removed from your itinerary." });
+        },
+        onError: () => {
+            toast({ title: "Error", description: "Failed to delete activity.", variant: "destructive" });
+        }
+    });
+
+    const handleSaveActivity = (activity: any) => {
+        if (!editingActivity) return;
+
+        if (editingActivity.activity) {
+            // Edit mode
+            updateActivityMutation.mutate({
+                dayIndex: editingActivity.dayIndex,
+                activityId: editingActivity.activity.id,
+                updates: activity
+            });
+        } else {
+            // Add mode
+            addActivityMutation.mutate({
+                dayIndex: editingActivity.dayIndex,
+                activity
+            });
         }
     };
 
     const saveItinerary = async () => {
         setIsSaving(true);
         try {
-            await apiRequest('PUT', `/api/v1/trips/${trip._id}/itinerary`, { itinerary });
-            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip._id}`] });
+            await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary`, { itinerary });
+            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip.id}`] });
         } catch (e) {
             console.error("Failed to save itinerary", e);
         } finally {
@@ -157,23 +246,22 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center bg-secondary/30 p-3 rounded-lg border border-ios-gray/10">
-                <span className="text-sm text-ios-gray">Drag items or use arrows to reorder</span>
-                <Button onClick={saveItinerary} disabled={isSaving} className="bg-ios-blue hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20">
-                    {isSaving ? (
-                        <div className="flex items-center gap-2">
-                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Saving...
-                        </div>
-                    ) : "Save Order"}
-                </Button>
-            </div>
             {itinerary.map((day, dayIdx) => (
                 <Card key={dayIdx} className="bg-ios-card/50 border-ios-gray/20 backdrop-blur-sm">
                     <CardContent className="pt-6">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-bold text-xl text-white">Day {day.day || dayIdx + 1}</h3>
-                            <span className="text-xs text-ios-gray bg-ios-gray/10 px-2 py-1 rounded-full">{day.activities.length} Activities</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-ios-gray bg-ios-gray/10 px-2 py-1 rounded-full">{day.activities.length} Activities</span>
+                                <Button
+                                    onClick={() => handleAddActivity(dayIdx)}
+                                    size="sm"
+                                    className="bg-ios-blue hover:bg-blue-600 text-white flex items-center gap-1"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Add Activity
+                                </Button>
+                            </div>
                         </div>
 
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, dayIdx)}>
@@ -186,6 +274,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                                             index={actIdx}
                                             total={day.activities.length}
                                             onEdit={() => handleEditActivity(dayIdx, actIdx)}
+                                            onDelete={() => handleDeleteActivity(dayIdx, actIdx)}
                                             onMove={(dir) => moveActivity(dayIdx, actIdx, dir)}
                                         />
                                     ))}
@@ -195,6 +284,14 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                     </CardContent>
                 </Card>
             ))}
+
+            <ActivityFormDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                activity={editingActivity?.activity}
+                dayIndex={editingActivity?.dayIndex || 0}
+                onSave={handleSaveActivity}
+            />
         </div>
     );
 }

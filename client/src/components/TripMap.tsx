@@ -71,11 +71,7 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
         map.setMaxBounds(bounds.pad(0.5)); // Allow some padding
         map.setMinZoom(10);
 
-        // Destination Marker
-        L.marker([coords.lat, coords.lon])
-            .addTo(map)
-            .bindPopup(`<b>${destination}</b>`)
-            .openPopup();
+        // Destination Marker logic removed as per user request
 
         // Plot Itinerary Points if available
         if (itinerary) {

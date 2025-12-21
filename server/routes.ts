@@ -639,25 +639,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // For guests: ONLY access token, NO refresh cookie/session
+      // This means guests will be logged out after 15 minutes (access token expiry)
       const accessToken = generateAccessToken(user);
-      const refreshToken = createRefreshToken();
-      const tokenHash = hashToken(refreshToken);
-      // Short TTL for guests? treating same as normal for now to avoid complexity
-      const ttlMs = REFRESH_TTL_SHORT_HOURS * 60 * 60 * 1000;
-      const expiresAt = Date.now() + ttlMs;
-      const sessionId = nanoid();
-      const device = String(req.body?.device || 'web');
-      const userAgent = String(req.headers['user-agent'] || '');
-
-      if (useMemoryStore) {
-        const arr = memorySessions.get(user.id) || [];
-        arr.push({ sessionId, tokenHash, device, ip, userAgent, expiresAt, revoked: false });
-        memorySessions.set(user.id, arr);
-      } else {
-        await SessionModel.create({ userId: user.id, sessionId, tokenHash, device, ip, userAgent, expiresAt: new Date(expiresAt), revoked: false });
-      }
-
-      setRefreshCookie(res, refreshToken, ttlMs);
 
       res.json({
         user: {
@@ -1311,6 +1295,366 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching trip image:", error);
       res.status(500).json({ message: "Failed to fetch image" });
+    }
+  });
+
+  // Discover places near trip destination (Hotels, Restaurants, Tourist Spots)
+  app.post('/api/v1/trips/:id/discover', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const { category, query } = req.body;
+
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!key) return res.status(503).json({ message: "Service unavailable" });
+
+      // Build search query based on category
+      const categoryQueries: Record<string, string> = {
+        hotels: `hotels in ${trip.destination}`,
+        restaurants: `restaurants in ${trip.destination}`,
+        'tourist-spots': `tourist attractions in ${trip.destination}`
+      };
+
+      const searchQuery = query || categoryQueries[category] || trip.destination;
+      const searchRes = await fetch(
+        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${key}`
+      );
+      const searchData = await searchRes.json();
+
+      if (!searchData.results || searchData.results.length === 0) {
+        return res.json({ places: [] });
+      }
+
+      // Format results with essential info
+      const places = searchData.results.slice(0, 10).map((place: any) => ({
+        id: place.place_id,
+        name: place.name,
+        address: place.formatted_address,
+        rating: place.rating,
+        photos: place.photos ? [
+          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${key}`
+        ] : [],
+        location: place.geometry?.location,
+        priceLevel: place.price_level,
+        types: place.types
+      }));
+
+      res.json({ places });
+    } catch (error) {
+      console.error("Error discovering places:", error);
+      res.status(500).json({ message: "Failed to discover places" });
+    }
+  });
+
+  // Get AI-powered recommendations for hotels, restaurants, or tourist spots
+  app.post('/api/v1/trips/:id/ai-recommendations', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const { category } = req.body;
+
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!key) return res.status(503).json({ message: "Service unavailable" });
+
+      // First, get places from Google
+      const categoryQueries: Record<string, string> = {
+        hotels: `hotels in ${trip.destination}`,
+        restaurants: `best restaurants in ${trip.destination}`,
+        'tourist-spots': `top tourist attractions in ${trip.destination}`
+      };
+
+      const searchQuery = categoryQueries[category] || trip.destination;
+      const searchRes = await fetch(
+        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${key}`
+      );
+      const searchData = await searchRes.json();
+
+      if (!searchData.results || searchData.results.length === 0) {
+        return res.json({ recommendations: [], reasoning: "No places found in this area." });
+      }
+
+      // Get AI to rank and explain recommendations
+      const places = searchData.results.slice(0, 10);
+      const prompt = `You are a travel expert. Based on this trip to ${trip.destination}:
+- Budget: ₹${trip.budget}
+- Duration: ${trip.days} days
+- Group: ${trip.groupSize} people
+- Style: ${trip.travelStyle}
+
+From these ${category.replace('-', ' ')}:
+${places.map((p: any, i: number) => `${i + 1}. ${p.name} (Rating: ${p.rating || 'N/A'})`).join('\n')}
+
+Recommend the TOP 5 and explain WHY each one fits this trip. Format your response as JSON:
+{
+  "recommendations": [
+    {
+      "place_id": "google_place_id",
+      "name": "Place Name",
+      "reason": "Brief explanation why this fits the trip"
+    }
+  ]
+}`;
+
+      try {
+        // Use Gemini (via environment variable) or OpenAI for recommendations
+        const geminiKey = process.env.Google_Gemini_Key || process.env.GEMINI_API_KEY;
+        const openaiKey = process.env.OPENAI_API_KEY;
+
+        let aiText = '';
+
+        if (geminiKey) {
+          // Use Gemini
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+          const geminiData = await geminiRes.json();
+          aiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        } else if (openaiKey) {
+          // Use OpenAI
+          const openai = new OpenAI({ apiKey: openaiKey });
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.7,
+          });
+          aiText = completion.choices[0]?.message?.content || '';
+        } else {
+          throw new Error('No AI service available');
+        }
+
+        const aiData = JSON.parse(aiText.replace(/```json\n?/g, '').replace(/```\n?/g, ''));
+
+        // Enrich recommendations with photos and details
+        const enriched = aiData.recommendations.slice(0, 5).map((rec: any) => {
+          const placeData = places.find((p: any) => p.place_id === rec.place_id || p.name === rec.name);
+          return {
+            ...rec,
+            address: placeData?.formatted_address || 'Address unavailable',
+            rating: placeData?.rating,
+            photos: placeData?.photos ? [
+              `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${placeData.photos[0].photo_reference}&key=${key}`
+            ] : [],
+            location: placeData?.geometry?.location,
+            priceLevel: placeData?.price_level
+          };
+        });
+
+        res.json({ recommendations: enriched });
+      } catch (aiError) {
+        console.error("AI recommendation error:", aiError);
+        // Fallback: just return top-rated places
+        const fallback = places.slice(0, 5).map((place: any) => ({
+          place_id: place.place_id,
+          name: place.name,
+          reason: `Highly rated ${category.replace('-', ' ')} in ${trip.destination}`,
+          address: place.formatted_address,
+          rating: place.rating,
+          photos: place.photos ? [
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${key}`
+          ] : [],
+          location: place.geometry?.location,
+          priceLevel: place.price_level
+        }));
+        res.json({ recommendations: fallback });
+      }
+    } catch (error) {
+      console.error("Error generating AI recommendations:", error);
+      res.status(500).json({ message: "Failed to generate recommendations" });
+    }
+  });
+
+  // Add discovered place to trip itinerary
+  app.post('/api/v1/trips/:id/add-to-itinerary', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const { place, category } = req.body;
+
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      // Get current itinerary or create empty array - DEEP COPY to avoid mutation issues
+      const currentItinerary = Array.isArray(trip.itinerary)
+        ? JSON.parse(JSON.stringify(trip.itinerary))
+        : [];
+
+      console.log('[ADD TO ITINERARY] Current itinerary length:', currentItinerary.length);
+      console.log('[ADD TO ITINERARY] First day activities:', currentItinerary[0]?.activities?.length || 0);
+
+      // Determine the type based on category
+      let activityType = 'sightseeing';
+      if (category === 'restaurants') activityType = 'restaurant';
+      else if (category === 'hotels') activityType = 'hotel';
+
+      // Create new activity from the place
+      const newActivity = {
+        id: `discovered-${Date.now()}`,
+        title: place.name,
+        time: '10:00 AM', // Default time, user can edit later
+        placeName: place.name,
+        address: place.address || '',
+        type: activityType,
+        entryFee: 0,
+        duration_minutes: 120,
+        lat: place.location?.lat,
+        lon: place.location?.lng,
+        rating: place.rating,
+        cost: 0
+      };
+
+      // Add to the first day's activities, or create first day if no itinerary exists
+      if (currentItinerary.length === 0) {
+        currentItinerary.push({
+          day: 1,
+          dayIndex: 0,
+          date: new Date(),
+          activities: [newActivity]
+        });
+      } else {
+        // Add to the first day
+        if (!currentItinerary[0].activities) {
+          currentItinerary[0].activities = [];
+        }
+        currentItinerary[0].activities.push(newActivity);
+      }
+
+      console.log('[ADD TO ITINERARY] After adding - activities:', currentItinerary[0]?.activities?.length);
+
+      // Update trip with new itinerary
+      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
+
+      res.json({ success: true, message: `${place.name} added to itinerary` });
+    } catch (error) {
+      console.error("Error adding to itinerary:", error);
+      res.status(500).json({ message: "Failed to add to itinerary" });
+    }
+  });
+
+  // Add manual activity to itinerary
+  app.post('/api/v1/trips/:id/itinerary/activities', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const { dayIndex, activity } = req.body;
+
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      const currentItinerary = Array.isArray(trip.itinerary)
+        ? JSON.parse(JSON.stringify(trip.itinerary))
+        : [];
+
+      if (dayIndex < 0 || dayIndex >= currentItinerary.length) {
+        return res.status(400).json({ message: "Invalid day index" });
+      }
+
+      // Add unique ID and required fields to activity
+      const newActivity = {
+        id: `activity-${Date.now()}`,
+        time: activity.time || '09:00 AM',
+        type: activity.type || 'sightseeing',
+        cost: activity.cost || 0,
+        duration_minutes: activity.duration_minutes || 60,
+        ...activity
+      };
+
+      if (!currentItinerary[dayIndex].activities) {
+        currentItinerary[dayIndex].activities = [];
+      }
+      currentItinerary[dayIndex].activities.push(newActivity);
+
+      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
+
+      res.json({ success: true, itinerary: currentItinerary });
+    } catch (error) {
+      console.error("Error adding activity:", error);
+      res.status(500).json({ message: "Failed to add activity" });
+    }
+  });
+
+  // Update activity in itinerary
+  app.put('/api/v1/trips/:id/itinerary/activities/:activityId', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const activityId = req.params.activityId;
+      const { dayIndex, updates } = req.body;
+
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      const currentItinerary = Array.isArray(trip.itinerary)
+        ? JSON.parse(JSON.stringify(trip.itinerary))
+        : [];
+
+      if (dayIndex < 0 || dayIndex >= currentItinerary.length) {
+        return res.status(400).json({ message: "Invalid day index" });
+      }
+
+      const activities = currentItinerary[dayIndex].activities || [];
+      const activityIndex = activities.findIndex((a: any) => a.id === activityId);
+
+      if (activityIndex === -1) {
+        return res.status(404).json({ message: "Activity not found" });
+      }
+
+      // Merge updates with existing activity
+      currentItinerary[dayIndex].activities[activityIndex] = {
+        ...activities[activityIndex],
+        ...updates
+      };
+
+      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
+
+      res.json({ success: true, itinerary: currentItinerary });
+    } catch (error) {
+      console.error("Error updating activity:", error);
+      res.status(500).json({ message: "Failed to update activity" });
+    }
+  });
+
+  // Delete activity from itinerary
+  app.delete('/api/v1/trips/:id/itinerary/activities/:activityId', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const tripId = req.params.id;
+      const activityId = req.params.activityId;
+      const dayIndex = parseInt(req.query.dayIndex as string);
+
+      const trip = await storage.getTrip(tripId, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      const currentItinerary = Array.isArray(trip.itinerary)
+        ? JSON.parse(JSON.stringify(trip.itinerary))
+        : [];
+
+      if (isNaN(dayIndex) || dayIndex < 0 || dayIndex >= currentItinerary.length) {
+        return res.status(400).json({ message: "Invalid day index" });
+      }
+
+      const activities = currentItinerary[dayIndex].activities || [];
+      const filteredActivities = activities.filter((a: any) => a.id !== activityId);
+
+      if (filteredActivities.length === activities.length) {
+        return res.status(404).json({ message: "Activity not found" });
+      }
+
+      currentItinerary[dayIndex].activities = filteredActivities;
+
+      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
+
+      res.json({ success: true, itinerary: currentItinerary });
+    } catch (error) {
+      console.error("Error deleting activity:", error);
+      res.status(500).json({ message: "Failed to delete activity" });
     }
   });
 

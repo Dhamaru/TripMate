@@ -44,7 +44,7 @@ const JournalImageCarousel = ({ photos, title, children, height = "h-48" }: { ph
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1 }}
+          transition={{ duration: 0.5 }}
           src={photos[index]}
           alt={`${title} ${index + 1}`}
           className="absolute inset-0 w-full h-full object-cover"
@@ -107,7 +107,8 @@ export default function Journal() {
       if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
       return res.json();
     },
-    staleTime: 30_000,
+    staleTime: 10_000, // Reduced from 30s to 10s
+    refetchOnWindowFocus: false, // Prevent refetch on window focus
   });
 
   const handleUnauthorized = () => {
@@ -258,6 +259,7 @@ export default function Journal() {
 
   const handleEdit = (entry: JournalEntry) => {
     setEditingEntry(entry);
+    // Store original entry data for cancel functionality
     setEntryForm({
       title: entry.title,
       content: entry.content,
@@ -266,6 +268,7 @@ export default function Journal() {
       longitude: entry.longitude?.toString() || "",
     });
     setKeptPhotos(entry.photos || []);
+    setPhotos(null); // Clear any new photos
     setIsCreateDialogOpen(true);
   };
 
@@ -276,6 +279,18 @@ export default function Journal() {
   };
 
   const handleCancel = () => {
+    // If editing, restore original entry data
+    if (editingEntry) {
+      setEntryForm({
+        title: editingEntry.title,
+        content: editingEntry.content,
+        location: editingEntry.location || "",
+        latitude: editingEntry.latitude?.toString() || "",
+        longitude: editingEntry.longitude?.toString() || "",
+      });
+      setKeptPhotos(editingEntry.photos || []);
+      setPhotos(null);
+    }
     setIsCreateDialogOpen(false);
     setEditingEntry(null);
     resetForm();
@@ -392,10 +407,32 @@ export default function Journal() {
                     type="file"
                     multiple
                     accept="image/*"
-                    onChange={(e) => setPhotos(e.target.files)}
+                    onChange={(e) => {
+                      setPhotos(e.target.files);
+                      // Show selected files count immediately
+                      console.log('[FILES SELECTED]', e.target.files?.length || 0);
+                    }}
                     className="bg-ios-darker border-ios-gray text-white file:bg-ios-blue file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:hover:bg-blue-600 cursor-pointer"
                   />
                   <p className="text-xs text-ios-gray mt-1">Upload memories from your trip.</p>
+
+                  {/* Show selected file names */}
+                  {photos && photos.length > 0 && (
+                    <div className="mt-3 p-3 bg-ios-blue/10 border border-ios-blue/30 rounded-md">
+                      <p className="text-sm text-ios-blue font-semibold mb-2">
+                        📎 {photos.length} new file{photos.length > 1 ? 's' : ''} selected:
+                      </p>
+                      <ul className="text-xs text-white space-y-1">
+                        {Array.from(photos).map((file, i) => (
+                          <li key={i} className="flex items-center gap-2">
+                            <span className="text-green-400">✓</span>
+                            <span className="truncate">{file.name}</span>
+                            <span className="text-ios-gray">({(file.size / 1024).toFixed(1)} KB)</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   {/* Existing Photos List (with delete option) */}
                   {keptPhotos.length > 0 && (
