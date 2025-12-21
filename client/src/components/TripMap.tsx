@@ -74,7 +74,10 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
         // Destination Marker logic removed as per user request
 
         // Plot Itinerary Points if available
+        // Plot Itinerary Points if available
         if (itinerary) {
+            const markersMap = new Map<string, any[]>();
+
             itinerary.forEach((day: any) => {
                 if (day.activities && Array.isArray(day.activities)) {
                     day.activities.forEach((act: any) => {
@@ -83,12 +86,29 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
                         let lon = act.lon || act.lng || act.longitude || (act.coords && act.coords.lon);
 
                         if (lat && lon) {
-                            L.marker([lat, lon])
-                                .addTo(map)
-                                .bindPopup(`<b>${act.placeName || act.title}</b><br>${act.time || ''}`);
+                            // Use distinct key to group duplicate locations
+                            const key = `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+                            if (!markersMap.has(key)) {
+                                markersMap.set(key, []);
+                            }
+                            markersMap.get(key)?.push(act);
                         }
                     });
                 }
+            });
+
+            // Create one marker per unique location
+            markersMap.forEach((activities, key) => {
+                const [lat, lon] = key.split(',').map(Number);
+
+                // Combine multiple activities into one popup
+                const popupContent = activities.map(act =>
+                    `<div><b>${act.placeName || act.title}</b><br>${act.time || ''}</div>`
+                ).join('<hr style="margin: 4px 0; border: 0; border-top: 1px solid #ccc;">');
+
+                L.marker([lat, lon])
+                    .addTo(map)
+                    .bindPopup(popupContent);
             });
         }
 
