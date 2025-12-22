@@ -2771,15 +2771,15 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
       let lat = 0, lon = 0;
       const coordMatch = locRaw.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
 
+      // 1. Resolve Coordinates
       if (coordMatch) {
         lat = parseFloat(coordMatch[1]);
         lon = parseFloat(coordMatch[2]);
       } else {
-        // Try generic geocoding logic: Google first, then Nominatim
         let found = false;
+        const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
 
-        // 1. Google
-        const key = process.env.GOOGLE_API_KEY;
+        // Try Google Geocoding first
         if (key) {
           try {
             const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locRaw)}&key=${key}`;
@@ -2793,10 +2793,12 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
                 found = true;
               }
             }
-          } catch (e) { console.error('Emergency Google geocode error:', e); }
+          } catch (e) {
+            console.error('Emergency Google geocode error:', e);
+          }
         }
 
-        // 2. Nominatim fallback
+        // Fallback to Nominatim Geocoding
         if (!found) {
           try {
             const nUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(locRaw)}`;
@@ -2809,52 +2811,120 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
                 found = true;
               }
             }
-          } catch (e) { console.error('Emergency Nominatim geocode error:', e); }
+          } catch (e) {
+            console.error('Emergency Nominatim geocode error:', e);
+          }
         }
 
+        // If still not found, try AI fallback directly
         if (!found) {
-          // Only use AI fallback if we absolutely can't find coordinates
           const byText = await ai.emergency(locRaw);
           return res.json(byText);
         }
       }
-      const delta = 0.08; // ~9km bbox
-      const left = (lon - delta).toFixed(6);
-      const right = (lon + delta).toFixed(6);
-      const top = (lat + delta).toFixed(6);
-      const bottom = (lat - delta).toFixed(6);
 
+      // 2. Determine Country for SOS numbers
       let countryCode = 'xx';
       let countryName = '';
       try {
-        const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-          { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
+        // Fast reverse geo for country code (needed for SOS numbers)
+        // Try simple coordinate lookup if possible, or basic reverse geo
+        // We use Nominatim here as it's free and sufficient for Country Code
+        const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=3`,
+          { headers: { 'User-Agent': 'TripMate/1.0', 'Accept-Language': 'en' } });
         const j = await rev.json();
         countryCode = String(j?.address?.country_code || 'xx').toUpperCase();
         countryName = String(j?.address?.country || '');
       } catch { }
 
+      // 3. Fetch Services (Hospital, Police, etc.)
       const types = ['hospital', 'police', 'embassy', 'pharmacy'] as const;
       const results: Array<{ id: string; name: string; type: string; address: string; phone: string; distance: string; latitude: number; longitude: number }> = [];
-      for (const t of types) {
-        try {
-          const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(t)}&viewbox=${left},${top},${right},${bottom}&bounded=1`;
-          const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0 (+https://example.com)', 'Accept-Language': 'en' } });
-          const j = await r.json();
-          const arr = Array.isArray(j) ? j : [];
-          for (let i = 0; i < Math.min(arr.length, 3); i++) {
-            const it: any = arr[i];
-            const name = String(it.display_name?.split(',')[0] || t);
-            const address = String(it.display_name || '');
-            const latitude = parseFloat(it.lat);
-            const longitude = parseFloat(it.lon);
-            const phone = t === 'police' ? mapEmergencyNumber(countryCode, 'police') : t === 'hospital' ? mapEmergencyNumber(countryCode, 'medical') : t === 'embassy' ? '' : mapEmergencyNumber(countryCode, 'pharmacy');
-            results.push({ id: `${t}-${i}`, name, type: t, address, phone, distance: '—', latitude, longitude });
+
+      const googleKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
+
+      if (googleKey) {
+        // --- GOOGLE PLACES STRATEGY (Parallel & Accurate) ---
+        await Promise.all(types.map(async (type) => {
+          try {
+            // Mapping internal types to Google Place types
+            // embassy -> embassy (supported)
+            // pharmacy -> pharmacy (supported)
+            // hospital -> hospital (supported)
+            // police -> police (supported)
+            const gType = type;
+            const radius = 5000; // 5km radius
+            const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=${gType}&key=${googleKey}`;
+
+            const r = await fetch(url);
+            const data = await r.json();
+
+            if (data.status === 'OK' && Array.isArray(data.results)) {
+              // Take top 3
+              for (const place of data.results.slice(0, 3)) {
+                const placeLat = place.geometry.location.lat;
+                const placeLon = place.geometry.location.lng;
+
+                // Google nearbysearch doesn't always return phone number. 
+                // We would need Place Details to get phone. 
+                // For now, we use the specific SOS number as fallback if phone is missing?
+                // Or we map the emergency number. 
+
+                const mappedPhone = type === 'police' ? mapEmergencyNumber(countryCode, 'police')
+                  : type === 'hospital' ? mapEmergencyNumber(countryCode, 'medical')
+                    : type === 'pharmacy' ? mapEmergencyNumber(countryCode, 'pharmacy')
+                      : ''; // Embassy has no generic number
+
+                results.push({
+                  id: place.place_id,
+                  name: place.name,
+                  type: type,
+                  address: place.vicinity || place.formatted_address || '',
+                  phone: mappedPhone,
+                  latitude: placeLat,
+                  longitude: placeLon,
+                  distance: '—' // Calculated later
+                });
+              }
+            }
+          } catch (e) {
+            console.error(`Google Places error for ${type}:`, e);
           }
-        } catch { }
+        }));
+
+      } else {
+        // --- NOMINATIM FALLBACK (Legacy Strategy) ---
+        const delta = 0.08;
+        const left = (lon - delta).toFixed(6);
+        const right = (lon + delta).toFixed(6);
+        const top = (lat + delta).toFixed(6);
+        const bottom = (lat - delta).toFixed(6);
+
+        await Promise.all(types.map(async (t) => {
+          try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(t)}&viewbox=${left},${top},${right},${bottom}&bounded=1`;
+            const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0', 'Accept-Language': 'en' } });
+            const j = await r.json();
+            const arr = Array.isArray(j) ? j : [];
+
+            for (let i = 0; i < Math.min(arr.length, 3); i++) {
+              const it: any = arr[i];
+              const name = String(it.display_name?.split(',')[0] || t);
+              const address = String(it.display_name || '');
+              const latitude = parseFloat(it.lat);
+              const longitude = parseFloat(it.lon);
+              const phone = t === 'police' ? mapEmergencyNumber(countryCode, 'police')
+                : t === 'hospital' ? mapEmergencyNumber(countryCode, 'medical')
+                  : t === 'embassy' ? ''
+                    : mapEmergencyNumber(countryCode, 'pharmacy');
+
+              results.push({ id: `${t}-${i}`, name, type: t, address, phone, distance: '—', latitude, longitude });
+            }
+          } catch (e) { console.error(`Nominatim error for ${t}:`, e); }
+        }));
       }
 
-      // compute distances and sort
+      // 4. Calculate Distances & Sort
       const toKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
         const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -2863,16 +2933,42 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
       };
+
       const withDist = results.map(r => ({ ...r, distance: `${toKm(lat, lon, r.latitude, r.longitude).toFixed(1)} km` }));
       withDist.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
-      const sortedLimited = withDist.slice(0, 10);
-      if (!sortedLimited.length) {
+
+      // 5. Final Fallback if empty (AI)
+      if (withDist.length === 0) {
+        // If Google/Nominatim failed, ask AI for help in that city/country
         const fallback = await ai.emergency(`${countryName || countryCode}`);
-        return res.json(fallback);
+        return res.json({
+          services: fallback, // AI return structure might be different, let's normalize?
+          // Actually existing AI function returns array of objects similar to our service structure
+          // but let's wrap it consistent with response
+          countryCode,
+          sosNumbers: {
+            police: mapEmergencyNumber(countryCode, 'police'),
+            medical: mapEmergencyNumber(countryCode, 'medical'),
+            fire: mapEmergencyNumber(countryCode, 'fire'),
+            common: mapEmergencyNumber(countryCode, 'police') // Default common
+          }
+        });
       }
-      return res.json(sortedLimited);
+
+      // 6. Return standard structured response
+      return res.json({
+        services: withDist.slice(0, 15),
+        countryCode,
+        sosNumbers: {
+          police: mapEmergencyNumber(countryCode, 'police'),
+          medical: mapEmergencyNumber(countryCode, 'medical'),
+          fire: mapEmergencyNumber(countryCode, 'fire'),
+          common: mapEmergencyNumber(countryCode, 'police')
+        }
+      });
+
     } catch (error) {
-      console.error('AI emergency error:', error);
+      console.error('Emergency API error:', error);
       res.status(500).json([]);
     }
   });
