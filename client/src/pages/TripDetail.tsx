@@ -581,24 +581,19 @@ export default function TripDetail() {
                     <label className="block text-sm font-semibold text-white mb-2">
                       Trip Duration <span className="text-ios-red">*</span>
                     </label>
-                    <Select
-                      value={tripForm.days}
-                      onValueChange={(value) => setTripForm(prev => ({ ...prev, days: value }))}
-                    >
-                      <SelectTrigger
-                        className="bg-ios-darker border-border text-white"
-                        data-testid="select-edit-duration"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-ios-darker border-border">
-                        {[1, 2, 3, 4, 5, 7, 10, 14, 21, 30].map(days => (
-                          <SelectItem key={days} value={days.toString()} className="text-white hover:bg-card">
-                            {days} {days === 1 ? 'day' : 'days'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={tripForm.days}
+                        onChange={(e) => setTripForm(prev => ({ ...prev, days: e.target.value }))}
+                        className="bg-ios-darker border-border text-white pr-12"
+                        data-testid="input-edit-duration"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        {Number(tripForm.days) === 1 ? 'day' : 'days'}
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-white mb-2">Status</label>
