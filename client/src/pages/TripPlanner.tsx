@@ -495,21 +495,16 @@ export default function TripPlanner() {
                   <label className="block text-sm font-semibold text-white mb-2">
                     Trip Duration <span className="text-ios-red">*</span>
                   </label>
-                  <div className="relative">
-                    <label className="block text-sm font-semibold text-white mb-2">
-                      Trip Duration (Days) <span className="text-ios-red">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="e.g. 5"
-                      value={tripForm.days}
-                      onChange={(e) => setTripForm(prev => ({ ...prev, days: e.target.value }))}
-                      className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
-                      required
-                      data-testid="input-duration"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 5"
+                    value={tripForm.days}
+                    onChange={(e) => setTripForm(prev => ({ ...prev, days: e.target.value }))}
+                    className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
+                    required
+                    data-testid="input-duration"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">
