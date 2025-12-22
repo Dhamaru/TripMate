@@ -31,18 +31,24 @@ interface EmergencyResponse {
 
 interface EmergencyServicesProps {
   location?: string;
+  coords?: { lat: number; lon: number } | null;
   className?: string;
 }
 
-export function EmergencyServices({ location = "Current Location", className = '' }: EmergencyServicesProps) {
+export function EmergencyServices({ location = "Current Location", coords: propCoords, className = '' }: EmergencyServicesProps) {
   const { toast } = useToast();
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(propCoords || null);
   const [locString, setLocString] = useState<string>(location);
 
+  // Sync prop coords to state if they change
+  useEffect(() => {
+    if (propCoords) setCoords(propCoords);
+  }, [propCoords]);
 
   useEffect(() => {
     setLocString(location);
-    if (location === "Current Location" && navigator.geolocation) {
+    // Only attempt internal geolocation if NO prop coords provided AND location is generic
+    if (!propCoords && location === "Current Location" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
@@ -53,21 +59,11 @@ export function EmergencyServices({ location = "Current Location", className = '
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
             const data = await res.json();
             const addr = data.address;
-            // distinct name: City > Town > Village > County
             const placeName = addr.city || addr.town || addr.village || addr.county || addr.suburb;
             const state = addr.state || addr.country;
             if (placeName) {
               const readableName = `${placeName}${state ? `, ${state}` : ''}`;
               setLocString(readableName);
-              // Update the search input via prop update or state sync if possible?
-              // Actually, component uses 'location' prop as initial value for input.
-              // But input is driven by locString in the useEffect logic? No, input is via parent?
-              // Wait, EmergencyServices doesn't have an input inside it?
-              // The screenshot shows a Search input. It must be in EmergencyServices or parent.
-              // Ah, looking at the code, it's NOT in EmergencyServices!
-              // EmergencyServices takes 'location' prop.
-              // The search bar is likely in the PARENT component (EmergencyPage).
-              // I need to check the parent.
             }
           } catch (err) {
             console.error("Reverse geocoding failed", err);
@@ -75,27 +71,27 @@ export function EmergencyServices({ location = "Current Location", className = '
         },
         (err) => console.error("Geo error", err)
       );
-    } else {
+    } else if (!propCoords && location !== "Current Location") {
+      // If user typed a city manually, we don't have coords yet, reset coords so we don't hold onto old ones
       setCoords(null);
     }
-  }, [location]);
+  }, [location, propCoords]);
 
   const { data, isLoading, error } = useQuery<EmergencyResponse>({
     queryKey: ['/api/v1/emergency', locString, coords],
-    enabled: !!locString,
+    enabled: !!locString || !!coords,
     queryFn: async ({ queryKey }) => {
       const [, loc, c] = queryKey as [string, string, { lat: number; lon: number } | null];
-      // FIX: Prioritize the NAME (loc) for manual searches (e.g. "Paris") because the backend 
-      // handles "hospital near Paris" better than "hospital near 48.85,2.35".
-      // Only use coordinates if the location is generic "Current location" to ensure precision.
-      const isCurrentLocation = loc === "Current location" || !loc;
+      // FIX: Prioritize the NAME (loc) for manual searches (e.g. "Paris")
+      // Only use coordinates if the location is generic "Current location" OR matches coordinates
+      const isCurrentLocation = loc === "Current Location" || loc === "Current location" || !loc;
+
+      // If we have precise coords, ALWAYS use them for the "Current location" case
       const query = (isCurrentLocation && c) ? `${c.lat},${c.lon}` : loc;
 
       const res = await apiRequest('GET', `/api/v1/emergency/${encodeURIComponent(query)}`);
-      // Validate response structure (old API returned array, new returns object)
       const json = await res.json();
       if (Array.isArray(json)) {
-        // Fallback for old API if cached or reverting
         return { services: json, countryCode: 'Unknown', sosNumbers: { police: '100', medical: '108', fire: '101', common: '112' } };
       }
       return json;

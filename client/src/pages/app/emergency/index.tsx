@@ -195,14 +195,13 @@ export default function EmergencyPage() {
           </div>
           <EmergencyServices
             className="max-w-2xl mx-auto"
+            coords={coords}
             location={
               shortName && shortName !== "Current location"
                 ? shortName
                 : displayName && displayName !== "Current location"
                   ? displayName
-                  : coords
-                    ? `${coords.lat},${coords.lon}`
-                    : searchLocation || ""
+                  : "Current Location"
             }
           />
         </motion.div>
