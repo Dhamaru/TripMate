@@ -3537,13 +3537,14 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
   });
 
   // Reverse geocoding proxy: OpenWeatherMap Reverse Geocoding to convert lat/lon into display name
+  // Reverse geocoding proxy: Google Maps (Primary) -> Nominatim (Fallback)
   app.get('/api/v1/reverse-geocode', optionalAuth, async (req: any, res) => {
     try {
       const lat = Number(req.query.lat);
       const lon = Number(req.query.lon);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return res.status(400).json({ error: 'lat_lon_required' });
-      const key = process.env.GOOGLE_API_KEY;
-      if (!key) return res.status(503).json({ error: 'weather api key missing' });
+
+      const googleKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
 
       const cache: Map<string, { ts: number; value: any }> = (req.app.locals as any).revGeocodeCache || new Map();
       (req.app.locals as any).revGeocodeCache = cache;
@@ -3554,21 +3555,72 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
         return res.json(cached.value);
       }
 
-      const r = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&limit=1&appid=${key}`);
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        const msg = String((j as any)?.message || 'reverse geocode failed');
-        return res.status(r.status).json({ error: msg });
+      let payload = null;
+
+      // 1. Try Google Maps Geocoding
+      if (googleKey) {
+        try {
+          const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${googleKey}`;
+          const r = await fetch(url);
+          const data = await r.json();
+          if (data.status === 'OK' && data.results && data.results.length > 0) {
+            const first = data.results[0];
+            const comps = first.address_components || [];
+
+            const getComp = (type: string) => comps.find((c: any) => c.types.includes(type))?.long_name || '';
+            const city = getComp('locality') || getComp('administrative_area_level_2');
+            const state = getComp('administrative_area_level_1');
+            const country = getComp('country');
+            const name = city || getComp('sublocality') || 'Unknown Location';
+
+            payload = {
+              name,
+              state,
+              country,
+              lat,
+              lon,
+              displayName: first.formatted_address || [city, state, country].filter(Boolean).join(', ')
+            };
+          }
+        } catch (e) {
+          console.error('Google reverse geocode failed:', e);
+        }
       }
-      const list = await r.json();
-      const first = Array.isArray(list) && list.length ? list[0] : null;
-      if (!first) return res.status(404).json({ error: 'not_found' });
-      const name = String((first.local_names && (first.local_names.en || first.local_names['en'])) || first.name || '').trim();
-      const state = String(first.state || '').trim();
-      const country = String(first.country || '').trim();
-      const payload = { name, state, country, lat, lon, displayName: [name, state, country].filter(Boolean).join(', ') };
+
+      // 2. Fallback to Nominatim
+      if (!payload) {
+        try {
+          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+          const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/1.0' } });
+          if (r.ok) {
+            const data = await r.json();
+            const addr = data.address || {};
+            const city = addr.city || addr.town || addr.village || addr.county || '';
+            const state = addr.state || '';
+            const country = addr.country || '';
+            const name = city || 'Unknown Location';
+
+            payload = {
+              name,
+              state,
+              country,
+              lat,
+              lon,
+              displayName: data.display_name || [city, state, country].filter(Boolean).join(', ')
+            };
+          }
+        } catch (e) {
+          console.error('Nominatim reverse geocode failed:', e);
+        }
+      }
+
+      if (!payload) {
+        return res.status(404).json({ error: 'location_not_found' });
+      }
+
       cache.set(k, { ts: Date.now(), value: payload });
       return res.json(payload);
+
     } catch (error) {
       console.error('Reverse geocode error:', error);
       return res.status(500).json({ error: 'reverse_geocode_failed' });
