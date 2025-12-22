@@ -495,30 +495,21 @@ export default function TripPlanner() {
                   <label className="block text-sm font-semibold text-white mb-2">
                     Trip Duration <span className="text-ios-red">*</span>
                   </label>
-                  <Select
-                    value={tripForm.days}
-                    onValueChange={(value) => setTripForm(prev => ({ ...prev, days: value }))}
-                    required
-                  >
-                    <SelectTrigger
-                      className="bg-ios-darker border-ios-gray text-white"
-                      data-testid="select-duration"
-                    >
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-ios-darker border-ios-gray">
-                      <SelectItem value="1" className="text-white hover:bg-ios-card">1 day</SelectItem>
-                      <SelectItem value="2" className="text-white hover:bg-ios-card">2 days</SelectItem>
-                      <SelectItem value="3" className="text-white hover:bg-ios-card">3 days</SelectItem>
-                      <SelectItem value="4" className="text-white hover:bg-ios-card">4 days</SelectItem>
-                      <SelectItem value="5" className="text-white hover:bg-ios-card">5 days</SelectItem>
-                      <SelectItem value="7" className="text-white hover:bg-ios-card">1 week</SelectItem>
-                      <SelectItem value="10" className="text-white hover:bg-ios-card">10 days</SelectItem>
-                      <SelectItem value="14" className="text-white hover:bg-ios-card">2 weeks</SelectItem>
-                      <SelectItem value="21" className="text-white hover:bg-ios-card">3 weeks</SelectItem>
-                      <SelectItem value="30" className="text-white hover:bg-ios-card">1 month</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="relative">
+                    <label className="block text-sm font-semibold text-white mb-2">
+                      Trip Duration (Days) <span className="text-ios-red">*</span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 5"
+                      value={tripForm.days}
+                      onChange={(e) => setTripForm(prev => ({ ...prev, days: e.target.value }))}
+                      className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
+                      required
+                      data-testid="input-duration"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">
