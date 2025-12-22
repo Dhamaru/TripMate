@@ -526,7 +526,7 @@ export default function TripDetail() {
           </div>
 
           {/* Hero Image */}
-          <div className="relative radius-md overflow-hidden h-48 md:h-64 bg-secondary flex items-center justify-center group">
+          <div className="relative radius-md overflow-hidden w-full aspect-video md:aspect-auto md:h-80 bg-secondary flex items-center justify-center group">
             {trip.imageUrl ? (
               <>
                 <img
@@ -805,10 +805,10 @@ export default function TripDetail() {
                       </div>
                     ) : (
                       <div className={`grid gap-6 ${[showHotels, showRestaurants, showSpots].filter(Boolean).length === 1
-                          ? 'grid-cols-1'
-                          : [showHotels, showRestaurants, showSpots].filter(Boolean).length === 2
-                            ? 'grid-cols-1 sm:grid-cols-2'
-                            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                        ? 'grid-cols-1'
+                        : [showHotels, showRestaurants, showSpots].filter(Boolean).length === 2
+                          ? 'grid-cols-1 sm:grid-cols-2'
+                          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
                         }`}>
                         {/* Hotels */}
                         {showHotels && (
