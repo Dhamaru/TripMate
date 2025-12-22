@@ -39,20 +39,27 @@ function SortableActivity({
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="bg-secondary/50 border border-ios-gray/20 p-3 rounded-lg mb-2 flex items-start gap-3 group relative">
-            <div {...attributes} {...listeners} className="mt-1 cursor-grab text-ios-gray hover:text-white flex-shrink-0">
-                <GripVertical className="w-5 h-5" />
+        <div ref={setNodeRef} style={style} className="bg-secondary/50 border border-ios-gray/20 p-3 rounded-lg mb-2 flex flex-col md:flex-row md:items-start gap-3 group relative">
+            <div className="flex items-start gap-3 w-full md:w-auto">
+                <div {...attributes} {...listeners} className="mt-1 cursor-grab text-ios-gray hover:text-white flex-shrink-0">
+                    <GripVertical className="w-5 h-5" />
+                </div>
+
+                <div className="flex-1 min-w-0 md:hidden">
+                    <h4 className="font-medium text-white break-words">{activity.title}</h4>
+                </div>
             </div>
 
-            <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start gap-2">
-                    <h4 className="font-medium text-white truncate">{activity.title}</h4>
-                    <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            <div className="flex-1 min-w-0 w-full">
+                <div className="flex flex-col md:flex-row justify-between items-start gap-2">
+                    <h4 className="font-medium text-white truncate hidden md:block">{activity.title}</h4>
+
+                    <div className="flex items-center gap-1 w-full md:w-auto mt-2 md:mt-0 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <Button
                             onClick={() => onMove('up')}
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-ios-gray hover:text-ios-blue disabled:opacity-30"
+                            className="h-8 w-8 md:h-7 md:w-7 text-ios-gray hover:text-ios-blue disabled:opacity-30"
                             disabled={index === 0}
                             title="Move Up"
                         >
@@ -62,17 +69,17 @@ function SortableActivity({
                             onClick={() => onMove('down')}
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-ios-gray hover:text-ios-blue disabled:opacity-30"
+                            className="h-8 w-8 md:h-7 md:w-7 text-ios-gray hover:text-ios-blue disabled:opacity-30"
                             disabled={index === total - 1}
                             title="Move Down"
                         >
                             <ChevronDown className="w-4 h-4" />
                         </Button>
-                        <Button onClick={onEdit} variant="ghost" size="icon" className="h-7 w-7 text-ios-gray hover:text-white" title="Edit">
-                            <Edit2 className="w-3.5 h-3.5" />
+                        <Button onClick={onEdit} variant="ghost" size="icon" className="h-8 w-8 md:h-7 md:w-7 text-ios-gray hover:text-white" title="Edit">
+                            <Edit2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                         </Button>
-                        <Button onClick={onDelete} variant="ghost" size="icon" className="h-7 w-7 text-ios-gray hover:text-red-500" title="Delete">
-                            <Trash2 className="w-3.5 h-3.5" />
+                        <Button onClick={onDelete} variant="ghost" size="icon" className="h-8 w-8 md:h-7 md:w-7 text-ios-gray hover:text-red-500" title="Delete">
+                            <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                         </Button>
                     </div>
                 </div>
