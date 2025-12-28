@@ -3291,32 +3291,55 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
 
       let results: any[] = [];
 
-      // Try Google Places API first
-      const googleKey = process.env.GOOGLE_PLACES_API_KEY;
+      // Try Google Geocoding API first (better for addresses/cities)
+      const googleKey = process.env.GOOGLE_PLACES_API_KEY; // Reusing the key, usually works for both
       if (googleKey) {
         try {
-          const googleUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(sanitized)}&language=en&key=${googleKey}`;
-          const googleRes = await fetch(googleUrl);
-          const googleData = await googleRes.json();
+          // Attempt 1: Standard Geocoding (optimized for addresses/cities)
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(sanitized)}&language=en&key=${googleKey}`;
+          const geocodeRes = await fetch(geocodeUrl);
+          const geocodeData = await geocodeRes.json();
 
-          if (googleData.status === 'OK' && googleData.results && googleData.results.length > 0) {
-            results = googleData.results.slice(0, 5).map((place: any) => ({
-              name: place.name || '',
+          if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
+            results = geocodeData.results.slice(0, 5).map((place: any) => ({
+              name: place.address_components?.find((c: any) => c.types.includes('locality'))?.long_name ||
+                place.address_components?.[0]?.long_name || '',
               lat: place.geometry?.location?.lat || 0,
               lon: place.geometry?.location?.lng || 0,
-              display_name: place.formatted_address || place.name || '',
-              state: '',
-              country: '',
-              source: 'google'
+              display_name: place.formatted_address || '',
+              state: place.address_components?.find((c: any) => c.types.includes('administrative_area_level_1'))?.short_name || '',
+              country: place.address_components?.find((c: any) => c.types.includes('country'))?.short_name || '',
+              source: 'google_geocode'
             }));
-            console.log(`[Geocode] Google results for "${sanitized}":`, JSON.stringify(results[0]));
+            console.log(`[Geocode] Google Geocode results for "${sanitized}":`, JSON.stringify(results[0]));
             cache.set(sanitized, { ts: Date.now(), value: results });
             return res.json(results);
           } else {
-            console.log(`[Geocode] Google returned no results (Status: ${googleData.status})`);
+            console.log(`[Geocode] Google Geocode returned no results (Status: ${geocodeData.status})`);
+
+            // Attempt 2: Fallback to Places Text Search with " city" suffix if Geocode failed
+            // This helps ensure we get a locality even if the exact name matches a POI like "Vapi Inc."
+            const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(sanitized + " city")}&language=en&key=${googleKey}`;
+            const tsRes = await fetch(textSearchUrl);
+            const tsData = await tsRes.json();
+
+            if (tsData.status === 'OK' && tsData.results && tsData.results.length > 0) {
+              results = tsData.results.slice(0, 5).map((place: any) => ({
+                name: place.name || '',
+                lat: place.geometry?.location?.lat || 0,
+                lon: place.geometry?.location?.lng || 0,
+                display_name: place.formatted_address || place.name || '',
+                state: '',
+                country: '',
+                source: 'google_places_city_fallback'
+              }));
+              console.log(`[Geocode] Google Places Fallback results for "${sanitized}":`, JSON.stringify(results[0]));
+              cache.set(sanitized, { ts: Date.now(), value: results });
+              return res.json(results);
+            }
           }
         } catch (err) {
-          console.error('Google Places API error:', err);
+          console.error('Google API error:', err);
           // Fall through to OpenWeather
         }
       }
