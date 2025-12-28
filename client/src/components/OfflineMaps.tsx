@@ -553,7 +553,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
             {/* Navigation Overlay Controls */}
             {activeTab === 'navigation' && (
-              <div className="absolute top-4 left-4 z-[400] bg-ios-card/90 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 w-64">
+              <div className="absolute top-4 left-16 z-[400] bg-ios-card/90 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 w-64">
                 <h4 className="text-white font-semibold text-sm">Live Navigation</h4>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-300 text-xs">Tracking</span>
@@ -567,9 +567,26 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
                 <div className="border-t border-gray-700 pt-3">
                   <h4 className="text-white font-semibold text-sm mb-2">Quick Route</h4>
-                  <Button size="sm" variant="outline" className="w-full text-xs" onClick={handleCalculateRoute}>
-                    Draw Line to Destination
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={handleCalculateRoute}>
+                      Draw Line
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs border-red-500/50 text-red-400 hover:bg-red-500/10"
+                      onClick={() => {
+                        if (routePolylineRef.current) {
+                          routePolylineRef.current.remove();
+                          routePolylineRef.current = null;
+                        }
+                        setRoutePoints([]);
+                        toast({ title: "Route Cleared" });
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

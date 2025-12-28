@@ -189,9 +189,10 @@ export default function WeatherPage() {
       }
       setCoords({ lat: parsed.lat, lon: parsed.lon });
       setDisplayName(parsed.displayName ?? query);
-      setLocation(parsed.displayName ?? query);
-      setSearchLocation(parsed.displayName ?? query);
+      setLocation(parsed.displayName || query);
+      setSearchLocation(parsed.displayName || query);
       setSuggestions([]);
+      setActiveIndex(-1);
       setMessage("");
     } catch {
       setMessage("Location not found");

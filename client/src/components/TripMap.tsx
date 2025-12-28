@@ -7,18 +7,22 @@ import { Button } from "@/components/ui/button";
 interface TripMapProps {
     destination: string;
     itinerary?: any[];
+    onAddActivity?: (activity: any, dayNumber: number) => Promise<void>;
+    onDeleteActivity?: (dayIndex: number, activityIndex: number) => Promise<void>;
 }
 
-export function TripMap({ destination, itinerary }: TripMapProps) {
+export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivity }: TripMapProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
     const markersLayerRef = useRef<L.LayerGroup | null>(null);
     const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
     const [loading, setLoading] = useState(false);
-    const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark'); // Default to dark to match app theme
+    const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark');
+    const [isAddMode, setIsAddMode] = useState(false);
 
     // Reset coords when destination changes
     useEffect(() => {
+        console.log('[TripMap] Destination changed to:', destination);
         setCoords(null);
     }, [destination]);
 
@@ -31,14 +35,16 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
             try {
                 const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(destination)}`);
                 const data = await res.json();
+                console.log(`[TripMap] Geocode response for "${destination}":`, data);
                 if (Array.isArray(data) && data.length > 0) {
-                    setCoords({ lat: data[0].lat, lon: data[0].lon });
+                    const first = data[0];
+                    console.log(`[TripMap] Setting center to: ${first.lat}, ${first.lon} (${first.display_name || first.name})`);
+                    setCoords({ lat: first.lat, lon: first.lon });
                 } else {
-                    // Start debugging why it failed
-                    console.warn(`Geocoding failed for ${destination}`, data);
+                    console.warn(`[TripMap] Geocoding failed for ${destination}`, data);
                 }
             } catch (err) {
-                console.error("Failed to geocode destination", err);
+                console.error("[TripMap] Failed to geocode destination", err);
             } finally {
                 setLoading(false);
             }
@@ -50,6 +56,7 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
     // Initialize or Update Map
     useEffect(() => {
         if (!coords || !mapContainerRef.current) return;
+        console.log('[TripMap] Updating map with coords:', coords);
 
         if (!mapInstanceRef.current) {
             // Fix marker icons
@@ -76,12 +83,33 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
             const northEast = L.latLng(coords.lat + 0.1, coords.lon + 0.1);
             const bounds = L.latLngBounds(southWest, northEast);
 
-            map.setMaxBounds(bounds.pad(0.5)); // Allow some padding
+            map.setMaxBounds(bounds.pad(0.5));
             map.setMinZoom(10);
 
             // Initialize markers layer
             const markersLayer = L.layerGroup().addTo(map);
             markersLayerRef.current = markersLayer;
+
+            // Map Click Handler for Adding Locations
+            map.on('click', async (e) => {
+                // Check a ref to get the current value of isAddMode
+                if (!document.querySelector('.bg-red-500')) return; // Hacky way to check if button is in cancel mode
+
+                const { lat, lng } = e.latlng;
+                const name = prompt("Enter custom location name:", "New Spot");
+                if (name && onAddActivity) {
+                    await onAddActivity({
+                        placeName: name,
+                        type: 'sightseeing',
+                        time: '10:00 AM',
+                        lat,
+                        lon: lng,
+                        address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+                        duration_minutes: 60,
+                        routeFromPrevious: { mode: 'taxi', distance_km: 1, travel_time_minutes: 5, from: 'Previous', to: name }
+                    }, 1); // Default to day 1 for now or we could prompt
+                }
+            });
 
             mapInstanceRef.current = map;
         } else {
@@ -102,9 +130,9 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
             if (itinerary) {
                 const markersMap = new Map<string, any[]>();
 
-                itinerary.forEach((day: any) => {
+                itinerary.forEach((day: any, dayIndex: number) => {
                     if (day.activities && Array.isArray(day.activities)) {
-                        day.activities.forEach((act: any) => {
+                        day.activities.forEach((act: any, actIndex: number) => {
                             let lat = act.lat || act.latitude || (act.coords && act.coords.lat);
                             let lon = act.lon || act.lng || act.longitude || (act.coords && act.coords.lon);
 
@@ -113,7 +141,7 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
                                 if (!markersMap.has(key)) {
                                     markersMap.set(key, []);
                                 }
-                                markersMap.get(key)?.push(act);
+                                markersMap.get(key)?.push({ ...act, dayIndex, actIndex });
                             }
                         });
                     }
@@ -124,16 +152,15 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
                     const firstAct = activities[0];
                     const type = (firstAct.type || 'sightseeing').toLowerCase();
 
-                    // Map types to colors and icons
                     const typeConfig: Record<string, { color: string, icon: string }> = {
-                        sightseeing: { color: '#3b82f6', icon: 'fa-camera' },    // Blue
-                        restaurant: { color: '#ef4444', icon: 'fa-utensils' },   // Red
-                        cafe: { color: '#f97316', icon: 'fa-coffee' },           // Orange
-                        market: { color: '#10b981', icon: 'fa-shopping-basket' }, // Green
-                        museum: { color: '#8b5cf6', icon: 'fa-landmark' },       // Purple
-                        temple: { color: '#d946ef', icon: 'fa-gopuram' },        // Pink
-                        park: { color: '#22c55e', icon: 'fa-tree' },             // Green
-                        default: { color: '#64748b', icon: 'fa-map-marker-alt' } // Gray
+                        sightseeing: { color: '#3b82f6', icon: 'fa-camera' },
+                        restaurant: { color: '#ef4444', icon: 'fa-utensils' },
+                        cafe: { color: '#f97316', icon: 'fa-coffee' },
+                        market: { color: '#10b981', icon: 'fa-shopping-basket' },
+                        museum: { color: '#8b5cf6', icon: 'fa-landmark' },
+                        temple: { color: '#d946ef', icon: 'fa-gopuram' },
+                        park: { color: '#22c55e', icon: 'fa-tree' },
+                        default: { color: '#64748b', icon: 'fa-map-marker-alt' }
                     };
 
                     const config = typeConfig[type] || typeConfig.default;
@@ -148,30 +175,60 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
                         popupAnchor: [0, -16]
                     });
 
-                    const popupContent = activities.map(act =>
-                        `<div>
+                    const popupContainer = document.createElement('div');
+                    popupContainer.style.minWidth = '200px';
+
+                    activities.forEach((act, idx) => {
+                        const item = document.createElement('div');
+                        item.innerHTML = `
                             <div style="font-weight: bold; color: ${typeConfig[act.type?.toLowerCase()]?.color || '#333'}">${act.placeName || act.title}</div>
                             <div style="font-size: 0.8em; color: #666; margin-top:2px;">${(act.type || 'Activity').charAt(0).toUpperCase() + (act.type || 'Activity').slice(1)}</div>
                             ${act.time ? `<div style="font-size: 0.85em; margin-top:2px;">⏰ ${act.time}</div>` : ''}
-                        </div>`
-                    ).join('<hr style="margin: 8px 0; border: 0; border-top: 1px solid #eee;">');
+                        `;
+
+                        if (onDeleteActivity) {
+                            const delBtn = document.createElement('button');
+                            delBtn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> Delete';
+                            delBtn.style.cssText = 'color: #ef4444; font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer; margin-top: 4px;';
+                            delBtn.onclick = () => onDeleteActivity(act.dayIndex, act.actIndex);
+                            item.appendChild(delBtn);
+                        }
+
+                        popupContainer.appendChild(item);
+                        if (idx < activities.length - 1) {
+                            const hr = document.createElement('hr');
+                            hr.style.cssText = 'margin: 8px 0; border: 0; border-top: 1px solid #eee;';
+                            popupContainer.appendChild(hr);
+                        }
+                    });
 
                     L.marker([lat, lon], { icon: customIcon })
                         .addTo(markersLayerRef.current!)
-                        .bindPopup(popupContent, { minWidth: 200 });
+                        .bindPopup(popupContainer);
                 });
             }
         }
 
-    }, [coords, mapTheme, itinerary]); // Re-init if coords or theme change
+    }, [coords, mapTheme, itinerary]);
 
     if (!destination) return null;
 
     return (
         <Card className="bg-card border-border">
             <CardHeader>
-                <CardTitle className="text-xl font-bold text-white flex justify-between items-center">
-                    <span>Trip Map</span>
+                <CardTitle className="text-xl font-bold text-white flex justify-between items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        <span>Trip Map</span>
+                        <Button
+                            variant={isAddMode ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setIsAddMode(!isAddMode)}
+                            className={`ml-2 h-7 px-2 text-[10px] uppercase tracking-wider ${isAddMode ? 'bg-red-500 hover:bg-red-600' : 'border-ios-blue text-ios-blue hover:bg-ios-blue/10'}`}
+                        >
+                            <i className={`fas fa-${isAddMode ? 'times' : 'plus'} mr-1`}></i>
+                            {isAddMode ? 'Cancel' : 'Add Spot'}
+                        </Button>
+                    </div>
                     <Button
                         variant="ghost"
                         size="sm"
@@ -179,7 +236,7 @@ export function TripMap({ destination, itinerary }: TripMapProps) {
                         className="text-white hover:bg-white/10"
                     >
                         <i className={`fas fa-${mapTheme === 'dark' ? 'moon' : 'sun'} mr-2`}></i>
-                        {mapTheme === 'dark' ? 'Dark' : 'Light'} Mode
+                        {mapTheme === 'dark' ? 'Dark' : 'Light'}
                     </Button>
                 </CardTitle>
             </CardHeader>

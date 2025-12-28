@@ -235,6 +235,49 @@ export default function TripDetail() {
     },
   });
 
+  const addActivityMutation = useMutation({
+    mutationFn: async ({ dayIndex, activity }: { dayIndex: number; activity: any }) => {
+      const response = await apiRequest('POST', `/api/v1/trips/${id}/itinerary/activities`, {
+        dayIndex,
+        activity
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+      toast({ title: "Activity added", description: "Activity has been added to your itinerary." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add activity.", variant: "destructive" });
+    }
+  });
+
+  const deleteActivityMutation = useMutation({
+    mutationFn: async ({ dayIndex, activityId }: { dayIndex: number; activityId: string }) => {
+      const response = await apiRequest('DELETE', `/api/v1/trips/${id}/itinerary/activities/${activityId}?dayIndex=${dayIndex}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+      toast({ title: "Activity deleted", description: "Activity has been removed from your itinerary." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete activity.", variant: "destructive" });
+    }
+  });
+
+  const handleMapAddActivity = async (activity: any, dayNumber: number) => {
+    addActivityMutation.mutate({ dayIndex: dayNumber - 1, activity });
+  };
+
+  const handleMapDeleteActivity = async (dayIndex: number, activityIndex: number) => {
+    if (!trip?.itinerary || !Array.isArray(trip.itinerary)) return;
+    const day = trip.itinerary[dayIndex];
+    if (!day || !day.activities || !day.activities[activityIndex]) return;
+    const activity = day.activities[activityIndex];
+    deleteActivityMutation.mutate({ dayIndex, activityId: activity.id });
+  };
+
   useEffect(() => {
     if (trip) {
       console.log('Trip Details Loaded:', trip);
@@ -739,7 +782,12 @@ export default function TripDetail() {
           </Card>
 
           {/* Trip Map */}
-          <TripMap destination={trip.destination} itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []} />
+          <TripMap
+            destination={trip.destination}
+            itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []}
+            onAddActivity={handleMapAddActivity}
+            onDeleteActivity={handleMapDeleteActivity}
+          />
 
           {/* Cost Breakdown & Budget Tracker */}
           <BudgetTracker trip={trip} />

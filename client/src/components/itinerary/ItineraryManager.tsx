@@ -175,7 +175,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
-            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip.id}`] });
+            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', trip.id] });
             toast({ title: "Activity added", description: "Activity has been added to your itinerary." });
         },
         onError: () => {
@@ -194,7 +194,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
-            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip.id}`] });
+            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', trip.id] });
             toast({ title: "Activity updated", description: "Activity has been updated." });
         },
         onError: () => {
@@ -210,7 +210,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
-            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip.id}`] });
+            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', trip.id] });
             toast({ title: "Activity deleted", description: "Activity has been removed from your itinerary." });
         },
         onError: () => {
