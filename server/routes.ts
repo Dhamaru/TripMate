@@ -3420,6 +3420,7 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
             const gres = Array.isArray((gj as any).results) ? (gj as any).results : [];
             list = gres.slice(0, limitFetch).map((it: any) => ({
               osm_id: String(it.place_id || `${it.name || 'place'}-${Math.random()}`),
+              name: String(it.name || ''),
               namedetails: { 'name:en': String(it.name || ''), name: String(it.name || '') },
               address: { city: '', state: '', country: '', road: '' },
               lat: Number(it.geometry?.location?.lat ?? 0),
@@ -3446,7 +3447,11 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
             return res.status(r.status).json({ error: msg });
           }
           const arr = await r.json();
-          list = Array.isArray(arr) ? arr : [];
+          const nominatimList = Array.isArray(arr) ? arr : [];
+          list = nominatimList.map((it: any) => ({
+            ...it,
+            name: it.namedetails?.['name:en'] || it.namedetails?.name || it.display_name?.split(',')[0] || '',
+          }));
           cache.set(cacheKey, { ts: now, value: list });
         }
       }
@@ -3461,6 +3466,7 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
             if (Array.isArray(jo) && jo.length) {
               list = jo.map((o: any) => ({
                 osm_id: `${o.lat}-${o.lon}-${o.name}`,
+                name: o.name || '',
                 namedetails: { 'name:en': (o.local_names && (o.local_names.en || o.local_names['en'])) || o.name || '' },
                 address: { city: o.name || '', state: o.state || '', country: o.country || '' },
                 lat: o.lat,

@@ -372,7 +372,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     if (Number.isNaN(lat)) return null;
     return {
       id: `${lat}-${lon}-${Math.random()}`,
-      name: it.display_name?.split(',')[0] ?? "Unknown",
+      name: it.name || it.display_name?.split(',')[0] || "Unknown",
       displayName: it.display_name ?? "Unknown Location",
       lat, lon,
       category: it.type,
