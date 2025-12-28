@@ -868,7 +868,7 @@ export default function TripDetail() {
                                     <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
                                       <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
                                       <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
-                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${destination}`)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${tripForm.destination}`)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
@@ -895,7 +895,7 @@ export default function TripDetail() {
                                     <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
                                       <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
                                       <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
-                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${destination}`)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${tripForm.destination}`)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
@@ -923,7 +923,7 @@ export default function TripDetail() {
                                       <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
                                       <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
                                       <a
-                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${destination}`)}`}
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${tripForm.destination}`)}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center"
