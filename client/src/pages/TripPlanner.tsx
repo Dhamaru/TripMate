@@ -204,15 +204,28 @@ export default function TripPlanner() {
       let center = { lat: 0, lon: 0, display: dest };
       try {
         const geoRes = await apiRequest('GET', `/api/v1/geocode?query=${encodeURIComponent(dest)}`);
-        const gj = await geoRes.json().catch(() => ({}));
-        if (Number.isFinite(gj.lat) && Number.isFinite(gj.lon)) center = { lat: Number(gj.lat), lon: Number(gj.lon), display: String(gj.displayName || dest) };
+        const data = await geoRes.json().catch(() => []);
+        const gj = Array.isArray(data) ? data[0] : null;
+        if (gj && Number.isFinite(gj.lat) && Number.isFinite(gj.lon)) {
+          center = { lat: Number(gj.lat), lon: Number(gj.lon), display: String(gj.displayName || dest) };
+          console.log(`[TripPlanner] Center found: ${center.lat}, ${center.lon}`);
+        } else {
+          console.warn('[TripPlanner] Geocoding failed or returned empty - center is (0,0)');
+        }
       } catch { }
       const fetchItems = async (q: string) => {
         try {
           const r = await apiRequest('GET', `/api/v1/places/search?query=${encodeURIComponent(q)}&pageSize=50`);
           const j = await r.json().catch(() => ({}));
-          const arr = Array.isArray(j?.items) ? j.items : [];
-          return arr.map((i: any) => ({ id: String(i.id), name: String(i.name_en || i.name_local || i.display_name || ''), address: String([i.road, i.city, i.country, i.postcode].filter(Boolean).join(', ')), lat: Number(i.lat), lon: Number(i.lon), display: String(i.display_name || '') })).filter((x: any) => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+          const arr = Array.isArray(j) ? j : (Array.isArray(j?.items) ? j.items : []);
+          return arr.map((i: any) => ({
+            id: String(i.id || i.osm_id || Math.random()),
+            name: String(i.name || i.name_en || i.name_local || i.display_name || ''),
+            address: String([i.road, i.city, i.country, i.postcode].filter(Boolean).join(', ')),
+            lat: Number(i.lat),
+            lon: Number(i.lon),
+            display: String(i.display_name || '')
+          })).filter((x: any) => Number.isFinite(x.lat) && Number.isFinite(x.lon));
         } catch { return []; }
       };
       const attractions = await fetchItems(`${dest} tourist attractions`);

@@ -28,23 +28,42 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
 
     // Fetch destination coordinates
     useEffect(() => {
-        if (!destination) return;
+        if (!destination) {
+            console.log('[TripMap] No destination provided, skipping geocode');
+            return;
+        }
 
         const fetchCoords = async () => {
             setLoading(true);
+            console.log(`[TripMap] Attempting geocode for: "${destination}"`);
             try {
                 const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(destination)}`);
+                if (!res.ok) {
+                    console.error(`[TripMap] Geocode API error: ${res.status} ${res.statusText}`);
+                    setLoading(false);
+                    return;
+                }
                 const data = await res.json();
-                console.log(`[TripMap] Geocode response for "${destination}":`, data);
+                console.log(`[TripMap] Geocode response for "${destination}":`, JSON.stringify(data));
+
                 if (Array.isArray(data) && data.length > 0) {
                     const first = data[0];
-                    console.log(`[TripMap] Setting center to: ${first.lat}, ${first.lon} (${first.display_name || first.name})`);
-                    setCoords({ lat: first.lat, lon: first.lon });
+                    const lat = Number(first.lat);
+                    const lon = Number(first.lon);
+
+                    console.log(`[TripMap] Geocode result: ${lat}, ${lon} (${first.display_name || first.name})`);
+
+                    // Specific check for San Francisco (37.7749, -122.4194)
+                    if (Math.abs(lat - 37.7749) < 0.05 && Math.abs(lon - (-122.4194)) < 0.05) {
+                        console.warn('[TripMap] WARNING: Geocoder returned coordinates near San Francisco. This matches the reported bug.');
+                    }
+
+                    setCoords({ lat, lon });
                 } else {
-                    console.warn(`[TripMap] Geocoding failed for ${destination}`, data);
+                    console.warn(`[TripMap] Geocoding returned no results for ${destination}`, data);
                 }
             } catch (err) {
-                console.error("[TripMap] Failed to geocode destination", err);
+                console.error("[TripMap] Geocoding exception:", err);
             } finally {
                 setLoading(false);
             }

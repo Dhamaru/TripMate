@@ -3278,11 +3278,14 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
         .replace(/\s{2,}/g, ' ')
         .trim();
 
+      console.log(`[Geocode] Request for: "${sanitized}"`);
+
       const cache: Map<string, { ts: number; value: any }> = (req.app.locals as any).geocodeCache || new Map();
       (req.app.locals as any).geocodeCache = cache;
       const TTL = 10 * 60 * 1000;
       const cached = cache.get(sanitized);
       if (cached && (Date.now() - cached.ts) < TTL) {
+        console.log(`[Geocode] Returning cached result for: "${sanitized}"`);
         return res.json(cached.value);
       }
 
@@ -3306,8 +3309,11 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
               country: '',
               source: 'google'
             }));
+            console.log(`[Geocode] Google results for "${sanitized}":`, JSON.stringify(results[0]));
             cache.set(sanitized, { ts: Date.now(), value: results });
             return res.json(results);
+          } else {
+            console.log(`[Geocode] Google returned no results (Status: ${googleData.status})`);
           }
         } catch (err) {
           console.error('Google Places API error:', err);
@@ -3332,8 +3338,11 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
               const displayName = [name, state, country].filter(Boolean).join(', ');
               return { name, state, country, lat, lon, displayName };
             });
+            console.log(`[Geocode] OpenWeather results for "${sanitized}":`, JSON.stringify(results[0]));
             cache.set(sanitized, { ts: Date.now(), value: results });
             return res.json(results);
+          } else {
+            console.log(`[Geocode] OpenWeather returned no results or error`);
           }
         } catch (err) {
           console.error('OpenWeather geocode error:', err);
@@ -3370,8 +3379,11 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
             const displayName = [name, state, country].filter(Boolean).join(', ');
             return { name, state, country, lat, lon, displayName };
           });
+          console.log(`[Geocode] Nominatim results for "${sanitized}":`, JSON.stringify(results[0]));
           cache.set(sanitized, { ts: Date.now(), value: results });
           return res.json(results);
+        } else {
+          console.log(`[Geocode] Nominatim returned no results`);
         }
       } catch (err) {
         console.error('Nominatim geocode error:', err);
