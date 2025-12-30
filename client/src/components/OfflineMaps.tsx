@@ -547,14 +547,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="relative w-full h-[500px] rounded-xl overflow-hidden group">
+        <CardContent className="p-0 sm:p-6">
+          <div className="relative w-full h-[350px] md:h-[500px] sm:rounded-xl overflow-hidden group">
             <div ref={mapContainerRef} className="w-full h-full bg-ios-darker" style={{ zIndex: 0 }} />
 
             {/* Navigation Overlay Controls */}
             {activeTab === 'navigation' && (
-              <div className="absolute top-4 left-16 z-[400] bg-ios-card/90 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 w-64">
-                <h4 className="text-white font-semibold text-sm">Live Navigation</h4>
+              <div className="absolute top-2 left-2 right-2 sm:left-16 sm:right-auto z-[400] bg-ios-card/95 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 sm:w-64">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-white font-semibold text-sm">Live Navigation</h4>
+                  <div className="sm:hidden flex items-center gap-2">
+                    {isNavigating && <span className="text-green-400 text-[10px] animate-pulse">Live</span>}
+                  </div>
+                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-300 text-xs">Tracking</span>
                   <div
@@ -593,7 +598,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
             {/* Add Pin Button (Visible in Saved Tab) */}
             {activeTab === 'saved' && (
-              <div className="absolute top-4 right-4 z-[400]">
+              <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[400]">
                 <Button
                   size="sm"
                   onClick={() => {
@@ -613,9 +618,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       }
                     }
                   }}
-                  className="bg-ios-blue text-white shadow-lg"
+                  className="bg-ios-blue text-white shadow-lg text-xs sm:text-sm"
                 >
-                  + Add Pin at Center
+                  <i className="fas fa-plus mr-1 sm:mr-2"></i>
+                  <span className="hidden xs:inline">Add Pin</span>
+                  <span className="hidden sm:inline"> at Center</span>
                 </Button>
               </div>
             )}
@@ -654,7 +661,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             <CardTitle className="text-white text-base">Search Places</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 placeholder="Search city..."
                 value={searchQuery}
@@ -665,13 +672,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     fetchPlaces(searchQuery);
                   }
                 }}
-                className="bg-ios-darker border-ios-gray text-white"
+                className="bg-ios-darker border-ios-gray text-white flex-1"
               />
-              <Button onClick={() => fetchPlaces(searchQuery)} className="bg-ios-blue">Search</Button>
+              <Button onClick={() => fetchPlaces(searchQuery)} className="bg-ios-blue w-full sm:w-auto">Search</Button>
             </div>
 
             {/* Category Filters */}
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <label className="flex items-center space-x-2 text-white text-sm cursor-pointer">
                 <Checkbox checked={filters.food} onCheckedChange={(c) => setFilters(f => ({ ...f, food: !!c }))} />
                 <span>Food</span>

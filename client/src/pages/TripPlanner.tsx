@@ -45,6 +45,7 @@ export default function TripPlanner() {
 
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedPackingItems, setSelectedPackingItems] = useState<string[]>([]);
+  const hasSaved = useRef(false);
 
 
   // Redirect if not authenticated
@@ -218,14 +219,17 @@ export default function TripPlanner() {
           const r = await apiRequest('GET', `/api/v1/places/search?query=${encodeURIComponent(q)}&pageSize=50`);
           const j = await r.json().catch(() => ({}));
           const arr = Array.isArray(j) ? j : (Array.isArray(j?.items) ? j.items : []);
-          return arr.map((i: any) => ({
-            id: String(i.id || i.osm_id || Math.random()),
-            name: String(i.name || i.name_en || i.name_local || i.display_name || ''),
-            address: String([i.road, i.city, i.country, i.postcode].filter(Boolean).join(', ')),
-            lat: Number(i.lat),
-            lon: Number(i.lon),
-            display: String(i.display_name || '')
-          })).filter((x: any) => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+          return arr.map((i: any) => {
+            const rawAddr = [i.road, i.city, i.country, i.postcode].filter(Boolean).join(', ');
+            return {
+              id: String(i.id || i.osm_id || Math.random()),
+              name: String(i.name || i.name_en || i.name_local || i.display_name || ''),
+              address: rawAddr || String(i.display_name || '').split(',').slice(0, 3).join(', '),
+              lat: Number(i.lat),
+              lon: Number(i.lon),
+              display: String(i.display_name || '')
+            };
+          }).filter((x: any) => Number.isFinite(x.lat) && Number.isFinite(x.lon));
         } catch { return []; }
       };
       const attractions = await fetchItems(`${dest} tourist attractions`);
@@ -362,31 +366,8 @@ export default function TripPlanner() {
       return { destination: dest, days, persons, totalEstimatedCost: totalINR, currency: 'INR', costBreakdown, itinerary: daysOut, packingList, safetyTips: ['Keep copies of documents', 'Use registered taxis', 'Stay aware in crowded areas'] } as any;
     },
     onSuccess: (planData) => {
-      // Automatically create the trip with the generated itinerary
-      const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
-      const tripData = {
-        destination: tripForm.destination,
-        budget: tripForm.budget ? parseFloat(tripForm.budget) : (planData.costBreakdown?.totalINR || planData.costBreakdown?.total || 0),
-        days: parseInt(tripForm.days) || 1,
-        groupSize: parseInt(tripForm.groupSize) || 1,
-        travelStyle: styleMap[selectedStyle] || 'standard',
-        transportMode: tripForm.transportMode || undefined,
-        isInternational: !!tripForm.isInternational,
-        status: 'planning' as const,
-        notes: tripForm.notes,
-        itinerary: Array.isArray(planData.itinerary) ? planData.itinerary.map((day: any, idx: number) => ({
-          ...day,
-          dayIndex: typeof day.dayIndex === 'number' ? day.dayIndex : idx,
-          day: day.day || (idx + 1),
-          activities: Array.isArray(day.activities) ? day.activities.map((act: any) => ({
-            ...act,
-            title: act.placeName || act.title || 'Activity',
-          })) : []
-        })) : [],
-        costBreakdown: planData.costBreakdown,
-      };
-
-      createTripMutation.mutate(tripData);
+      // Automatic trip creation will be handled by useEffect to ensure stability
+      console.log("[TripPlanner] Itinerary generated successfully, waiting for save effect...");
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -408,6 +389,48 @@ export default function TripPlanner() {
       toast({ title: 'Error', description: 'Failed to generate itinerary.', variant: 'destructive' });
     }
   });
+
+  // Stabilize trip creation in an effect
+  useEffect(() => {
+    if (planTripMutation.isSuccess && planTripMutation.data && !hasSaved.current) {
+      const planData = planTripMutation.data;
+      const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
+
+      const tripData = {
+        destination: tripForm.destination,
+        budget: tripForm.budget ? parseFloat(tripForm.budget) : (planData.costBreakdown?.totalINR || planData.costBreakdown?.total || 0),
+        days: parseInt(tripForm.days) || 1,
+        groupSize: parseInt(tripForm.groupSize) || 1,
+        travelStyle: styleMap[selectedStyle] || 'standard',
+        transportMode: tripForm.transportMode || undefined,
+        isInternational: !!tripForm.isInternational,
+        status: 'planning' as const,
+        notes: tripForm.notes,
+        itinerary: Array.isArray(planData.itinerary) ? planData.itinerary.map((day: any, idx: number) => ({
+          ...day,
+          dayIndex: typeof day.dayIndex === 'number' ? day.dayIndex : idx,
+          day: day.day || (idx + 1),
+          activities: Array.isArray(day.activities) ? day.activities.map((act: any) => ({
+            ...act,
+            title: act.placeName || act.title || 'Activity',
+            address: act.address || (act.type === 'restaurant' ? 'Nearby Restaurant' : 'Near City Center')
+          })) : []
+        })) : [],
+        costBreakdown: planData.costBreakdown,
+      };
+
+      hasSaved.current = true;
+      console.log("[TripPlanner] Effect: Triggering createTripMutation...");
+      createTripMutation.mutate(tripData);
+    }
+  }, [planTripMutation.isSuccess, planTripMutation.data, planTripMutation.status]);
+
+  // Reset save flag when starting new plan
+  useEffect(() => {
+    if (planTripMutation.isPending) {
+      hasSaved.current = false;
+    }
+  }, [planTripMutation.isPending]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

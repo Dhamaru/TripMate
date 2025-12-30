@@ -19,6 +19,12 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
     const [loading, setLoading] = useState(false);
     const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark');
     const [isAddMode, setIsAddMode] = useState(false);
+    const isAddModeRef = useRef(isAddMode);
+
+    // Sync ref with state to avoid stale closures in map handlers
+    useEffect(() => {
+        isAddModeRef.current = isAddMode;
+    }, [isAddMode]);
 
     // Reset coords when destination changes
     useEffect(() => {
@@ -111,8 +117,8 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
 
             // Map Click Handler for Adding Locations
             map.on('click', async (e) => {
-                // Check a ref to get the current value of isAddMode
-                if (!document.querySelector('.bg-red-500')) return; // Hacky way to check if button is in cancel mode
+                // Use ref to get the current value of isAddMode to avoid stale closure
+                if (!isAddModeRef.current) return;
 
                 const { lat, lng } = e.latlng;
                 const name = prompt("Enter custom location name:", "New Spot");

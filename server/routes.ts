@@ -3453,19 +3453,28 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
             const gr = await fetch(gurl, { headers: { 'User-Agent': 'TripMate/1.0' } });
             const gj = await gr.json().catch(() => ({}));
             const gres = Array.isArray((gj as any).results) ? (gj as any).results : [];
-            list = gres.slice(0, limitFetch).map((it: any) => ({
-              osm_id: String(it.place_id || `${it.name || 'place'}-${Math.random()}`),
-              name: String(it.name || ''),
-              namedetails: { 'name:en': String(it.name || ''), name: String(it.name || '') },
-              address: { city: '', state: '', country: '', road: '' },
-              lat: Number(it.geometry?.location?.lat ?? 0),
-              lon: Number(it.geometry?.location?.lng ?? 0),
-              display_name: String(it.formatted_address || it.name || ''),
-              photoUrl: it.photos && it.photos.length > 0
-                ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${it.photos[0].photo_reference}&key=${gkey}`
-                : undefined,
-              source: 'google',
-            }));
+            list = gres.slice(0, limitFetch).map((it: any) => {
+              const formatted = String(it.formatted_address || '');
+              const parts = formatted.split(',').map(p => p.trim());
+              return {
+                osm_id: String(it.place_id || `${it.name || 'place'}-${Math.random()}`),
+                name: String(it.name || ''),
+                namedetails: { 'name:en': String(it.name || ''), name: String(it.name || '') },
+                address: {
+                  city: parts.length > 1 ? parts[parts.length - 2] : '',
+                  state: '',
+                  country: parts.length > 0 ? parts[parts.length - 1] : '',
+                  road: parts.length > 2 ? parts[0] : ''
+                },
+                lat: Number(it.geometry?.location?.lat ?? 0),
+                lon: Number(it.geometry?.location?.lng ?? 0),
+                display_name: String(it.formatted_address || it.name || ''),
+                photoUrl: it.photos && it.photos.length > 0
+                  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${it.photos[0].photo_reference}&key=${gkey}`
+                  : undefined,
+                source: 'google',
+              };
+            });
             list = Array.isArray(list) ? list : [];
             cache.set(cacheKey, { ts: now, value: list });
           } catch {
