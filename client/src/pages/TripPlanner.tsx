@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { safeParsePlan } from "@/lib/planParser";
 import { TripMateLogo } from "@/components/TripMateLogo";
