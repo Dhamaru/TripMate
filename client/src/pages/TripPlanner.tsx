@@ -12,17 +12,36 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
 import type { User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 
 const travelStyles = [
-  { id: 'adventure', icon: Mountain, name: 'Adventure', color: 'text-ios-blue' },
-  { id: 'relaxed', icon: Armchair, name: 'Relaxed', color: 'text-ios-orange' },
-  { id: 'cultural', icon: Landmark, name: 'Cultural', color: 'text-ios-blue' },
-  { id: 'culinary', icon: Utensils, name: 'Culinary', color: 'text-ios-green' }
+  {
+    id: 'adventure',
+    image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800',
+    name: 'Adventure',
+    color: 'text-ios-blue'
+  },
+  {
+    id: 'relaxed',
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800',
+    name: 'Relaxed',
+    color: 'text-ios-orange'
+  },
+  {
+    id: 'cultural',
+    image: 'https://images.unsplash.com/photo-1528181304800-259b08848526?auto=format&fit=crop&q=80&w=800',
+    name: 'Cultural',
+    color: 'text-ios-blue'
+  },
+  {
+    id: 'culinary',
+    image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800',
+    name: 'Culinary',
+    color: 'text-ios-green'
+  }
 ];
 
 export default function TripPlanner() {
@@ -577,14 +596,29 @@ export default function TripPlanner() {
                       key={style.id}
                       type="button"
                       onClick={() => handleStyleSelect(style.id)}
-                      className={`bg-ios-darker border-2 radius-md p-4 text-center smooth-transition flex flex-col items-center justify-center ${selectedStyle === style.id
-                        ? 'border-ios-blue bg-ios-blue/20'
-                        : 'border-ios-gray hover:border-ios-blue'
+                      className={`relative overflow-hidden group radius-md h-32 md:h-40 text-center smooth-transition flex flex-col items-center justify-center border-2 ${selectedStyle === style.id
+                        ? 'border-ios-blue ring-2 ring-ios-blue/20'
+                        : 'border-ios-gray hover:border-ios-blue/50 shadow-lg'
                         }`}
                       data-testid={`travel-style-${style.id}`}
                     >
-                      <style.icon className={`${style.color} mb-2 w-6 h-6`} />
-                      <div className="text-sm font-medium text-white">{style.name}</div>
+                      {/* Realistic Image Background */}
+                      <div
+                        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                        style={{ backgroundImage: `url(${style.image})` }}
+                      />
+                      {/* Overlay for better text readability */}
+                      <div className={`absolute inset-0 bg-black/40 transition-opacity ${selectedStyle === style.id ? 'bg-black/20' : 'group-hover:bg-black/30'}`} />
+
+                      {/* Content */}
+                      <div className="relative z-10">
+                        <div className="text-lg font-bold text-white drop-shadow-md">{style.name}</div>
+                        {selectedStyle === style.id && (
+                          <div className="mt-1 bg-ios-blue text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                            Selected
+                          </div>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>

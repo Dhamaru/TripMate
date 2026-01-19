@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
+import { Lightbulb, Bug, Sparkles, FileText } from 'lucide-react';
 
 export default function Feedback() {
     const { user } = useAuth() as any;
@@ -82,17 +83,37 @@ export default function Feedback() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-ios-darker border-ios-gray">
-                                        <SelectItem value="feedback" className="text-white hover:bg-ios-card">
-                                            💡 Feedback / Suggestion
+                                        <SelectItem value="feedback" className="text-white hover:bg-ios-card cursor-pointer">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-ios-blue/20 flex items-center justify-center">
+                                                    <Lightbulb className="w-4 h-4 text-ios-blue" />
+                                                </div>
+                                                Feedback / Suggestion
+                                            </div>
                                         </SelectItem>
-                                        <SelectItem value="bug" className="text-white hover:bg-ios-card">
-                                            🐛 Bug Report
+                                        <SelectItem value="bug" className="text-white hover:bg-ios-card cursor-pointer">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-ios-red/20 flex items-center justify-center">
+                                                    <Bug className="w-4 h-4 text-ios-red" />
+                                                </div>
+                                                Bug Report
+                                            </div>
                                         </SelectItem>
-                                        <SelectItem value="feature" className="text-white hover:bg-ios-card">
-                                            ✨ Feature Request
+                                        <SelectItem value="feature" className="text-white hover:bg-ios-card cursor-pointer">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                                                    <Sparkles className="w-4 h-4 text-purple-400" />
+                                                </div>
+                                                Feature Request
+                                            </div>
                                         </SelectItem>
-                                        <SelectItem value="other" className="text-white hover:bg-ios-card">
-                                            📝 Other
+                                        <SelectItem value="other" className="text-white hover:bg-ios-card cursor-pointer">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-ios-gray/20 flex items-center justify-center">
+                                                    <FileText className="w-4 h-4 text-ios-gray" />
+                                                </div>
+                                                Other
+                                            </div>
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>

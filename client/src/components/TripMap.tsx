@@ -206,7 +206,7 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
                     activities.forEach((act, idx) => {
                         const item = document.createElement('div');
                         item.innerHTML = `
-                            <div style="font-weight: bold; color: ${typeConfig[act.type?.toLowerCase()]?.color || '#333'}">${act.placeName || act.title}</div>
+                            <div style="font-weight: bold; color: ${typeConfig[act.type?.toLowerCase()]?.color || '#333'}">Day ${act.dayIndex + 1}: ${act.placeName || act.title}</div>
                             <div style="font-size: 0.8em; color: #666; margin-top:2px;">${(act.type || 'Activity').charAt(0).toUpperCase() + (act.type || 'Activity').slice(1)}</div>
                             ${act.time ? `<div style="font-size: 0.85em; margin-top:2px;">⏰ ${act.time}</div>` : ''}
                         `;

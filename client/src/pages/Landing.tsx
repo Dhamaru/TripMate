@@ -398,7 +398,7 @@ export default function Landing() {
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-lg mb-1">Dhamarunath .K</h4>
-                      <p className="text-ios-green text-sm font-semibold mb-2">Lead Developer & DevOps Engineer</p>
+                      <p className="text-ios-green text-sm font-semibold mb-2">Lead Developer</p>
                       <p className="text-ios-gray text-sm">
                         Architected and implemented the entire technical infrastructure, from backend systems to deployment.
                         Manages hosting, databases, and ensures seamless performance across all platforms.

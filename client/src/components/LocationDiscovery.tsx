@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Hotel, Utensils, Landmark, Search, Sparkles, MapPin, Star, Navigation, Plus } from 'lucide-react';
+import { Search, Sparkles, MapPin, Star, Navigation, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Place {
@@ -26,7 +26,7 @@ interface LocationDiscoveryProps {
     onPlaceSelect?: (place: Place) => void;
 }
 
-export function LocationDiscovery({ tripId }: LocationDiscoveryProps) {
+export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryProps) {
     const [activeCategory, setActiveCategory] = useState<'hotels' | 'restaurants' | 'tourist-spots'>('hotels');
     const [searchQuery, setSearchQuery] = useState('');
     const [places, setPlaces] = useState<Place[]>([]);
@@ -35,9 +35,21 @@ export function LocationDiscovery({ tripId }: LocationDiscoveryProps) {
     const queryClient = useQueryClient();
 
     const categories = [
-        { id: 'hotels' as const, label: 'Hotels', icon: Hotel },
-        { id: 'restaurants' as const, label: 'Restaurants', icon: Utensils },
-        { id: 'tourist-spots' as const, label: 'Tourist Spots', icon: Landmark },
+        {
+            id: 'hotels' as const,
+            label: 'Hotels',
+            image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=200'
+        },
+        {
+            id: 'restaurants' as const,
+            label: 'Restaurants',
+            image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=200'
+        },
+        {
+            id: 'tourist-spots' as const,
+            label: 'Tourist Spots',
+            image: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&q=80&w=200'
+        },
     ];
 
     // Clear places when category changes
@@ -181,10 +193,14 @@ export function LocationDiscovery({ tripId }: LocationDiscoveryProps) {
                             <TabsTrigger
                                 key={cat.id}
                                 value={cat.id}
-                                className="data-[state=active]:bg-ios-blue data-[state=active]:text-white"
+                                className="data-[state=active]:bg-ios-blue data-[state=active]:text-white h-12 flex items-center gap-2 overflow-hidden px-1 sm:px-3"
                             >
-                                <cat.icon className="w-4 h-4 mr-2" />
-                                {cat.label}
+                                <div
+                                    className="w-8 h-8 rounded-md bg-cover bg-center shrink-0 border border-white/10"
+                                    style={{ backgroundImage: `url(${cat.image})` }}
+                                />
+                                <span className="hidden sm:inline">{cat.label}</span>
+                                <span className="sm:hidden text-xs">{cat.label.split(' ')[0]}</span>
                             </TabsTrigger>
                         ))}
                     </TabsList>
@@ -259,8 +275,11 @@ export function LocationDiscovery({ tripId }: LocationDiscoveryProps) {
                                                             className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
                                                         />
                                                     ) : (
-                                                        <div className="w-20 h-20 rounded-lg bg-ios-gray/20 flex items-center justify-center flex-shrink-0">
-                                                            <cat.icon className="w-8 h-8 text-ios-gray" />
+                                                        <div className="w-20 h-20 rounded-lg bg-ios-gray/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                            <div
+                                                                className="w-full h-full bg-cover bg-center opacity-50"
+                                                                style={{ backgroundImage: `url(${cat.image})` }}
+                                                            />
                                                         </div>
                                                     )}
 
@@ -313,7 +332,10 @@ export function LocationDiscovery({ tripId }: LocationDiscoveryProps) {
                                     </motion.div>
                                 ) : (
                                     <div className="text-center text-ios-gray py-8">
-                                        <cat.icon className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                                        <div
+                                            className="w-12 h-12 mx-auto mb-2 opacity-20 bg-cover bg-center rounded-lg"
+                                            style={{ backgroundImage: `url(${cat.image})` }}
+                                        />
                                         <p className="text-sm">
                                             Search for {cat.label.toLowerCase()} or get AI suggestions to start discovering places
                                         </p>
