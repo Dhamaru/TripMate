@@ -255,11 +255,23 @@ export default function CropImagePage() {
       ex.imageSmoothingEnabled = true;
       ex.imageSmoothingQuality = 'high';
       ex.drawImage(tempCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
-      // Optimize output size and format; preserve transparency for circle
+      // Optimize output size and format; apply scaling to BOTH circle and rectangle
+      const maxDim = aspect === 'circle' ? 512 : 1024;
+      const scale = Math.min(1, maxDim / Math.max(exportCanvas.width, exportCanvas.height));
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = Math.round(exportCanvas.width * scale);
+      outCanvas.height = Math.round(exportCanvas.height * scale);
+      const octx = outCanvas.getContext('2d');
+      if (!octx) throw new Error('no_out_ctx');
+      octx.imageSmoothingEnabled = true;
+      octx.imageSmoothingQuality = 'high';
+      octx.drawImage(exportCanvas, 0, 0, outCanvas.width, outCanvas.height);
+
       let finalBlob: Blob;
       if (aspect === 'circle') {
         const masked = document.createElement('canvas');
-        masked.width = exportCanvas.width; masked.height = exportCanvas.height;
+        masked.width = outCanvas.width;
+        masked.height = outCanvas.height;
         const mctx = masked.getContext('2d');
         if (!mctx) throw new Error('no_mask_ctx');
         mctx.imageSmoothingEnabled = true;
@@ -268,19 +280,10 @@ export default function CropImagePage() {
         const r = Math.min(masked.width, masked.height) / 2;
         mctx.arc(masked.width / 2, masked.height / 2, r, 0, Math.PI * 2);
         mctx.clip();
-        mctx.drawImage(exportCanvas, 0, 0);
+        mctx.drawImage(outCanvas, 0, 0);
+        // Use PNG to preserve transparency round corners
         finalBlob = await new Promise((resolve, reject) => masked.toBlob(b => b ? resolve(b) : reject(new Error('blob_fail')), 'image/png')) as Blob;
       } else {
-        const maxDim = 1024;
-        const scale = Math.min(1, maxDim / Math.max(exportCanvas.width, exportCanvas.height));
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = Math.round(exportCanvas.width * scale);
-        outCanvas.height = Math.round(exportCanvas.height * scale);
-        const octx = outCanvas.getContext('2d');
-        if (!octx) throw new Error('no_out_ctx');
-        octx.imageSmoothingEnabled = true;
-        octx.imageSmoothingQuality = 'high';
-        octx.drawImage(exportCanvas, 0, 0, outCanvas.width, outCanvas.height);
         finalBlob = await new Promise((resolve, reject) => outCanvas.toBlob(b => b ? resolve(b) : reject(new Error('blob_fail')), 'image/jpeg', 0.85)) as Blob;
       }
       const fd = new FormData();
