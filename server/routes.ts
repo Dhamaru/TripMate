@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import passport from "passport";
 import { storage } from "./storage";
 import { setupAuth, isJwtAuthenticated } from "./auth";
-import { insertTripSchema, insertJournalEntrySchema, insertPackingListSchema, SessionModel } from "@shared/schema";
+import { insertTripSchema, insertJournalEntrySchema, insertPackingListSchema, SessionModel, TripModel } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -55,56 +55,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ... (keeping existing variables)
 
-  // Debug: Email Verify Route
-  app.get("/api/v1/debug/email-config", async (req, res) => {
+  // Debug: Seed Crowd Density for specific location
+  app.post("/api/v1/debug/seed-crowd", async (req, res) => {
     try {
-      const { verifySmtpConnection } = await import("./email");
-      const result = await verifySmtpConnection();
+      const lat = Number(req.body.lat) || Number(req.query.lat);
+      const lon = Number(req.body.lon) || Number(req.query.lon);
 
-      const configInfo = {
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        user: process.env.SMTP_USER,
-        passLength: process.env.SMTP_PASS?.length,
-        hasPlainAuth: !!process.env.SMTP_AUTH_METHOD
-      };
+      if (!lat || !lon) {
+        return res.status(400).json({ message: "Latitude and Longitude required" });
+      }
 
-      res.json({
-        message: "SMTP Configuration Status",
-        timestamp: new Date().toISOString(),
-        configSummary: configInfo,
-        verificationResult: result
-      });
+      console.log(`[Seeding] Generating crowd data for ${lat}, ${lon}`);
+
+      // Clear existing old reports? Maybe not. Just add new ones.
+      // Actually, for demo purposes, let's keep it additive but maybe clear very old ones if we had a persistent store.
+      // For memory store, we just reset or append.
+      // Let's append specific points around the target.
+
+      const newReports = [];
+      for (let i = 0; i < 50; i++) {
+        // specific hotspots
+        // varying density 1-10
+        // scattered within 0.05 degrees (~5km)
+        const dLat = (Math.random() - 0.5) * 0.05;
+        const dLon = (Math.random() - 0.5) * 0.05;
+        const density = Math.floor(Math.random() * 10) + 1; // 1 to 10
+
+        newReports.push({
+          id: Math.random().toString(36).substring(7),
+          latitude: lat + dLat,
+          longitude: lon + dLon,
+          density,
+          timestamp: new Date()
+        });
+      }
+
+      // Store in app locals (simple in-memory for now, as per original mock)
+      const currentReports = (req.app.locals as any).crowdReports || [];
+      (req.app.locals as any).crowdReports = [...currentReports, ...newReports];
+
+      res.json({ message: `Seeded 50 crowd reports near ${lat}, ${lon}`, count: newReports.length });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Debug: Send Test Email
-  app.post("/api/v1/debug/send-test-email", async (req, res) => {
+  // Get Crowd Density (Improved to optionally filter by area)
+  app.get("/api/v1/crowd/density", async (req, res) => {
     try {
-      const { email } = req.body;
-      const { sendEmailDetailed } = await import("./email");
+      const reports = (req.app.locals as any).crowdReports || [];
+      // For now return all, or could filter by viewport if lat/lon/delta provided
+      // Returning all is fine for small scale demo
+      res.json({ reports });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
-      const testEmailOptions = {
-        to: email || "kasivasi2005@gmail.com",
-        from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "test@tripmate.com",
-        subject: "Test Email from TripMate Debugger",
-        text: "This is a test email to verify SMTP sending capability.",
-        html: "<p>This is a test email to verify SMTP sending capability.</p>"
+  app.post("/api/v1/crowd/density", async (req, res) => {
+    try {
+      const { latitude, longitude, density } = req.body;
+      if (!latitude || !longitude || !density) return res.status(400).json({ message: "Invalid data" });
+
+      const report = {
+        id: Math.random().toString(36).substring(7),
+        latitude,
+        longitude,
+        density,
+        timestamp: new Date()
       };
 
-      const result = await sendEmailDetailed(testEmailOptions);
+      const current = (req.app.locals as any).crowdReports || [];
+      (req.app.locals as any).crowdReports = [...current, report];
 
-      if (result.ok) {
-        res.json({ success: true, message: "Email sent successfully", messageId: result.messageId });
-      } else {
-        res.status(500).json({
-          success: false,
-          message: "Email sending failed",
-          error: result.error
-        });
-      }
+      res.json({ message: "Report added", report });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -974,32 +998,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/v1/auth/user/avatar', isJwtAuthenticated, upload.single('image'), async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ message: 'No image provided' });
-      }
-      const url = `/uploads/${file.filename}`;
-
-      if (useMemoryStore) {
-        const existing = memoryUsers.get(userId);
-        if (existing) {
-          const updatedMem = { ...existing, profileImageUrl: url };
-          memoryUsers.set(userId, updatedMem);
-          return res.json({ id: updatedMem.id, email: updatedMem.email, firstName: updatedMem.firstName, lastName: updatedMem.lastName, profileImageUrl: updatedMem.profileImageUrl, phoneNumber: updatedMem.phoneNumber });
-        }
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      const updated = await storage.upsertUser({ _id: userId, profileImageUrl: url } as any);
-      res.json(updated);
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      res.status(500).json({ message: 'Failed to upload avatar' });
-    }
-  });
 
   app.get('/api/v1/auth/user', isJwtAuthenticated, async (req: any, res) => {
     try {
@@ -1129,17 +1127,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
           if (!key) return;
 
-          const q = `${destination} tourism scenery landmark`;
-          const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
-          const searchData = await searchRes.json();
+          // Try iconic landmark first, then fallback to famous places, then cityscape
+          const queries = [
+            `${destination} iconic landmark travel photography high resolution`,
+            `${destination} famous place travel photography`,
+            `${destination} cityscape travel photography`
+          ];
 
-          if (searchData.results && searchData.results.length > 0) {
-            const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
-            if (photoRef) {
-              const imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
-              await storage.updateTrip(tripId, userId, { imageUrl } as any);
-              console.log(`[Trip Create] Auto-fetched image for trip ${tripId}: ${imageUrl}`);
+          let imageUrl = null;
+          for (const q of queries) {
+            const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
+            const searchData = await searchRes.json();
+
+            if (searchData.results && searchData.results.length > 0) {
+              const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
+              if (photoRef) {
+                imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
+                break;
+              }
             }
+          }
+
+          if (imageUrl) {
+            await storage.updateTrip(tripId, userId, { imageUrl } as any);
+            console.log(`[Trip Create] Auto-fetched iconic image for trip ${tripId}`);
           }
         } catch (err) {
           console.error(`[Trip Create] Failed to auto-fetch image for trip ${tripId}:`, err);
@@ -1251,8 +1262,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const trip = await storage.updateTrip(tripId, userId, updates);
-      res.json(trip);
+      const doc = await TripModel.findOne({ _id: tripId, userId });
+      if (!doc) return res.status(404).json({ message: "Trip not found" });
+
+      // Apply updates to the document
+      Object.keys(updates).forEach(key => {
+        (doc as any)[key] = (updates as any)[key];
+      });
+
+      // Explicitly mark modified if itinerary or expenses are in updates
+      if ((updates as any).itinerary) doc.markModified('itinerary');
+      if ((updates as any).expenses) doc.markModified('expenses');
+      if ((updates as any).costBreakdown) doc.markModified('costBreakdown');
+
+      const savedTrip = await doc.save();
+      res.json(savedTrip);
     } catch (error) {
       console.error("Error updating trip:", error);
       res.status(400).json({ message: "Invalid trip data" });
@@ -1273,16 +1297,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
       if (!key) return res.status(503).json({ message: "Image service unavailable" });
 
-      // Improved query: destination + landmark/scenery to avoid people and get "highlight" images
-      const q = `${trip.destination} tourism scenery landmark`;
-      const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
-      const searchData = await searchRes.json();
+      // Iconic landmark-based query with fallbacks
+      const queries = [
+        `${trip.destination} iconic landmark travel photography high resolution`,
+        `${trip.destination} famous place travel photography`,
+        `${trip.destination} cityscape travel photography`
+      ];
 
       let imageUrl = null;
-      if (searchData.results && searchData.results.length > 0) {
-        const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
-        if (photoRef) {
-          imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
+      for (const q of queries) {
+        const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
+        const searchData = await searchRes.json();
+
+        if (searchData.results && searchData.results.length > 0) {
+          const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
+          if (photoRef) {
+            imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
+            break;
+          }
         }
       }
 
@@ -1347,6 +1379,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error discovering places:", error);
       res.status(500).json({ message: "Failed to discover places" });
     }
+  });
+
+  // Feature 1: Crowd-Sourced Density Reporting
+  app.post('/api/v1/crowd/density', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const { latitude, longitude, density, placeId } = req.body;
+      const { CrowdDensityModel } = await import("@shared/schema");
+
+      const newReport = new CrowdDensityModel({
+        latitude,
+        longitude,
+        density,
+        placeId,
+        source: "user-report"
+      });
+
+      await newReport.save();
+      res.status(201).json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to report density" });
+    }
+  });
+
+  // Feature 1: Periodic Fetching of Crowd Data (Heat Map)
+  app.get('/api/v1/crowd/density', async (req, res) => {
+    try {
+      const { CrowdDensityModel } = await import("@shared/schema");
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const reports = await CrowdDensityModel.find({ timestamp: { $gte: oneDayAgo } }).exec();
+      res.json({ reports });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch heat map data" });
+    }
+  });
+
+  // Debug: Seed Chennai Crowd Data
+  app.get('/api/v1/debug/seed-chennai', async (req, res) => {
+    try {
+      const { CrowdDensityModel } = await import("@shared/schema");
+
+      // Delete old debug data to avoid bloat (optional)
+      // await CrowdDensityModel.deleteMany({ source: 'debug-seed-chennai' });
+
+      const centerLat = 13.0827;
+      const centerLon = 80.2707;
+      const reports = [];
+
+      // Generate a cluster of points around Chennai
+      for (let i = 0; i < 20; i++) {
+        reports.push({
+          latitude: centerLat + (Math.random() - 0.5) * 0.05,
+          longitude: centerLon + (Math.random() - 0.5) * 0.05,
+          density: Math.floor(Math.random() * 8) + 2, // 2-10
+          source: 'user-report',
+          timestamp: new Date()
+        });
+      }
+
+      await CrowdDensityModel.insertMany(reports);
+      res.json({ message: "Seeded 20 points in Chennai", reports });
+    } catch (error) {
+      console.error("Seeding error:", error);
+      res.status(500).json({ error: "Failed to seed data" });
+    }
+  });
+
+  // Debug: Test AI Service
+  app.get('/api/v1/debug/ai-test', async (req, res) => {
+    try {
+      console.log("[Debug] Testing AI Service for Chennai...");
+      const hacks = await ai.getTravelHacks("Chennai", "relaxed");
+      res.json(hacks);
+    } catch (e) {
+      console.error("[Debug] AI Error:", e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // Feature 3: Travel Hacks & Economical Alternatives
+  app.get('/api/v1/trips/:id/hacks', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const trip = await storage.getTrip(req.params.id, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      const hacks = await ai.getTravelHacks(trip.destination, trip.travelStyle);
+      res.json(hacks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch hacks" });
+    }
+  });
+
+  // Feature 1: Quiet Alternatives (Lesser known places)
+  app.get('/api/v1/trips/:id/quiet-places', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const trip = await storage.getTrip(req.params.id, userId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+      const spots = await ai.getQuietAlternatives(trip.destination);
+      console.log(`[AI] Quiet spots for ${trip.destination}:`, spots?.length || 0);
+      res.json({ spots });
+    } catch (error) {
+      console.error("[AI] Failed to fetch quiet spots:", error);
+      res.status(500).json({ message: "Failed to fetch quiet spots" });
+    }
+  });
+
+  // Feature 4: AI Journal Augmentation
+  app.post('/api/v1/journal/augment', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const { content, destination } = req.body;
+      const result = await ai.augmentJournalEntry(content, destination);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to augment journal entry" });
+    }
+  });
+
+  // Serve Public Config (API Keys)
+  app.get('/api/v1/config', (req, res) => {
+    res.json({
+      googleMapsKey: process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_PLACES_API_KEY || process.env.Google_Gemini_Key
+    });
   });
 
   // Get AI-powered recommendations for hotels, restaurants, or tourist spots
@@ -1528,10 +1684,15 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
 
       console.log('[ADD TO ITINERARY] After adding - activities:', currentItinerary[0]?.activities?.length);
 
-      // Update trip with new itinerary
-      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
+      // Robust persistence using document model directly
+      const doc = await TripModel.findOne({ _id: tripId, userId });
+      if (!doc) throw new Error("Trip document not found");
 
-      res.json({ success: true, message: `${place.name} added to itinerary` });
+      doc.itinerary = currentItinerary;
+      doc.markModified('itinerary');
+      await doc.save();
+
+      res.json({ success: true, message: `${place.name} added to itinerary`, itinerary: doc.itinerary });
     } catch (error) {
       console.error("Error adding to itinerary:", error);
       res.status(500).json({ message: "Failed to add to itinerary" });
@@ -1539,124 +1700,9 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
   });
 
   // Add manual activity to itinerary
-  app.post('/api/v1/trips/:id/itinerary/activities', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const tripId = req.params.id;
-      const { dayIndex, activity } = req.body;
+  // Note: Obsolete manual activity routes (Add/Update/Delete) were consolidated 
+  // into more robust versions using direct document saving further down in the file.
 
-      const trip = await storage.getTrip(tripId, userId);
-      if (!trip) return res.status(404).json({ message: "Trip not found" });
-
-      const currentItinerary = Array.isArray(trip.itinerary)
-        ? JSON.parse(JSON.stringify(trip.itinerary))
-        : [];
-
-      if (dayIndex < 0 || dayIndex >= currentItinerary.length) {
-        return res.status(400).json({ message: "Invalid day index" });
-      }
-
-      // Add unique ID and required fields to activity
-      const newActivity = {
-        id: `activity-${Date.now()}`,
-        time: activity.time || '09:00 AM',
-        type: activity.type || 'sightseeing',
-        cost: activity.cost || 0,
-        duration_minutes: activity.duration_minutes || 60,
-        ...activity
-      };
-
-      if (!currentItinerary[dayIndex].activities) {
-        currentItinerary[dayIndex].activities = [];
-      }
-      currentItinerary[dayIndex].activities.push(newActivity);
-
-      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
-
-      res.json({ success: true, itinerary: currentItinerary });
-    } catch (error) {
-      console.error("Error adding activity:", error);
-      res.status(500).json({ message: "Failed to add activity" });
-    }
-  });
-
-  // Update activity in itinerary
-  app.put('/api/v1/trips/:id/itinerary/activities/:activityId', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const tripId = req.params.id;
-      const activityId = req.params.activityId;
-      const { dayIndex, updates } = req.body;
-
-      const trip = await storage.getTrip(tripId, userId);
-      if (!trip) return res.status(404).json({ message: "Trip not found" });
-
-      const currentItinerary = Array.isArray(trip.itinerary)
-        ? JSON.parse(JSON.stringify(trip.itinerary))
-        : [];
-
-      if (dayIndex < 0 || dayIndex >= currentItinerary.length) {
-        return res.status(400).json({ message: "Invalid day index" });
-      }
-
-      const activities = currentItinerary[dayIndex].activities || [];
-      const activityIndex = activities.findIndex((a: any) => a.id === activityId);
-
-      if (activityIndex === -1) {
-        return res.status(404).json({ message: "Activity not found" });
-      }
-
-      // Merge updates with existing activity
-      currentItinerary[dayIndex].activities[activityIndex] = {
-        ...activities[activityIndex],
-        ...updates
-      };
-
-      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
-
-      res.json({ success: true, itinerary: currentItinerary });
-    } catch (error) {
-      console.error("Error updating activity:", error);
-      res.status(500).json({ message: "Failed to update activity" });
-    }
-  });
-
-  // Delete activity from itinerary
-  app.delete('/api/v1/trips/:id/itinerary/activities/:activityId', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const tripId = req.params.id;
-      const activityId = req.params.activityId;
-      const dayIndex = parseInt(req.query.dayIndex as string);
-
-      const trip = await storage.getTrip(tripId, userId);
-      if (!trip) return res.status(404).json({ message: "Trip not found" });
-
-      const currentItinerary = Array.isArray(trip.itinerary)
-        ? JSON.parse(JSON.stringify(trip.itinerary))
-        : [];
-
-      if (isNaN(dayIndex) || dayIndex < 0 || dayIndex >= currentItinerary.length) {
-        return res.status(400).json({ message: "Invalid day index" });
-      }
-
-      const activities = currentItinerary[dayIndex].activities || [];
-      const filteredActivities = activities.filter((a: any) => a.id !== activityId);
-
-      if (filteredActivities.length === activities.length) {
-        return res.status(404).json({ message: "Activity not found" });
-      }
-
-      currentItinerary[dayIndex].activities = filteredActivities;
-
-      await storage.updateTrip(tripId, userId, { itinerary: currentItinerary } as any);
-
-      res.json({ success: true, itinerary: currentItinerary });
-    } catch (error) {
-      console.error("Error deleting activity:", error);
-      res.status(500).json({ message: "Failed to delete activity" });
-    }
-  });
 
   app.delete('/api/v1/trips/:id', async (req: any, res) => {
     try {
@@ -3017,6 +3063,19 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
     }
   });
 
+  app.get('/api/v1/trips/:id/proactive-insights', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      const insights = await ai.getProactiveInsights(trip.destination, trip.itinerary || []);
+      res.json(insights);
+    } catch (error) {
+      console.error('Proactive insights error:', error);
+      res.status(500).json({ error: 'failed_to_fetch_insights' });
+    }
+  });
+
   // Trip planning tool (strict JSON via OpenAI, server-side key only)
   app.post('/api/tools/planTrip', optionalAuth, aiLimit, async (req: any, res) => {
     try {
@@ -3122,7 +3181,10 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
       const gkey = process.env.GOOGLE_PLACES_API_KEY;
       if (!gkey) return res.status(503).json({ error: 'No Places API key' });
 
-      const gurl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(trip.destination + ' travel')}&key=${gkey}`;
+      // Improved search query for better, scenic images without people
+      // "view of" and "scenic" help get distance shots. "architecture" prioritizes buildings over selfies.
+      const query = `view of ${trip.destination} famous historic landmark architecture scenic`;
+      const gurl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${gkey}`;
       const gr = await fetch(gurl);
       const gj = await gr.json();
 
@@ -3164,11 +3226,181 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
         })) : []
       }));
 
-      const updated = await storage.updateTrip(trip.id, req.user.id, { itinerary: updatedItinerary });
-      res.json(updated?.itinerary);
+      const doc = await TripModel.findOne({ _id: trip.id, userId: req.user.id });
+      if (!doc) throw new Error("Trip document not found");
+
+      doc.itinerary = updatedItinerary;
+      doc.markModified('itinerary');
+      const updated = await doc.save();
+
+      res.json(updated.itinerary);
     } catch (error) {
       console.error('Update itinerary error:', error);
       res.status(500).json({ error: 'Failed to update itinerary' });
+    }
+  });
+
+  /**
+   * Differential Sync (JSON Patch-like) for Itinerary
+   * Supports fine-grained field updates without replacing the whole object.
+   */
+  app.patch('/api/v1/trips/:id/itinerary', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims?.sub || req.user.id;
+      const { patches } = req.body; // Array of { op: 'update_activity', dayIndex: number, actId: string, data: Partial<IItineraryActivity> }
+
+      if (!Array.isArray(patches)) return res.status(400).json({ message: "Patches array required" });
+
+      const doc = await TripModel.findOne({ _id: id, userId });
+      if (!doc) return res.status(404).json({ message: "Trip not found" });
+
+      const itinerary = JSON.parse(JSON.stringify(doc.itinerary || []));
+
+      for (const patch of patches) {
+        if (patch.op === 'update_activity') {
+          const day = itinerary[patch.dayIndex];
+          if (day && day.activities) {
+            const actIndex = day.activities.findIndex((a: any) => a.id === patch.actId);
+            if (actIndex !== -1) {
+              day.activities[actIndex] = { ...day.activities[actIndex], ...patch.data };
+            }
+          }
+        }
+        // Add more ops like 'add_activity', 'delete_activity', 'reorder' as needed
+      }
+
+      doc.itinerary = itinerary;
+      doc.markModified('itinerary');
+      await doc.save();
+
+      res.json({ message: "Sync successful", itinerary: doc.itinerary });
+    } catch (error) {
+      console.error("[DifferentialSync] Error:", error);
+      res.status(500).json({ message: "Sync failed" });
+    }
+  });
+
+  // Add Activity to Itinerary
+  app.post('/api/v1/trips/:id/itinerary/activities', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      const { dayIndex, activity } = req.body;
+      if (typeof dayIndex !== 'number' || !activity) return res.status(400).json({ error: 'Invalid input' });
+
+      // Clone to simple array to avoid Mongoose Mixed type checking weirdness
+      let currentItinerary = trip.itinerary ? JSON.parse(JSON.stringify(trip.itinerary)) : [];
+
+      // Auto-initialize days if itinerary is empty or missing days
+      if (currentItinerary.length < trip.days) {
+        console.log(`[Itinerary] Initializing itinerary with ${trip.days} days`);
+        const initialized: any[] = [];
+        for (let i = 0; i < trip.days; i++) {
+          initialized.push(currentItinerary[i] || { day: i + 1, activities: [] });
+        }
+        currentItinerary = initialized;
+      }
+
+      if (!currentItinerary[dayIndex]) {
+        return res.status(400).json({ error: `Invalid day index: ${dayIndex}. Trip only has ${trip.days} days.` });
+      }
+
+      const newActivity = {
+        id: Math.random().toString(36).substring(7),
+        ...activity
+      };
+
+      currentItinerary[dayIndex].activities = Array.isArray(currentItinerary[dayIndex].activities)
+        ? [...currentItinerary[dayIndex].activities, newActivity]
+        : [newActivity];
+
+      console.log(`[Itinerary] Adding activity to day ${dayIndex}. Total activities: ${currentItinerary[dayIndex].activities.length}`);
+
+      // Robust persistence using document model directly
+      const doc = await TripModel.findOne({ _id: trip.id, userId: req.user.id });
+      if (!doc) throw new Error("Trip document not found");
+
+      doc.itinerary = currentItinerary;
+      doc.markModified('itinerary');
+      await doc.save();
+
+      res.json({ itinerary: doc.itinerary });
+    } catch (error) {
+      console.error('Add activity error:', error);
+      res.status(500).json({ error: 'Failed to add activity' });
+    }
+  });
+
+  // Update Activity
+  app.put('/api/v1/trips/:id/itinerary/activities/:activityId', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      const { dayIndex, updates } = req.body;
+      const activityId = req.params.activityId;
+
+      // Clone
+      const currentItinerary = trip.itinerary ? JSON.parse(JSON.stringify(trip.itinerary)) : [];
+      if (!currentItinerary[dayIndex]) return res.status(400).json({ error: 'Invalid day index' });
+
+      const activities = currentItinerary[dayIndex].activities || [];
+      const actIndex = activities.findIndex((a: any) => a.id === activityId);
+
+      if (actIndex === -1) return res.status(404).json({ error: 'Activity not found' });
+
+      activities[actIndex] = { ...activities[actIndex], ...updates };
+      currentItinerary[dayIndex].activities = activities;
+
+      console.log(`[Itinerary] Updating activity ${activityId} on day ${dayIndex}`);
+
+      const doc = await TripModel.findOne({ _id: trip.id, userId: req.user.id });
+      if (!doc) throw new Error("Trip document not found");
+
+      doc.itinerary = currentItinerary;
+      doc.markModified('itinerary');
+      await doc.save();
+
+      res.json({ itinerary: doc.itinerary });
+    } catch (error) {
+      console.error('Update activity error:', error);
+      res.status(500).json({ error: 'Failed to update activity' });
+    }
+  });
+
+  // Delete Activity
+  app.delete('/api/v1/trips/:id/itinerary/activities/:activityId', isJwtAuthenticated, async (req: any, res) => {
+    try {
+      const trip = await storage.getTrip(req.params.id, req.user.id);
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      const activityId = req.params.activityId;
+      const dayIndex = Number(req.query.dayIndex);
+
+      if (!Number.isFinite(dayIndex)) return res.status(400).json({ error: 'dayIndex required' });
+
+      // Clone
+      const currentItinerary = trip.itinerary ? JSON.parse(JSON.stringify(trip.itinerary)) : [];
+      if (!currentItinerary[dayIndex]) return res.status(400).json({ error: 'Invalid day index' });
+
+      const beforeCount = (currentItinerary[dayIndex].activities || []).length;
+      currentItinerary[dayIndex].activities = (currentItinerary[dayIndex].activities || []).filter((a: any) => a.id !== activityId);
+
+      console.log(`[Itinerary] Deleted activity ${activityId} on day ${dayIndex}. Count: ${beforeCount} -> ${currentItinerary[dayIndex].activities.length}`);
+
+      const doc = await TripModel.findOne({ _id: trip.id, userId: req.user.id });
+      if (!doc) throw new Error("Trip document not found");
+
+      doc.itinerary = currentItinerary;
+      doc.markModified('itinerary');
+      await doc.save();
+
+      res.json({ itinerary: doc.itinerary });
+    } catch (error) {
+      console.error('Delete activity error:', error);
+      res.status(500).json({ error: 'Failed to delete activity' });
     }
   });
 
@@ -3184,12 +3416,14 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
         date: new Date(req.body.date || Date.now())
       };
 
-      const currentExpenses = trip.expenses || [];
-      const updated = await storage.updateTrip(trip.id, req.user.id, {
-        expenses: [...currentExpenses, newExpense]
-      });
+      const doc = await TripModel.findOne({ _id: trip.id, userId: req.user.id });
+      if (!doc) throw new Error("Trip document not found");
 
-      res.json(updated?.expenses);
+      doc.expenses = [...(trip.expenses || []), newExpense];
+      doc.markModified('expenses');
+      const updated = await doc.save();
+
+      res.json(updated.expenses);
     } catch (error) {
       console.error('Add expense error:', error);
       res.status(500).json({ error: 'Failed to add expense' });
@@ -3202,11 +3436,14 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
       const trip = await storage.getTrip(req.params.id, req.user.id);
       if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
-      const currentExpenses = trip.expenses || [];
-      const filtered = currentExpenses.filter((e: any) => e.id !== req.params.expenseId);
+      const doc = await TripModel.findOne({ _id: trip.id, userId: req.user.id });
+      if (!doc) throw new Error("Trip document not found");
 
-      const updated = await storage.updateTrip(trip.id, req.user.id, { expenses: filtered });
-      res.json(updated?.expenses);
+      doc.expenses = (trip.expenses || []).filter((e: any) => e.id !== req.params.expenseId);
+      doc.markModified('expenses');
+      const updated = await doc.save();
+
+      res.json(updated.expenses);
     } catch (error) {
       console.error('Delete expense error:', error);
       res.status(500).json({ error: 'Failed to delete expense' });
