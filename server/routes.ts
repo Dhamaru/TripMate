@@ -1297,11 +1297,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
       if (!key) return res.status(503).json({ message: "Image service unavailable" });
 
-      // Iconic landmark-based query with fallbacks
+      // Iconic landmark-based query with fallbacks, prioritizing landscapes and empty views
       const queries = [
-        `${trip.destination} iconic landmark travel photography high resolution`,
-        `${trip.destination} famous place travel photography`,
-        `${trip.destination} cityscape travel photography`
+        `${trip.destination} scenic landscape nature skyline photography no people`,
+        `${trip.destination} historic landmark architecture panoramic empty view`,
+        `${trip.destination} city skyline panorama viewpoint`
       ];
 
       let imageUrl = null;
@@ -3182,8 +3182,8 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
       if (!gkey) return res.status(503).json({ error: 'No Places API key' });
 
       // Improved search query for better, scenic images without people
-      // "view of" and "scenic" help get distance shots. "architecture" prioritizes buildings over selfies.
-      const query = `view of ${trip.destination} famous historic landmark architecture scenic`;
+      // "view of", "landscape", and "no people" bias Google Places toward nature or architecture shots
+      const query = `${trip.destination} scenic landscape panoramic viewpoint nature architecture empty no people`;
       const gurl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${gkey}`;
       const gr = await fetch(gurl);
       const gj = await gr.json();
