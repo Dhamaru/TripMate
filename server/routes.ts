@@ -56,83 +56,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ... (keeping existing variables)
 
   // Debug: Seed Crowd Density for specific location
-  app.post("/api/v1/debug/seed-crowd", async (req, res) => {
-    try {
-      const lat = Number(req.body.lat) || Number(req.query.lat);
-      const lon = Number(req.body.lon) || Number(req.query.lon);
 
-      if (!lat || !lon) {
-        return res.status(400).json({ message: "Latitude and Longitude required" });
-      }
-
-      console.log(`[Seeding] Generating crowd data for ${lat}, ${lon}`);
-
-      // Clear existing old reports? Maybe not. Just add new ones.
-      // Actually, for demo purposes, let's keep it additive but maybe clear very old ones if we had a persistent store.
-      // For memory store, we just reset or append.
-      // Let's append specific points around the target.
-
-      const newReports = [];
-      for (let i = 0; i < 50; i++) {
-        // specific hotspots
-        // varying density 1-10
-        // scattered within 0.05 degrees (~5km)
-        const dLat = (Math.random() - 0.5) * 0.05;
-        const dLon = (Math.random() - 0.5) * 0.05;
-        const density = Math.floor(Math.random() * 10) + 1; // 1 to 10
-
-        newReports.push({
-          id: Math.random().toString(36).substring(7),
-          latitude: lat + dLat,
-          longitude: lon + dLon,
-          density,
-          timestamp: new Date()
-        });
-      }
-
-      // Store in app locals (simple in-memory for now, as per original mock)
-      const currentReports = (req.app.locals as any).crowdReports || [];
-      (req.app.locals as any).crowdReports = [...currentReports, ...newReports];
-
-      res.json({ message: `Seeded 50 crowd reports near ${lat}, ${lon}`, count: newReports.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   // Get Crowd Density (Improved to optionally filter by area)
-  app.get("/api/v1/crowd/density", async (req, res) => {
-    try {
-      const reports = (req.app.locals as any).crowdReports || [];
-      // For now return all, or could filter by viewport if lat/lon/delta provided
-      // Returning all is fine for small scale demo
-      res.json({ reports });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
-  app.post("/api/v1/crowd/density", async (req, res) => {
-    try {
-      const { latitude, longitude, density } = req.body;
-      if (!latitude || !longitude || !density) return res.status(400).json({ message: "Invalid data" });
-
-      const report = {
-        id: Math.random().toString(36).substring(7),
-        latitude,
-        longitude,
-        density,
-        timestamp: new Date()
-      };
-
-      const current = (req.app.locals as any).crowdReports || [];
-      (req.app.locals as any).crowdReports = [...current, report];
-
-      res.json({ message: "Report added", report });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   // Forgot Password Route
   app.post("/api/v1/auth/forgot-password", async (req, res) => {
@@ -1345,47 +1272,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Debug: Seed Chennai Crowd Data
-  app.get('/api/v1/debug/seed-chennai', async (req, res) => {
-    try {
-      const { CrowdDensityModel } = await import("@shared/schema");
 
-      // Delete old debug data to avoid bloat (optional)
-      // await CrowdDensityModel.deleteMany({ source: 'debug-seed-chennai' });
 
-      const centerLat = 13.0827;
-      const centerLon = 80.2707;
-      const reports = [];
 
-      // Generate a cluster of points around Chennai
-      for (let i = 0; i < 20; i++) {
-        reports.push({
-          latitude: centerLat + (Math.random() - 0.5) * 0.05,
-          longitude: centerLon + (Math.random() - 0.5) * 0.05,
-          density: Math.floor(Math.random() * 8) + 2, // 2-10
-          source: 'user-report',
-          timestamp: new Date()
-        });
-      }
-
-      await CrowdDensityModel.insertMany(reports);
-      res.json({ message: "Seeded 20 points in Chennai", reports });
-    } catch (error) {
-      console.error("Seeding error:", error);
-      res.status(500).json({ error: "Failed to seed data" });
-    }
-  });
-
-  // Debug: Test AI Service
-  app.get('/api/v1/debug/ai-test', async (req, res) => {
-    try {
-      console.log("[Debug] Testing AI Service for Chennai...");
-      const hacks = await ai.getTravelHacks("Chennai", "relaxed");
-      res.json(hacks);
-    } catch (e) {
-      console.error("[Debug] AI Error:", e);
-      res.status(500).json({ error: String(e) });
-    }
-  });
 
   // Feature 3: Travel Hacks & Economical Alternatives
   app.get('/api/v1/trips/:id/hacks', isJwtAuthenticated, async (req: any, res) => {
