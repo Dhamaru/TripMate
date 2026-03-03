@@ -410,10 +410,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        profileImageUrl: user.profileImageUrl,
+        // profileImageUrl intentionally excluded - fetched from DB to keep token compact
         phone_number: (user as any).phoneNumber || "",
       },
-      process.env.JWT_SECRET || "your-jwt-secret-key",
+      process.env.JWT_SECRET!,
       { expiresIn: `${ACCESS_TTL_MINUTES}m` }
     );
   }
@@ -999,61 +999,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  app.get('/api/v1/auth/user', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const claims = req.user.claims || req.user;
-      const userId = claims?.sub || req.user.id;
-      if (useMemoryStore) {
-        const mem = memoryUsers.get(userId);
-        if (!mem) return res.status(401).json({ message: 'User not found' });
-        return res.json({
-          id: mem.id,
-          email: mem.email,
-          firstName: mem.firstName || '',
-          lastName: mem.lastName || '',
-          profileImageUrl: mem.profileImageUrl || '',
-          phoneNumber: mem.phoneNumber || '',
-        });
-      }
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(401).json({ message: "User not found" });
-      }
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
-  app.put('/api/v1/auth/user', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      const updateSchema = z.object({
-        firstName: z.string().trim().optional(),
-        lastName: z.string().trim().optional(),
-        profileImageUrl: z.string().url().optional(),
-        phoneNumber: z.string().trim().optional(),
-      });
-      const updates = updateSchema.parse(req.body || {});
-
-      if (useMemoryStore) {
-        const existing = memoryUsers.get(userId);
-        if (existing) {
-          const updatedMem = { ...existing, ...updates };
-          memoryUsers.set(userId, updatedMem);
-          return res.json({ id: updatedMem.id, email: updatedMem.email, firstName: updatedMem.firstName, lastName: updatedMem.lastName, profileImageUrl: updatedMem.profileImageUrl, phoneNumber: updatedMem.phoneNumber });
-        }
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      const updated = await storage.updateUser(userId, updates as any);
-      res.json(updated);
-    } catch (error) {
-      console.error('Error updating user:', error);
-      res.status(400).json({ message: 'Invalid user data' });
-    }
-  });
 
   // Trip routes
   app.delete('/api/v1/trips', isJwtAuthenticated, async (req: any, res) => {
@@ -1127,30 +1072,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
           if (!key) return;
 
-          // Try iconic landmark first, then fallback to famous places, then cityscape
+          // Queries specifically target empty landmark/scenic photography — no portraits or fashion
           const queries = [
-            `${destination} iconic landmark travel photography high resolution`,
-            `${destination} famous place travel photography`,
-            `${destination} cityscape travel photography`
+            `${destination} famous monument landmark architecture no people`,
+            `${destination} historical monument exterior architecture`,
+            `${destination} scenic viewpoint landscape nature`,
+            `${destination} tourist attraction landmark`,
           ];
 
-          let imageUrl = null;
-          for (const q of queries) {
-            const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
+          // Words that indicate a non-scenic result (portrait/fashion/studio photography)
+          const NON_SCENIC_KEYWORDS = [
+            'fashion', 'studio', 'model', 'salon', 'boutique', 'wedding',
+            'photography studio', 'portrait', 'bridal', 'makeup', 'store', 'shop'
+          ];
+
+          let imageUrl: string | null = null;
+
+          outer: for (const q of queries) {
+            const searchRes = await fetch(
+              `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`
+            );
             const searchData = await searchRes.json();
 
-            if (searchData.results && searchData.results.length > 0) {
-              const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
-              if (photoRef) {
+            const results: any[] = searchData.results || [];
+            // Scan up to 5 results, skip portrait/fashion studios and portrait-oriented photos
+            for (const place of results.slice(0, 5)) {
+              const name: string = (place.name || '').toLowerCase();
+              const isNonScenic = NON_SCENIC_KEYWORDS.some(kw => name.includes(kw));
+              if (isNonScenic) continue;
+
+              // Check all available photos for a landscape-oriented one (width > height)
+              const photos: any[] = place.photos || [];
+              for (const photo of photos) {
+                const photoRef: string | undefined = photo.photo_reference;
+                if (!photoRef) continue;
+
+                const w: number = photo.width || 0;
+                const h: number = photo.height || 1;
+                const aspectRatio = w / h;
+
+                // Require landscape orientation (width > height, ratio > 1.1) to exclude portrait shots
+                if (aspectRatio < 1.1) {
+                  console.log(`[Trip Create] Skipping portrait photo (${w}x${h}) for "${place.name}"`);
+                  continue;
+                }
+
                 imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
-                break;
+                break outer;
               }
             }
           }
 
           if (imageUrl) {
             await storage.updateTrip(tripId, userId, { imageUrl } as any);
-            console.log(`[Trip Create] Auto-fetched iconic image for trip ${tripId}`);
+            console.log(`[Trip Create] Auto-fetched landmark image for trip ${tripId}`);
           }
         } catch (err) {
           console.error(`[Trip Create] Failed to auto-fetch image for trip ${tripId}:`, err);
@@ -1283,52 +1258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate/Fetch Trip Hero Image
-  app.post('/api/v1/trips/:id/image', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const tripId = req.params.id;
-      const trip = await storage.getTrip(tripId, userId);
-      if (!trip) return res.status(404).json({ message: "Trip not found" });
 
-      if (trip.imageUrl && req.query.force !== 'true') return res.json({ imageUrl: trip.imageUrl });
-
-      // Fetch from Google Places
-      const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!key) return res.status(503).json({ message: "Image service unavailable" });
-
-      // Iconic landmark-based query with fallbacks, prioritizing landscapes and empty views
-      const queries = [
-        `${trip.destination} scenic landscape nature skyline photography no people`,
-        `${trip.destination} historic landmark architecture panoramic empty view`,
-        `${trip.destination} city skyline panorama viewpoint`
-      ];
-
-      let imageUrl = null;
-      for (const q of queries) {
-        const searchRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
-        const searchData = await searchRes.json();
-
-        if (searchData.results && searchData.results.length > 0) {
-          const photoRef = searchData.results[0].photos?.[0]?.photo_reference;
-          if (photoRef) {
-            imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
-            break;
-          }
-        }
-      }
-
-      if (imageUrl) {
-        await storage.updateTrip(tripId, userId, { imageUrl } as any);
-        return res.json({ imageUrl });
-      }
-
-      res.status(404).json({ message: "No image found" });
-    } catch (error) {
-      console.error("Error fetching trip image:", error);
-      res.status(500).json({ message: "Failed to fetch image" });
-    }
-  });
 
   // Discover places near trip destination (Hotels, Restaurants, Tourist Spots)
   app.post('/api/v1/trips/:id/discover', isJwtAuthenticated, async (req: any, res) => {
@@ -1501,7 +1431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve Public Config (API Keys)
   app.get('/api/v1/config', (req, res) => {
     res.json({
-      googleMapsKey: process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_PLACES_API_KEY || process.env.Google_Gemini_Key
+      googleMapsKey: process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_PLACES_API_KEY || process.env.GEMINI_API_KEY
     });
   });
 
@@ -1559,7 +1489,7 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
 
       try {
         // Use Gemini (via environment variable) or OpenAI for recommendations
-        const geminiKey = process.env.Google_Gemini_Key || process.env.GEMINI_API_KEY;
+        const geminiKey = process.env.GEMINI_API_KEY;
         const openaiKey = process.env.OPENAI_API_KEY;
 
         let aiText = '';
@@ -2758,54 +2688,6 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
     } catch (error) {
       console.error('AI currency error:', error);
       res.status(500).json({ rate: 0, convertedAmount: 0, currencyName: '', disclaimer: 'Unavailable' });
-    }
-  });
-
-
-  app.get('/api/v1/packing-lists', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const lists = await storage.getUserPackingLists(userId);
-      res.json(lists);
-    } catch (error) {
-      console.error('Get packing lists error:', error);
-      res.status(500).json({ message: 'Failed to fetch packing lists' });
-    }
-  });
-
-  app.post('/api/v1/packing-lists', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const data = insertPackingListSchema.parse({ ...req.body, userId });
-      const list = await storage.createPackingList(data);
-      res.status(201).json(list);
-    } catch (error) {
-      console.error('Create packing list error:', error);
-      res.status(400).json({ message: 'Invalid input' });
-    }
-  });
-
-  app.put('/api/v1/packing-lists/:id', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const updated = await storage.updatePackingList(req.params.id, userId, req.body);
-      if (!updated) return res.status(404).json({ message: 'List not found' });
-      res.json(updated);
-    } catch (error) {
-      console.error('Update packing list error:', error);
-      res.status(500).json({ message: 'Failed to update packing list' });
-    }
-  });
-
-  app.delete('/api/v1/packing-lists/:id', isJwtAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const success = await storage.deletePackingList(req.params.id, userId);
-      if (!success) return res.status(404).json({ message: 'List not found' });
-      res.sendStatus(204);
-    } catch (error) {
-      console.error('Delete packing list error:', error);
-      res.status(500).json({ message: 'Failed to delete packing list' });
     }
   });
 
@@ -4060,7 +3942,7 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
         `Use only Markdown. Avoid code fences. Keep it concise, well-structured, and locally relevant.`
       ].filter(Boolean).join(' ');
 
-      const geminiKey = process.env.Google_Gemini_Key || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+      const geminiKey = process.env.GEMINI_API_KEY || '';
       const timeoutMs = 60000;
       const task = (async () => {
         let markdown = '';

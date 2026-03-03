@@ -216,7 +216,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry> {
-    const newEntry = new JournalEntryModel(entry);
+    // Stage 5: Auto-Contextualization logic
+    let dayIndex = entry.dayIndex;
+    if (dayIndex === undefined && entry.tripId) {
+      try {
+        const trip = await TripModel.findById(entry.tripId).exec();
+        if (trip && trip.startDate) {
+          const entryDate = new Date(); // Default to now if not provided
+          const startTime = new Date(trip.startDate).getTime();
+          const diffMs = entryDate.getTime() - startTime;
+          const calculatedIndex = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+          if (calculatedIndex >= 0 && calculatedIndex < trip.days) {
+            dayIndex = calculatedIndex;
+            console.log(`[JournalAutoContext] Linked entry to Day ${dayIndex + 1} for trip ${trip.id}`);
+          }
+        }
+      } catch (e) {
+        console.error("[JournalAutoContext] Error:", e);
+      }
+    }
+
+    const newEntry = new JournalEntryModel({ ...entry, dayIndex });
     return await newEntry.save();
   }
 
