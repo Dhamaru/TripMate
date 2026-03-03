@@ -1742,12 +1742,6 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
         `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
       ) : [];
 
-      try {
-        // Debug log size of uploads
-        const totalSize = uploadedPhotos.reduce((acc: number, p: string) => acc + p.length, 0);
-        fs.appendFileSync('server_debug.log', `DEBUG: Uploaded photo sizes: ${totalSize} bytes\n`);
-      } catch (e) { console.error("Logging failed", e); }
-
       // Handle photos: New uploads + Kept existing photos
       // Client sends 'existingPhotos' as a JSON string of URL array
       let keptPhotos: string[] = [];
@@ -1769,7 +1763,6 @@ Recommend the TOP 5 and explain WHY each one fits this trip. Format your respons
       }
 
       updates.photos = [...uploadedPhotos, ...keptPhotos];
-      fs.appendFileSync('server_debug.log', `DEBUG: Updates object before DB call: ${JSON.stringify(updates)}\n`);
 
       const entry = await storage.updateJournalEntry(entryId, userId, updates);
       if (!entry) {
