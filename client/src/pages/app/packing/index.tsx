@@ -556,7 +556,7 @@ export default function PackingChecklist() {
     };
 
     return (
-        <div className="min-h-screen bg-[#f9fafb] pb-20 font-sans print:bg-white print:text-black print:pb-0">
+        <div className="min-h-screen bg-background pb-20 font-sans print:bg-card print:text-black print:pb-0">
             <style>{`
                 @media print {
                     @page { margin: 1cm; size: auto; }
@@ -577,12 +577,12 @@ export default function PackingChecklist() {
             `}</style>
             <div className="max-w-3xl mx-auto px-4 pt-6">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-[#111827] mb-2">Smart Packing List</h1>
-                    <p className="text-gray-500">Review your customized packing checklist based on the season.</p>
+                    <h1 className="text-3xl font-bold text-foreground mb-2">Smart Packing List</h1>
+                    <p className="text-muted-foreground">Review your customized packing checklist based on the season.</p>
                 </div>
 
                 <Tabs value={activeSeason} onValueChange={(v) => setActiveSeason(v as Season)} className="mb-8">
-                    <TabsList className="grid grid-cols-4 bg-white border border-gray-200 rounded-full p-1 h-12">
+                    <TabsList className="grid grid-cols-4 bg-card border border rounded-full p-1 h-12">
                         {SEASONS.map(season => {
                             const labels = {
                                 Summer: "Summer",
@@ -605,14 +605,14 @@ export default function PackingChecklist() {
                 </Tabs>
 
                 {/* TRIP ASSIGNMENT & ACTIONS BAR */}
-                <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between items-center bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between items-center bg-card p-4 rounded-3xl border border shadow-sm">
                     <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <MapPin className="text-gray-500 w-4 h-4" />
+                        <MapPin className="text-muted-foreground w-4 h-4" />
                         <Select value={selectedTripId} onValueChange={setSelectedTripId}>
-                            <SelectTrigger className="w-full sm:w-[200px] bg-gray-50 border-gray-200">
+                            <SelectTrigger className="w-full sm:w-[200px] bg-muted/50 border">
                                 <SelectValue placeholder="Assign to Trip" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white border-gray-100 text-[#111827]">
+                            <SelectContent className="bg-card border text-foreground">
                                 <SelectItem value="none">General List (No Trip)</SelectItem>
                                 {userTrips?.map(trip => {
                                     const tId = String(trip._id || (trip as any).id || "unknown");
@@ -641,21 +641,21 @@ export default function PackingChecklist() {
                             size="icon"
                             title="Save List"
                             onClick={() => handleSave(items)}
-                            className={`border-gray-200 hover:bg-gray-50 ${isDirty ? 'text-blue-400 border-blue-400' : 'text-gray-500'}`}
+                            className={`border hover:bg-muted/50 ${isDirty ? 'text-blue-400 border-blue-400' : 'text-muted-foreground'}`}
                         >
                             <Save className="w-4 h-4" />
                         </Button>
-                        <Button variant="outline" size="icon" title="Duplicate List" onClick={handleDuplicate} className="border-gray-200 hover:bg-gray-50">
-                            <Copy className="w-4 h-4 text-gray-500" />
+                        <Button variant="outline" size="icon" title="Duplicate List" onClick={handleDuplicate} className="border hover:bg-muted/50">
+                            <Copy className="w-4 h-4 text-muted-foreground" />
                         </Button>
-                        <Button variant="outline" size="icon" title="Copy Items to Clipboard" onClick={handleCopyToClipboard} className="border-gray-200 hover:bg-gray-50">
-                            <ClipboardCopy className="w-4 h-4 text-gray-500" />
+                        <Button variant="outline" size="icon" title="Copy Items to Clipboard" onClick={handleCopyToClipboard} className="border hover:bg-muted/50">
+                            <ClipboardCopy className="w-4 h-4 text-muted-foreground" />
                         </Button>
-                        <Button variant="outline" size="icon" title="Paste Items from Clipboard" onClick={handlePasteFromClipboard} className="border-gray-200 hover:bg-gray-50">
-                            <ClipboardPaste className="w-4 h-4 text-gray-500" />
+                        <Button variant="outline" size="icon" title="Paste Items from Clipboard" onClick={handlePasteFromClipboard} className="border hover:bg-muted/50">
+                            <ClipboardPaste className="w-4 h-4 text-muted-foreground" />
                         </Button>
-                        <Button variant="outline" size="icon" title="Print" onClick={handlePrint} className="border-gray-200 hover:bg-gray-50">
-                            <Printer className="w-4 h-4 text-gray-500" />
+                        <Button variant="outline" size="icon" title="Print" onClick={handlePrint} className="border hover:bg-muted/50">
+                            <Printer className="w-4 h-4 text-muted-foreground" />
                         </Button>
 
                     </div>
@@ -664,22 +664,22 @@ export default function PackingChecklist() {
                 {/* SEARCH & FILTER */}
                 <div className="flex gap-2 mb-6">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                             placeholder="Search items..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-white border-gray-100 pl-9 rounded-xl text-[#111827]"
+                            className="bg-card border pl-9 rounded-xl text-foreground"
                         />
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="border-gray-100 bg-white rounded-xl text-[#111827]">
+                            <Button variant="outline" className="border bg-card rounded-xl text-foreground">
                                 <Filter className="w-4 h-4 mr-2" />
                                 {filterBy === "all" ? "All" : filterBy === "packed" ? "Packed" : "Unpacked"}
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-white border-gray-100 text-[#111827]">
+                        <DropdownMenuContent className="bg-card border text-foreground">
                             <DropdownMenuItem onClick={() => setFilterBy("all")}>All Items</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setFilterBy("packed")}>Packed Only</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setFilterBy("unpacked")}>Unpacked Only</DropdownMenuItem>
@@ -695,17 +695,17 @@ export default function PackingChecklist() {
                         if (displayItems.length === 0) return null;
 
                         return (
-                            <Card key={category} className="bg-white border-gray-100 rounded-3xl overflow-hidden shadow-sm">
+                            <Card key={category} className="bg-card border rounded-3xl overflow-hidden shadow-sm">
                                 <div
-                                    className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                    className="flex justify-between items-center p-4 bg-muted/50 cursor-pointer hover:bg-gray-100 transition-colors"
                                     onClick={() => toggleCategory(category)}
                                 >
                                     <h3 className="font-semibold text-lg flex items-center">
                                         {collapsedCategories.has(category) ? <ChevronRight className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
                                         {category}
-                                        <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{displayItems.length}</span>
+                                        <span className="ml-2 text-xs bg-gray-100 text-muted-foreground px-2 py-0.5 rounded-full">{displayItems.length}</span>
                                     </h3>
-                                    <div className="text-sm text-gray-500">
+                                    <div className="text-sm text-muted-foreground">
                                         {displayItems.filter(i => i.packed).length}/{displayItems.length} packed
                                     </div>
                                 </div>
@@ -754,7 +754,7 @@ export default function PackingChecklist() {
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                        className="bg-white border-gray-100 text-[#111827] rounded-full h-12 px-6 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="bg-card border text-foreground rounded-full h-12 px-6 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <Button onClick={handleAdd} className="bg-amber-500 hover:bg-amber-600 text-white rounded-full h-12 px-6">
                         <Plus className="w-5 h-5 mr-2" /> Add
@@ -764,7 +764,7 @@ export default function PackingChecklist() {
                 <div className="flex gap-4 justify-center pb-8">
                     <Button
                         variant="outline"
-                        className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-full"
+                        className="border text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-full"
                         onClick={() => {
                             const newItems = items.map(i => ({ ...i, packed: true }));
                             updateLocalItems(newItems);
@@ -774,7 +774,7 @@ export default function PackingChecklist() {
                     </Button>
                     <Button
                         variant="outline"
-                        className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-full"
+                        className="border text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-full"
                         onClick={() => {
                             const newItems = items.map(i => ({ ...i, packed: false }));
                             updateLocalItems(newItems);

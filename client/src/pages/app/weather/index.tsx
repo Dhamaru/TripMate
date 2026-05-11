@@ -207,11 +207,11 @@ export default function WeatherPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[#222222] tracking-tight">Weather Insights</h1>
-        <p className="text-[#6a6a6a] text-sm mt-0.5">7-day forecasts and travel weather recommendations</p>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Weather Insights</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">7-day forecasts and travel weather recommendations</p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#ebebeb] p-4 max-w-2xl">
+      <div className="bg-card rounded-2xl border border p-4 max-w-2xl">
         <div className="flex gap-2">
           <Input
             aria-label="Search location"
@@ -235,25 +235,25 @@ export default function WeatherPage() {
               if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, -1)); }
             }}
             placeholder="Search location (e.g., Goa, Tokyo)"
-            className="bg-[#f7f7f7] border-[#ebebeb] text-[#222222] placeholder:text-[#929292] focus-visible:ring-[#F59E0B]/30"
+            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#F59E0B]/30"
             data-testid="input-weather-location"
           />
           <Button type="button" onClick={() => handleSearch()} className="bg-[#F59E0B] hover:bg-[#D97706] text-white" data-testid="button-weather-search" disabled={loading}>
             {loading ? <span className="flex items-center gap-1"><i className="fas fa-spinner animate-spin" />Searching</span> : "Search"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => useMyLocation()} className="border-[#ebebeb] text-[#222222] hover:bg-[#f7f7f7]">
+          <Button type="button" variant="outline" onClick={() => useMyLocation()} className="border text-foreground hover:bg-muted">
             My Location
           </Button>
         </div>
 
         {suggestions.length > 0 && (
-          <div role="listbox" aria-label="Location suggestions" className="mt-2 bg-white border border-[#ebebeb] rounded-xl shadow-md">
+          <div role="listbox" aria-label="Location suggestions" className="mt-2 bg-card border border rounded-xl shadow-md">
             {suggestions.map((s, idx) => (
               <button
                 key={`${s.name}-${idx}`}
                 role="option"
                 aria-selected={activeIndex === idx}
-                className={`w-full text-left px-3 py-2 text-sm text-[#222222] rounded-xl ${activeIndex === idx ? 'bg-[#f7f7f7]' : 'hover:bg-[#f7f7f7]'}`}
+                className={`w-full text-left px-3 py-2 text-sm text-foreground rounded-xl ${activeIndex === idx ? 'bg-muted' : 'hover:bg-muted'}`}
                 onMouseEnter={() => setActiveIndex(idx)}
                 onClick={() => {
                   setCoords({ lat: s.lat, lon: s.lon });
@@ -270,7 +270,7 @@ export default function WeatherPage() {
           </div>
         )}
 
-        <div className="text-center text-sm text-[#6a6a6a] mt-3" role="status" aria-live="polite">
+        <div className="text-center text-sm text-muted-foreground mt-3" role="status" aria-live="polite">
           {loading ? "Searching…" : coords ? `Showing weather for ${displayName}` : message || (location ? `Showing weather for ${location}` : "Search a location to view weather")}
         </div>
       </div>

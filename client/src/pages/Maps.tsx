@@ -13,8 +13,8 @@ export default function Maps() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[#222222] tracking-tight" data-testid="maps-title">Offline Maps</h1>
-        <p className="text-[#6a6a6a] text-sm mt-0.5">Download maps for offline navigation and explore without internet connection</p>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight" data-testid="maps-title">Offline Maps</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Download maps for offline navigation and explore without internet connection</p>
       </div>
       <OfflineMaps />
     </div>

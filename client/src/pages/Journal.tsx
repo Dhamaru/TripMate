@@ -27,7 +27,7 @@ const JournalImageCarousel = ({ photos, title, children, height = "h-48" }: { ph
   if (!photos || photos.length === 0) {
     return (
       <div className={`${height} overflow-hidden relative bg-gray-100 flex items-center justify-center`}>
-        <ImageIcon className="text-gray-300 w-8 h-8" />
+        <ImageIcon className="text-muted-foreground w-8 h-8" />
         {children}
       </div>
     );
@@ -53,7 +53,7 @@ const JournalImageCarousel = ({ photos, title, children, height = "h-48" }: { ph
       {photos.length > 1 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
           {photos.map((_, i) => (
-            <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === index ? 'bg-white w-4' : 'bg-white/40 w-1'}`} />
+            <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === index ? 'bg-card w-4' : 'bg-card/40 w-1'}`} />
           ))}
         </div>
       )}
@@ -259,8 +259,8 @@ export default function Journal() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-[#111827] tracking-tight">Travel Journal</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Capture your travel memories and experiences</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Travel Journal</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Capture your travel memories and experiences</p>
         </div>
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -273,15 +273,15 @@ export default function Journal() {
               <Plus className="h-4 w-4" /> New Entry
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-white border-gray-100 max-w-2xl">
+          <DialogContent className="bg-card border max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-[#111827]">
+              <DialogTitle className="text-foreground">
                 {editingEntry ? 'Edit Journal Entry' : 'New Journal Entry'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4" data-testid="journal-entry-form">
               <div>
-                <label className="block text-sm font-medium text-[#111827] mb-1.5">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <Input
@@ -289,27 +289,27 @@ export default function Journal() {
                   value={entryForm.title}
                   onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Enter a title for your journal entry"
-                  className="bg-gray-50 border-gray-200 text-[#111827] placeholder:text-gray-400 focus-visible:ring-amber-500/30"
+                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground focus-visible:ring-amber-500/30"
                   required
                   data-testid="input-title"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#111827] mb-1.5">Location</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Location</label>
                 <Input
                   type="text"
                   value={entryForm.location}
                   onChange={(e) => setEntryForm(prev => ({ ...prev, location: e.target.value }))}
                   placeholder="Where was this memory made?"
-                  className="bg-gray-50 border-gray-200 text-[#111827] placeholder:text-gray-400"
+                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground"
                   data-testid="input-location"
                 />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-sm font-medium text-[#111827]">
+                  <label className="block text-sm font-medium text-foreground">
                     Content <span className="text-red-500">*</span>
                   </label>
                   <div className="flex gap-2">
@@ -327,31 +327,31 @@ export default function Journal() {
                   value={entryForm.content}
                   onChange={(e) => setEntryForm(prev => ({ ...prev, content: e.target.value }))}
                   placeholder="Share your travel experience, thoughts, and memories…"
-                  className="bg-gray-50 border-gray-200 text-[#111827] placeholder:text-gray-400 min-h-[140px] focus-visible:ring-amber-500/30"
+                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[140px] focus-visible:ring-amber-500/30"
                   required
                   data-testid="textarea-content"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#111827] mb-1.5">Photos</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Photos</label>
                 <Input
                   ref={(el) => { if (el) fileInputRef.current = el; }}
                   type="file"
                   multiple
                   accept="image/*"
                   onChange={(e) => setPhotos(e.target.files)}
-                  className="bg-gray-50 border-gray-200 text-[#111827] file:bg-amber-500 file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:hover:bg-amber-600 cursor-pointer"
+                  className="bg-muted/50 border text-foreground file:bg-amber-500 file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:hover:bg-amber-600 cursor-pointer"
                 />
                 {photos && photos.length > 0 && (
                   <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     <p className="text-sm text-amber-700 font-semibold mb-1">{photos.length} file{photos.length > 1 ? 's' : ''} selected</p>
-                    <ul className="text-xs text-gray-600 space-y-0.5">
+                    <ul className="text-xs text-muted-foreground space-y-0.5">
                       {Array.from(photos).map((file, i) => (
                         <li key={i} className="flex items-center gap-2">
                           <span className="text-emerald-500">✓</span>
                           <span className="truncate">{file.name}</span>
-                          <span className="text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span>
+                          <span className="text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
                         </li>
                       ))}
                     </ul>
@@ -360,7 +360,7 @@ export default function Journal() {
                 {keptPhotos.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {keptPhotos.map((photo, i) => (
-                      <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden group border border-gray-200">
+                      <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden group border border">
                         <img src={photo} alt={`Existing ${i}`} className="w-full h-full object-cover" />
                         <button
                           type="button"
@@ -376,7 +376,7 @@ export default function Journal() {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border-gray-200 text-gray-600 hover:bg-gray-50" data-testid="button-cancel">
+                <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border text-muted-foreground hover:bg-muted/50" data-testid="button-cancel">
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createEntryMutation.isPending || updateEntryMutation.isPending} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white" data-testid="button-save">
@@ -394,7 +394,7 @@ export default function Journal() {
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500" />
         </div>
       ) : journalEntries && journalEntries.length > 0 ? (
-        <div className="relative border-l-2 border-gray-100 ml-4 md:ml-8 space-y-8 pb-12">
+        <div className="relative border-l-2 border ml-4 md:ml-8 space-y-8 pb-12">
           {Object.entries(
             journalEntries.reduce((acc, entry) => {
               const date = new Date(entry.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -405,12 +405,12 @@ export default function Journal() {
           ).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime()).map(([date, entries]) => (
             <div key={date} className="relative pl-6 md:pl-10">
               <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-amber-500 border-4 border-white shadow-sm" />
-              <h3 className="text-base font-semibold text-[#111827] mb-4 opacity-70">{date}</h3>
+              <h3 className="text-base font-semibold text-foreground mb-4 opacity-70">{date}</h3>
               <div className="grid grid-cols-1 gap-4">
                 {entries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="bg-white rounded-3xl border border-gray-100 hover:border-amber-300/50 hover:shadow-md transition-all cursor-pointer group overflow-hidden"
+                    className="bg-card rounded-3xl border border hover:border-amber-300/50 hover:shadow-md transition-all cursor-pointer group overflow-hidden"
                     onClick={() => navigate(`/app/journal/${entry.id}`)}
                   >
                     <div className="flex flex-row h-32 sm:h-40">
@@ -426,7 +426,7 @@ export default function Journal() {
                           <div className="h-full bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center relative">
                             <ImageIcon className="w-6 h-6 text-amber-300" />
                             <div className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-6 w-6 p-0 text-gray-500 hover:bg-gray-100/50 text-xs">✎</Button>
+                              <Button onClick={(e) => { e.stopPropagation(); handleEdit(entry); }} size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:bg-gray-100/50 text-xs">✎</Button>
                               <Button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }} size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-400 hover:bg-red-50 text-xs">✕</Button>
                             </div>
                           </div>
@@ -436,7 +436,7 @@ export default function Journal() {
                       <div className="w-2/3 p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
                         <div>
                           <div className="flex justify-between items-start mb-1 gap-2">
-                            <h4 className="font-bold text-[#111827] text-sm sm:text-base truncate">{entry.title}</h4>
+                            <h4 className="font-bold text-foreground text-sm sm:text-base truncate">{entry.title}</h4>
                             {entry.location && (
                               <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full flex-shrink-0 flex items-center border border-amber-200">
                                 <MapPin className="w-2.5 h-2.5 mr-1" />
@@ -444,11 +444,11 @@ export default function Journal() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs sm:text-sm text-gray-500 line-clamp-2 sm:line-clamp-3 whitespace-pre-wrap leading-relaxed">
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 whitespace-pre-wrap leading-relaxed">
                             {entry.content}
                           </p>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] text-gray-400 mt-2">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2">
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(entry.createdAt).toLocaleDateString()}</span>
                         </div>
@@ -461,12 +461,12 @@ export default function Journal() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-gray-100 p-16 text-center" data-testid="no-journal-entries">
+        <div className="bg-card rounded-3xl border border p-16 text-center" data-testid="no-journal-entries">
           <div className="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-5">
             <Book className="h-8 w-8 text-amber-500" />
           </div>
-          <h3 className="text-xl font-bold text-[#111827] mb-2">Start Your Travel Journal</h3>
-          <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
+          <h3 className="text-xl font-bold text-foreground mb-2">Start Your Travel Journal</h3>
+          <p className="text-muted-foreground text-sm mb-6 max-w-sm mx-auto">
             Document your adventures, capture memories, and create a beautiful record of your travels.
           </p>
           <Button

@@ -86,7 +86,7 @@ export default function SignUpPage() {
                 value={formData.firstName}
                 onChange={handleChange}
                 required
-                className="bg-white border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
               />
             </div>
             <div className="space-y-2">
@@ -99,7 +99,7 @@ export default function SignUpPage() {
                 value={formData.lastName}
                 onChange={handleChange}
                 required
-                className="bg-white border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
               />
             </div>
           </div>
@@ -114,7 +114,7 @@ export default function SignUpPage() {
               value={formData.email}
               onChange={handleChange}
               required
-              className="bg-white border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
+              className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function SignUpPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="bg-white border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 pr-12 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 pr-12 focus:border-ios-blue smooth-transition font-medium"
               />
               <Button
                 type="button"
@@ -159,7 +159,7 @@ export default function SignUpPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                className="bg-white border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 pr-12 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 pr-12 focus:border-ios-blue smooth-transition font-medium"
               />
               <Button
                 type="button"
@@ -201,7 +201,7 @@ export default function SignUpPage() {
 
         <Button
           variant="outline"
-          className="h-14 border-ios-gray/30 rounded-xl hover:bg-white/5 smooth-transition w-full font-bold text-lg text-white"
+          className="h-14 border-ios-gray/30 rounded-xl hover:bg-card/5 smooth-transition w-full font-bold text-lg text-white"
           onClick={() => navigate("/signin")}
         >
           Sign In Instead

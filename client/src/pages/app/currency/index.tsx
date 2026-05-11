@@ -10,8 +10,8 @@ export default function CurrencyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[#222222] tracking-tight">Currency Converter</h1>
-        <p className="text-[#6a6a6a] text-sm mt-0.5">Real-time exchange rates for your travels</p>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Currency Converter</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Real-time exchange rates for your travels</p>
       </div>
       <CurrencyConverter className="max-w-md" />
     </div>

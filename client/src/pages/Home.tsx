@@ -44,17 +44,17 @@ export default function Home() {
     <div className="space-y-8">
       {/* Welcome */}
       <div>
-        <h1 className="text-3xl font-bold text-[#111827] tracking-tight">
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">
           {!trips || trips.length === 0 ? "Welcome" : "Welcome back"},{" "}
           <span className="text-[#F59E0B]">{user?.firstName || "Explorer"}</span>
         </h1>
-        <p className="text-[#6a6a6a] mt-1">Where shall we go next?</p>
+        <p className="text-muted-foreground mt-1">Where shall we go next?</p>
       </div>
 
       {/* Current trip hero */}
       {!tripsLoading && currentTrip && (
         <div
-          className="bg-white rounded-3xl border border-[#ebebeb] shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
+          className="bg-card rounded-3xl border border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
           onClick={() => navigate(`/app/trips/${currentTrip.id}`)}
         >
           <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#D97706]">
@@ -67,7 +67,7 @@ export default function Home() {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             <div className="absolute top-4 right-4">
-              <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full border border-white/30 flex items-center gap-1">
+              <span className="bg-card/20 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full border border-white/30 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> Active Journey
               </span>
             </div>
@@ -79,15 +79,15 @@ export default function Home() {
 
           <div className="p-5 flex items-center justify-between">
             <div className="flex gap-6 text-sm">
-              <div className="flex items-center gap-1.5 text-[#6a6a6a]">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="w-4 h-4" />
                 <span>{currentTrip.days} days</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[#6a6a6a]">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Users className="w-4 h-4" />
                 <span>{currentTrip.groupSize} people</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[#6a6a6a]">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Wallet className="w-4 h-4" />
                 <span>₹{currentTrip.budget?.toLocaleString()}</span>
               </div>
@@ -105,11 +105,11 @@ export default function Home() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
-              <div className="bg-white rounded-3xl border border-[#ebebeb] p-6 flex flex-col items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="bg-card rounded-3xl border border p-6 flex flex-col items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${action.iconBg} group-hover:scale-110 transition-transform`}>
                   <action.icon className={`w-6 h-6 ${action.iconColor}`} />
                 </div>
-                <span className="text-sm font-semibold text-[#111827]">{action.title}</span>
+                <span className="text-sm font-semibold text-foreground">{action.title}</span>
               </div>
             </Link>
           ))}
@@ -133,7 +133,7 @@ export default function Home() {
               .slice(0, 3)
               .map((t) => (
                 <Link key={t.id} href={`/app/trips/${t.id}`}>
-                  <div className="bg-white rounded-xl border border-[#ebebeb] p-4 flex items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
+                  <div className="bg-card rounded-xl border border p-4 flex items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
                     <div className="w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#D97706] flex-shrink-0">
                       {t.imageUrl ? (
                         <img src={t.imageUrl} alt={t.destination} className="w-full h-full object-cover" />
@@ -144,7 +144,7 @@ export default function Home() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#111827] truncate text-sm">{t.destination}</p>
+                      <p className="font-semibold text-foreground truncate text-sm">{t.destination}</p>
                       <p className="text-[#929292] text-xs capitalize">{t.travelStyle}</p>
                     </div>
                     <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
@@ -163,12 +163,12 @@ export default function Home() {
 
       {/* Empty state */}
       {!tripsLoading && (!trips || trips.length === 0) && (
-        <div className="bg-white rounded-3xl border border-[#ebebeb] p-16 flex flex-col items-center text-center">
+        <div className="bg-card rounded-3xl border border p-16 flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-[#FFFBEB] rounded-3xl flex items-center justify-center mb-5">
             <Plus className="w-8 h-8 text-[#F59E0B]" />
           </div>
-          <h2 className="text-xl font-bold text-[#111827] mb-2">No Adventures Yet</h2>
-          <p className="text-[#6a6a6a] text-sm max-w-xs mb-7">
+          <h2 className="text-xl font-bold text-foreground mb-2">No Adventures Yet</h2>
+          <p className="text-muted-foreground text-sm max-w-xs mb-7">
             Your future travels await. Let Atlas help you plan your first itinerary.
           </p>
           <Button

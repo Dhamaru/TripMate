@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
                         </div>
                         <Button
                             variant="outline"
-                            className="w-full h-14 border-ios-gray/30 rounded-xl text-white hover:bg-white/5 font-bold"
+                            className="w-full h-14 border-ios-gray/30 rounded-xl text-white hover:bg-card/5 font-bold"
                             onClick={() => setIsSubmitted(false)}
                         >
                             Try another email

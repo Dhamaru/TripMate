@@ -48,7 +48,7 @@ export default function TripDetail() {
     if (c.includes('rain') || c.includes('drizzle')) return 'fas fa-cloud-rain text-[#1E3A8A]';
     if (c.includes('snow')) return 'fas fa-snowflake text-blue-200';
     if (c.includes('storm') || c.includes('thunder')) return 'fas fa-bolt text-purple-400';
-    return 'fas fa-cloud text-gray-500';
+    return 'fas fa-cloud text-muted-foreground';
   };
 
   const { id } = useParams<{ id: string }>();
@@ -561,8 +561,8 @@ export default function TripDetail() {
             <div className="text-red-500 mb-4">
               <i className="fas fa-exclamation-triangle text-5xl"></i>
             </div>
-            <h2 className="text-xl font-bold text-[#111827] mb-2">Trip Not Found</h2>
-            <p className="text-gray-500 mb-4">The trip you're looking for doesn't exist or you don't have access to it.</p>
+            <h2 className="text-xl font-bold text-foreground mb-2">Trip Not Found</h2>
+            <p className="text-muted-foreground mb-4">The trip you're looking for doesn't exist or you don't have access to it.</p>
             <Link href="/">
               <Button className="bg-[#1E3A8A] hover:bg-[#1E3A8A] ">
                 Go Back Home
@@ -581,7 +581,7 @@ export default function TripDetail() {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading trip details...</p>
+            <p className="text-muted-foreground">Loading trip details...</p>
           </div>
         </div>
       </div>
@@ -603,10 +603,10 @@ export default function TripDetail() {
         <div className="mb-4">
           <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-[#111827] mb-2" data-testid="trip-title">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2" data-testid="trip-title">
                 {trip.destination}
               </h1>
-              <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm md:text-base text-gray-500">
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm md:text-base text-muted-foreground">
                 {trip.origin && (
                   <>
                     <span>from {trip.origin}</span>
@@ -668,7 +668,7 @@ export default function TripDetail() {
                     onClick={() => setIsEditing(true)}
                     variant="outline"
                     size="sm"
-                    className="bg-gray-50 border-gray-100 text-[#111827] hover:bg-card "
+                    className="bg-muted/50 border text-foreground hover:bg-card "
                     data-testid="button-edit-trip"
                   >
                     <i className="fas fa-edit md:mr-2"></i>
@@ -678,7 +678,7 @@ export default function TripDetail() {
                     onClick={handleDelete}
                     variant="outline"
                     size="sm"
-                    className="bg-gray-50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
+                    className="bg-muted/50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
                     data-testid="button-delete-trip"
                   >
                     <i className="fas fa-trash md:mr-2"></i>
@@ -690,7 +690,7 @@ export default function TripDetail() {
           </div>
 
           {/* Hero Image */}
-          <div className="relative rounded-xl overflow-hidden w-full aspect-video md:aspect-auto md:h-80 bg-gray-50 flex items-center justify-center group">
+          <div className="relative rounded-xl overflow-hidden w-full aspect-video md:aspect-auto md:h-80 bg-muted/50 flex items-center justify-center group">
             {trip.imageUrl ? (
               <>
                 <img
@@ -748,47 +748,47 @@ export default function TripDetail() {
         {isEditing && (
           <Card className="bg-card border-border mb-8">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-[#111827]">Edit Trip Details</CardTitle>
+              <CardTitle className="text-xl font-bold text-foreground">Edit Trip Details</CardTitle>
             </CardHeader>
             <CardContent>
               <form className="space-y-6" data-testid="trip-edit-form">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-[#111827] mb-2">
+                    <label className="block text-sm font-semibold text-foreground mb-2">
                       Starting Location
                     </label>
                     <Input
                       type="text"
                       value={tripForm.origin}
                       onChange={(e) => setTripForm(prev => ({ ...prev, origin: e.target.value }))}
-                      className="bg-gray-50 border-gray-100 text-[#111827]"
+                      className="bg-muted/50 border text-foreground"
                       placeholder="Where are you traveling from?"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#111827] mb-2">
+                    <label className="block text-sm font-semibold text-foreground mb-2">
                       Destination <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="text"
                       value={tripForm.destination}
                       onChange={(e) => setTripForm(prev => ({ ...prev, destination: e.target.value }))}
-                      className="bg-gray-50 border-gray-100 text-[#111827]"
+                      className="bg-muted/50 border text-foreground"
                       data-testid="input-edit-destination"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#111827] mb-2">Budget (INR)</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Budget (INR)</label>
                     <Input
                       type="number"
                       value={tripForm.budget}
                       onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
-                      className="bg-gray-50 border-gray-100 text-[#111827]"
+                      className="bg-muted/50 border text-foreground"
                       data-testid="input-edit-budget"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#111827] mb-2">
+                    <label className="block text-sm font-semibold text-foreground mb-2">
                       Trip Duration <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
@@ -797,7 +797,7 @@ export default function TripDetail() {
                         min="1"
                         value={tripForm.days}
                         onChange={(e) => setTripForm(prev => ({ ...prev, days: e.target.value }))}
-                        className="bg-gray-50 border-gray-100 text-[#111827] pr-12"
+                        className="bg-muted/50 border text-foreground pr-12"
                         data-testid="input-edit-duration"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -806,18 +806,18 @@ export default function TripDetail() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#111827] mb-2">Status</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Status</label>
                     <Select
                       value={tripForm.status}
                       onValueChange={(value: 'planning' | 'active' | 'completed') => setTripForm(prev => ({ ...prev, status: value }))}
                     >
                       <SelectTrigger
-                        className="bg-gray-50 border-gray-100 text-[#111827]"
+                        className="bg-muted/50 border text-foreground"
                         data-testid="select-edit-status"
                       >
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-50 border-gray-100">
+                      <SelectContent className="bg-muted/50 border">
                         <SelectItem value="planning" className="text-white hover:bg-card">Planning</SelectItem>
                         <SelectItem value="active" className="text-white hover:bg-card">Active</SelectItem>
                         <SelectItem value="completed" className="text-white hover:bg-card">Completed</SelectItem>
@@ -827,12 +827,12 @@ export default function TripDetail() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">Notes</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Notes</label>
                   <Textarea
                     value={tripForm.notes}
                     onChange={(e) => setTripForm(prev => ({ ...prev, notes: e.target.value }))}
                     placeholder="Add any notes about your trip..."
-                    className="bg-gray-50 border-gray-100 text-[#111827] placeholder:text-gray-400 min-h-[100px]"
+                    className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[100px]"
                     data-testid="textarea-edit-notes"
                   />
                 </div>
@@ -842,7 +842,7 @@ export default function TripDetail() {
                     type="button"
                     onClick={handleCancel}
                     variant="outline"
-                    className="flex-1 bg-gray-50 border-gray-100 text-[#111827] hover:bg-card "
+                    className="flex-1 bg-muted/50 border text-foreground hover:bg-card "
                     data-testid="button-cancel-edit"
                   >
                     Cancel
@@ -877,16 +877,16 @@ export default function TripDetail() {
           {/* Trip Details */}
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-[#111827]">Trip Overview</CardTitle>
+              <CardTitle className="text-xl font-bold text-foreground">Trip Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <div className="text-center p-4 bg-muted/50 rounded-xl">
                   <i className="fas fa-calendar text-[#1E3A8A] text-xl mb-2"></i>
                   <p className="text-sm text-muted-foreground">Duration</p>
                   <p className="font-bold text-foreground">{trip.days} days</p>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <div className="text-center p-4 bg-muted/50 rounded-xl">
                   <i className="fas fa-rupee-sign text-emerald-500 text-xl mb-2"></i>
                   <p className="text-sm text-muted-foreground">Budget</p>
                   <p className="font-bold text-foreground">
@@ -897,17 +897,17 @@ export default function TripDetail() {
                     })()}
                   </p>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <div className="text-center p-4 bg-muted/50 rounded-xl">
                   <i className="fas fa-users text-amber-500 text-xl mb-2"></i>
                   <p className="text-sm text-muted-foreground">Group</p>
                   <p className="font-bold text-foreground capitalize">{String(trip.groupSize).replace('-', ' ')}</p>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <div className="text-center p-4 bg-muted/50 rounded-xl">
                   {selectedStyle && <selectedStyle.icon className={`${selectedStyle.color} w-6 h-6 mb-2 mx-auto`} />}
                   <p className="text-sm text-muted-foreground">Style</p>
                   <p className="font-bold text-foreground capitalize">{trip.travelStyle.replace('-', ' ')}</p>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                <div className="text-center p-4 bg-muted/50 rounded-xl">
                   {weather?.current ? (
                     <>
                       <div className="flex items-center justify-center gap-2 mb-2">
@@ -924,14 +924,14 @@ export default function TripDetail() {
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-exclamation-circle text-gray-500 text-xl mb-2"></i>
+                      <i className="fas fa-exclamation-circle text-muted-foreground text-xl mb-2"></i>
                       <p className="text-sm text-muted-foreground">Weather</p>
-                      <p className="font-bold text-gray-500 text-xs">Unavailable</p>
+                      <p className="font-bold text-muted-foreground text-xs">Unavailable</p>
                     </>
                   )}
                 </div>
                 {trip.transportMode && (
-                  <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <div className="text-center p-4 bg-muted/50 rounded-xl">
                     <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-[#1E3A8A] text-xl mb-2`}></i>
                     <p className="text-sm text-muted-foreground">Transport</p>
                     <p className="font-bold text-foreground capitalize">{trip.transportMode}</p>
@@ -941,8 +941,8 @@ export default function TripDetail() {
 
               {tripForm.notes && (
                 <div className="mt-6">
-                  <h4 className="font-semibold text-[#111827] mb-2">Notes</h4>
-                  <p className="text-gray-500 bg-gray-50 rounded-xl p-4">{tripForm.notes}</p>
+                  <h4 className="font-semibold text-foreground mb-2">Notes</h4>
+                  <p className="text-muted-foreground bg-muted/50 rounded-xl p-4">{tripForm.notes}</p>
                 </div>
               )}
             </CardContent>
@@ -965,7 +965,7 @@ export default function TripDetail() {
             {/* Travel Hacks */}
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-[#111827] flex items-center gap-2">
+                <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
                   <i className="fas fa-lightbulb text-amber-500"></i>
                   Travel Hacks & Savvy Tips
                 </CardTitle>
@@ -973,12 +973,12 @@ export default function TripDetail() {
               <CardContent>
                 <div className="space-y-3">
                   {hacks?.hacks?.map((hack: string, i: number) => (
-                    <div key={i} className="flex gap-3 text-sm text-gray-500">
+                    <div key={i} className="flex gap-3 text-sm text-muted-foreground">
                       <div className="text-amber-500 pt-1">•</div>
                       <div>{hack}</div>
                     </div>
                   ))}
-                  {(!hacks || hacks.hacks?.length === 0) && <p className="text-gray-500 italic text-sm">Fetching smart tips...</p>}
+                  {(!hacks || hacks.hacks?.length === 0) && <p className="text-muted-foreground italic text-sm">Fetching smart tips...</p>}
                 </div>
                 {hacks?.economicalAlternatives?.length > 0 && (
                   <div className="mt-6">
@@ -999,7 +999,7 @@ export default function TripDetail() {
             {/* Quiet Alternatives */}
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-[#111827] flex items-center gap-2">
+                <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
                   <i className="fas fa-leaf text-emerald-500"></i>
                   Escape the Crowds
                 </CardTitle>
@@ -1008,8 +1008,8 @@ export default function TripDetail() {
                 <div className="space-y-4">
                   {quietPlaces?.spots?.map((spot: any, i: number) => (
                     <div key={i} className="border-b border-border pb-4 last:border-0 last:pb-0">
-                      <div className="font-bold text-[#111827] text-sm mb-1">{spot.name}</div>
-                      <div className="text-xs text-gray-500 mb-2">{spot.address}</div>
+                      <div className="font-bold text-foreground text-sm mb-1">{spot.name}</div>
+                      <div className="text-xs text-muted-foreground mb-2">{spot.address}</div>
 
                       <div className="flex flex-wrap gap-2 mb-2">
                         {spot.crowdLevel && (
@@ -1036,7 +1036,7 @@ export default function TripDetail() {
                     </div>
                   ))}
                   {(!quietPlaces?.spots || quietPlaces.spots.length === 0) && (
-                    <p className="text-gray-500 italic text-sm">
+                    <p className="text-muted-foreground italic text-sm">
                       {quietLoading ? "Discovery in progress..." : "No quiet spots found for this area."}
                     </p>
                   )}
@@ -1048,7 +1048,7 @@ export default function TripDetail() {
           {/* Itinerary Manager */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-[#111827]">Your Itinerary</h3>
+              <h3 className="text-2xl font-bold text-foreground">Your Itinerary</h3>
             </div>
             <ItineraryManager trip={trip} />
           </div>
@@ -1063,7 +1063,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowHotels(!showHotels)}
                   variant={showHotels ? "default" : "outline"}
-                  className={` h-12 ${showHotels ? 'bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90' : 'bg-gray-50 border-gray-100 text-gray-500 hover:text-white'}`}
+                  className={` h-12 ${showHotels ? 'bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
                 >
                   <i className="fas fa-bed mr-2"></i>
                   Hotels
@@ -1071,7 +1071,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowRestaurants(!showRestaurants)}
                   variant={showRestaurants ? "default" : "outline"}
-                  className={` h-12 ${showRestaurants ? 'bg-emerald-500 text-white hover:bg-emerald-500/90' : 'bg-gray-50 border-gray-100 text-gray-500 hover:text-white'}`}
+                  className={` h-12 ${showRestaurants ? 'bg-emerald-500 text-white hover:bg-emerald-500/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
                 >
                   <i className="fas fa-utensils mr-2"></i>
                   Restaurants
@@ -1079,7 +1079,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowSpots(!showSpots)}
                   variant={showSpots ? "default" : "outline"}
-                  className={` h-12 ${showSpots ? 'bg-amber-500 text-white hover:bg-amber-500/90' : 'bg-gray-50 border-gray-100 text-gray-500 hover:text-white'}`}
+                  className={` h-12 ${showSpots ? 'bg-amber-500 text-white hover:bg-amber-500/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
                 >
                   <i className="fas fa-camera mr-2"></i>
                   Tourist Spots
@@ -1112,24 +1112,24 @@ export default function TripDetail() {
                         {/* Hotels */}
                         {showHotels && (
                           <div>
-                            <div className="flex items-center gap-2 mb-3 text-[#111827] font-semibold border-b border-gray-200 pb-2">
+                            <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
                               <i className="fas fa-bed text-[#1E3A8A]"></i> Hotels
                             </div>
                             <div className="space-y-3">
                               {hotelsLoading ? (
-                                <div className="text-gray-500 text-xs">Loading hotels...</div>
+                                <div className="text-muted-foreground text-xs">Loading hotels...</div>
                               ) : (
                                 <>
                                   {(hotelResults || []).slice(0, 5).map((i: any) => (
-                                    <div key={`h-${i.id}`} className="text-sm text-white bg-gray-50 rounded-xl p-3 hover:bg-gray-50 transition-colors">
+                                    <div key={`h-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
-                                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
+                                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
                                       <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1E3A8A] hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
                                   ))}
-                                  {(!hotelResults || hotelResults.length === 0) && <div className="text-gray-500 text-xs italic">No hotels found</div>}
+                                  {(!hotelResults || hotelResults.length === 0) && <div className="text-muted-foreground text-xs italic">No hotels found</div>}
                                 </>
                               )}
                             </div>
@@ -1139,24 +1139,24 @@ export default function TripDetail() {
                         {/* Restaurants */}
                         {showRestaurants && (
                           <div>
-                            <div className="flex items-center gap-2 mb-3 text-[#111827] font-semibold border-b border-gray-200 pb-2">
+                            <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
                               <i className="fas fa-utensils text-emerald-500"></i> Restaurants
                             </div>
                             <div className="space-y-3">
                               {foodLoading ? (
-                                <div className="text-gray-500 text-xs">Loading restaurants...</div>
+                                <div className="text-muted-foreground text-xs">Loading restaurants...</div>
                               ) : (
                                 <>
                                   {(foodResults || []).slice(0, 5).map((i: any) => (
-                                    <div key={`f-${i.id}`} className="text-sm text-white bg-gray-50 rounded-xl p-3 hover:bg-gray-50 transition-colors">
+                                    <div key={`f-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
-                                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
+                                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
                                       <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1E3A8A] hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
                                   ))}
-                                  {(!foodResults || foodResults.length === 0) && <div className="text-gray-500 text-xs italic">No restaurants found</div>}
+                                  {(!foodResults || foodResults.length === 0) && <div className="text-muted-foreground text-xs italic">No restaurants found</div>}
                                 </>
                               )}
                             </div>
@@ -1166,18 +1166,18 @@ export default function TripDetail() {
                         {/* Tourist Spots */}
                         {showSpots && (
                           <div>
-                            <div className="flex items-center gap-2 mb-3 text-[#111827] font-semibold border-b border-gray-200 pb-2">
+                            <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
                               <i className="fas fa-camera text-amber-500"></i> Tourist Spots
                             </div>
                             <div className="space-y-3">
                               {sightsLoading ? (
-                                <div className="text-gray-500 text-xs">Loading spots...</div>
+                                <div className="text-muted-foreground text-xs">Loading spots...</div>
                               ) : (
                                 <>
                                   {(sightsResults || []).slice(0, 5).map((i: any) => (
-                                    <div key={`s-${i.id}`} className="text-sm text-white bg-gray-50 rounded-xl p-3 hover:bg-gray-50 transition-colors">
+                                    <div key={`s-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
-                                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
+                                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
                                       <a
                                         href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`}
                                         target="_blank"
@@ -1191,7 +1191,7 @@ export default function TripDetail() {
                                       </a>
                                     </div>
                                   ))}
-                                  {(!sightsResults || sightsResults.length === 0) && <div className="text-gray-500 text-xs italic">No spots found</div>}
+                                  {(!sightsResults || sightsResults.length === 0) && <div className="text-muted-foreground text-xs italic">No spots found</div>}
                                 </>
                               )}
                             </div>
@@ -1210,7 +1210,7 @@ export default function TripDetail() {
             <Card className="bg-card border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl font-bold text-[#111827]">Trip Journal</CardTitle>
+                  <CardTitle className="text-xl font-bold text-foreground">Trip Journal</CardTitle>
                   <div className="flex items-center gap-2">
                     <RecapPanel 
                       tripId={id!} 
@@ -1220,7 +1220,7 @@ export default function TripDetail() {
                       recapJournalEntry={tripJournalEntries.find(e => e.type === 'recap')}
                     />
                     <Link href="/app/journal">
-                      <Button variant="outline" size="sm" className="bg-gray-50 border-gray-100 text-[#111827] hover:bg-card ">
+                      <Button variant="outline" size="sm" className="bg-muted/50 border text-foreground hover:bg-card ">
                         View All
                       </Button>
                     </Link>
@@ -1230,10 +1230,10 @@ export default function TripDetail() {
               <CardContent>
                 <div className="space-y-4">
                   {tripJournalEntries.slice(0, 3).map((entry) => (
-                    <div key={entry.id} className="bg-gray-50 rounded-xl p-4">
+                    <div key={entry.id} className="bg-muted/50 rounded-xl p-4">
                       <h4 className="font-bold text-white mb-2">{entry.title}</h4>
-                      <p className="text-sm text-gray-500 mb-2 line-clamp-2">{entry.content}</p>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
+                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{entry.content}</p>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{entry.location}</span>
                         <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
                       </div>

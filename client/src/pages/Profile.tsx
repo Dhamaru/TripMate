@@ -400,7 +400,7 @@ export default function Profile() {
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center shrink-0">
                 <i className="fab fa-google text-black text-lg"></i>
               </div>
               <div>

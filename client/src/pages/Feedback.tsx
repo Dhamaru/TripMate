@@ -58,32 +58,32 @@ export default function Feedback() {
         <div className=" p-6">
             <div>
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight text-[#111827] mb-2">Feedback & Support</h1>
-                    <p className="text-gray-500">
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Feedback & Support</h1>
+                    <p className="text-muted-foreground">
                         Help us improve TripMate by sharing your feedback or reporting issues
                     </p>
                 </div>
 
-                <Card className="bg-white border-gray-200">
+                <Card className="bg-card border">
                     <CardHeader>
-                        <CardTitle className="text-[#111827]">Submit Feedback or Report Issue</CardTitle>
+                        <CardTitle className="text-foreground">Submit Feedback or Report Issue</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* Type Selection */}
                             <div>
-                                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                                <label className="block text-sm font-semibold text-foreground mb-2">
                                     Type <span className="text-red-500">*</span>
                                 </label>
                                 <Select
                                     value={form.type}
                                     onValueChange={(value) => setForm({ ...form, type: value })}
                                 >
-                                    <SelectTrigger className="bg-gray-50 border-gray-200 text-[#111827]">
+                                    <SelectTrigger className="bg-muted/50 border text-foreground">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-white border-gray-100">
-                                        <SelectItem value="feedback" className="text-white hover:bg-white cursor-pointer">
+                                    <SelectContent className="bg-card border">
+                                        <SelectItem value="feedback" className="text-foreground hover:bg-muted cursor-pointer">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
                                                     <Lightbulb className="w-4 h-4 text-[#1E3A8A]" />
@@ -91,7 +91,7 @@ export default function Feedback() {
                                                 Feedback / Suggestion
                                             </div>
                                         </SelectItem>
-                                        <SelectItem value="bug" className="text-white hover:bg-white cursor-pointer">
+                                        <SelectItem value="bug" className="text-foreground hover:bg-muted cursor-pointer">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
                                                     <Bug className="w-4 h-4 text-red-500" />
@@ -99,7 +99,7 @@ export default function Feedback() {
                                                 Bug Report
                                             </div>
                                         </SelectItem>
-                                        <SelectItem value="feature" className="text-white hover:bg-white cursor-pointer">
+                                        <SelectItem value="feature" className="text-foreground hover:bg-muted cursor-pointer">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
                                                     <Sparkles className="w-4 h-4 text-purple-400" />
@@ -107,10 +107,10 @@ export default function Feedback() {
                                                 Feature Request
                                             </div>
                                         </SelectItem>
-                                        <SelectItem value="other" className="text-white hover:bg-white cursor-pointer">
+                                        <SelectItem value="other" className="text-foreground hover:bg-muted cursor-pointer">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-ios-gray/20 flex items-center justify-center">
-                                                    <FileText className="w-4 h-4 text-gray-500" />
+                                                    <FileText className="w-4 h-4 text-muted-foreground" />
                                                 </div>
                                                 Other
                                             </div>
@@ -121,45 +121,45 @@ export default function Feedback() {
 
                             {/* Category */}
                             <div>
-                                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                                <label className="block text-sm font-semibold text-foreground mb-2">
                                     Category <span className="text-red-500">*</span>
                                 </label>
                                 <Select
                                     value={form.category}
                                     onValueChange={(value) => setForm({ ...form, category: value })}
                                 >
-                                    <SelectTrigger className="bg-gray-50 border-gray-200 text-[#111827]">
+                                    <SelectTrigger className="bg-muted/50 border text-foreground">
                                         <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-white border-gray-100">
-                                        <SelectItem value="trip-planner" className="text-white hover:bg-white">
+                                    <SelectContent className="bg-card border">
+                                        <SelectItem value="trip-planner" className="text-foreground hover:bg-muted">
                                             Trip Planner
                                         </SelectItem>
-                                        <SelectItem value="journal" className="text-white hover:bg-white">
+                                        <SelectItem value="journal" className="text-foreground hover:bg-muted">
                                             Travel Journal
                                         </SelectItem>
-                                        <SelectItem value="packing-list" className="text-white hover:bg-white">
+                                        <SelectItem value="packing-list" className="text-foreground hover:bg-muted">
                                             Packing List
                                         </SelectItem>
-                                        <SelectItem value="weather" className="text-white hover:bg-white">
+                                        <SelectItem value="weather" className="text-foreground hover:bg-muted">
                                             Weather Tools
                                         </SelectItem>
-                                        <SelectItem value="translator" className="text-white hover:bg-white">
+                                        <SelectItem value="translator" className="text-foreground hover:bg-muted">
                                             Translator
                                         </SelectItem>
-                                        <SelectItem value="maps" className="text-white hover:bg-white">
+                                        <SelectItem value="maps" className="text-foreground hover:bg-muted">
                                             Maps & Navigation
                                         </SelectItem>
-                                        <SelectItem value="profile" className="text-white hover:bg-white">
+                                        <SelectItem value="profile" className="text-foreground hover:bg-muted">
                                             User Profile
                                         </SelectItem>
-                                        <SelectItem value="ui-ux" className="text-white hover:bg-white">
+                                        <SelectItem value="ui-ux" className="text-foreground hover:bg-muted">
                                             UI/UX Design
                                         </SelectItem>
-                                        <SelectItem value="performance" className="text-white hover:bg-white">
+                                        <SelectItem value="performance" className="text-foreground hover:bg-muted">
                                             Performance
                                         </SelectItem>
-                                        <SelectItem value="other" className="text-white hover:bg-white">
+                                        <SelectItem value="other" className="text-foreground hover:bg-muted">
                                             Other
                                         </SelectItem>
                                     </SelectContent>
@@ -168,7 +168,7 @@ export default function Feedback() {
 
                             {/* Email */}
                             <div>
-                                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                                <label className="block text-sm font-semibold text-foreground mb-2">
                                     Email <span className="text-red-500">*</span>
                                 </label>
                                 <Input
@@ -176,14 +176,14 @@ export default function Feedback() {
                                     placeholder="your.email@example.com"
                                     value={form.email}
                                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                                    className="bg-gray-50 border-gray-200 text-[#111827] placeholder:text-gray-400"
+                                    className="bg-muted/50 border text-foreground placeholder:text-muted-foreground"
                                     required
                                 />
                             </div>
 
                             {/* Subject */}
                             <div>
-                                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                                <label className="block text-sm font-semibold text-foreground mb-2">
                                     Subject <span className="text-red-500">*</span>
                                 </label>
                                 <Input
@@ -191,14 +191,14 @@ export default function Feedback() {
                                     placeholder="Brief summary of your feedback or issue"
                                     value={form.subject}
                                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                                    className="bg-gray-50 border-gray-200 text-[#111827] placeholder:text-gray-400"
+                                    className="bg-muted/50 border text-foreground placeholder:text-muted-foreground"
                                     required
                                 />
                             </div>
 
                             {/* Description */}
                             <div>
-                                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                                <label className="block text-sm font-semibold text-foreground mb-2">
                                     Description <span className="text-red-500">*</span>
                                 </label>
                                 <Textarea
@@ -209,7 +209,7 @@ export default function Feedback() {
                                     }
                                     value={form.description}
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                    className="bg-gray-50 border-gray-200 text-[#111827] placeholder:text-gray-400 min-h-[200px]"
+                                    className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[200px]"
                                     required
                                 />
                             </div>
@@ -238,13 +238,13 @@ export default function Feedback() {
 
                 {/* Info Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                    <Card className="bg-white border-gray-200">
+                    <Card className="bg-card border">
                         <CardContent className="p-4">
                             <div className="flex items-start space-x-3">
                                 <i className="fas fa-clock text-[#1E3A8A] text-xl mt-1"></i>
                                 <div>
-                                    <h3 className="text-[#111827] font-semibold mb-1">Response Time</h3>
-                                    <p className="text-gray-500 text-sm">
+                                    <h3 className="text-foreground font-semibold mb-1">Response Time</h3>
+                                    <p className="text-muted-foreground text-sm">
                                         We typically respond within 24-48 hours
                                     </p>
                                 </div>
@@ -252,13 +252,13 @@ export default function Feedback() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-white border-gray-200">
+                    <Card className="bg-card border">
                         <CardContent className="p-4">
                             <div className="flex items-start space-x-3">
                                 <i className="fas fa-shield-alt text-emerald-500 text-xl mt-1"></i>
                                 <div>
-                                    <h3 className="text-[#111827] font-semibold mb-1">Privacy</h3>
-                                    <p className="text-gray-500 text-sm">
+                                    <h3 className="text-foreground font-semibold mb-1">Privacy</h3>
+                                    <p className="text-muted-foreground text-sm">
                                         Your feedback is confidential and secure
                                     </p>
                                 </div>

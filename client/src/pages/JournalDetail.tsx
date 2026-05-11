@@ -152,7 +152,7 @@ export default function JournalDetail() {
             <div className=" flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
-                    <p className="text-gray-500">Loading memory...</p>
+                    <p className="text-muted-foreground">Loading memory...</p>
                 </div>
             </div>
         );
@@ -161,13 +161,13 @@ export default function JournalDetail() {
     if (error || !entry) {
         return (
             <div className=" flex items-center justify-center p-4">
-                <Card className="bg-white border-gray-200 max-w-md w-full">
+                <Card className="bg-card border max-w-md w-full">
                     <CardContent className="p-8 text-center">
                         <div className="text-red-500 mb-4">
                             <Trash2 className="w-12 h-12 mx-auto" />
                         </div>
-                        <h2 className="text-xl font-bold text-[#111827] mb-2">Memory Not Found</h2>
-                        <p className="text-gray-500 mb-6">The journal entry you're looking for doesn't exist or has been removed.</p>
+                        <h2 className="text-xl font-bold text-foreground mb-2">Memory Not Found</h2>
+                        <p className="text-muted-foreground mb-6">The journal entry you're looking for doesn't exist or has been removed.</p>
                         <Button onClick={() => navigate("/app/journal")} className="bg-[#1E3A8A] w-full">
                             Back to Journal
                         </Button>
@@ -199,7 +199,7 @@ export default function JournalDetail() {
                     <Button
                         variant="ghost"
                         onClick={() => navigate("/app/journal")}
-                        className="text-gray-500 hover:text-white p-0 h-auto hover:bg-transparent"
+                        className="text-muted-foreground hover:text-white p-0 h-auto hover:bg-transparent"
                     >
                         <ChevronLeft className="w-5 h-5 mr-1" />
                         Back to Journal
@@ -212,7 +212,7 @@ export default function JournalDetail() {
                                     variant="outline"
                                     size="sm"
                                     onClick={handleShare}
-                                    className="bg-white border-gray-200 text-[#111827] hover:bg-gray-100"
+                                    className="bg-card border text-foreground hover:bg-gray-100"
                                 >
                                     <Share2 className="w-4 h-4 mr-2" />
                                     Share
@@ -221,7 +221,7 @@ export default function JournalDetail() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setIsEditing(true)}
-                                    className="bg-white border-gray-200 text-[#111827] hover:bg-gray-100"
+                                    className="bg-card border text-foreground hover:bg-gray-100"
                                 >
                                     <Edit className="w-4 h-4 mr-2" />
                                     Edit
@@ -234,7 +234,7 @@ export default function JournalDetail() {
                                             deleteEntryMutation.mutate(entry.id);
                                         }
                                     }}
-                                    className="bg-white border-red-400 text-red-500 hover:bg-red-500 hover:text-white"
+                                    className="bg-card border-red-400 text-red-500 hover:bg-red-500 hover:text-white"
                                 >
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Delete
@@ -249,48 +249,48 @@ export default function JournalDetail() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                     >
-                        <Card className="bg-white border-gray-200 shadow-xl rounded-3xl overflow-hidden mb-8">
+                        <Card className="bg-card border shadow-xl rounded-3xl overflow-hidden mb-8">
                             <CardHeader>
-                                <CardTitle className="text-[#111827]">Edit Memory</CardTitle>
+                                <CardTitle className="text-foreground">Edit Memory</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-[#111827]">Title</label>
+                                        <label className="text-sm font-medium text-foreground">Title</label>
                                         <input
                                             type="text"
                                             value={entryForm.title}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
                                             required
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-[#111827]">Location</label>
+                                        <label className="text-sm font-medium text-foreground">Location</label>
                                         <input
                                             type="text"
                                             value={entryForm.location}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, location: e.target.value }))}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-[#111827]">Content</label>
+                                        <label className="text-sm font-medium text-foreground">Content</label>
                                         <textarea
                                             value={entryForm.content}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, content: e.target.value }))}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue min-h-[200px]"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue min-h-[200px]"
                                             required
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-[#111827]">Add Photos</label>
+                                        <label className="text-sm font-medium text-foreground">Add Photos</label>
                                         <input
                                             type="file"
                                             multiple
                                             accept="image/*"
                                             onChange={(e) => setPhotos(e.target.files)}
-                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#1E3A8A] file:text-white hover:file:bg-blue-600"
+                                            className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#1E3A8A] file:text-white hover:file:bg-blue-600"
                                         />
                                     </div>
                                     {keptPhotos.length > 0 && (
@@ -314,7 +314,7 @@ export default function JournalDetail() {
                                             type="button"
                                             variant="outline"
                                             onClick={() => setIsEditing(false)}
-                                            className="flex-1 border-gray-200 text-[#111827]"
+                                            className="flex-1 border text-foreground"
                                         >
                                             Cancel
                                         </Button>
@@ -359,7 +359,7 @@ export default function JournalDetail() {
                                             <button
                                                 key={i}
                                                 onClick={() => setActivePhotoIndex(i)}
-                                                className={`w-2 h-2 rounded-full transition-all ${i === activePhotoIndex ? 'bg-white w-4' : 'bg-white/40'}`}
+                                                className={`w-2 h-2 rounded-full transition-all ${i === activePhotoIndex ? 'bg-card w-4' : 'bg-card/40'}`}
                                             />
                                         ))}
                                     </div>
@@ -376,24 +376,24 @@ export default function JournalDetail() {
 
                         {/* Header Info */}
                         <div className="mb-8">
-                            <motion.h1 variants={itemVariants} className="text-3xl md:text-5xl font-bold text-[#111827] mb-4">{entry.title}</motion.h1>
+                            <motion.h1 variants={itemVariants} className="text-3xl md:text-5xl font-bold text-foreground mb-4">{entry.title}</motion.h1>
 
-                            <div className="flex flex-wrap gap-4 text-gray-500">
+                            <div className="flex flex-wrap gap-4 text-muted-foreground">
                                 {entry.location && (
-                                    <motion.div variants={itemVariants} className="flex items-center bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                                    <motion.div variants={itemVariants} className="flex items-center bg-card px-3 py-1.5 rounded-full border border">
                                         <MapPin className="w-4 h-4 mr-2 text-[#1E3A8A]" />
-                                        <span className="text-sm font-medium text-[#111827]">{entry.location}</span>
+                                        <span className="text-sm font-medium text-foreground">{entry.location}</span>
                                     </motion.div>
                                 )}
-                                <motion.div variants={itemVariants} className="flex items-center bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                                <motion.div variants={itemVariants} className="flex items-center bg-card px-3 py-1.5 rounded-full border border">
                                     <Calendar className="w-4 h-4 mr-2 text-amber-500" />
-                                    <span className="text-sm font-medium text-[#111827]">
+                                    <span className="text-sm font-medium text-foreground">
                                         {new Date(entry.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                     </span>
                                 </motion.div>
-                                <motion.div variants={itemVariants} className="flex items-center bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                                <motion.div variants={itemVariants} className="flex items-center bg-card px-3 py-1.5 rounded-full border border">
                                     <Clock className="w-4 h-4 mr-2 text-emerald-500" />
-                                    <span className="text-sm font-medium text-[#111827]">
+                                    <span className="text-sm font-medium text-foreground">
                                         {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </motion.div>
@@ -402,9 +402,9 @@ export default function JournalDetail() {
 
                         {/* Large Content Section */}
                         <motion.div variants={itemVariants}>
-                            <Card className="bg-white border-gray-200 shadow-xl rounded-3xl overflow-hidden backdrop-blur-sm bg-opacity-80">
+                            <Card className="bg-card border shadow-xl rounded-3xl overflow-hidden backdrop-blur-sm bg-opacity-80">
                                 <CardContent className="p-6 md:p-10">
-                                    <div className="prose prose-invert max-w-none text-lg leading-relaxed text-[#111827] whitespace-pre-wrap">
+                                    <div className="prose prose-invert max-w-none text-lg leading-relaxed text-foreground whitespace-pre-wrap">
                                         {entry.content}
                                     </div>
                                 </CardContent>

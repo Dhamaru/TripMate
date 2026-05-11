@@ -497,17 +497,17 @@ export default function TripPlanner() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#f7f7f7] flex items-center justify-center">
+      <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
-          <p className="text-[#6a6a6a]">Loading...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] text-[#222222]">
+    <div className="min-h-screen bg-muted text-foreground">
       {/* Navigation Header */}
 
 
@@ -517,24 +517,24 @@ export default function TripPlanner() {
           <h1 className="text-3xl md:text-4xl font-bold mb-4" data-testid="planner-title">
             Plan Your Perfect Trip
           </h1>
-          <p className="text-xl text-[#6a6a6a] max-w-2xl mx-auto" data-testid="planner-description">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto" data-testid="planner-description">
             Tell us your preferences and let AI create a personalized itinerary just for you.
           </p>
         </div>
 
         {/* Mode Toggle */}
-        <div className="flex gap-2 p-1 bg-white border border-[#ebebeb] rounded-xl mb-6">
+        <div className="flex gap-2 p-1 bg-card border border rounded-xl mb-6">
           <button
             type="button"
             onClick={() => setPlanMode('ai')}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'ai' ? 'bg-[#ff385c] text-white shadow' : 'text-[#6a6a6a] hover:text-[#222222]'}`}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'ai' ? 'bg-[#ff385c] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <i className="fas fa-magic mr-2"></i>Let AI Plan
           </button>
           <button
             type="button"
             onClick={() => setPlanMode('import')}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'import' ? 'bg-[#ff385c] text-white shadow' : 'text-[#6a6a6a] hover:text-[#222222]'}`}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'import' ? 'bg-[#ff385c] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <i className="fas fa-paste mr-2"></i>Import My Plan
           </button>
@@ -542,48 +542,48 @@ export default function TripPlanner() {
 
         {/* Import My Plan Mode */}
         {planMode === 'import' && (
-          <Card className="bg-white border-[#ebebeb] elev-1 mb-6">
+          <Card className="bg-card border elev-1 mb-6">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-[#222222]">Import Your Schedule</CardTitle>
-              <p className="text-sm text-[#6a6a6a] mt-1">Paste your travel plan as plain text — AI will structure it into a day-by-day itinerary.</p>
+              <CardTitle className="text-xl font-bold text-foreground">Import Your Schedule</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Paste your travel plan as plain text — AI will structure it into a day-by-day itinerary.</p>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleImportSchedule} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-[#222222] mb-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">
                     Your Schedule <span className="text-ios-red">*</span>
                   </label>
                   <Textarea
                     placeholder={`Paste your travel plan here. For example:\n\n22nd evening - Hyderabad to Delhi ✈️\n23rd morning - Delhi to Haridwar 🚗, then Haridwar to Joshi Math\n24th - Joshi Math to Badrinath\n25th - Badrinath darshan\n...`}
                     value={importForm.scheduleText}
                     onChange={(e) => setImportForm(prev => ({ ...prev, scheduleText: e.target.value }))}
-                    className="bg-[#f7f7f7] border-[#ebebeb] text-white placeholder-ios-gray min-h-[200px] font-mono text-sm"
+                    className="bg-muted border text-white placeholder-ios-gray min-h-[200px] font-mono text-sm"
                     required
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-[#222222] mb-2">Start Date</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Start Date</label>
                     <Input
                       type="date"
                       value={importForm.startDate}
                       onChange={(e) => setImportForm(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="bg-[#f7f7f7] border-[#ebebeb] text-white h-11"
+                      className="bg-muted border text-white h-11"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#222222] mb-2">
+                    <label className="block text-sm font-semibold text-foreground mb-2">
                       Group Size <span className="text-ios-red">*</span>
                     </label>
                     <Select
                       value={importForm.groupSize}
                       onValueChange={(value) => setImportForm(prev => ({ ...prev, groupSize: value }))}
                     >
-                      <SelectTrigger className="bg-[#f7f7f7] border-[#ebebeb] text-white h-11">
+                      <SelectTrigger className="bg-muted border text-white h-11">
                         <SelectValue placeholder="Select group size" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#f7f7f7] border-[#ebebeb]">
+                      <SelectContent className="bg-muted border">
                         <SelectItem value="1" className="text-white">Solo traveler</SelectItem>
                         <SelectItem value="2" className="text-white">Couple (2 people)</SelectItem>
                         <SelectItem value="4" className="text-white">Small group (3–5 people)</SelectItem>
@@ -594,16 +594,16 @@ export default function TripPlanner() {
                     </Select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#222222] mb-2">Budget (optional)</label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Budget (optional)</label>
                     <div className="flex gap-2">
                       <Select
                         value={importForm.currency}
                         onValueChange={(value) => setImportForm(prev => ({ ...prev, currency: value }))}
                       >
-                        <SelectTrigger className="w-[90px] bg-[#f7f7f7] border-[#ebebeb] text-white h-11">
+                        <SelectTrigger className="w-[90px] bg-muted border text-white h-11">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#f7f7f7] border-[#ebebeb]">
+                        <SelectContent className="bg-muted border">
                           <SelectItem value="INR" className="text-white">₹ INR</SelectItem>
                           <SelectItem value="USD" className="text-white">$ USD</SelectItem>
                           <SelectItem value="EUR" className="text-white">€ EUR</SelectItem>
@@ -615,7 +615,7 @@ export default function TripPlanner() {
                         placeholder="e.g. 50000"
                         value={importForm.budget}
                         onChange={(e) => setImportForm(prev => ({ ...prev, budget: e.target.value }))}
-                        className="flex-1 bg-[#f7f7f7] border-[#ebebeb] text-white h-11"
+                        className="flex-1 bg-muted border text-white h-11"
                         min="0"
                       />
                     </div>
@@ -642,15 +642,15 @@ export default function TripPlanner() {
 
         {/* AI Plan Mode */}
         {planMode === 'ai' && (
-        <Card className="bg-white border-[#ebebeb] elev-1">
+        <Card className="bg-card border elev-1">
           <CardHeader>
-            <CardTitle className="text-xl font-bold text-[#222222]">Trip Details</CardTitle>
+            <CardTitle className="text-xl font-bold text-foreground">Trip Details</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6" data-testid="trip-planning-form">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-[#222222] mb-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">
                     Starting Location <span className="text-ios-red">*</span>
                   </label>
                   <Input
@@ -658,12 +658,12 @@ export default function TripPlanner() {
                     placeholder="Where are you traveling from?"
                     value={tripForm.origin}
                     onChange={(e) => setTripForm(prev => ({ ...prev, origin: e.target.value }))}
-                    className="bg-[#f7f7f7] border-[#ebebeb] text-white placeholder-ios-gray"
+                    className="bg-muted border text-white placeholder-ios-gray"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-[#222222] mb-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">
                     Destination <span className="text-ios-red">*</span>
                   </label>
                   <Input
@@ -671,30 +671,30 @@ export default function TripPlanner() {
                     placeholder="Where do you want to go?"
                     value={tripForm.destination}
                     onChange={(e) => setTripForm(prev => ({ ...prev, destination: e.target.value }))}
-                    className="bg-[#f7f7f7] border-[#ebebeb] text-white placeholder-ios-gray"
+                    className="bg-muted border text-white placeholder-ios-gray"
                     required
                     data-testid="input-destination"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-[#222222] mb-2">Budget</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Budget</label>
                   <div className="flex gap-2">
                     <Select
                       value={tripForm.currency}
                       onValueChange={(value) => setTripForm(prev => ({ ...prev, currency: value }))}
                     >
-                      <SelectTrigger className="w-[100px] bg-[#f7f7f7] border-[#ebebeb] text-white">
+                      <SelectTrigger className="w-[100px] bg-muted border text-white">
                         <SelectValue placeholder="INR" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#f7f7f7] border-[#ebebeb]">
-                        <SelectItem value="INR" className="text-white hover:bg-white">₹ INR</SelectItem>
-                        <SelectItem value="USD" className="text-white hover:bg-white">$ USD</SelectItem>
-                        <SelectItem value="GBP" className="text-white hover:bg-white">£ GBP</SelectItem>
-                        <SelectItem value="EUR" className="text-white hover:bg-white">€ EUR</SelectItem>
-                        <SelectItem value="AUD" className="text-white hover:bg-white">A$ AUD</SelectItem>
-                        <SelectItem value="CAD" className="text-white hover:bg-white">C$ CAD</SelectItem>
-                        <SelectItem value="JPY" className="text-white hover:bg-white">¥ JPY</SelectItem>
-                        <SelectItem value="CNY" className="text-white hover:bg-white">¥ CNY</SelectItem>
+                      <SelectContent className="bg-muted border">
+                        <SelectItem value="INR" className="text-white hover:bg-card">₹ INR</SelectItem>
+                        <SelectItem value="USD" className="text-white hover:bg-card">$ USD</SelectItem>
+                        <SelectItem value="GBP" className="text-white hover:bg-card">£ GBP</SelectItem>
+                        <SelectItem value="EUR" className="text-white hover:bg-card">€ EUR</SelectItem>
+                        <SelectItem value="AUD" className="text-white hover:bg-card">A$ AUD</SelectItem>
+                        <SelectItem value="CAD" className="text-white hover:bg-card">C$ CAD</SelectItem>
+                        <SelectItem value="JPY" className="text-white hover:bg-card">¥ JPY</SelectItem>
+                        <SelectItem value="CNY" className="text-white hover:bg-card">¥ CNY</SelectItem>
                       </SelectContent>
                     </Select>
                     <Input
@@ -702,14 +702,14 @@ export default function TripPlanner() {
                       placeholder="75000"
                       value={tripForm.budget}
                       onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
-                      className="flex-1 bg-[#f7f7f7] border-[#ebebeb] text-white placeholder-ios-gray"
+                      className="flex-1 bg-muted border text-white placeholder-ios-gray"
                       min="0"
                       data-testid="input-budget"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-[#222222] mb-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">
                     Trip Duration <span className="text-ios-red">*</span>
                   </label>
                   <Input
@@ -718,13 +718,13 @@ export default function TripPlanner() {
                     placeholder="e.g. 5"
                     value={tripForm.days}
                     onChange={(e) => setTripForm(prev => ({ ...prev, days: e.target.value }))}
-                    className="bg-[#f7f7f7] border-[#ebebeb] text-white placeholder-ios-gray"
+                    className="bg-muted border text-white placeholder-ios-gray"
                     required
                     data-testid="input-duration"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-[#222222] mb-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">
                     Group Size <span className="text-ios-red">*</span>
                   </label>
                   <Select
@@ -733,23 +733,23 @@ export default function TripPlanner() {
                     required
                   >
                     <SelectTrigger
-                      className="bg-[#f7f7f7] border-[#ebebeb] text-white"
+                      className="bg-muted border text-white"
                       data-testid="select-group-size"
                     >
                       <SelectValue placeholder="Select group size" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#f7f7f7] border-[#ebebeb]">
-                      <SelectItem value="1" className="text-white hover:bg-white">Solo traveler</SelectItem>
-                      <SelectItem value="2" className="text-white hover:bg-white">Couple (2 people)</SelectItem>
-                      <SelectItem value="4" className="text-white hover:bg-white">Small group (3-5 people)</SelectItem>
-                      <SelectItem value="8" className="text-white hover:bg-white">Large group (6+ people)</SelectItem>
+                    <SelectContent className="bg-muted border">
+                      <SelectItem value="1" className="text-white hover:bg-card">Solo traveler</SelectItem>
+                      <SelectItem value="2" className="text-white hover:bg-card">Couple (2 people)</SelectItem>
+                      <SelectItem value="4" className="text-white hover:bg-card">Small group (3-5 people)</SelectItem>
+                      <SelectItem value="8" className="text-white hover:bg-card">Large group (6+ people)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-[#222222] mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Travel Style <span className="text-ios-red">*</span>
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -760,7 +760,7 @@ export default function TripPlanner() {
                       onClick={() => handleStyleSelect(style.id)}
                       className={`relative overflow-hidden group radius-md h-32 md:h-40 text-center smooth-transition flex flex-col items-center justify-center border-2 ${selectedStyle === style.id
                         ? 'border-ios-blue ring-2 ring-ios-blue/20'
-                        : 'border-[#ebebeb] hover:border-ios-blue/50 shadow-lg'
+                        : 'border hover:border-ios-blue/50 shadow-lg'
                         }`}
                       data-testid={`travel-style-${style.id}`}
                     >
@@ -787,12 +787,12 @@ export default function TripPlanner() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-[#222222] mb-2">Additional Notes</label>
+                <label className="block text-sm font-semibold text-foreground mb-2">Additional Notes</label>
                 <Textarea
                   placeholder="Any specific preferences, requirements, or things you'd like to include in your trip?"
                   value={tripForm.notes}
                   onChange={(e) => setTripForm(prev => ({ ...prev, notes: e.target.value }))}
-                  className="bg-[#f7f7f7] border-[#ebebeb] text-white placeholder-ios-gray min-h-[100px]"
+                  className="bg-muted border text-white placeholder-ios-gray min-h-[100px]"
                   data-testid="textarea-notes"
                 />
               </div>
@@ -830,16 +830,16 @@ export default function TripPlanner() {
 
         {/* Loading Skeleton */}
         {(createTripMutation.isPending || planTripMutation.isPending || isParsing) && (
-          <Card className="bg-white border-[#ebebeb] elev-1 mt-8">
+          <Card className="bg-card border elev-1 mt-8">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-[#222222]">
+              <CardTitle className="text-xl font-bold text-foreground">
                 {planTripMutation.isPending ? "Designing Your Perfect Itinerary..." : "Finalizing details..."}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-[#f7f7f7] border border-[#ebebeb] rounded-lg p-4 space-y-3">
+                  <div key={i} className="bg-muted border border rounded-lg p-4 space-y-3">
                     <div className="h-6 w-24 bg-gray-800/50 rounded animate-pulse"></div>
                     <div className="space-y-2">
                       <div className="h-4 w-full bg-gray-800/50 rounded animate-pulse"></div>
@@ -854,15 +854,15 @@ export default function TripPlanner() {
 
         {planTripMutation.data && !planTripMutation.data.error && (
           <div aria-live="polite" aria-atomic="true">
-            <Card className="bg-white border-[#ebebeb] elev-1 mt-8" role="region" aria-label="Trip Plan">
+            <Card className="bg-card border elev-1 mt-8" role="region" aria-label="Trip Plan">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-[#222222]" tabIndex={-1} id="trip-plan-heading">
+                <CardTitle className="text-xl font-bold text-foreground" tabIndex={-1} id="trip-plan-heading">
                   Trip Plan — {String(planTripMutation.data.destination || 'Unknown Destination')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-[#6a6a6a]">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
                     <div><div className="text-white">Days</div><div>{Number(planTripMutation.data.days) || ''}</div></div>
                     <div><div className="text-white">Persons</div><div>{Number(planTripMutation.data.persons) || ''}</div></div>
                     <div><div className="text-white">Budget</div><div>{tripForm.budget ? `₹${Number(tripForm.budget).toLocaleString('en-IN')}` : '—'}</div></div>
@@ -873,7 +873,7 @@ export default function TripPlanner() {
                   {planTripMutation.data.costBreakdown && (
                     <div>
                       <div className="font-bold text-white mb-2">Cost Breakdown</div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-[#6a6a6a]">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
                         {['grandTransit', 'accommodationINR', 'foodINR', 'transportINR', 'activitiesINR', 'miscINR', 'totalINR'].map((k) => (
                           <div key={k}>
                             <span className="text-white capitalize">
@@ -888,16 +888,16 @@ export default function TripPlanner() {
 
                   <div className="space-y-3">
                     {Array.isArray(planTripMutation.data.itinerary) && planTripMutation.data.itinerary.map((d: any) => (
-                      <Card key={`day-${d.day}`} className="bg-[#f7f7f7] border-[#ebebeb]">
+                      <Card key={`day-${d.day}`} className="bg-muted border">
                         <CardHeader>
-                          <CardTitle className="text-[#222222]">Day {Number(d.day)}</CardTitle>
+                          <CardTitle className="text-foreground">Day {Number(d.day)}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                           {Array.isArray(d.activities) && d.activities.map((a: any, idx: number) => (
                             <div key={`act-${d.day}-${idx}`} className="space-y-1">
                               <div className="flex items-start justify-between">
                                 <div>
-                                  <div className="text-sm text-[#6a6a6a]">{String(a.time)} • {String(a.placeName || a.title || '')}</div>
+                                  <div className="text-sm text-muted-foreground">{String(a.time)} • {String(a.placeName || a.title || '')}</div>
                                   {a.address && (
                                     <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-[#ff385c] underline">
                                       {String(a.address)}
@@ -911,7 +911,7 @@ export default function TripPlanner() {
                               {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
                                 <div className="flex flex-wrap gap-2">
                                   {a.localFoodRecommendations.map((f: any, i: number) => (
-                                    <span key={`food-${i}`} className="text-xs bg-white text-white px-2 py-1 rounded-full">{String(f)}</span>
+                                    <span key={`food-${i}`} className="text-xs bg-card text-white px-2 py-1 rounded-full">{String(f)}</span>
                                   ))}
                                 </div>
                               )}
@@ -932,7 +932,7 @@ export default function TripPlanner() {
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedPackingItems(planTripMutation.data.packingList)}
-                            className="text-xs bg-[#f7f7f7] border-[#ebebeb] text-white hover:bg-white"
+                            className="text-xs bg-muted border text-white hover:bg-card"
                             data-testid="button-select-all-packing"
                           >
                             Select All
@@ -942,14 +942,14 @@ export default function TripPlanner() {
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedPackingItems([])}
-                            className="text-xs bg-[#f7f7f7] border-[#ebebeb] text-white hover:bg-white"
+                            className="text-xs bg-muted border text-white hover:bg-card"
                             data-testid="button-deselect-all-packing"
                           >
                             Deselect All
                           </Button>
                         </div>
                       </div>
-                      <ul className="text-sm text-[#6a6a6a] space-y-2">
+                      <ul className="text-sm text-muted-foreground space-y-2">
                         {planTripMutation.data.packingList.map((p: any, i: number) => {
                           const itemName = String(p);
                           const isSelected = selectedPackingItems.includes(itemName);
@@ -969,12 +969,12 @@ export default function TripPlanner() {
                                 className="cursor-pointer"
                                 data-testid={`checkbox-pack-${i}`}
                               />
-                              <span className={isSelected ? 'text-white' : 'text-[#6a6a6a] line-through'}>{itemName}</span>
+                              <span className={isSelected ? 'text-white' : 'text-muted-foreground line-through'}>{itemName}</span>
                             </li>
                           );
                         })}
                       </ul>
-                      <p className="text-xs text-[#6a6a6a] mt-2">
+                      <p className="text-xs text-muted-foreground mt-2">
                         <i className="fas fa-info-circle mr-1"></i>
                         {selectedPackingItems.length} of {planTripMutation.data.packingList.length} items selected
                       </p>
@@ -984,7 +984,7 @@ export default function TripPlanner() {
                   {Array.isArray(planTripMutation.data.safetyTips) && (
                     <div>
                       <div className="font-bold text-white mb-2">Safety Tips</div>
-                      <ul className="list-disc ml-6 text-sm text-[#6a6a6a]">
+                      <ul className="list-disc ml-6 text-sm text-muted-foreground">
                         {planTripMutation.data.safetyTips.map((s: any, i: number) => (
                           <li key={`safe-${i}`}>{String(s)}</li>
                         ))}
@@ -1016,8 +1016,8 @@ export default function TripPlanner() {
                   </div>
 
                   <details className="mt-4">
-                    <summary className="text-[#6a6a6a]">View Raw AI Output</summary>
-                    <pre className="mt-2 text-xs text-[#6a6a6a] whitespace-pre-wrap bg-[#f7f7f7] p-3 rounded-xl">{JSON.stringify(planTripMutation.data, null, 2)}</pre>
+                    <summary className="text-muted-foreground">View Raw AI Output</summary>
+                    <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-xl">{JSON.stringify(planTripMutation.data, null, 2)}</pre>
                   </details>
                 </div>
               </CardContent>
@@ -1028,15 +1028,15 @@ export default function TripPlanner() {
 
         {
           planTripMutation.data && planTripMutation.data.error && (
-            <Card className="bg-white border-[#ebebeb] elev-1 mt-8">
+            <Card className="bg-card border elev-1 mt-8">
               <CardContent className="p-6">
                 <div className="text-ios-red font-semibold mb-2">We couldn’t parse the plan — try regenerating.</div>
                 <Button variant="secondary" onClick={() => planTripMutation.mutate()} disabled={planTripMutation.isPending}>
                   {planTripMutation.isPending ? 'Generating…' : 'Regenerate'}
                 </Button>
                 <details className="mt-4">
-                  <summary className="text-[#6a6a6a]">View Raw AI Output</summary>
-                  <pre className="mt-2 text-xs text-[#6a6a6a] whitespace-pre-wrap bg-[#f7f7f7] p-3 rounded-xl">{JSON.stringify(planTripMutation.data, null, 2)}</pre>
+                  <summary className="text-muted-foreground">View Raw AI Output</summary>
+                  <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-xl">{JSON.stringify(planTripMutation.data, null, 2)}</pre>
                 </details>
               </CardContent>
             </Card>
@@ -1044,7 +1044,7 @@ export default function TripPlanner() {
         }
 
         {/* AI Tips */}
-        <Card className="bg-white border-[#ebebeb] elev-1 mt-8">
+        <Card className="bg-card border elev-1 mt-8">
           <CardContent className="p-6">
             <div className="flex items-center mb-4">
               <div className="w-10 h-10 bg-ios-orange rounded-xl flex items-center justify-center mr-3">
@@ -1052,7 +1052,7 @@ export default function TripPlanner() {
               </div>
               <h3 className="text-lg font-bold text-white">AI Planning Tips</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-[#6a6a6a]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
               <div>
                 <p className="mb-2">
                   <i className="fas fa-check text-green-500 mr-2"></i>

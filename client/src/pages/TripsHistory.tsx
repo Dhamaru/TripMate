@@ -54,8 +54,8 @@ export default function TripsHistory() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-[#111827] tracking-tight">My Trips</h1>
-          <p className="text-[#6a6a6a] text-sm mt-0.5">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">My Trips</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
             {filteredTrips.length} {filteredTrips.length === 1 ? "trip" : "trips"} found
           </p>
         </div>
@@ -67,7 +67,7 @@ export default function TripsHistory() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-3xl border border-[#ebebeb] p-4">
+      <div className="bg-card rounded-3xl border border p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#929292]" />
@@ -75,11 +75,11 @@ export default function TripsHistory() {
               placeholder="Search destinations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-[#f7f7f7] border-[#ebebeb] text-[#111827] placeholder:text-[#929292] focus-visible:ring-[#F59E0B]/30"
+              className="pl-9 bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#F59E0B]/30"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="bg-[#f7f7f7] border-[#ebebeb] text-[#111827]">
+            <SelectTrigger className="bg-muted border text-foreground">
               <Filter className="h-4 w-4 mr-2 text-[#929292]" />
               <SelectValue />
             </SelectTrigger>
@@ -99,14 +99,14 @@ export default function TripsHistory() {
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F59E0B]" />
         </div>
       ) : filteredTrips.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-[#ebebeb] p-16 text-center">
-          <div className="w-16 h-16 bg-[#f7f7f7] rounded-3xl flex items-center justify-center mx-auto mb-5">
+        <div className="bg-card rounded-3xl border border p-16 text-center">
+          <div className="w-16 h-16 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-5">
             <Compass className="h-8 w-8 text-[#929292]" />
           </div>
-          <h3 className="text-lg font-semibold text-[#111827] mb-2">
+          <h3 className="text-lg font-semibold text-foreground mb-2">
             {searchQuery || statusFilter !== "all" ? "No trips found" : "No trips yet"}
           </h3>
-          <p className="text-[#6a6a6a] text-sm mb-6">
+          <p className="text-muted-foreground text-sm mb-6">
             {searchQuery || statusFilter !== "all" ? "Try adjusting your filters" : "Start planning your first adventure!"}
           </p>
           {!searchQuery && statusFilter === "all" && (
@@ -127,7 +127,7 @@ export default function TripsHistory() {
               transition={{ delay: index * 0.06, duration: 0.3 }}
             >
               <Link href={`/app/trips/${trip.id}`}>
-                <div className="bg-white rounded-3xl border border-[#ebebeb] hover:border-[#F59E0B]/30 hover:shadow-md transition-all cursor-pointer group overflow-hidden flex h-36">
+                <div className="bg-card rounded-3xl border border hover:border-[#F59E0B]/30 hover:shadow-md transition-all cursor-pointer group overflow-hidden flex h-36">
                   {/* Image */}
                   <div className="w-1/3 min-w-[120px] relative bg-gradient-to-br from-[#F59E0B] to-[#D97706] overflow-hidden flex-shrink-0">
                     {trip.imageUrl ? (
@@ -147,7 +147,7 @@ export default function TripsHistory() {
                   <div className="flex-1 p-4 flex flex-col justify-between">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="font-bold text-[#111827] text-base leading-tight">
+                        <h3 className="font-bold text-foreground text-base leading-tight">
                           {trip.destination || "New Trip"}
                         </h3>
                         <p className="text-[#929292] text-xs capitalize mt-0.5">{trip.travelStyle}</p>
@@ -157,7 +157,7 @@ export default function TripsHistory() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-[#6a6a6a]">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" /> {trip.days ?? 0} days
                       </span>

@@ -33,18 +33,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen w-full bg-[#f9fafb] overflow-hidden">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
 
       {/* ── Sidebar ─────────────────────────────────── */}
       <aside
         className={cn(
-          "hidden md:flex flex-col bg-white border-r border-gray-100 transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
+          "hidden md:flex flex-col bg-card border-r border transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
           collapsed ? "w-16" : "w-64"
         )}
       >
         {/* Logo */}
         <div className={cn(
-          "h-16 flex items-center border-b border-gray-100 transition-all duration-300 flex-shrink-0",
+          "h-16 flex items-center border-b border transition-all duration-300 flex-shrink-0",
           collapsed ? "justify-center px-0" : "px-5"
         )}>
           <TripMateLogo size="sm" showText={!collapsed} />
@@ -62,7 +62,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     collapsed ? "px-0 justify-center" : "px-3",
                     isActive
                       ? "bg-amber-50 text-amber-600 font-semibold"
-                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                   )}
                   title={collapsed ? item.label : undefined}
                 >
@@ -88,13 +88,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Profile + collapse */}
-        <div className="border-t border-gray-100 p-3 space-y-1 flex-shrink-0">
+        <div className="border-t border p-3 space-y-1 flex-shrink-0">
           <Link href="/app/profile">
             <div className={cn(
-              "flex items-center gap-3 rounded-xl h-11 cursor-pointer group hover:bg-gray-50 transition-colors",
+              "flex items-center gap-3 rounded-xl h-11 cursor-pointer group hover:bg-muted/50 transition-colors",
               collapsed ? "px-0 justify-center" : "px-3"
             )}>
-              <Avatar className="h-7 w-7 rounded-full border border-gray-100 flex-shrink-0">
+              <Avatar className="h-7 w-7 rounded-full border border flex-shrink-0">
                 <AvatarImage src={user?.profileImageUrl} className="object-cover" />
                 <AvatarFallback className="bg-[#1E3A8A] text-white text-xs font-bold">
                   {user?.firstName?.[0] || "U"}
@@ -102,10 +102,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Avatar>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-gray-900 truncate">
+                  <div className="text-xs font-semibold text-foreground truncate">
                     {user?.firstName} {user?.lastName}
                   </div>
-                  <div className="text-[10px] text-gray-400">
+                  <div className="text-[10px] text-muted-foreground">
                     {user?.isGuest ? "Guest" : "Member"}
                   </div>
                 </div>
@@ -116,7 +116,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "w-full flex items-center gap-2 rounded-xl h-9 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all",
+              "w-full flex items-center gap-2 rounded-xl h-9 text-muted-foreground hover:bg-muted/50 hover:text-gray-600 transition-all",
               collapsed ? "px-0 justify-center" : "px-3"
             )}
             title={collapsed ? "Expand" : "Collapse"}
@@ -137,7 +137,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}>
 
         {/* Top bar */}
-        <header className="h-16 bg-white border-b border-gray-100 px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
+        <header className="h-16 bg-card border-b border px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
           <div className="md:hidden">
             <TripMateLogo size="sm" />
           </div>
@@ -145,7 +145,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100"
+              className="p-2 rounded-xl bg-muted/50 hover:bg-gray-100 transition-colors border border"
               title="Toggle theme"
             >
               {theme === "dark" ? (
@@ -159,7 +159,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/app/profile">
             <div className="flex items-center gap-3 cursor-pointer group">
               <div className="hidden md:flex flex-col items-end">
-                <span className="text-sm font-semibold text-gray-900 group-hover:text-amber-600 transition-colors flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-foreground group-hover:text-amber-600 transition-colors flex items-center gap-1.5">
                   {user?.isGuest && (
                     <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 rounded-full border border-amber-200 font-bold">
                       GUEST
@@ -167,11 +167,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   )}
                   {user?.firstName} {user?.lastName}
                 </span>
-                <span className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
                   {user?.isGuest ? "Trial Plan" : "Member"}
                 </span>
               </div>
-              <Avatar className="h-9 w-9 rounded-full border-2 border-gray-100 group-hover:border-amber-400 transition-all duration-200">
+              <Avatar className="h-9 w-9 rounded-full border-2 border group-hover:border-amber-400 transition-all duration-200">
                 <AvatarImage src={user?.profileImageUrl} className="object-cover" />
                 <AvatarFallback className="bg-[#1E3A8A] text-white text-xs font-bold">
                   {user?.firstName?.[0] || "U"}
@@ -199,7 +199,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-4 left-4 right-4 z-50">
-          <div className="bg-white border border-gray-100 rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.10)] p-1.5 flex items-center justify-around">
+          <div className="bg-card border border rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.10)] p-1.5 flex items-center justify-around">
             {NAV_ITEMS.map((item) => {
               const isActive = location === item.href || location.startsWith(item.href + "/");
               return (
@@ -208,7 +208,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     "flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all duration-150",
                     isActive
                       ? "text-amber-600 bg-amber-50"
-                      : "text-gray-400 hover:text-gray-600"
+                      : "text-muted-foreground hover:text-gray-600"
                   )}>
                     <item.icon className="h-5 w-5" />
                     <span className="text-[9px] font-bold uppercase tracking-wider">{item.label}</span>
@@ -217,8 +217,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               );
             })}
             <Link href="/app/profile" className="flex-1">
-              <div className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-gray-400 hover:text-gray-600 transition-all">
-                <Avatar className="h-5 w-5 rounded-full border border-gray-100">
+              <div className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-muted-foreground hover:text-gray-600 transition-all">
+                <Avatar className="h-5 w-5 rounded-full border border">
                   <AvatarImage src={user?.profileImageUrl} />
                   <AvatarFallback className="bg-[#1E3A8A] text-white text-[8px] font-bold">
                     {user?.firstName?.[0] || "U"}
