@@ -9,7 +9,7 @@ const isProd = config.NODE_ENV === "production";
 const devCsp = {
     "default-src": ["'self'"],
     "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://replit.com"],
-    "style-src": ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com"],
+    "style-src": ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
     "img-src": ["'self'", "data:", "https:", "blob:", "https://*.tile.openstreetmap.org"],
     "connect-src": [
         "'self'",
@@ -21,7 +21,7 @@ const devCsp = {
         "wss:",
         "ws:",
     ],
-    "font-src": ["'self'", "https:", "data:"],
+    "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
     "frame-src": ["'none'"],
     "object-src": ["'none'"],
 };
@@ -29,7 +29,7 @@ const devCsp = {
 const prodCsp = {
     "default-src": ["'self'"],
     "script-src": ["'self'"],
-    "style-src": ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com"],
+    "style-src": ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
     "img-src": ["'self'", "data:", "https:", "blob:", "https://*.tile.openstreetmap.org"],
     "connect-src": [
         "'self'",
@@ -40,7 +40,7 @@ const prodCsp = {
         "https://api.frankfurter.app",
         "wss:",
     ],
-    "font-src": ["'self'", "https:", "data:"],
+    "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
     "frame-src": ["'none'"],
     "object-src": ["'none'"],
 };
