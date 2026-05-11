@@ -7,7 +7,7 @@ const envSchema = z.object({
     MONGODB_URI: z.string().min(1),
     OPENAI_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional().default(''),
-    GROQ_API_KEY: z.string(),
+    GROQ_API_KEY: z.string().optional().default(''),
     GOOGLE_API_KEY: z.string().optional(),
     SESSION_SECRET: z.string().default("your-session-secret-key"),
     JWT_SECRET: z.string().default("your-jwt-secret-key"),

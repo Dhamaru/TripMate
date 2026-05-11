@@ -49,7 +49,11 @@ router.post("/forgot-password", authLimiter, authController.forgotPassword);
 router.post("/reset-password", authLimiter, authController.resetPassword);
 
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
-router.get("/google/callback", authController.googleCallback);
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { session: true, failureRedirect: "/signin?error=auth_failed" }),
+  authController.googleCallback
+);
 
 // Protected routes
 router.get("/profile", requireAuth, authController.getProfile);

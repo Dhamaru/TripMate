@@ -29,10 +29,12 @@ export class MasterOrchestrator {
         PackingAgent: new PackingAgent(),
         JournalAgent: new JournalAgent()
     };
-    private groq: Groq;
+    private groq: Groq | null = null;
 
     constructor() {
-        this.groq = new Groq({ apiKey: config.GROQ_API_KEY });
+        if (config.GROQ_API_KEY) {
+            this.groq = new Groq({ apiKey: config.GROQ_API_KEY });
+        }
     }
 
     /**
@@ -209,6 +211,7 @@ export class MasterOrchestrator {
      */
     private async classifyIntent(message: string): Promise<string[]> {
         if (!message) return [];
+        if (!this.groq) return [];
 
         try {
             const response = await this.groq.chat.completions.create({
