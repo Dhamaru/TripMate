@@ -66,10 +66,10 @@ export async function runAgentLoop(
     },
     deps: ExecutorDeps
 ): Promise<AgentResponse> {
-    const apiKey = "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";
-    const openai = new OpenAI({ 
+    const apiKey = config.NVIDIA_API_KEY || "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";
+    const openai = new OpenAI({
         apiKey,
-        baseURL: 'https://integrate.api.nvidia.com/v1' 
+        baseURL: 'https://integrate.api.nvidia.com/v1'
     });
     
     // FETCH PROACTIVE CONTEXT

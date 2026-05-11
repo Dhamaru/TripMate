@@ -77,7 +77,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500" />
                   )}
                   {collapsed && (
-                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 rounded-lg text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-card border border-border rounded-lg text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
                       {item.label}
                     </div>
                   )}
@@ -116,7 +116,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "w-full flex items-center gap-2 rounded-xl h-9 text-muted-foreground hover:bg-muted/50 hover:text-gray-600 transition-all",
+              "w-full flex items-center gap-2 rounded-xl h-9 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all",
               collapsed ? "px-0 justify-center" : "px-3"
             )}
             title={collapsed ? "Expand" : "Collapse"}
@@ -145,7 +145,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="p-2 rounded-xl bg-muted/50 hover:bg-gray-100 transition-colors border border"
+              className="p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors border border"
               title="Toggle theme"
             >
               {theme === "dark" ? (
@@ -208,7 +208,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     "flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all duration-150",
                     isActive
                       ? "text-amber-600 bg-amber-50"
-                      : "text-muted-foreground hover:text-gray-600"
+                      : "text-muted-foreground hover:text-foreground"
                   )}>
                     <item.icon className="h-5 w-5" />
                     <span className="text-[9px] font-bold uppercase tracking-wider">{item.label}</span>
@@ -217,7 +217,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               );
             })}
             <Link href="/app/profile" className="flex-1">
-              <div className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-muted-foreground hover:text-gray-600 transition-all">
+              <div className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-muted-foreground hover:text-foreground transition-all">
                 <Avatar className="h-5 w-5 rounded-full border border">
                   <AvatarImage src={user?.profileImageUrl} />
                   <AvatarFallback className="bg-[#1E3A8A] text-white text-[8px] font-bold">

@@ -52,8 +52,8 @@ function SortableActivity({
     const isTravelLeg = activity.type === 'travel';
 
     return (
-        <div ref={setNodeRef} style={style} className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 last:border-0 transition-colors group relative ${isTravelLeg ? 'bg-[#06e0f9]/5 hover:bg-[#06e0f9]/8' : 'hover:bg-white/5'}`}>
-            <div {...attributes} {...listeners} className="shrink-0 w-11 h-11 flex items-center justify-center text-gray-600 cursor-grab active:cursor-grabbing hover:text-gray-400 transition-colors">
+        <div ref={setNodeRef} style={style} className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 last:border-0 transition-colors group relative ${isTravelLeg ? 'bg-[#F59E0B]/5 hover:bg-[#F59E0B]/8' : 'hover:bg-muted/30'}`}>
+            <div {...attributes} {...listeners} className="shrink-0 w-11 h-11 flex items-center justify-center text-muted-foreground cursor-grab active:cursor-grabbing hover:text-muted-foreground transition-colors">
                 <GripVertical className="w-5 h-5" />
             </div>
 
@@ -70,15 +70,15 @@ function SortableActivity({
                             {isTravelLeg && (activity.from || activity.to) ? (
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     {activity.from && <span className="font-medium text-white">{activity.from}</span>}
-                                    {activity.from && activity.to && <span className="text-[#06e0f9] text-sm">→</span>}
+                                    {activity.from && activity.to && <span className="text-[#F59E0B] text-sm">→</span>}
                                     {activity.to && <span className="font-medium text-white">{activity.to}</span>}
-                                    <span className="text-xs text-[#06e0f9] bg-[#06e0f9]/10 px-1.5 py-0.5 rounded-full ml-1">Travel</span>
+                                    <span className="text-xs text-[#F59E0B] bg-[#F59E0B]/10 px-1.5 py-0.5 rounded-full ml-1">Travel</span>
                                 </div>
                             ) : (
                                 <h4 className="font-medium text-white break-words">{activity.title || activity.placeName}</h4>
                             )}
                             {isTravelLeg && activity.title && (activity.from || activity.to) && (
-                                <p className="text-xs text-gray-400 mt-0.5">{activity.title}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{activity.title}</p>
                             )}
                         </div>
 
@@ -87,7 +87,7 @@ function SortableActivity({
                                 onClick={(e) => { e.stopPropagation(); onMove('up'); }}
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-gray-500 hover:text-[#06e0f9] disabled:opacity-30"
+                                className="h-8 w-8 text-muted-foreground hover:text-[#F59E0B] disabled:opacity-30"
                                 disabled={index === 0}
                                 title="Move Up"
                             >
@@ -97,26 +97,26 @@ function SortableActivity({
                                 onClick={(e) => { e.stopPropagation(); onMove('down'); }}
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-gray-500 hover:text-[#06e0f9] disabled:opacity-30"
+                                className="h-8 w-8 text-muted-foreground hover:text-[#F59E0B] disabled:opacity-30"
                                 disabled={index === total - 1}
                                 title="Move Down"
                             >
                                 <ChevronDown className="w-4 h-4" />
                             </Button>
-                            <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-white" title="Edit">
+                            <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Edit">
                                 <Edit2 className="w-4 h-4" />
                             </Button>
-                            <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-red-500" title="Delete">
+                            <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" title="Delete">
                                 <Trash2 className="w-4 h-4" />
                             </Button>
                         </div>
                     </div>
                     {activity.location && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                             <MapPin className="w-3 h-3" /> {activity.location}
                         </div>
                     )}
-                    {activity.notes && <p className="text-sm text-gray-400 mt-2 line-clamp-2">{activity.notes}</p>}
+                    {activity.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{activity.notes}</p>}
 
                     <VibeVoting
                         tripId={tripId}
@@ -417,7 +417,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                         <div className="flex items-center gap-2">
                             <h3 className="font-bold text-white tracking-tight">Day {day.day || dayIdx + 1}</h3>
                             {dateLabel && (
-                                <span className="text-xs text-[#06e0f9] bg-[#06e0f9]/10 px-2 py-0.5 rounded-full font-medium">{dateLabel}</span>
+                                <span className="text-xs text-[#F59E0B] bg-[#F59E0B]/10 px-2 py-0.5 rounded-full font-medium">{dateLabel}</span>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -425,7 +425,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                             <Button
                                 onClick={() => handleAddActivity(dayIdx)}
                                 size="sm"
-                                className="bg-[#06e0f9] hover:bg-[#06e0f9]/90 text-gray-900 flex items-center gap-1 rounded-lg text-xs font-medium"
+                                className="bg-[#F59E0B] hover:bg-[#D97706] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
                             >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">Add Activity</span>

@@ -15,7 +15,7 @@ export default function TermsOfService() {
                             </div>
                         </Link>
                         <Link href="/">
-                            <Button variant="ghost" className="text-muted-foreground hover:text-white">Back to Home</Button>
+                            <Button variant="ghost" className="text-muted-foreground hover:text-foreground">Back to Home</Button>
                         </Link>
                     </div>
                 </div>

@@ -17,14 +17,12 @@ export function AtlasDayButton({ dayIndex, destination, activities, tripId }: Pr
         setContext({ currentTripId: tripId, currentPage: 'trip-detail' })
         toggleChat()
         const activityList = activities.map(a => a.placeName).join(', ')
-        void sendMessage(
-            `Help me optimize Day ${dayIndex + 1} in ${destination}. Current activities: ${activityList}`
-        )
+        void sendMessage(`Help me optimize Day ${dayIndex + 1} in ${destination}. Current activities: ${activityList}`)
     }
 
     return (
         <button
-            className="w-[calc(100%-2rem)] mx-4 mb-4 py-2 px-4 rounded-lg border border-dashed border-white/10 text-sm text-gray-500 hover:border-[#06e0f9]/50 hover:text-[#06e0f9] transition-colors flex items-center justify-center gap-2"
+            className="w-[calc(100%-2rem)] mx-4 mb-4 py-2 px-4 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:border-[#F59E0B]/50 hover:text-[#F59E0B] transition-colors flex items-center justify-center gap-2"
             onClick={handleClick}
             aria-label={`Ask Atlas to help optimize day ${dayIndex + 1}`}
         >

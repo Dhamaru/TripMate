@@ -23,7 +23,7 @@ export function ChatMessageList() {
             aria-label="Conversation"
         >
             {messages.length === 0 && (
-                <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
                     <p>Ask Atlas anything about your trip</p>
                 </div>
             )}
@@ -32,8 +32,8 @@ export function ChatMessageList() {
                     key={msg.id}
                     className={
                         msg.role === 'user'
-                            ? "ml-auto max-w-[80%] px-4 py-2 rounded-2xl rounded-br-sm bg-[#06e0f9] text-white text-sm"
-                            : "mr-auto max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-sm bg-[#1E1E1E] text-gray-100 text-sm"
+                            ? "ml-auto max-w-[80%] px-4 py-2 rounded-2xl rounded-br-sm bg-[#F59E0B] text-white text-sm"
+                            : "mr-auto max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-sm bg-muted text-foreground text-sm"
                     }
                     aria-label={`${msg.role === 'user' ? 'You' : 'Atlas'}: ${msg.content}`}
                 >

@@ -20,7 +20,7 @@ export default function HelpCenter() {
                         </Link>
                         <div className="flex items-center space-x-4">
                             <Link href="/">
-                                <Button variant="ghost" className="text-muted-foreground hover:text-white">
+                                <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
                                     Back to Home
                                 </Button>
                             </Link>

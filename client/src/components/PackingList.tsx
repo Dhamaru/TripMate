@@ -252,7 +252,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
     return (
       <Card className={`bg-card border-border ${className}`} data-testid="packing-list-loading">
         <CardHeader>
-          <CardTitle className="text-lg font-bold text-white">Smart Packing List</CardTitle>
+          <CardTitle className="text-lg font-bold text-foreground">Smart Packing List</CardTitle>
         </CardHeader>
         <CardContent>
           {[1, 2, 3].map((i) => (
@@ -274,12 +274,12 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
     <Card className={`bg-card border-border ${className}`} data-testid="packing-list">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-bold text-white">Smart Packing List</CardTitle>
+          <CardTitle className="text-lg font-bold text-foreground">Smart Packing List</CardTitle>
           <Button
             onClick={generateSmartSuggestions}
             size="sm"
             variant="outline"
-            className="bg-muted border-border text-white hover:bg-card"
+            className="bg-muted border-border text-foreground hover:bg-card"
             data-testid="button-smart-suggestions"
             disabled={suggesting}
           >
@@ -307,7 +307,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
               data-testid={`checkbox-item-${item.id}`}
             />
             <span
-              className={`flex-1 text-sm ${item.packed ? 'line-through text-muted-foreground' : 'text-white'
+              className={`flex-1 text-sm ${item.packed ? 'line-through text-muted-foreground' : 'text-foreground'
                 }`}
             >
               {item.name}
@@ -330,7 +330,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             placeholder="Add new item..."
-            className="bg-muted border-border text-white placeholder:text-muted-foreground flex-1"
+            className="bg-muted border-border text-foreground placeholder:text-muted-foreground flex-1"
             onKeyPress={(e) => e.key === 'Enter' && addItem()}
             data-testid="input-new-item"
           />

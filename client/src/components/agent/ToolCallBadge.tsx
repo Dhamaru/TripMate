@@ -19,7 +19,7 @@ interface Props { toolName: string }
 export function ToolCallBadge({ toolName }: Props) {
     const label = TOOL_LABELS[toolName] ?? `🔧 ${toolName}`
     return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white/10 text-gray-300 border border-white/10" aria-label={`Tool used: ${label}`}>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground border border-border" aria-label={`Tool used: ${label}`}>
             {label}
         </span>
     )

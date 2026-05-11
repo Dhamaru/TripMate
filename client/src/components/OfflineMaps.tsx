@@ -498,19 +498,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       <div className="flex space-x-2 bg-muted p-1 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('explore')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1E3A8A] text-white shadow' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1E3A8A] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Explore
         </button>
         <button
           onClick={() => setActiveTab('navigation')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1E3A8A] text-white shadow' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1E3A8A] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Navigation
         </button>
         <button
           onClick={() => setActiveTab('saved')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1E3A8A] text-white shadow' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1E3A8A] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Saved Pins
         </button>
@@ -645,7 +645,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               }}
               variant="secondary"
               size="icon"
-              className="absolute bottom-4 right-4 z-[400] bg-white text-black rounded-full"
+              className="absolute bottom-4 right-4 z-[400] bg-card text-foreground rounded-full border border-border"
               title="Locate Me"
             >
               <i className="fas fa-crosshairs"></i>

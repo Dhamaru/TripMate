@@ -49,7 +49,7 @@ export function SmartPackingList({ tripId }: Props) {
             <div className="flex flex-col items-center justify-center p-12 text-center bg-[#1E1E1E] rounded-2xl border border-white/5 shadow-xl">
                 <p className="text-gray-400 mb-6">No packing list yet.</p>
                 <button
-                    className="py-3 px-6 rounded-xl font-medium text-sm bg-[#06e0f9] hover:bg-[#06e0f9]/90 text-gray-900 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
+                    className="py-3 px-6 rounded-xl font-medium text-sm bg-[#F59E0B] hover:bg-[#D97706] text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
                     onClick={() => void handleGenerate()}
                     disabled={isGenerating}
                     aria-label="Generate smart packing list"
@@ -87,7 +87,7 @@ export function SmartPackingList({ tripId }: Props) {
                         aria-label={`${checkedCount} of ${totalItems} items packed`}
                     >
                         <div
-                            className="h-full bg-[#06e0f9] transition-all duration-500 ease-out"
+                            className="h-full bg-[#F59E0B] transition-all duration-500 ease-out"
                             style={{ width: `${totalItems > 0 ? (checkedCount / totalItems) * 100 : 0}%` }}
                         />
                     </div>
@@ -135,7 +135,7 @@ export function SmartPackingList({ tripId }: Props) {
                                     >
                                         <input
                                             type="checkbox"
-                                            className="w-5 h-5 rounded border-gray-500 text-[#06e0f9] focus:ring-[#06e0f9] bg-transparent cursor-pointer"
+                                            className="w-5 h-5 rounded border-border text-[#F59E0B] focus:ring-[#F59E0B] bg-transparent cursor-pointer"
                                             checked={item.checked}
                                             onChange={() => void handleToggle(item)}
                                             aria-label={`${item.checked ? 'Unpack' : 'Pack'} ${item.name}`}
@@ -150,7 +150,7 @@ export function SmartPackingList({ tripId }: Props) {
                                                 </span>
                                             )}
                                             {item.essential && (
-                                                <span className="text-[#06e0f9]" aria-label="Essential item">★</span>
+                                                <span className="text-[#F59E0B]" aria-label="Essential item">★</span>
                                             )}
                                             {item.note && (
                                                 <span className="text-gray-500 cursor-help" title={item.note}>ℹ</span>

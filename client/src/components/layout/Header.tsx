@@ -32,7 +32,7 @@ export function Header() {
                             className={`px-3 py-1.5 rounded-lg text-sm transition-colors
                          ${pathname === item.path
                                     ? 'bg-white/10 text-white'
-                                    : 'text-gray-400 hover:text-white'}`}
+                                    : 'text-muted-foreground hover:text-foreground'}`}
                             aria-current={pathname === item.path ? 'page' : undefined}
                             aria-label={item.label}>
                             {item.label}

@@ -10,7 +10,6 @@ export function ChatInput() {
     const MAX_CHARS = 2000
     const COUNTER_THRESHOLD = 1800
 
-    // Auto-resize textarea
     useEffect(() => {
         const el = textareaRef.current
         if (!el) return
@@ -33,10 +32,10 @@ export function ChatInput() {
     }
 
     return (
-        <div className="flex items-end gap-2 p-3 border-t border-white/10 bg-[#1E1E1E]">
+        <div className="flex items-end gap-2 p-3 border-t border-border bg-card">
             <textarea
                 ref={textareaRef}
-                className="flex-1 bg-transparent resize-none outline-none text-sm text-gray-100 placeholder-gray-500 max-h-32 py-2"
+                className="flex-1 bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground max-h-32 py-2"
                 value={text}
                 onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS))}
                 onKeyDown={handleKeyDown}
@@ -47,24 +46,20 @@ export function ChatInput() {
                 aria-disabled={isLoading}
             />
             {text.length >= COUNTER_THRESHOLD && (
-                <span
-                    className="absolute right-14 bottom-14 text-[10px] text-gray-500"
-                    aria-label={`${MAX_CHARS - text.length} characters remaining`}
-                >
+                <span className="absolute right-14 bottom-14 text-[10px] text-muted-foreground" aria-label={`${MAX_CHARS - text.length} characters remaining`}>
                     {MAX_CHARS - text.length}
                 </span>
             )}
             <button
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#06e0f9] text-gray-900 hover:bg-[#06e0f9]/90 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 mb-1 transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#F59E0B] text-white hover:bg-[#D97706] disabled:opacity-50 disabled:cursor-not-allowed shrink-0 mb-1 transition-colors"
                 onClick={() => void handleSubmit()}
                 disabled={isLoading || !text.trim()}
                 aria-label="Send message"
             >
                 {isLoading ? (
-                    <span className="w-4 h-4 rounded-full border-2 border-gray-900 border-t-transparent animate-spin" aria-hidden="true" />
+                    <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" aria-hidden="true" />
                 ) : (
                     <span className="text-sm font-bold" aria-hidden="true">↑</span>
-
                 )}
             </button>
         </div>

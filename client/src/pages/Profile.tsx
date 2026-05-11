@@ -401,7 +401,7 @@ export default function Profile() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center shrink-0">
-                <i className="fab fa-google text-black text-lg"></i>
+                <i className="fab fa-google text-foreground text-lg"></i>
               </div>
               <div>
                 <h4 className="font-medium text-white">Google</h4>
