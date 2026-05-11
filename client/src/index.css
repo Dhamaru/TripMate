@@ -10,105 +10,112 @@
    ───────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Airbnb Brand Tokens ─────────────────────────── */
-  --airbnb-primary: #ff385c;
-  --airbnb-primary-active: #e00b41;
-  --airbnb-primary-disabled: #ffd1da;
-  --airbnb-primary-error: #c13515;
-
-  --airbnb-ink: #222222;
-  --airbnb-body: #3f3f3f;
-  --airbnb-muted: #6a6a6a;
-  --airbnb-muted-soft: #929292;
-
-  --airbnb-hairline: #dddddd;
-  --airbnb-hairline-soft: #ebebeb;
-  --airbnb-border-strong: #c1c1c1;
-
-  --airbnb-canvas: #ffffff;
-  --airbnb-surface: #f7f7f7;
-  --airbnb-surface-strong: #f2f2f2;
-
-  --airbnb-teal: #00a699;
-  --airbnb-orange: #fc642d;
-  --airbnb-link: #428bff;
-  --airbnb-luxe: #460479;
-  --airbnb-plus: #92174d;
-
-  /* ── Airbnb Radius Scale ─────────────────────────── */
+  /* ── TripMate/Stitch Design Tokens ────────────────── */
+  --solar-amber: #F59E0B;
+  --explorer-blue: #1E3A8A;
+  --emerald-horizon: #10B981;
+  --ink-gray: #111827;
+  --alabaster-white: #FFFFFF;
+  
+  /* ── Radius Scale (Stitch) ─────────────────────────── */
   --radius-xs: 4px;
-  --radius-sm: 8px;    /* buttons */
-  --radius-md: 14px;   /* cards, modals */
+  --radius-sm: 8px;    
+  --radius-md: 14px;   
   --radius-lg: 20px;
-  --radius-xl: 32px;
-  --radius-full: 9999px; /* pills, avatars */
-  --radius: 0.5rem;    /* shadcn compat */
+  --radius-xl: 12px;   /* buttons per design spec */
+  --radius-3xl: 24px;  /* cards per design spec */
+  --radius-full: 9999px;
+  --radius: 0.75rem;   /* default radius-xl */
 
-  /* ── Airbnb Elevation ────────────────────────────── */
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
-  --shadow-card-hover: rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px 0, rgba(0,0,0,0.1) 0 4px 8px 0;
-  --shadow-modal: 0 8px 32px rgba(0,0,0,0.12);
-  --shadow-search: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
-
-  /* ── Shadcn/Radix CSS Variable Map (Light Mode) ──── */
-  --background: 0 0% 100%;           /* canvas white */
-  --foreground: 0 0% 13%;            /* ink #222 */
+  /* ── Shadcn/Radix (Light Mode) ────────────────────── */
+  --background: 0 0% 100%;           /* Alabaster White */
+  --foreground: 222.2 84% 4.9%;      /* Ink Gray */
 
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 13%;
+  --card-foreground: 222.2 84% 4.9%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 13%;
+  --popover-foreground: 222.2 84% 4.9%;
 
-  --primary: 350 100% 61%;           /* rausch #ff385c */
-  --primary-foreground: 0 0% 100%;
+  --primary: 38 92% 50%;             /* Solar Amber #F59E0B */
+  --primary-foreground: 210 40% 98%;
 
-  --secondary: 0 0% 97%;             /* surface-soft #f7f7f7 */
-  --secondary-foreground: 0 0% 13%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
 
-  --muted: 0 0% 92%;                 /* hairline-soft #ebebeb */
-  --muted-foreground: 0 0% 42%;      /* muted #6a6a6a */
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
 
-  --accent: 0 0% 95%;                /* surface-strong #f2f2f2 */
-  --accent-foreground: 0 0% 13%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
 
-  --destructive: 14 75% 42%;         /* primary-error #c13515 */
-  --destructive-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
 
-  --border: 0 0% 87%;                /* hairline #dddddd */
-  --input: 0 0% 87%;
-  --ring: 350 100% 61%;              /* rausch for focus rings */
-
-  /* ── Chart Colors (Airbnb palette) ──────────────── */
-  --chart-1: 350 100% 61%;           /* rausch */
-  --chart-2: 17 97% 60%;             /* airbnb-orange */
-  --chart-3: 174 100% 33%;           /* teal */
-  --chart-4: 216 100% 63%;           /* link blue */
-  --chart-5: 305 91% 20%;            /* luxe purple */
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 38 92% 50%;
 
   /* ── Sidebar ─────────────────────────────────────── */
-  --sidebar: 0 0% 97%;               /* surface-soft */
-  --sidebar-foreground: 0 0% 13%;
-  --sidebar-primary: 350 100% 61%;
+  --sidebar: 210 40% 98%;
+  --sidebar-foreground: 222.2 84% 4.9%;
+  --sidebar-primary: 38 92% 50%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 0 0% 95%;
-  --sidebar-accent-foreground: 0 0% 13%;
-  --sidebar-border: 0 0% 92%;
-  --sidebar-ring: 350 100% 61%;
+  --sidebar-accent: 210 40% 96.1%;
+  --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+  --sidebar-border: 214.3 31.8% 91.4%;
+  --sidebar-ring: 38 92% 50%;
 
-  /* ── Nav ─────────────────────────────────────────── */
-  --nav-height: 80px;
-  --sidebar-width: 240px;
+  /* ── iOS Bridge ──────────────────────────────────── */
+  --ios-blue: #1E3A8A; /* Explorer Blue */
+  --ios-orange: #F59E0B; /* Solar Amber */
+  --ios-green: #10B981;
+  --ios-red: #EF4444;
+  --ios-gray: #94A3B8;
+  --ios-dark: #1E293B;
+  --ios-darker: #0F172A;
+  --ios-card: rgba(255, 255, 255, 0.8);
+}
 
-  /* ── iOS Compat Bridge (existing components) ─────── */
-  --ios-blue: #007AFF;
-  --ios-orange: #FF9500;
-  --ios-green: #34C759;
-  --ios-red: #FF3B30;
-  --ios-gray: #8E8E93;
-  --ios-dark: #1C1C1E;
-  --ios-darker: #0A0A0A;
-  --ios-card: rgba(28, 28, 30, 0.7);
+.dark {
+  --background: 222.2 84% 4.9%;      /* Deep Midnight Navy #0F172A */
+  --foreground: 210 40% 98%;         /* Alabaster #F1F5F9 */
+
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 38 92% 50%;             /* Solar Amber */
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 38 92% 50%;
+
+  --sidebar: 222.2 84% 4.9%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 38 92% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 217.2 32.6% 17.5%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217.2 32.6% 17.5%;
+  --sidebar-ring: 38 92% 50%;
+
+  --ios-card: rgba(30, 41, 59, 0.8);
 }
 
 /* ── Base Styles ──────────────────────────────────── */

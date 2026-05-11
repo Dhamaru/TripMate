@@ -11,24 +11,12 @@ export default function Maps() {
   const [, navigate] = useLocation();
 
   return (
-    <div className="min-h-screen bg-ios-darker text-white">
-      {/* Navigation Header */}
-
-
-      {/* Main Content */}
-      <div className="responsive-container py-4">
-        <div className="mb-4">
-          <h1 className="text-3xl font-bold text-white mb-2" data-testid="maps-title">
-            Offline Maps
-          </h1>
-          <p className="text-ios-gray">
-            Download maps for offline navigation and explore without internet connection
-          </p>
-        </div>
-
-        {/* Offline Maps Component */}
-        <OfflineMaps />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-[#222222] tracking-tight" data-testid="maps-title">Offline Maps</h1>
+        <p className="text-[#6a6a6a] text-sm mt-0.5">Download maps for offline navigation and explore without internet connection</p>
       </div>
+      <OfflineMaps />
     </div>
   );
 }

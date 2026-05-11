@@ -140,81 +140,47 @@ export default function EmergencyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ios-darker text-white">
-      <div className="responsive-container py-8 max-w-4xl pt-header-gap">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-          <h1 className="text-4xl font-bold text-white mb-2">Emergency Services</h1>
-          <p className="text-lg text-ios-gray">Locate nearby hospitals, police, and embassies</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="max-w-2xl mx-auto mb-6">
-            <div className="flex space-x-2">
-              <Input
-                type="text"
-                value={searchLocation}
-                onChange={(e) => {
-                  setSearchLocation(e.target.value);
-                  setCoords(null); // Clear GPS coords when typing manually
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSearch();
-                }}
-                placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
-                className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
-                data-testid="input-emergency-location"
-              />
-              <Button
-                onClick={() => handleSearch()}
-                className="bg-ios-blue hover:bg-blue-600 smooth-transition interactive-tap"
-                data-testid="button-emergency-search"
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="flex items-center">
-                    <i className="fas fa-spinner animate-spin mr-2" />
-                    Searching
-                  </span>
-                ) : (
-                  "Search"
-                )}
-              </Button>
-              <Button
-                onClick={() => useMyLocation()}
-                variant="outline"
-                className="bg-ios-darker border-ios-gray hover:bg-ios-card text-white smooth-transition interactive-tap"
-                title="Use my location"
-                disabled={loading}
-              >
-                <i className="fas fa-location-arrow text-ios-blue" />
-              </Button>
-            </div>
-            {message && <p className="text-red-400 mt-2 text-sm">{message}</p>}
-          </div>
-          <div className="text-center text-sm text-ios-gray mb-2">
-            {loading ? "Searching…" : coords ? `Emergency services near ${displayName}` : message || "Search a location to find nearby emergency services"}
-          </div>
-          <EmergencyServices
-            className="max-w-2xl mx-auto"
-            coords={coords}
-            location={
-              shortName && shortName !== "Current location"
-                ? shortName
-                : displayName && displayName !== "Current location"
-                  ? displayName
-                  : "Current Location"
-            }
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-4">
-          <div className="text-center">
-            <Link href="/app/features">
-              <Button className="bg-gradient-to-r from-ios-blue to-purple-600 smooth-transition interactive-tap radius-md">
-                Explore More Tools
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-[#222222] tracking-tight">Emergency Services</h1>
+        <p className="text-[#6a6a6a] text-sm mt-0.5">Locate nearby hospitals, police, and embassies</p>
       </div>
+
+      <div className="bg-white rounded-2xl border border-[#ebebeb] p-4 max-w-2xl">
+        <div className="flex gap-2">
+          <Input
+            type="text"
+            value={searchLocation}
+            onChange={(e) => { setSearchLocation(e.target.value); setCoords(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+            placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
+            className="bg-[#f7f7f7] border-[#ebebeb] text-[#222222] placeholder:text-[#929292] focus-visible:ring-[#F59E0B]/30"
+            data-testid="input-emergency-location"
+          />
+          <Button onClick={() => handleSearch()} className="bg-[#F59E0B] hover:bg-[#D97706] text-white" data-testid="button-emergency-search" disabled={loading}>
+            {loading ? <span className="flex items-center gap-1"><i className="fas fa-spinner animate-spin" />Searching</span> : "Search"}
+          </Button>
+          <Button onClick={() => useMyLocation()} variant="outline" className="border-[#ebebeb] text-[#222222] hover:bg-[#f7f7f7]" title="Use my location" disabled={loading}>
+            <i className="fas fa-location-arrow text-[#F59E0B]" />
+          </Button>
+        </div>
+        {message && <p className="text-red-500 mt-2 text-sm">{message}</p>}
+        <div className="text-sm text-[#6a6a6a] mt-2">
+          {loading ? "Searching…" : coords ? `Emergency services near ${displayName}` : "Search a location to find nearby emergency services"}
+        </div>
+      </div>
+
+      <EmergencyServices
+        className="max-w-2xl"
+        coords={coords}
+        location={
+          shortName && shortName !== "Current location"
+            ? shortName
+            : displayName && displayName !== "Current location"
+              ? displayName
+              : "Current Location"
+        }
+      />
     </div>
   );
 }

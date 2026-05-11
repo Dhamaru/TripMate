@@ -205,100 +205,77 @@ export default function WeatherPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ios-darker text-white">
-
-
-      {/* Main Content */}
-      <div className="responsive-container py-4 max-w-4xl">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Weather Insights</h1>
-          <p className="text-lg text-ios-gray">7-day forecasts and travel weather recommendations</p>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="max-w-2xl mx-auto mb-6">
-            <div className="flex space-x-2">
-              <Input
-                aria-label="Search location"
-                type="text"
-                value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    if (activeIndex >= 0 && suggestions[activeIndex]) {
-                      const s = suggestions[activeIndex];
-                      setCoords({ lat: s.lat, lon: s.lon });
-                      setDisplayName(s.name);
-                      setLocation(s.name);
-                      setSearchLocation(s.name);
-                      setSuggestions([]);
-                    } else {
-                      handleSearch();
-                    }
-                  }
-                  if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, Math.max(0, suggestions.length - 1))); }
-                  if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, -1)); }
-                }}
-                placeholder="Search location (e.g., Goa, Tokyo)"
-                className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
-                data-testid="input-weather-location"
-              />
-              <Button type="button" onClick={() => handleSearch()} className="bg-ios-blue hover:bg-blue-600 smooth-transition interactive-tap" data-testid="button-weather-search" disabled={loading}>
-                {loading ? (
-                  <span className="flex items-center">
-                    <i className="fas fa-spinner animate-spin mr-2" />
-                    Searching
-                  </span>
-                ) : "Search"}
-              </Button>
-
-              <Button type="button" variant="outline" onClick={() => useMyLocation()} className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card smooth-transition interactive-tap">
-                Use My Location
-              </Button>
-            </div>
-
-            {suggestions.length > 0 && (
-              <div role="listbox" aria-label="Location suggestions" className="mt-2 bg-ios-darker border border-ios-gray rounded-md">
-                {suggestions.map((s, idx) => (
-                  <button
-                    key={`${s.name}-${idx}`}
-                    role="option"
-                    aria-selected={activeIndex === idx}
-                    className={`w-full text-left px-3 py-2 text-sm ${activeIndex === idx ? 'bg-ios-card' : ''}`}
-                    onMouseEnter={() => setActiveIndex(idx)}
-                    onClick={() => {
-                      setCoords({ lat: s.lat, lon: s.lon });
-                      setDisplayName(s.name);
-                      setLocation(s.name);
-                      setSearchLocation(s.name);
-                      setSuggestions([]);
-                    }}
-                    type="button"
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="text-center text-sm text-ios-gray mb-2" role="status" aria-live="polite">
-            {loading ? "Searching…" : coords ? `Showing weather for ${displayName}` : message || (location ? `Showing weather for ${location}` : "Search a location to view weather")}
-          </div>
-
-          <WeatherWidget location={coords ? undefined : location} coords={coords} className="max-w-2xl mx-auto" />
-        </motion.div>
-
-        {/* Radar Map Removed as per user request */}
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8">
-          <div className="text-center">
-            <Link href="/app/features">
-              <Button type="button" className="bg-gradient-to-r from-ios-blue to-purple-600 smooth-transition interactive-tap radius-md">Explore More Tools</Button>
-            </Link>
-          </div>
-        </motion.div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-[#222222] tracking-tight">Weather Insights</h1>
+        <p className="text-[#6a6a6a] text-sm mt-0.5">7-day forecasts and travel weather recommendations</p>
       </div>
+
+      <div className="bg-white rounded-2xl border border-[#ebebeb] p-4 max-w-2xl">
+        <div className="flex gap-2">
+          <Input
+            aria-label="Search location"
+            type="text"
+            value={searchLocation}
+            onChange={(e) => setSearchLocation(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (activeIndex >= 0 && suggestions[activeIndex]) {
+                  const s = suggestions[activeIndex];
+                  setCoords({ lat: s.lat, lon: s.lon });
+                  setDisplayName(s.name);
+                  setLocation(s.name);
+                  setSearchLocation(s.name);
+                  setSuggestions([]);
+                } else {
+                  handleSearch();
+                }
+              }
+              if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, Math.max(0, suggestions.length - 1))); }
+              if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, -1)); }
+            }}
+            placeholder="Search location (e.g., Goa, Tokyo)"
+            className="bg-[#f7f7f7] border-[#ebebeb] text-[#222222] placeholder:text-[#929292] focus-visible:ring-[#F59E0B]/30"
+            data-testid="input-weather-location"
+          />
+          <Button type="button" onClick={() => handleSearch()} className="bg-[#F59E0B] hover:bg-[#D97706] text-white" data-testid="button-weather-search" disabled={loading}>
+            {loading ? <span className="flex items-center gap-1"><i className="fas fa-spinner animate-spin" />Searching</span> : "Search"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => useMyLocation()} className="border-[#ebebeb] text-[#222222] hover:bg-[#f7f7f7]">
+            My Location
+          </Button>
+        </div>
+
+        {suggestions.length > 0 && (
+          <div role="listbox" aria-label="Location suggestions" className="mt-2 bg-white border border-[#ebebeb] rounded-xl shadow-md">
+            {suggestions.map((s, idx) => (
+              <button
+                key={`${s.name}-${idx}`}
+                role="option"
+                aria-selected={activeIndex === idx}
+                className={`w-full text-left px-3 py-2 text-sm text-[#222222] rounded-xl ${activeIndex === idx ? 'bg-[#f7f7f7]' : 'hover:bg-[#f7f7f7]'}`}
+                onMouseEnter={() => setActiveIndex(idx)}
+                onClick={() => {
+                  setCoords({ lat: s.lat, lon: s.lon });
+                  setDisplayName(s.name);
+                  setLocation(s.name);
+                  setSearchLocation(s.name);
+                  setSuggestions([]);
+                }}
+                type="button"
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="text-center text-sm text-[#6a6a6a] mt-3" role="status" aria-live="polite">
+          {loading ? "Searching…" : coords ? `Showing weather for ${displayName}` : message || (location ? `Showing weather for ${location}` : "Search a location to view weather")}
+        </div>
+      </div>
+
+      <WeatherWidget location={coords ? undefined : location} coords={coords} className="max-w-2xl" />
     </div>
   );
 }

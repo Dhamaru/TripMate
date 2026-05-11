@@ -9,38 +9,24 @@ export default {
       borderRadius: {
         none: "0px",
         xs: "4px",
-        sm: "8px",    // buttons
-        md: "14px",   // cards, modals
-        lg: "20px",   // large panels
-        xl: "32px",   // hero sections
-        full: "9999px", // pills, search bars, avatars
-        // shadcn compat
+        sm: "8px",    
+        md: "14px",   
+        lg: "20px",   
+        xl: "12px",   // buttons
+        "3xl": "24px", // cards
+        full: "9999px",
         DEFAULT: "var(--radius)",
       },
 
-      // ─── Colors ───────────────────────────────────────────────────
       colors: {
-        // Airbnb brand tokens
-        rausch: "#ff385c",
-        "rausch-active": "#e00b41",
-        "rausch-disabled": "#ffd1da",
-        "airbnb-ink": "#222222",
-        "airbnb-body": "#3f3f3f",
-        "airbnb-muted": "#6a6a6a",
-        "airbnb-muted-soft": "#929292",
-        "airbnb-hairline": "#dddddd",
-        "airbnb-hairline-soft": "#ebebeb",
-        "airbnb-border-strong": "#c1c1c1",
-        "airbnb-canvas": "#ffffff",
-        "airbnb-surface": "#f7f7f7",
-        "airbnb-surface-strong": "#f2f2f2",
-        "airbnb-luxe": "#460479",
-        "airbnb-plus": "#92174d",
-        "airbnb-teal": "#00a699",
-        "airbnb-orange": "#fc642d",
-        "airbnb-link": "#428bff",
+        // TripMate / Stitch brand tokens
+        "solar-amber": "#F59E0B",
+        "explorer-blue": "#1E3A8A",
+        "emerald-horizon": "#10B981",
+        "ink-gray": "#111827",
+        "alabaster-white": "#FFFFFF",
 
-        // iOS compat bridge — existing components still reference these
+        // iOS compat bridge
         "ios-blue": "var(--ios-blue)",
         "ios-orange": "var(--ios-orange)",
         "ios-green": "var(--ios-green)",
@@ -84,13 +70,6 @@ export default {
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
-        chart: {
-          "1": "var(--chart-1)",
-          "2": "var(--chart-2)",
-          "3": "var(--chart-3)",
-          "4": "var(--chart-4)",
-          "5": "var(--chart-5)",
-        },
         sidebar: {
           DEFAULT: "var(--sidebar)",
           foreground: "var(--sidebar-foreground)",

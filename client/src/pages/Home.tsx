@@ -16,7 +16,7 @@ const STYLE_LABELS: Record<string, string> = {
 };
 
 const quickActions = [
-  { title: "Plan Trip",  icon: Plus,     href: "/app/planner", iconBg: "bg-[#fff1f3]", iconColor: "text-[#ff385c]" },
+  { title: "Plan Trip",  icon: Plus,     href: "/app/planner", iconBg: "bg-[#FFFBEB]", iconColor: "text-[#F59E0B]" },
   { title: "Journal",   icon: BookOpen,  href: "/app/journal", iconBg: "bg-blue-50",   iconColor: "text-blue-500" },
   { title: "Tools",     icon: Grid,      href: "/app/tools",   iconBg: "bg-purple-50", iconColor: "text-purple-500" },
   { title: "Maps",      icon: Map,       href: "/app/maps",    iconBg: "bg-orange-50", iconColor: "text-orange-500" },
@@ -44,9 +44,9 @@ export default function Home() {
     <div className="space-y-8">
       {/* Welcome */}
       <div>
-        <h1 className="text-3xl font-bold text-[#222222] tracking-tight">
+        <h1 className="text-3xl font-bold text-[#111827] tracking-tight">
           {!trips || trips.length === 0 ? "Welcome" : "Welcome back"},{" "}
-          <span className="text-[#ff385c]">{user?.firstName || "Explorer"}</span>
+          <span className="text-[#F59E0B]">{user?.firstName || "Explorer"}</span>
         </h1>
         <p className="text-[#6a6a6a] mt-1">Where shall we go next?</p>
       </div>
@@ -54,10 +54,10 @@ export default function Home() {
       {/* Current trip hero */}
       {!tripsLoading && currentTrip && (
         <div
-          className="bg-white rounded-2xl border border-[#ebebeb] shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
+          className="bg-white rounded-3xl border border-[#ebebeb] shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
           onClick={() => navigate(`/app/trips/${currentTrip.id}`)}
         >
-          <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-[#ff385c] to-[#e00b41]">
+          <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#D97706]">
             {currentTrip.imageUrl && (
               <img
                 src={currentTrip.imageUrl}
@@ -92,7 +92,7 @@ export default function Home() {
                 <span>₹{currentTrip.budget?.toLocaleString()}</span>
               </div>
             </div>
-            <Button size="sm" className="bg-[#ff385c] hover:bg-[#e00b41] text-white rounded-xl gap-1">
+            <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white rounded-xl gap-1">
               View <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </div>
@@ -105,11 +105,11 @@ export default function Home() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
-              <div className="bg-white rounded-2xl border border-[#ebebeb] p-6 flex flex-col items-center gap-3 hover:border-[#ff385c]/30 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="bg-white rounded-3xl border border-[#ebebeb] p-6 flex flex-col items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${action.iconBg} group-hover:scale-110 transition-transform`}>
                   <action.icon className={`w-6 h-6 ${action.iconColor}`} />
                 </div>
-                <span className="text-sm font-semibold text-[#222222]">{action.title}</span>
+                <span className="text-sm font-semibold text-[#111827]">{action.title}</span>
               </div>
             </Link>
           ))}
@@ -122,7 +122,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-bold text-[#929292] uppercase tracking-widest">Recent Trips</h2>
             <Link href="/app/trips">
-              <button className="text-xs text-[#ff385c] font-semibold flex items-center gap-1 hover:opacity-70 transition-opacity">
+              <button className="text-xs text-[#F59E0B] font-semibold flex items-center gap-1 hover:opacity-70 transition-opacity">
                 See all <ArrowRight className="w-3 h-3" />
               </button>
             </Link>
@@ -133,8 +133,8 @@ export default function Home() {
               .slice(0, 3)
               .map((t) => (
                 <Link key={t.id} href={`/app/trips/${t.id}`}>
-                  <div className="bg-white rounded-xl border border-[#ebebeb] p-4 flex items-center gap-3 hover:border-[#ff385c]/30 hover:shadow-sm transition-all cursor-pointer group">
-                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-br from-[#ff385c] to-[#e00b41] flex-shrink-0">
+                  <div className="bg-white rounded-xl border border-[#ebebeb] p-4 flex items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
+                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#D97706] flex-shrink-0">
                       {t.imageUrl ? (
                         <img src={t.imageUrl} alt={t.destination} className="w-full h-full object-cover" />
                       ) : (
@@ -144,13 +144,13 @@ export default function Home() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#222222] truncate text-sm">{t.destination}</p>
+                      <p className="font-semibold text-[#111827] truncate text-sm">{t.destination}</p>
                       <p className="text-[#929292] text-xs capitalize">{t.travelStyle}</p>
                     </div>
                     <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
                       t.status === "completed" ? "bg-green-50 text-green-600 border-green-200" :
                       t.status === "active" ? "bg-blue-50 text-blue-600 border-blue-200" :
-                      "bg-[#fff1f3] text-[#ff385c] border-[#ffd1da]"
+                      "bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A]"
                     }`}>
                       {t.status}
                     </span>
@@ -163,17 +163,17 @@ export default function Home() {
 
       {/* Empty state */}
       {!tripsLoading && (!trips || trips.length === 0) && (
-        <div className="bg-white rounded-2xl border border-[#ebebeb] p-16 flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-[#fff1f3] rounded-2xl flex items-center justify-center mb-5">
-            <Plus className="w-8 h-8 text-[#ff385c]" />
+        <div className="bg-white rounded-3xl border border-[#ebebeb] p-16 flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-[#FFFBEB] rounded-3xl flex items-center justify-center mb-5">
+            <Plus className="w-8 h-8 text-[#F59E0B]" />
           </div>
-          <h2 className="text-xl font-bold text-[#222222] mb-2">No Adventures Yet</h2>
+          <h2 className="text-xl font-bold text-[#111827] mb-2">No Adventures Yet</h2>
           <p className="text-[#6a6a6a] text-sm max-w-xs mb-7">
             Your future travels await. Let Atlas help you plan your first itinerary.
           </p>
           <Button
             onClick={() => navigate("/app/planner")}
-            className="bg-[#ff385c] hover:bg-[#e00b41] text-white px-8 h-11 rounded-xl font-semibold"
+            className="bg-[#1E3A8A] hover:bg-blue-900 text-white px-8 h-11 rounded-xl font-semibold"
           >
             Start Planning
           </Button>
