@@ -89,7 +89,7 @@ export default function Landing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-[#222222] font-sans">
+    <div className="min-h-screen bg-white text-[#111827] font-sans">
 
       {/* ── Navigation ─────────────────────────────────── */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
@@ -105,7 +105,7 @@ export default function Landing() {
                 <a
                   key={link.name}
                   href={link.href}
-                  className="text-[#6a6a6a] hover:text-[#222222] text-sm font-medium transition-colors"
+                  className="text-[#6a6a6a] hover:text-[#111827] text-sm font-medium transition-colors"
                 >
                   {link.name}
                 </a>
@@ -115,13 +115,13 @@ export default function Landing() {
             <div className="hidden md:flex items-center gap-3">
               <button
                 onClick={() => navigate("/signin")}
-                className="text-[#222222] text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#f7f7f7] transition-colors"
+                className="text-[#111827] text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#f7f7f7] transition-colors"
               >
                 Sign In
               </button>
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#ff385c] hover:bg-[#e00b41] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+                className="bg-[#F59E0B] hover:bg-[#D97706] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
               >
                 Get Started Free
               </button>
@@ -130,7 +130,7 @@ export default function Landing() {
             {/* Mobile menu toggle */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-[#222222] hover:bg-[#f7f7f7] rounded-lg transition-colors"
+              className="md:hidden p-2 text-[#111827] hover:bg-[#f7f7f7] rounded-lg transition-colors"
             >
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -152,7 +152,7 @@ export default function Landing() {
                     key={link.name}
                     href={link.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="block text-base font-medium text-[#222222] hover:text-[#ff385c] transition-colors"
+                    className="block text-base font-medium text-[#111827] hover:text-[#F59E0B] transition-colors"
                   >
                     {link.name}
                   </a>
@@ -160,13 +160,13 @@ export default function Landing() {
                 <div className="pt-2 flex flex-col gap-3">
                   <button
                     onClick={() => navigate("/signin")}
-                    className="w-full border border-[#dddddd] text-[#222222] py-3 rounded-lg text-sm font-semibold hover:bg-[#f7f7f7] transition-colors"
+                    className="w-full border border-[#dddddd] text-[#111827] py-3 rounded-lg text-sm font-semibold hover:bg-[#f7f7f7] transition-colors"
                   >
                     Sign In
                   </button>
                   <button
                     onClick={() => navigate("/signup")}
-                    className="w-full bg-[#ff385c] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#e00b41] transition-colors"
+                    className="w-full bg-[#F59E0B] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#D97706] transition-colors"
                   >
                     Get Started Free
                   </button>
@@ -187,14 +187,14 @@ export default function Landing() {
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 bg-[#fff1f3] text-[#ff385c] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#ff385c]" />
+            <div className="inline-flex items-center gap-2 bg-[#FFFBEB] text-[#F59E0B] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
               AI-Powered Travel Planning
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-[#222222] leading-tight tracking-tight mb-6" data-testid="hero-title">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-[#111827] leading-tight tracking-tight mb-6" data-testid="hero-title">
               Your AI Travel
-              <span className="text-[#ff385c]"> Companion</span>
+              <span className="text-[#F59E0B]"> Companion</span>
             </h1>
 
             <p className="text-lg text-[#6a6a6a] mb-10 max-w-2xl mx-auto leading-relaxed" data-testid="hero-description">
@@ -205,18 +205,18 @@ export default function Landing() {
             {/* Hero search bar (Airbnb pill) */}
             <div className="max-w-2xl mx-auto mb-8">
               <div className="flex items-center bg-white border border-[#dddddd] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] px-6 py-4 gap-4">
-                <MapPin className="w-5 h-5 text-[#ff385c] flex-shrink-0" />
+                <MapPin className="w-5 h-5 text-[#F59E0B] flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="Where do you want to go?"
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
-                  className="flex-1 text-[#222222] text-base outline-none bg-transparent placeholder:text-[#929292]"
+                  className="flex-1 text-[#111827] text-base outline-none bg-transparent placeholder:text-[#929292]"
                   data-testid="input-destination"
                 />
                 <button
                   onClick={() => navigate("/signup")}
-                  className="bg-[#ff385c] hover:bg-[#e00b41] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
+                  className="bg-[#F59E0B] hover:bg-[#D97706] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
                   data-testid="button-get-started"
                 >
                   Plan Trip
@@ -233,8 +233,8 @@ export default function Landing() {
                   onClick={() => setSelectedStyle(style.name === selectedStyle ? null : style.name)}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
                     selectedStyle === style.name
-                      ? "bg-[#ff385c] border-[#ff385c] text-white"
-                      : "bg-white border-[#dddddd] text-[#222222] hover:border-[#222222]"
+                      ? "bg-[#F59E0B] border-[#F59E0B] text-white"
+                      : "bg-white border-[#dddddd] text-[#111827] hover:border-[#111827]"
                   }`}
                 >
                   <style.icon className="w-3.5 h-3.5" />
@@ -247,13 +247,13 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#ff385c] hover:bg-[#e00b41] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="bg-[#F59E0B] hover:bg-[#D97706] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>
               <button
                 onClick={() => navigate("/signin")}
-                className="bg-white border border-[#222222] text-[#222222] px-8 py-4 rounded-lg text-base font-semibold hover:bg-[#f7f7f7] transition-colors"
+                className="bg-white border border-[#111827] text-[#111827] px-8 py-4 rounded-lg text-base font-semibold hover:bg-[#f7f7f7] transition-colors"
               >
                 Sign In
               </button>
@@ -269,8 +269,8 @@ export default function Landing() {
             {stats.map((stat) => (
               <div key={stat.label}>
                 <div className="flex items-center justify-center gap-1">
-                  <span className="text-2xl font-bold text-[#222222]">{stat.value}</span>
-                  {stat.icon && <stat.icon className="w-4 h-4 text-[#ff385c] fill-[#ff385c]" />}
+                  <span className="text-2xl font-bold text-[#111827]">{stat.value}</span>
+                  {stat.icon && <stat.icon className="w-4 h-4 text-[#F59E0B] fill-[#F59E0B]" />}
                 </div>
                 <div className="text-sm text-[#6a6a6a] mt-1">{stat.label}</div>
               </div>
@@ -283,8 +283,8 @@ export default function Landing() {
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[#ff385c] text-sm font-semibold mb-2 uppercase tracking-wide">Features</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#222222] mb-4" data-testid="features-title">
+            <p className="text-[#F59E0B] text-sm font-semibold mb-2 uppercase tracking-wide">Features</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-[#111827] mb-4" data-testid="features-title">
               Everything You Need
             </h2>
             <p className="text-[#6a6a6a] text-lg max-w-2xl mx-auto" data-testid="features-description">
@@ -300,15 +300,15 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.35, delay: i * 0.05 }}
-                className="bg-white border border-[#ebebeb] rounded-2xl p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] hover:-translate-y-1 transition-all duration-200 group"
+                className="bg-white border border-[#ebebeb] rounded-3xl p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] hover:-translate-y-1 transition-all duration-200 group"
                 data-testid={`feature-card-${i}`}
               >
-                <div className="w-11 h-11 bg-[#fff1f3] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#ff385c] transition-colors">
-                  <feature.icon className="w-5 h-5 text-[#ff385c] group-hover:text-white transition-colors" />
+                <div className="w-11 h-11 bg-[#FFFBEB] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#F59E0B] transition-colors">
+                  <feature.icon className="w-5 h-5 text-[#F59E0B] group-hover:text-white transition-colors" />
                 </div>
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-base font-semibold text-[#222222]">{feature.title}</h3>
-                  <span className="text-[10px] font-bold text-[#ff385c] bg-[#fff1f3] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                  <h3 className="text-base font-semibold text-[#111827]">{feature.title}</h3>
+                  <span className="text-[10px] font-bold text-[#F59E0B] bg-[#FFFBEB] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
                     {feature.tag}
                   </span>
                 </div>
@@ -323,8 +323,8 @@ export default function Landing() {
       <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 bg-[#f7f7f7]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[#ff385c] text-sm font-semibold mb-2 uppercase tracking-wide">How It Works</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#222222] mb-4">
+            <p className="text-[#F59E0B] text-sm font-semibold mb-2 uppercase tracking-wide">How It Works</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-[#111827] mb-4">
               Plan Your Perfect Trip
             </h2>
             <p className="text-[#6a6a6a] text-lg max-w-xl mx-auto" data-testid="planner-description">
@@ -338,9 +338,9 @@ export default function Landing() {
               { step: "02", title: "AI Builds Your Plan", desc: "Our multi-agent AI researches, drafts, and validates your itinerary against real-world constraints." },
               { step: "03", title: "Travel & Adjust", desc: "Track expenses, write journal entries, and let Atlas AI answer questions on the go." },
             ].map((item) => (
-              <div key={item.step} className="bg-white border border-[#ebebeb] rounded-2xl p-6">
-                <div className="text-3xl font-bold text-[#ff385c] mb-3 font-mono">{item.step}</div>
-                <h3 className="font-semibold text-[#222222] mb-2">{item.title}</h3>
+              <div key={item.step} className="bg-white border border-[#ebebeb] rounded-3xl p-6">
+                <div className="text-3xl font-bold text-[#F59E0B] mb-3 font-mono">{item.step}</div>
+                <h3 className="font-semibold text-[#111827] mb-2">{item.title}</h3>
                 <p className="text-sm text-[#6a6a6a] leading-relaxed">{item.desc}</p>
               </div>
             ))}
@@ -349,7 +349,7 @@ export default function Landing() {
           <div className="mt-10 text-center">
             <button
               onClick={() => navigate("/signup")}
-              className="inline-flex items-center gap-2 bg-[#ff385c] hover:bg-[#e00b41] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+              className="inline-flex items-center gap-2 bg-[#1E3A8A] hover:bg-blue-800 text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               data-testid="button-generate-itinerary"
             >
               Start Planning
@@ -362,7 +362,7 @@ export default function Landing() {
       {/* ── Why TripMate ───────────────────────────────── */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          <div className="bg-[#222222] rounded-3xl p-10 md:p-16 text-center">
+          <div className="bg-[#1E3A8A] rounded-3xl p-10 md:p-16 text-center">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
               Ready to travel smarter?
             </h2>
@@ -372,7 +372,7 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#ff385c] hover:bg-[#e00b41] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="bg-[#F59E0B] hover:bg-[#D97706] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>
@@ -407,28 +407,28 @@ export default function Landing() {
             </div>
 
             <div>
-              <h3 className="text-[#222222] font-semibold text-sm mb-4">Features</h3>
+              <h3 className="text-[#111827] font-semibold text-sm mb-4">Features</h3>
               <ul className="space-y-2.5 text-sm text-[#6a6a6a]">
                 {["Trip Planner", "Travel Journal", "Weather Forecast", "Language Translator", "Emergency Services"].map((f) => (
-                  <li key={f}><a href="#" className="hover:text-[#222222] transition-colors">{f}</a></li>
+                  <li key={f}><a href="#" className="hover:text-[#111827] transition-colors">{f}</a></li>
                 ))}
               </ul>
             </div>
 
             <div>
-              <h3 className="text-[#222222] font-semibold text-sm mb-4">Support</h3>
+              <h3 className="text-[#111827] font-semibold text-sm mb-4">Support</h3>
               <ul className="space-y-2.5 text-sm text-[#6a6a6a]">
-                <li><a href="/app/feedback" className="hover:text-[#222222] transition-colors">Help Center</a></li>
-                <li><a href="/privacy" className="hover:text-[#222222] transition-colors">Privacy Policy</a></li>
-                <li><a href="/terms" className="hover:text-[#222222] transition-colors">Terms of Service</a></li>
-                <li><a href="/app/feedback" className="hover:text-[#222222] transition-colors">Contact Us</a></li>
+                <li><a href="/app/feedback" className="hover:text-[#111827] transition-colors">Help Center</a></li>
+                <li><a href="/privacy" className="hover:text-[#111827] transition-colors">Privacy Policy</a></li>
+                <li><a href="/terms" className="hover:text-[#111827] transition-colors">Terms of Service</a></li>
+                <li><a href="/app/feedback" className="hover:text-[#111827] transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
 
           {/* Team */}
           <div className="border-t border-[#ebebeb] pt-10 mb-10">
-            <h3 className="text-[#222222] font-semibold text-center mb-6">Meet the Team</h3>
+            <h3 className="text-[#111827] font-semibold text-center mb-6">Meet the Team</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
               {[
                 {
@@ -436,8 +436,8 @@ export default function Landing() {
                   name: "Sai Naidu .B",
                   role: "Product Visionary & UX Designer",
                   bio: "Conceptualized the core features and user experience that make TripMate intuitive and powerful.",
-                  color: "bg-[#fff1f3]",
-                  iconColor: "text-[#ff385c]",
+                  color: "bg-[#FFFBEB]",
+                  iconColor: "text-[#F59E0B]",
                 },
                 {
                   icon: Code,
@@ -448,13 +448,13 @@ export default function Landing() {
                   iconColor: "text-[#00a699]",
                 },
               ].map((member) => (
-                <div key={member.name} className="flex items-start gap-4 bg-[#f7f7f7] rounded-2xl p-5">
+                <div key={member.name} className="flex items-start gap-4 bg-[#f7f7f7] rounded-3xl p-5">
                   <div className={`w-10 h-10 ${member.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
                     <member.icon className={`w-5 h-5 ${member.iconColor}`} />
                   </div>
                   <div>
-                    <div className="font-semibold text-[#222222] text-sm">{member.name}</div>
-                    <div className="text-[#ff385c] text-xs font-medium mb-1">{member.role}</div>
+                    <div className="font-semibold text-[#111827] text-sm">{member.name}</div>
+                    <div className="text-[#F59E0B] text-xs font-medium mb-1">{member.role}</div>
                     <p className="text-xs text-[#6a6a6a] leading-relaxed">{member.bio}</p>
                   </div>
                 </div>
