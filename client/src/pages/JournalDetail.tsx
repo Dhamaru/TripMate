@@ -149,10 +149,10 @@ export default function JournalDetail() {
 
     if (authLoading || entryLoading) {
         return (
-            <div className="min-h-screen bg-ios-darker flex items-center justify-center">
+            <div className=" flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
-                    <p className="text-ios-gray">Loading memory...</p>
+                    <p className="text-gray-500">Loading memory...</p>
                 </div>
             </div>
         );
@@ -160,15 +160,15 @@ export default function JournalDetail() {
 
     if (error || !entry) {
         return (
-            <div className="min-h-screen bg-ios-darker flex items-center justify-center p-4">
-                <Card className="bg-ios-card border-ios-gray max-w-md w-full">
+            <div className=" flex items-center justify-center p-4">
+                <Card className="bg-white border-gray-200 max-w-md w-full">
                     <CardContent className="p-8 text-center">
-                        <div className="text-ios-red mb-4">
+                        <div className="text-red-500 mb-4">
                             <Trash2 className="w-12 h-12 mx-auto" />
                         </div>
-                        <h2 className="text-xl font-bold text-white mb-2">Memory Not Found</h2>
-                        <p className="text-ios-gray mb-6">The journal entry you're looking for doesn't exist or has been removed.</p>
-                        <Button onClick={() => navigate("/app/journal")} className="bg-ios-blue w-full">
+                        <h2 className="text-xl font-bold text-[#111827] mb-2">Memory Not Found</h2>
+                        <p className="text-gray-500 mb-6">The journal entry you're looking for doesn't exist or has been removed.</p>
+                        <Button onClick={() => navigate("/app/journal")} className="bg-[#1E3A8A] w-full">
                             Back to Journal
                         </Button>
                     </CardContent>
@@ -192,14 +192,14 @@ export default function JournalDetail() {
     };
 
     return (
-        <div className="min-h-screen bg-ios-darker text-white pb-20">
+        <div className=" pb-20">
             <div className="max-w-4xl mx-auto px-4 py-6">
                 {/* Top Navigation */}
                 <div className="flex items-center justify-between mb-6">
                     <Button
                         variant="ghost"
                         onClick={() => navigate("/app/journal")}
-                        className="text-ios-gray hover:text-white p-0 h-auto hover:bg-transparent"
+                        className="text-gray-500 hover:text-white p-0 h-auto hover:bg-transparent"
                     >
                         <ChevronLeft className="w-5 h-5 mr-1" />
                         Back to Journal
@@ -212,7 +212,7 @@ export default function JournalDetail() {
                                     variant="outline"
                                     size="sm"
                                     onClick={handleShare}
-                                    className="bg-ios-card border-ios-gray text-white hover:bg-ios-dark"
+                                    className="bg-white border-gray-200 text-[#111827] hover:bg-gray-100"
                                 >
                                     <Share2 className="w-4 h-4 mr-2" />
                                     Share
@@ -221,7 +221,7 @@ export default function JournalDetail() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setIsEditing(true)}
-                                    className="bg-ios-card border-ios-gray text-white hover:bg-ios-dark"
+                                    className="bg-white border-gray-200 text-[#111827] hover:bg-gray-100"
                                 >
                                     <Edit className="w-4 h-4 mr-2" />
                                     Edit
@@ -234,7 +234,7 @@ export default function JournalDetail() {
                                             deleteEntryMutation.mutate(entry.id);
                                         }
                                     }}
-                                    className="bg-ios-card border-ios-red text-ios-red hover:bg-ios-red hover:text-white"
+                                    className="bg-white border-red-400 text-red-500 hover:bg-red-500 hover:text-white"
                                 >
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Delete
@@ -249,48 +249,48 @@ export default function JournalDetail() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                     >
-                        <Card className="bg-ios-card border-ios-gray shadow-xl rounded-3xl overflow-hidden mb-8">
+                        <Card className="bg-white border-gray-200 shadow-xl rounded-3xl overflow-hidden mb-8">
                             <CardHeader>
-                                <CardTitle className="text-white">Edit Memory</CardTitle>
+                                <CardTitle className="text-[#111827]">Edit Memory</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Title</label>
+                                        <label className="text-sm font-medium text-[#111827]">Title</label>
                                         <input
                                             type="text"
                                             value={entryForm.title}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
-                                            className="w-full bg-ios-darker border border-ios-gray rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
                                             required
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Location</label>
+                                        <label className="text-sm font-medium text-[#111827]">Location</label>
                                         <input
                                             type="text"
                                             value={entryForm.location}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, location: e.target.value }))}
-                                            className="w-full bg-ios-darker border border-ios-gray rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Content</label>
+                                        <label className="text-sm font-medium text-[#111827]">Content</label>
                                         <textarea
                                             value={entryForm.content}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, content: e.target.value }))}
-                                            className="w-full bg-ios-darker border border-ios-gray rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue min-h-[200px]"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue min-h-[200px]"
                                             required
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Add Photos</label>
+                                        <label className="text-sm font-medium text-[#111827]">Add Photos</label>
                                         <input
                                             type="file"
                                             multiple
                                             accept="image/*"
                                             onChange={(e) => setPhotos(e.target.files)}
-                                            className="w-full text-sm text-ios-gray file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-ios-blue file:text-white hover:file:bg-blue-600"
+                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#1E3A8A] file:text-white hover:file:bg-blue-600"
                                         />
                                     </div>
                                     {keptPhotos.length > 0 && (
@@ -314,14 +314,14 @@ export default function JournalDetail() {
                                             type="button"
                                             variant="outline"
                                             onClick={() => setIsEditing(false)}
-                                            className="flex-1 bg-ios-darker border-ios-gray"
+                                            className="flex-1 border-gray-200 text-[#111827]"
                                         >
                                             Cancel
                                         </Button>
                                         <Button
                                             type="submit"
                                             disabled={updateEntryMutation.isPending}
-                                            className="flex-1 bg-ios-orange"
+                                            className="flex-1 bg-amber-500 text-white"
                                         >
                                             {updateEntryMutation.isPending ? "Saving..." : "Save Changes"}
                                         </Button>
@@ -368,7 +368,7 @@ export default function JournalDetail() {
                         ) : (
                             <motion.div
                                 variants={itemVariants}
-                                className="h-48 md:h-64 rounded-3xl bg-gradient-to-br from-ios-blue to-purple-600 flex items-center justify-center mb-8 shadow-xl"
+                                className="h-48 md:h-64 rounded-3xl bg-gradient-to-br from-[#1E3A8A] to-blue-700 flex items-center justify-center mb-8 shadow-xl"
                             >
                                 <MapPin className="w-16 h-16 text-white/50" />
                             </motion.div>
@@ -376,24 +376,24 @@ export default function JournalDetail() {
 
                         {/* Header Info */}
                         <div className="mb-8">
-                            <motion.h1 variants={itemVariants} className="text-3xl md:text-5xl font-bold text-white mb-4">{entry.title}</motion.h1>
+                            <motion.h1 variants={itemVariants} className="text-3xl md:text-5xl font-bold text-[#111827] mb-4">{entry.title}</motion.h1>
 
-                            <div className="flex flex-wrap gap-4 text-ios-gray">
+                            <div className="flex flex-wrap gap-4 text-gray-500">
                                 {entry.location && (
-                                    <motion.div variants={itemVariants} className="flex items-center bg-ios-card px-3 py-1.5 rounded-full border border-ios-gray/30">
-                                        <MapPin className="w-4 h-4 mr-2 text-ios-blue" />
-                                        <span className="text-sm font-medium">{entry.location}</span>
+                                    <motion.div variants={itemVariants} className="flex items-center bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                                        <MapPin className="w-4 h-4 mr-2 text-[#1E3A8A]" />
+                                        <span className="text-sm font-medium text-[#111827]">{entry.location}</span>
                                     </motion.div>
                                 )}
-                                <motion.div variants={itemVariants} className="flex items-center bg-ios-card px-3 py-1.5 rounded-full border border-ios-gray/30">
-                                    <Calendar className="w-4 h-4 mr-2 text-ios-orange" />
-                                    <span className="text-sm font-medium">
+                                <motion.div variants={itemVariants} className="flex items-center bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                                    <Calendar className="w-4 h-4 mr-2 text-amber-500" />
+                                    <span className="text-sm font-medium text-[#111827]">
                                         {new Date(entry.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                     </span>
                                 </motion.div>
-                                <motion.div variants={itemVariants} className="flex items-center bg-ios-card px-3 py-1.5 rounded-full border border-ios-gray/30">
-                                    <Clock className="w-4 h-4 mr-2 text-ios-green" />
-                                    <span className="text-sm font-medium">
+                                <motion.div variants={itemVariants} className="flex items-center bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                                    <Clock className="w-4 h-4 mr-2 text-emerald-500" />
+                                    <span className="text-sm font-medium text-[#111827]">
                                         {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </motion.div>
@@ -402,9 +402,9 @@ export default function JournalDetail() {
 
                         {/* Large Content Section */}
                         <motion.div variants={itemVariants}>
-                            <Card className="bg-ios-card border-ios-gray shadow-xl rounded-3xl overflow-hidden backdrop-blur-sm bg-opacity-80">
+                            <Card className="bg-white border-gray-200 shadow-xl rounded-3xl overflow-hidden backdrop-blur-sm bg-opacity-80">
                                 <CardContent className="p-6 md:p-10">
-                                    <div className="prose prose-invert max-w-none text-lg leading-relaxed text-gray-200 whitespace-pre-wrap">
+                                    <div className="prose prose-invert max-w-none text-lg leading-relaxed text-[#111827] whitespace-pre-wrap">
                                         {entry.content}
                                     </div>
                                 </CardContent>
