@@ -19,11 +19,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
     isAuthenticated: false,
     signIn: async (email, password) => {
         const { user } = await authApi.signIn({ email, password })
-        set({ user, isAuthenticated: true })
+        set({ user, isAuthenticated: true, isLoading: false })
     },
     signUp: async (email, password, firstName, lastName) => {
         const { user } = await authApi.signUp({ email, password, firstName, lastName })
-        set({ user, isAuthenticated: true })
+        set({ user, isAuthenticated: true, isLoading: false })
     },
     signOut: async () => {
         await authApi.signOut()
@@ -39,6 +39,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
     },
     guestSignIn: async () => {
         const { user } = await authApi.guestSignIn()
-        set({ user, isAuthenticated: true })
+        set({ user, isAuthenticated: true, isLoading: false })
     },
 }))

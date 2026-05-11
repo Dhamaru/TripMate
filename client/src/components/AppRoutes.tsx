@@ -87,11 +87,9 @@ function Router() {
         </PublicRoute>
       </Route>
       <Route path="/reset-password">
-        <PublicRoute>
-          <AuthLayout>
-            <ResetPasswordPage />
-          </AuthLayout>
-        </PublicRoute>
+        <AuthLayout>
+          <ResetPasswordPage />
+        </AuthLayout>
       </Route>
 
       {/* Support Routes */}
