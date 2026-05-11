@@ -108,7 +108,7 @@ export default function Landing() {
     debounceRef.current = window.setTimeout(async () => {
       abortRef.current = new AbortController();
       try {
-        const res = await fetch(`/api/v1/geocode?query=${encodeURIComponent(q)}`, { signal: abortRef.current.signal });
+        const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`, { signal: abortRef.current.signal });
         const json = await res.json().catch(() => []);
         const arr: any[] = Array.isArray(json) ? json : (Array.isArray(json?.results) ? json.results : []);
         const mapped = arr.slice(0, 6).map((it: any) => ({
