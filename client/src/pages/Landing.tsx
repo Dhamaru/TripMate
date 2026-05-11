@@ -6,7 +6,7 @@ import {
   Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -77,10 +77,53 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
+  const [suggestions, setSuggestions] = useState<Array<{ name: string; country: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const debounceRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) navigate("/app/home");
   }, [isAuthenticated, isLoading, navigate]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Debounced geocode fetch for suggestions
+  useEffect(() => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    const q = destination.trim();
+    if (q.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    debounceRef.current = window.setTimeout(async () => {
+      abortRef.current = new AbortController();
+      try {
+        const res = await fetch(`/api/v1/geocode?query=${encodeURIComponent(q)}`, { signal: abortRef.current.signal });
+        const json = await res.json().catch(() => []);
+        const arr: any[] = Array.isArray(json) ? json : (Array.isArray(json?.results) ? json.results : []);
+        const mapped = arr.slice(0, 6).map((it: any) => ({
+          name: it.name || it.display_name?.split(',')[0] || '',
+          country: it.country || it.display_name?.split(',').slice(-1)[0]?.trim() || '',
+        })).filter((s) => s.name);
+        setSuggestions(mapped);
+        setShowSuggestions(mapped.length > 0);
+        setActiveIndex(-1);
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') setSuggestions([]);
+      }
+    }, 280);
+    return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
+  }, [destination]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -202,17 +245,32 @@ export default function Landing() {
               From itinerary generation to real-time guidance — your entire journey, handled.
             </p>
 
-            {/* Hero search bar (Airbnb pill) */}
-            <div className="max-w-2xl mx-auto mb-8">
+            {/* Hero search bar with autocomplete */}
+            <div className="max-w-2xl mx-auto mb-8 relative" ref={searchRef}>
               <div className="flex items-center bg-white border border-[#dddddd] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] px-6 py-4 gap-4">
                 <MapPin className="w-5 h-5 text-[#F59E0B] flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="Where do you want to go?"
                   value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
+                  onChange={(e) => { setDestination(e.target.value); }}
+                  onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+                    if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, -1)); }
+                    if (e.key === "Enter") {
+                      if (activeIndex >= 0 && suggestions[activeIndex]) {
+                        setDestination(suggestions[activeIndex].name);
+                        setShowSuggestions(false);
+                      } else {
+                        navigate("/signup");
+                      }
+                    }
+                    if (e.key === "Escape") setShowSuggestions(false);
+                  }}
                   className="flex-1 text-[#111827] text-base outline-none bg-transparent placeholder:text-[#929292]"
                   data-testid="input-destination"
+                  autoComplete="off"
                 />
                 <button
                   onClick={() => navigate("/signup")}
@@ -223,6 +281,35 @@ export default function Landing() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Suggestions dropdown */}
+              <AnimatePresence>
+                {showSuggestions && suggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 right-0 top-full mt-2 bg-white border border-[#dddddd] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden z-50"
+                  >
+                    {suggestions.map((s, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${activeIndex === idx ? 'bg-[#FFFBEB]' : 'hover:bg-[#f7f7f7]'}`}
+                        onMouseEnter={() => setActiveIndex(idx)}
+                        onClick={() => { setDestination(s.name); setShowSuggestions(false); }}
+                      >
+                        <MapPin className="w-4 h-4 text-[#F59E0B] flex-shrink-0" />
+                        <div>
+                          <span className="text-sm font-medium text-[#111827]">{s.name}</span>
+                          {s.country && <span className="text-xs text-[#929292] ml-2">{s.country}</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Travel style chips */}

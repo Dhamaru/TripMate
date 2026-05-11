@@ -39,6 +39,12 @@ export default function SignInPage() {
   });
 
   // Google OAuth redirects to /app/home with cookie set — no URL token param needed
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err === "google_not_configured") setError("Google Sign-In is not configured on the server.");
+    else if (err === "auth_failed") setError("Google authentication failed. Please try again.");
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {

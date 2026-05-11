@@ -6,6 +6,7 @@ import { getCsrfToken } from "../middleware/csrf.middleware";
 import { authLimiter } from "../middleware/rateLimit.middleware";
 import { signInSchema, signUpSchema } from "../schemas/auth.schemas";
 import passport from "passport";
+import { config as appConfig } from "../config";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -48,10 +49,24 @@ router.post("/signout", authController.signout);
 router.post("/forgot-password", authLimiter, authController.forgotPassword);
 router.post("/reset-password", authLimiter, authController.resetPassword);
 
-router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+router.get("/providers", (_req, res) => {
+  res.json({ google: !!(appConfig.GOOGLE_CLIENT_ID && appConfig.GOOGLE_CLIENT_SECRET) });
+});
+
+router.get("/google", (req, res, next) => {
+  if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
+    return res.redirect("/signin?error=google_not_configured");
+  }
+  return passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+});
 router.get(
   "/google/callback",
-  passport.authenticate("google", { session: true, failureRedirect: "/signin?error=auth_failed" }),
+  (req, res, next) => {
+    if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
+      return res.redirect("/signin?error=google_not_configured");
+    }
+    return passport.authenticate("google", { session: true, failureRedirect: "/signin?error=auth_failed" })(req, res, next);
+  },
   authController.googleCallback
 );
 
