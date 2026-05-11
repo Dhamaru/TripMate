@@ -11,10 +11,14 @@ interface UserPresence {
     lastSeen: number;
 }
 
+interface AuthenticatedSocket extends Socket {
+    userId?: string;
+}
+
 export class SocketService {
     private static instance: SocketService;
     private io: SocketIOServer | null = null;
-    private presence: Map<string, Map<string, UserPresence>> = new Map(); // tripId -> userId -> presence
+    private presence: Map<string, Map<string, UserPresence>> = new Map();
 
     private constructor() {}
 
@@ -28,55 +32,60 @@ export class SocketService {
     public init(server: HTTPServer) {
         this.io = new SocketIOServer(server, {
             cors: {
-                origin: "*", // Adjust in production
+                origin: config.FRONTEND_URL || (config.NODE_ENV === "production" ? false : "*"),
                 methods: ["GET", "POST"],
-                credentials: true
-            }
+                credentials: true,
+            },
         });
-        
-        this.io.use((socket, next) => {
+
+        // Auth middleware — reject invalid tokens, allow missing (public/guest connections)
+        this.io.use((socket: AuthenticatedSocket, next) => {
             const token = socket.handshake.auth?.token;
             if (!token) {
-                log(`[Socket] Auth warning: No token provided, continuing as guest/session user`);
+                // No token — unauthenticated connection allowed (read-only / public trip view)
                 return next();
             }
-
             try {
                 const decoded = jwt.verify(token, config.JWT_SECRET) as { sub: string };
-                (socket as any).userId = decoded.sub;
+                socket.userId = decoded.sub;
                 next();
-            } catch (err) {
-                log(`[Socket] Auth failed: Invalid token, but continuing`);
-                next();
+            } catch {
+                return next(new Error("UNAUTHORIZED"));
             }
         });
 
-        this.io.on("connection", (socket: Socket) => {
-            log(`[Socket] Client connected: ${socket.id}`);
+        this.io.on("connection", (socket: AuthenticatedSocket) => {
+            log(`[Socket] Client connected: ${socket.id} (user: ${socket.userId ?? "guest"})`);
 
-            socket.on("join-trip", ({ tripId, userId, userName, avatar }) => {
+            socket.on("join-trip", ({ tripId, userName, avatar }) => {
+                // Always use server-verified userId from JWT — never trust client payload
+                const userId = socket.userId;
+                if (!userId) {
+                    socket.emit("error", { message: "Authentication required to join trip room" });
+                    return;
+                }
+
                 socket.join(`trip:${tripId}`);
                 log(`[Socket] User ${userId} joined trip room: ${tripId}`);
-                
-                // Track presence
+
                 if (!this.presence.has(tripId)) {
                     this.presence.set(tripId, new Map());
                 }
                 this.presence.get(tripId)!.set(userId, {
                     userId,
-                    userName,
+                    userName: userName ?? "Unknown",
                     avatar,
-                    lastSeen: Date.now()
+                    lastSeen: Date.now(),
                 });
 
                 this.broadcastPresence(tripId);
             });
 
-            socket.on("leave-trip", ({ tripId, userId }) => {
+            socket.on("leave-trip", ({ tripId }) => {
+                const userId = socket.userId;
                 socket.leave(`trip:${tripId}`);
-                log(`[Socket] User ${userId} left trip room: ${tripId}`);
-                
-                if (this.presence.has(tripId)) {
+
+                if (userId && this.presence.has(tripId)) {
                     this.presence.get(tripId)!.delete(userId);
                     this.broadcastPresence(tripId);
                 }
@@ -84,8 +93,15 @@ export class SocketService {
 
             socket.on("disconnect", () => {
                 log(`[Socket] Client disconnected: ${socket.id}`);
-                // Simple disconnect handling - in a real app, track socketId -> {tripId, userId}
-                // for automatic presence removal.
+                // Clean up presence for this socket's user across all rooms
+                if (socket.userId) {
+                    for (const [tripId, members] of this.presence.entries()) {
+                        if (members.has(socket.userId)) {
+                            members.delete(socket.userId);
+                            this.broadcastPresence(tripId);
+                        }
+                    }
+                }
             });
         });
     }
@@ -99,7 +115,6 @@ export class SocketService {
 
     public broadcastMutation(tripId: string, mutation: { type: string; data?: any }) {
         if (this.io) {
-            log(`[Socket] Broadcasting mutation: ${mutation.type} in trip ${tripId}`);
             this.io.to(`trip:${tripId}`).emit("trip-mutation", mutation);
         }
     }

@@ -2,10 +2,12 @@ import { Router } from "express";
 import { chat, stream, getHistory, clearHistory } from "../controllers/agent.controller";
 import { requireAuth } from "../middleware/auth";
 import { aiLimiter } from "../middleware/rateLimit.middleware";
+import { validate } from "../middleware/validate";
+import { agentMessageSchema } from "../schemas/agent.schemas";
 
 const router = Router();
 
-router.post("/chat", requireAuth, aiLimiter, chat);
+router.post("/chat", requireAuth, aiLimiter, validate(agentMessageSchema), chat);
 // SSE stream endpoint
 router.get("/chat/stream", requireAuth, aiLimiter, stream);
 router.get("/history/:tripId", requireAuth, getHistory);

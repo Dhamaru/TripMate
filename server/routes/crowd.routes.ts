@@ -11,7 +11,9 @@ const router = Router();
 router.get("/density", optionalAuth, crowdController.getDensity);
 router.post("/density", requireAuth, crowdController.reportDensity);
 
-// Debug route
-router.post("/debug/seed", crowdController.seedCrowd);
+// Debug route — development only
+if (process.env.NODE_ENV !== "production") {
+    router.post("/debug/seed", crowdController.seedCrowd);
+}
 
 export default router;
