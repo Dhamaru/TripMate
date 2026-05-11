@@ -181,7 +181,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="h-full"
+              className="px-6 py-6 max-w-6xl mx-auto w-full"
             >
               {children}
             </motion.div>
