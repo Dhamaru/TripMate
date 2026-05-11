@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { optionalAuth } from "../middleware/auth";
+import { apiProxyLimiter } from "../middleware/rateLimit.middleware";
 import { config } from "../config";
 
 const router = Router();
 
+router.use(apiProxyLimiter);
 router.use(optionalAuth);
 
 router.get("/search", async (req, res) => {

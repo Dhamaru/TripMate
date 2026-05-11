@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { weatherHandler } from "../agent/tools/handlers/weatherHandler";
 import { optionalAuth } from "../middleware/auth";
+import { apiProxyLimiter } from "../middleware/rateLimit.middleware";
 
 const router = Router();
+
+router.use(apiProxyLimiter);
 
 router.get("/", optionalAuth, async (req, res) => {
     try {

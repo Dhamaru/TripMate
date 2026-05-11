@@ -19,10 +19,17 @@ export const generalLimiter = rateLimit({
         return path.startsWith("/health")
             || path.startsWith("/liveness")
             || path.startsWith("/readiness")
-            || path.startsWith("/version")
-            || path.includes("/weather")
-            || path.includes("/places");
+            || path.startsWith("/version");
     },
+})
+
+// Proxy limiter for external API pass-through routes (weather, places)
+export const apiProxyLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => res.status(429).json(rateLimitResponse(60)),
 })
 
 // Strict limiter for auth endpoints — prevents brute-force and credential stuffing
