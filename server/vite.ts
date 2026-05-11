@@ -83,6 +83,16 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // Service worker must never be cached by HTTP — browser needs to fetch fresh on every visit
+  // so it can detect new deploys and update itself
+  app.use((req, res, next) => {
+    if (req.path === "/sw.js" || req.path.startsWith("/workbox-")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+    }
+    next();
+  });
+
   app.use(express.static(distPath, {
     maxAge: "1y",
     immutable: true,
