@@ -1,17 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+// Leaflet.heat expect L to be global
+if (typeof window !== 'undefined') {
+    (window as any).L = L;
+}
+import "leaflet.heat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Search } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 interface TripMapProps {
     destination: string;
     itinerary?: any[];
+    origin?: string;
     onAddActivity?: (activity: any, dayNumber: number) => Promise<void>;
     onDeleteActivity?: (dayIndex: number, activityIndex: number) => Promise<void>;
 }
 
-export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivity }: TripMapProps) {
+export function TripMap({ destination, itinerary, origin, onAddActivity, onDeleteActivity }: TripMapProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
     const markersLayerRef = useRef<L.LayerGroup | null>(null);
@@ -20,6 +31,13 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
     const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark');
     const [isAddMode, setIsAddMode] = useState(false);
     const isAddModeRef = useRef(isAddMode);
+    const [showHeatMap, setShowHeatMap] = useState(false);
+    const [crowdReports, setCrowdReports] = useState<any[]>([]);
+    const heatLayerRef = useRef<any>(null);
+    const pathLayerRef = useRef<L.LayerGroup | null>(null);
+    const [showPaths, setShowPaths] = useState(true);
+    const { toast } = useToast();
+    const [reportDensity, setReportDensity] = useState(5);
 
     // Sync ref with state to avoid stale closures in map handlers
     useEffect(() => {
@@ -31,6 +49,7 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
         console.log('[TripMap] Destination changed to:', destination);
         setCoords(null);
     }, [destination]);
+
 
     // Fetch destination coordinates
     useEffect(() => {
@@ -78,6 +97,95 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
         fetchCoords();
     }, [destination]);
 
+    // Fetch Crowd Reports
+    useEffect(() => {
+        const fetchCrowdData = async () => {
+            try {
+                const res = await fetch('/api/v1/crowd/density');
+                if (res.ok) {
+                    const data = await res.json();
+                    setCrowdReports(data.reports || []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch crowd data", err);
+            }
+        };
+
+        fetchCrowdData();
+        const interval = setInterval(fetchCrowdData, 30000); // Refresh every 30s
+        return () => clearInterval(interval);
+    }, []);
+
+    // Update Heat Map Layer
+    useEffect(() => {
+        if (!mapInstanceRef.current || !crowdReports) return;
+
+        if (showHeatMap) {
+            if (heatLayerRef.current) {
+                mapInstanceRef.current.removeLayer(heatLayerRef.current);
+            }
+
+            const points = crowdReports.map(r => [r.latitude, r.longitude, r.density / 10]);
+            console.log(`[HeatMap] Rendering ${points.length} points`, points);
+
+            if (!(L as any).heatLayer) {
+                console.error("[HeatMap] L.heatLayer is not defined! Check plugin loading.");
+                return;
+            }
+            if (!(L as any).heatLayer) {
+                console.error("[HeatMap] L.heatLayer IS STILL NOT DEFINED! This plugin is not loading correctly.");
+                toast({ title: "Heat Map Error", description: "Heat map plugin failed to load.", variant: "destructive" });
+                return;
+            }
+
+            try {
+                // @ts-ignore
+                heatLayerRef.current = (L as any).heatLayer(points, {
+                    radius: 35,
+                    blur: 20,
+                    maxZoom: 17,
+                    gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
+                }).addTo(mapInstanceRef.current);
+                console.log("[HeatMap] Layer added to map successfully.");
+            } catch (err) {
+                console.error("[HeatMap] Error creating heat layer:", err);
+            }
+        } else if (heatLayerRef.current) {
+            console.log("[HeatMap] Removing heat layer");
+            mapInstanceRef.current.removeLayer(heatLayerRef.current);
+            heatLayerRef.current = null;
+        }
+    }, [showHeatMap, crowdReports]);
+
+    const handleReportCrowd = async () => {
+        if (!coords || !mapInstanceRef.current) return;
+        const center = mapInstanceRef.current.getCenter();
+
+        try {
+            await apiRequest('POST', '/api/v1/crowd/density', {
+                latitude: center.lat,
+                longitude: center.lng,
+                density: reportDensity
+            });
+            toast({
+                title: "Report Submitted",
+                description: "Thank you for sharing the current crowd density!",
+            });
+            // Refresh local data
+            const res = await fetch('/api/v1/crowd/density');
+            if (res.ok) {
+                const data = await res.json();
+                setCrowdReports(data.reports || []);
+            }
+        } catch (err) {
+            toast({
+                title: "Error",
+                description: "Failed to submit report.",
+                variant: "destructive"
+            });
+        }
+    };
+
     // Initialize or Update Map
     useEffect(() => {
         if (!coords || !mapContainerRef.current) return;
@@ -111,30 +219,15 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
             map.setMaxBounds(bounds.pad(0.5));
             map.setMinZoom(10);
 
-            // Initialize markers layer
+            // Initialize markers and paths layers
             const markersLayer = L.layerGroup().addTo(map);
             markersLayerRef.current = markersLayer;
 
-            // Map Click Handler for Adding Locations
-            map.on('click', async (e) => {
-                // Use ref to get the current value of isAddMode to avoid stale closure
-                if (!isAddModeRef.current) return;
+            const pathLayer = L.layerGroup().addTo(map);
+            pathLayerRef.current = pathLayer;
 
-                const { lat, lng } = e.latlng;
-                const name = prompt("Enter custom location name:", "New Spot");
-                if (name && onAddActivity) {
-                    await onAddActivity({
-                        placeName: name,
-                        type: 'sightseeing',
-                        time: '10:00 AM',
-                        lat,
-                        lon: lng,
-                        address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-                        duration_minutes: 60,
-                        routeFromPrevious: { mode: 'taxi', distance_km: 1, travel_time_minutes: 5, from: 'Previous', to: name }
-                    }, 1); // Default to day 1 for now or we could prompt
-                }
-            });
+            // Map Click Handler for Adding Locations - REMOVED per user request
+            // map.on('click', async (e) => { ... });
 
             mapInstanceRef.current = map;
         } else {
@@ -146,6 +239,7 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
             const northEast = L.latLng(coords.lat + 0.1, coords.lon + 0.1);
             const bounds = L.latLngBounds(southWest, northEast);
             mapInstanceRef.current.setMaxBounds(bounds.pad(0.5));
+            mapInstanceRef.current.invalidateSize();
         }
 
         // Handle Itinerary Markers
@@ -234,25 +328,200 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
             }
         }
 
-    }, [coords, mapTheme, itinerary]);
+        // Handle Paths (Navigation)
+        if (pathLayerRef.current) {
+            pathLayerRef.current.clearLayers();
+            if (showPaths && itinerary) {
+                itinerary.forEach((day: any) => {
+                    if (day.activities && Array.isArray(day.activities)) {
+                        const dayPoints: L.LatLngExpression[] = [];
+                        
+                        day.activities.forEach((act: any) => {
+                            let lat = act.lat || act.latitude || (act.coords && act.coords.lat);
+                            let lon = act.lon || act.lng || act.longitude || (act.coords && act.coords.lon);
+                            
+                            // Filter out (0,0) or obviously invalid coords
+                            const nLat = Number(lat);
+                            const nLon = Number(lon);
+                            if (nLat !== 0 && nLon !== 0 && !isNaN(nLat) && !isNaN(nLon)) {
+                                dayPoints.push([nLat, nLon]);
+                            }
+                        });
+
+                        if (dayPoints.length > 1) {
+                            L.polyline(dayPoints, {
+                                color: '#3b82f6',
+                                weight: 3,
+                                opacity: 0.6,
+                                dashArray: '10, 10',
+                                lineJoin: 'round'
+                            }).addTo(pathLayerRef.current!);
+                        }
+                    }
+                });
+            }
+        }
+
+    }, [coords, mapTheme, itinerary, showPaths]);
 
     if (!destination) return null;
 
     return (
         <Card className="bg-card border-border">
             <CardHeader>
-                <CardTitle className="text-xl font-bold text-white flex justify-between items-center gap-2">
-                    <div className="flex items-center gap-2">
+                <CardTitle className="text-xl font-bold text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full">
                         <span>Trip Map</span>
-                        <Button
-                            variant={isAddMode ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setIsAddMode(!isAddMode)}
-                            className={`ml-2 h-7 px-2 text-[10px] uppercase tracking-wider ${isAddMode ? 'bg-red-500 hover:bg-red-600' : 'border-ios-blue text-ios-blue hover:bg-ios-blue/10'}`}
-                        >
-                            <i className={`fas fa-${isAddMode ? 'times' : 'plus'} mr-1`}></i>
-                            {isAddMode ? 'Cancel' : 'Add Spot'}
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <div className="relative w-40 md:w-52">
+                                <Input
+                                    placeholder="Search to pin..."
+                                    className="h-7 text-[10px] pr-6 bg-black/40 border-ios-blue/50 text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:border-ios-blue"
+                                    onKeyDown={async (e) => {
+                                        if (e.key === 'Enter') {
+                                            const q = (e.currentTarget as HTMLInputElement).value;
+                                            if (!q) return;
+                                            try {
+                                                const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`);
+                                                const data = await res.json();
+                                                if (Array.isArray(data) && data.length > 0) {
+                                                    const { lat, lon } = data[0];
+
+                                                    // Fly to location
+                                                    if (mapInstanceRef.current) {
+                                                        mapInstanceRef.current.flyTo([lat, lon], 15, {
+                                                            animate: true,
+                                                            duration: 1.5
+                                                        });
+
+                                                        // Add temporary search marker
+                                                        const searchIcon = L.divIcon({
+                                                            className: 'custom-div-icon',
+                                                            html: `<div style="background-color: #ef4444; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); animation: pulse 2s infinite;">
+                                                                     <i class="fas fa-search-location" style="color: white; font-size: 12px;"></i>
+                                                                   </div>`,
+                                                            iconSize: [24, 24],
+                                                            iconAnchor: [12, 12]
+                                                        });
+
+                                                        const popupContent = document.createElement('div');
+                                                        popupContent.style.textAlign = 'center';
+                                                        popupContent.style.padding = '5px';
+                                                        popupContent.innerHTML = `
+                                                            <strong style="color: white; display: block; margin-bottom: 5px;">Found Location</strong>
+                                                            <div id="add-search-spot" style="background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-top: 5px; display: inline-block;">
+                                                                <i class="fas fa-plus mr-1"></i> Add to Trip
+                                                            </div>
+                                                        `;
+
+                                                        const marker = L.marker([lat, lon], { icon: searchIcon })
+                                                            .addTo(mapInstanceRef.current)
+                                                            .bindPopup(popupContent)
+                                                            .openPopup();
+
+                                                        // Handle click on the popup button
+                                                        setTimeout(() => {
+                                                            const btn = document.getElementById('add-search-spot');
+                                                            if (btn) {
+                                                                btn.onclick = async () => {
+                                                                    const name = prompt("Enter location name:", q);
+                                                                    if (name && onAddActivity) {
+                                                                        await onAddActivity({
+                                                                            title: name,
+                                                                            placeName: name,
+                                                                            type: 'sightseeing',
+                                                                            time: '10:00 AM',
+                                                                            lat,
+                                                                            lon,
+                                                                            address: q,
+                                                                            duration_minutes: 60
+                                                                        }, 1);
+                                                                        marker.remove();
+                                                                    }
+                                                                };
+                                                            }
+                                                        }, 100);
+
+                                                        // Enable Add Mode
+                                                        setIsAddMode(true);
+                                                        toast({
+                                                            title: "Location Found",
+                                                            description: "Click anywhere on the map to pin this spot!",
+                                                        });
+                                                    }
+                                                } else {
+                                                    toast({
+                                                        title: "Not Found",
+                                                        description: "Could not find that location.",
+                                                        variant: "destructive"
+                                                    });
+                                                }
+                                            } catch (err) {
+                                                console.error(err);
+                                            }
+                                        }
+                                    }}
+                                />
+                                <Search className="absolute right-2 top-1.5 h-3 w-3 text-ios-blue" />
+                            </div>
+
+                            <Button
+                                variant={showHeatMap ? "secondary" : "outline"}
+                                size="sm"
+                                onClick={() => setShowHeatMap(!showHeatMap)}
+                                className={`h-7 px-2 text-[10px] uppercase tracking-wider ${showHeatMap ? 'bg-orange-500 text-white' : 'border-orange-500 text-orange-500 hover:bg-orange-50'}`}
+                            >
+                                <i className="fas fa-fire mr-1"></i>
+                                {showHeatMap ? 'Hide Crowds' : 'Heat Map'}
+                            </Button>
+
+                            <Button
+                                variant={showPaths ? "secondary" : "outline"}
+                                size="sm"
+                                onClick={() => setShowPaths(!showPaths)}
+                                className={`h-7 px-2 text-[10px] uppercase tracking-wider ${showPaths ? 'bg-ios-blue text-white' : 'border-ios-blue text-ios-blue hover:bg-ios-blue/10'}`}
+                            >
+                                <i className="fas fa-route mr-1"></i>
+                                {showPaths ? 'Hide Route' : 'Show Route'}
+                            </Button>
+
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-[10px] uppercase tracking-wider border-ios-green text-ios-green hover:bg-ios-green/10"
+                                    >
+                                        <i className="fas fa-bullhorn mr-1"></i>
+                                        Report
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="bg-ios-card border-ios-gray p-4 w-60 z-[1100]">
+                                    <div className="space-y-4">
+                                        <div className="text-sm font-bold text-white">Report Crowd Density</div>
+                                        <div className="text-xs text-ios-gray">How crowded is it here right now?</div>
+                                        <Slider
+                                            value={[reportDensity]}
+                                            onValueChange={(v) => setReportDensity(v[0])}
+                                            max={10}
+                                            min={1}
+                                            step={1}
+                                            className="py-2"
+                                        />
+                                        <div className="flex justify-between text-[10px] text-ios-gray">
+                                            <span>Quiet</span>
+                                            <span>Packed</span>
+                                        </div>
+                                        <Button
+                                            onClick={handleReportCrowd}
+                                            className="w-full bg-ios-green hover:bg-green-600 h-8 text-xs"
+                                        >
+                                            Submit Report
+                                        </Button>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </div>
                     <Button
                         variant="ghost"
@@ -280,6 +549,6 @@ export function TripMap({ destination, itinerary, onAddActivity, onDeleteActivit
                     <div ref={mapContainerRef} className="w-full h-full" />
                 </div>
             </CardContent>
-        </Card>
+        </Card >
     );
 }

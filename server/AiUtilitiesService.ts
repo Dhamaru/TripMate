@@ -1,3 +1,4 @@
+import { config } from "./config";
 import OpenAI from "openai";
 import { z } from "zod";
 import { MultiAgentOrchestrator } from "./services/MultiAgentOrchestrator";
@@ -19,19 +20,44 @@ export class AiUtilitiesService {
   private inflight = new Map<string, Promise<any>>();
 
   constructor(apiKey?: string) {
-    const key = apiKey || process.env.OPENAI_API_KEY;
+    const key = apiKey || config.OPENAI_API_KEY;
     this.openai = key ? new OpenAI({ apiKey: key }) : null;
   }
 
+  // Fallback map for major cities to ensure transit calculation never fails
+  private readonly CITIES_COORD_MAP: Record<string, { lat: number; lon: number }> = {
+    'delhi': { lat: 28.6139, lon: 77.2090 },
+    'new delhi': { lat: 28.6139, lon: 77.2090 },
+    'mumbai': { lat: 19.0760, lon: 72.8777 },
+    'bangalore': { lat: 12.9716, lon: 77.5946 },
+    'hyderabad': { lat: 17.3850, lon: 78.4867 },
+    'chennai': { lat: 13.0827, lon: 80.2707 },
+    'kolkata': { lat: 22.5726, lon: 88.3639 },
+    'jaipur': { lat: 26.9124, lon: 75.7873 },
+    'lucknow': { lat: 26.8467, lon: 80.9462 },
+    'agra': { lat: 27.1767, lon: 78.0081 },
+    'goa': { lat: 15.2993, lon: 74.1240 },
+    'pune': { lat: 18.5204, lon: 73.8567 },
+    'bengaluru': { lat: 12.9716, lon: 77.5946 },
+    'ahmedabad': { lat: 23.0225, lon: 72.5714 },
+    'london': { lat: 51.5074, lon: -0.1278 },
+    'new york': { lat: 40.7128, lon: -74.0060 },
+    'paris': { lat: 48.8566, lon: 2.3522 },
+    'tokyo': { lat: 35.6762, lon: 139.6503 },
+    'singapore': { lat: 1.3521, lon: 103.8198 },
+    'dubai': { lat: 25.2048, lon: 55.2708 },
+    'bangkok': { lat: 13.7563, lon: 100.5018 },
+  };
+
   private async generateWithGemini(prompt: string, systemPrompt?: string): Promise<string> {
-    const geminiKey = process.env.Google_Gemini_Key || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const geminiKey = config.GEMINI_API_KEY;
     if (!geminiKey) throw new Error('gemini_disabled');
 
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -218,7 +244,7 @@ export class AiUtilitiesService {
     if (cached) return cached;
 
     try {
-      const owKey = process.env.WEATHER_API_KEY;
+      const owKey = config.WEATHER_API_KEY;
       if (owKey) {
         let coord: { lat: number; lon: number } | null = null;
         let currentJson: any;
@@ -467,18 +493,129 @@ export class AiUtilitiesService {
     }
   }
 
-  async planTrip(input: { destination: string; days: number; persons: number; budget?: number; currency?: string; typeOfTrip: string; travelMedium: string }): Promise<
+  /**
+   * Generates a budget forecast for a trip based on current spending and remaining itinerary.
+   */
+  async getBudgetForecast(trip: any): Promise<{
+    burnRate: number;
+    estimatedFinalCost: number;
+    isOverBudget: boolean;
+    remainingBudget: number;
+    daysRemaining: number;
+    alerts: string[];
+    pivots: string[];
+  }> {
+    const budget = trip.budget || 0;
+    const totalDays = trip.days || 1;
+    const expenses = trip.expenses || [];
+    const itinerary = trip.itinerary || [];
+    const currency = trip.currency || 'INR';
+
+    // 1. Calculate Manual Spent
+    const manualSpent = expenses.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+
+    // 2. Calculate Planned Itinerary Cost (Activities)
+    let itineraryCost = 0;
+    if (Array.isArray(itinerary)) {
+      itinerary.forEach((day: any) => {
+        if (Array.isArray(day.activities)) {
+          day.activities.forEach((act: any) => {
+            itineraryCost += (Number(act.cost || act.entryFee || 0));
+          });
+        }
+      });
+    }
+
+    // 3. Estimate Fixed Costs (Accommodation/Transit if not in expenses)
+    const breakdown = trip.costBreakdown || {};
+    const estimatedAccommodation = Number(breakdown.accommodation || breakdown.accommodationINR || 0);
+    const estimatedTransit = Number(breakdown.transport || breakdown.transportINR || 0);
+
+    const totalSpent = manualSpent + itineraryCost;
+    const estimatedFinalCost = totalSpent + estimatedAccommodation + estimatedTransit;
+    const isOverBudget = estimatedFinalCost > budget;
+    const remainingBudget = Math.max(0, budget - totalSpent);
+
+    // 4. Calculate Burn Rate (Proportional)
+    // If we have a startDate, calculate actual days passed. Otherwise, assume progress based on logged expenses.
+    let currentDay = 1;
+    if (trip.startDate) {
+      const start = new Date(trip.startDate);
+      const now = new Date();
+      currentDay = Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      currentDay = Math.min(totalDays, Math.max(1, currentDay));
+    }
+    
+    const daysRemaining = Math.max(0, totalDays - currentDay);
+    const expectedDailyBudget = budget / totalDays;
+    const actualDailySpent = totalSpent / currentDay;
+    const burnRate = actualDailySpent / (expectedDailyBudget || 1);
+
+    // 5. Generate Intelligent Alerts & Pivots
+    const alerts: string[] = [];
+    const pivots: string[] = [];
+
+    if (burnRate > 1.2) {
+      alerts.push(`Critical Burn Rate: You are spending ${Math.round((burnRate - 1) * 100)}% faster than planned.`);
+      pivots.push("Switch to public transport (Metro/Buses) for the next 48 hours.");
+      pivots.push("Prioritize free sightseeing spots or city parks for the next two days.");
+    } else if (burnRate > 1.05) {
+      alerts.push("Moderate Overspending: Careful, you might exceed the budget by the trip's end.");
+      pivots.push("Limit dining to local 'Hidden Gems' or street food hubs instead of fine dining.");
+    }
+
+    if (manualSpent > (budget * 0.7) && currentDay < (totalDays / 2)) {
+      alerts.push("Resource Exhaustion: You've used 70% of your budget in less than half the trip.");
+    }
+
+    if (!isOverBudget && remainingBudget < (expectedDailyBudget * 0.5) && daysRemaining > 1) {
+      alerts.push("Low Liquidity: Remaining funds are insufficient for your current daily spending habits.");
+    }
+
+    // Generic helpful advice if doing well
+    if (burnRate < 0.8 && totalSpent > 0) {
+      alerts.push("Excellent Budget Management: You are well within your financial limits!");
+      pivots.push("Consider upgrading to a premium experience or a unique local activity on your final day.");
+    }
+
+    return {
+      burnRate: parseFloat(burnRate.toFixed(2)),
+      estimatedFinalCost,
+      isOverBudget,
+      remainingBudget,
+      daysRemaining,
+      alerts,
+      pivots
+    };
+  }
+
+  async planTrip(input: {
+    destination: string;
+    days: number;
+    persons: number;
+    budget?: number;
+    currency?: string;
+    typeOfTrip: string;
+    travelMedium: string;
+    existingItinerary?: any[];
+  }): Promise<
     | { destination: string; days: number; persons: number; totalEstimatedCost: number; currency: string; costBreakdown: { accommodationINR: number; foodINR: number; transportINR: number; activitiesINR: number; miscINR: number; totalINR: number }; itinerary: Array<{ day: number; activities: Array<{ time: string; title: string; placeName?: string; address: string; type: 'sightseeing' | 'restaurant' | 'cafe' | 'market' | 'museum' | 'temple' | 'park'; entryFeeINR: number; duration_minutes: number; localFoodRecommendations: string[]; routeFromPrevious: { mode: string; distance_km: number; travel_time_minutes: number; from: string; to: string } }> }>; packingList: string[]; safetyTips: string[]; notes: string }
     | { error: 'invalid_model_output' | 'providers_unavailable'; message: string }
   > {
-    const destination = sanitize(input.destination, 128);
-    const days = Number.isFinite(input.days) ? Math.max(1, Math.floor(input.days)) : 1;
-    const persons = Number.isFinite(input.persons) ? Math.max(1, Math.floor(input.persons)) : 1;
-    const budget = typeof input.budget === 'number' && Number.isFinite(input.budget) ? Math.max(0, input.budget) : undefined;
-    const currency = sanitize(input.currency || 'INR', 3).toUpperCase();
-    const typeOfTrip = sanitize(input.typeOfTrip, 64);
-    const travelMedium = sanitize(input.travelMedium, 64);
-    const key = `planTrip:${destination}:${days}:${persons}:${budget ?? 'x'}:${currency}:${typeOfTrip}:${travelMedium}`;
+    const { 
+        destination: rawDestination, days: rawDays, persons: rawPersons, 
+        budget: rawBudget, currency: rawCurrency, typeOfTrip: rawTypeOfTrip, 
+        travelMedium: rawTravelMedium, existingItinerary 
+    } = input;
+
+    const destination = sanitize(rawDestination, 128);
+    const days = Number.isFinite(rawDays) ? Math.max(1, Math.floor(rawDays)) : 1;
+    const persons = Number.isFinite(rawPersons) ? Math.max(1, Math.floor(rawPersons)) : 1;
+    const budget = typeof rawBudget === 'number' && Number.isFinite(rawBudget) ? Math.max(0, rawBudget) : undefined;
+    const currency = sanitize(rawCurrency || 'INR', 3).toUpperCase();
+    const typeOfTrip = sanitize(rawTypeOfTrip, 64);
+    const travelMedium = sanitize(rawTravelMedium, 64);
+    const key = `planTrip:${destination}:${days}:${persons}:${budget ?? 'x'}:${currency}:${typeOfTrip}:${travelMedium}:${existingItinerary ? 'opt' : 'fresh'}`;
     const cached = this.getCached<any>(key);
     if (cached) return cached;
     if (this.inflight.has(key)) {
@@ -499,8 +636,9 @@ export class AiUtilitiesService {
       // Initialize the new highly-resilient Multi-Agent architecture
       const orchestrator = new MultiAgentOrchestrator({
         openai: this.openai,
-        geminiHelper: this.generateWithGemini.bind(this)
-        // Note: places/weather services can be injected here for full prod
+        geminiHelper: this.generateWithGemini.bind(this),
+        places: { getPointsOfInterest: this.getPointsOfInterest.bind(this) },
+        weather: { getWeatherForLocation: this.getWeatherForLocation.bind(this) }
       });
 
       const zTripPlan = z.object({
@@ -549,16 +687,12 @@ export class AiUtilitiesService {
         }).optional()
       });
       try {
-        console.log(`[planTrip] Executing Agentic Orchestration for ${destination}`);
-
         // Orchestrated Cognitive Reasoning Loop replacing single-shot text generation
         const rawPlan = await orchestrator.executeReasoningLoop({
-          goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s).`,
-          constraints: { budget, days, persons, travelStyle: typeOfTrip, currency, destination },
+          goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s). It is CRITICAL that you generate EXACTLY ${days} days of itineraries.`,
+          constraints: { budget, days, persons, travelStyle: typeOfTrip, currency, destination, existingItinerary },
           maxIterations: 3
         });
-
-        console.log(`[planTrip] Multi-Agent phase completed. Raw structurally coerced output received.`);
 
         // Zod still checks here for the router response shape
         const parsed = zTripPlan.safeParse(rawPlan);
@@ -572,7 +706,6 @@ export class AiUtilitiesService {
 
         try {
           // GROUNDING STEP: Verify results against Google Places with timeout
-          console.log(`[AiUtilities] Grounding itinerary for ${destination}...`);
           const groundingPromise = this.groundItineraryWithRealPlaces(finalPlan, currency || 'INR');
           finalPlan = await this.withTimeout(
             groundingPromise,
@@ -582,7 +715,6 @@ export class AiUtilitiesService {
           );
 
           // DETERMINISTIC CONSTRAINT ENGINE (Stage 5 Architecture)
-          console.log(`[AiUtilities] Enforcing transit constraints for ${destination}...`);
           finalPlan = await this.enforceTransitConstraints(finalPlan);
         } catch (postProcessingError: any) {
           console.error(`[AiUtilities] Grounding or Constraint enforcement failed for ${destination}, falling back to pristine AI plan:`, postProcessingError.message);
@@ -592,8 +724,6 @@ export class AiUtilitiesService {
         // Final explainability tag
         finalPlan.notes = (finalPlan.notes || '') + " | Cognitive Validator applied: Multi-Agent architecture active.";
 
-        const ts = new Date().toISOString();
-        console.log(JSON.stringify({ ts, tool: 'planTrip', api_used: 'agentic_reasoning_loop', destination: destination.slice(0, 16) + '…' }));
         return this.setCached(key, finalPlan);
       } catch (genError: any) {
         console.error(`[AiUtilities] planTrip failed for ${destination}, using fallback:`, genError.message);
@@ -771,12 +901,12 @@ export class AiUtilitiesService {
 
   private async searchPlaces(query: string, timeoutMs = 10000): Promise<any[]> {
     try {
-      if (!process.env.GOOGLE_PLACES_API_KEY && !process.env.GOOGLE_API_KEY) {
+      if (!config.GOOGLE_API_KEY) {
         console.warn('[searchPlaces] No Google API key configured');
         return [];
       }
 
-      const key = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
+      const key = config.GOOGLE_API_KEY;
       const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
 
       // Wrap fetch in timeout
@@ -794,7 +924,6 @@ export class AiUtilitiesService {
       }
 
       if (data.status === 'ZERO_RESULTS') {
-        console.log(`[searchPlaces] No results for query "${query}"`);
         return [];
       }
 
@@ -826,7 +955,6 @@ export class AiUtilitiesService {
   private async generateFallbackTrip(input: { destination: string; days: number; persons: number; budget?: number; currency?: string; typeOfTrip: string; travelMedium: string }): Promise<any> {
     const { destination, days, persons, budget, currency, typeOfTrip, travelMedium } = input;
     const safeCurrency = currency || "INR";
-    console.log(`[AiUtilities] Generating Smart Fallback for: ${destination} (${safeCurrency})`);
 
     const realPlaces = await this.searchPlaces(`${destination} tourist places`);
     // Specific search for restaurants to avoid generic results
@@ -956,8 +1084,8 @@ export class AiUtilitiesService {
 
   // Use Gemini to get real place names, with fallback to Google Places API
   private async getRealPlacesFromGemini(destination: string, type: 'restaurants' | 'attractions'): Promise<Array<{ name: string, address?: string, cuisine?: string }>> {
-    const geminiKey = process.env.Google_Gemini_Key || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    const placesKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_API_KEY;
+    const geminiKey = config.GEMINI_API_KEY;
+    const placesKey = config.GOOGLE_API_KEY;
 
     // Try Gemini first
     if (geminiKey) {
@@ -966,7 +1094,6 @@ export class AiUtilitiesService {
         : `List exactly 15 real, popular tourist attractions and landmarks in ${destination}. Include temples, parks, monuments, markets, and museums. Return ONLY a valid JSON array with objects containing "name" (exact place name) and "address" (approximate location/area). No explanations, just the JSON array.`;
 
       try {
-        console.log(`[Gemini] Fetching real ${type} for ${destination}...`);
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 15000);
 
@@ -1003,12 +1130,11 @@ export class AiUtilitiesService {
         if (cleanJson) {
           const parsed = JSON.parse(cleanJson);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log(`[Gemini] Got ${parsed.length} ${type} for ${destination}`);
             return parsed;
           }
         }
       } catch (e: any) {
-        console.warn(`[Gemini] Failed to get ${type}: ${e.message}. Falling back to Google Places...`);
+        console.warn(`[Gemini] Failed to get ${type} for ${destination}: ${e.message}`);
       }
     }
 
@@ -1019,32 +1145,27 @@ export class AiUtilitiesService {
           ? `best restaurants in ${destination}`
           : `top tourist attractions in ${destination}`;
 
-        console.log(`[Places] Fetching ${type} for ${destination}...`);
         const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${placesKey}`;
         const res = await fetch(url);
         const data = await res.json();
 
         if (data.status === 'OK' && data.results && data.results.length > 0) {
-          const places = data.results.slice(0, 15).map((p: any) => ({
+          return data.results.slice(0, 15).map((p: any) => ({
             name: p.name,
             address: p.formatted_address || p.vicinity,
             cuisine: type === 'restaurants' ? (p.types?.includes('cafe') ? 'Cafe' : 'Restaurant') : undefined
           }));
-          console.log(`[Places] Got ${places.length} ${type} for ${destination}`);
-          return places;
         }
       } catch (e: any) {
-        console.error(`[Places] Error fetching ${type}:`, e.message);
+        console.error(`[Places] Error fetching ${type} for ${destination}:`, e.message);
       }
     }
 
-    console.warn(`[Grounding] No API available for fetching ${type}. Returning empty.`);
     return [];
   }
 
   // Verify specific places using Gemini AI for real names
   private async groundItineraryWithRealPlaces(plan: any, currency: string): Promise<any> {
-    console.log(`[Grounding] Starting Gemini-based verification for ${plan.destination}...`);
 
     // Get real places from Gemini
     const [realRestaurants, realAttractions] = await Promise.all([
@@ -1088,7 +1209,6 @@ export class AiUtilitiesService {
             // Pick next real restaurant
             const real = realRestaurants[restaurantIndex % realRestaurants.length];
             if (real && !usedRestaurants.has(real.name)) {
-              console.log(`[Grounding] Replacing "${activity.title || activity.placeName}" with real restaurant "${real.name}"`);
               activity.title = real.name;
               activity.placeName = real.name;
               activity.address = real.address || `${plan.destination}`;
@@ -1104,7 +1224,6 @@ export class AiUtilitiesService {
             // Pick next real attraction
             const real = realAttractions[attractionIndex % realAttractions.length];
             if (real && !usedAttractions.has(real.name)) {
-              console.log(`[Grounding] Replacing "${activity.title || activity.placeName}" with real attraction "${real.name}"`);
               activity.title = real.name;
               activity.placeName = real.name;
               activity.address = real.address || `${plan.destination}`;
@@ -1121,7 +1240,6 @@ export class AiUtilitiesService {
               // If we can't verify it, replace with a real one
               const real = realRestaurants[restaurantIndex % realRestaurants.length];
               if (real && !usedRestaurants.has(real.name)) {
-                console.log(`[Grounding] Couldn't verify "${activity.title || activity.placeName}", replacing with "${real.name}"`);
                 activity.title = real.name;
                 activity.placeName = real.name;
                 activity.address = real.address || `${plan.destination}`;
@@ -1178,7 +1296,6 @@ export class AiUtilitiesService {
     const targetBudget = (plan.budget || 0);
     if (targetBudget > 0 && calculatedTotal > targetBudget) {
       const scaleFactor = targetBudget / calculatedTotal;
-      console.log(`[Grounding] Total ${calculatedTotal} exceeds budget ${targetBudget}. Scaling costs by ${scaleFactor.toFixed(2)}`);
 
       const scale = (val: number) => Math.floor((val || 0) * scaleFactor);
 
@@ -1209,12 +1326,10 @@ export class AiUtilitiesService {
 
     plan.totalEstimatedCost = plan.costBreakdown.total;
 
-    // Add visible debug note
     const restaurantsUsed = usedRestaurants.size;
     const attractionsUsed = usedAttractions.size;
-    plan.notes = (plan.notes || '') + ` | Grounded via Gemini (${restaurantsUsed} restaurants, ${attractionsUsed} attractions)`;
+    plan.notes = (plan.notes || '') + ` | Grounded (${restaurantsUsed} restaurants, ${attractionsUsed} attractions verified)`;
 
-    console.log(`[Grounding] Complete: Total ${plan.costBreakdown.total} ${currency}. ${restaurantsUsed} restaurants, ${attractionsUsed} attractions replaced`);
     return plan;
   }
 
@@ -1294,7 +1409,6 @@ export class AiUtilitiesService {
 
       // If AI failed, use region-aware fallback
       if (!result.hacks || result.hacks.length === 0 || !result.economicalAlternatives || result.economicalAlternatives.length === 0) {
-        console.log(`[getTravelHacks] AI incomplete for ${destination}, using region-aware fallback`);
         const fallback = this.getRegionAwareFallbackHacks(destination);
         result = {
           hacks: result.hacks && result.hacks.length > 0 ? result.hacks : fallback.hacks,
@@ -1435,10 +1549,25 @@ export class AiUtilitiesService {
     const cached = this.getCached<any>(key);
     if (cached) return cached;
 
+    // 1. Static fallback for performance and reliability
+    const nameLower = name.toLowerCase().trim();
+    if (this.CITIES_COORD_MAP[nameLower]) {
+        const base = this.CITIES_COORD_MAP[nameLower];
+        // Add a micro-jitter (approx 100-200m) to avoid exact overlaps at city center
+        const jitter = () => (Math.random() - 0.5) * 0.005; 
+        return this.setCached(key, { 
+            lat: base.lat + jitter(), 
+            lon: base.lon + jitter() 
+        });
+    }
+
     try {
       const places = await this.searchPlaces(`${name}, ${destination}`);
-      if (places && places.length > 0) {
-        const coords = { lat: places[0].latitude, lon: places[0].longitude };
+      if (places && places.length > 0 && places[0].geometry?.location) {
+        const coords = { 
+            lat: places[0].geometry.location.lat, 
+            lon: places[0].geometry.location.lng 
+        };
         return this.setCached(key, coords);
       }
     } catch (e) {
@@ -1448,18 +1577,59 @@ export class AiUtilitiesService {
   }
 
   /**
-   * STAGE 2: Budget Breakdown Engine
+   * STAGE 2: Budget Breakdown Engine — Enhanced with Origin-to-Destination Transit
    */
-  public calculateBudgetBreakdown(totalBudget: number, travelStyle: string): {
+  public async calculateBudgetBreakdown(
+    totalBudget: number,
+    travelStyle: string,
+    origin?: string,
+    destination?: string,
+    travelMedium?: string
+  ): Promise<{
     accommodation: number;
     food: number;
     transport: number;
     activities: number;
     buffer: number;
     total: number;
-  } {
+    grandTransit: number;
+  }> {
+    let grandTransit = 0;
+
+    // 1. Estimate Origin-to-Destination cost if possible
+    if (origin && destination) {
+      try {
+        const originCoords = await this.resolveCoordinates(origin, "");
+        const destCoords = await this.resolveCoordinates(destination, "");
+
+        if (originCoords && destCoords) {
+          const distance = this.calculateHaversineDistance(
+            originCoords.lat, originCoords.lon,
+            destCoords.lat, destCoords.lon
+          );
+
+          // Heuristic costs per km in INR
+          const costPerKm: Record<string, number> = {
+            flight: 8,
+            train: 3,
+            bus: 2,
+            car: 12,
+            standard: 5
+          };
+
+          const perPersonCost = (distance * (costPerKm[travelMedium || 'standard'] || 5)) + 1000; // +1000 base
+          grandTransit = Math.round(perPersonCost);
+          
+          // Cap transit at 60% of total budget to keep trip feasible
+          grandTransit = Math.min(grandTransit, totalBudget * 0.6);
+        }
+      } catch (e) {
+        console.warn("[calculateBudgetBreakdown] Transit estimation failed:", e);
+      }
+    }
+
     const buffer = totalBudget * 0.10; // 10% Mandatory Safety Buffer
-    const allocatable = totalBudget - buffer;
+    const allocatable = totalBudget - buffer - grandTransit;
 
     let ratios = { accommodation: 0.35, food: 0.25, transport: 0.20, activities: 0.20 };
 
@@ -1487,6 +1657,7 @@ export class AiUtilitiesService {
       transport: Math.round(allocatable * ratios.transport),
       activities: Math.round(allocatable * ratios.activities),
       buffer: Math.round(buffer),
+      grandTransit: Math.round(grandTransit),
       total: totalBudget
     };
   }
@@ -1552,7 +1723,6 @@ export class AiUtilitiesService {
 
       // Tier 2: Google Places fallback if AI returned empty
       if (!arr || arr.length === 0) {
-        console.log(`[getQuietAlternatives] AI empty for ${destination}, trying Google Places...`);
         try {
           const fallbackPlaces = await this.searchPlaces(`hidden gems local favorites ${destination}`);
           if (fallbackPlaces.length > 0) {
@@ -1572,7 +1742,6 @@ export class AiUtilitiesService {
 
       // Tier 3: Generic helpful suggestions if both failed
       if (!arr || arr.length === 0) {
-        console.log(`[getQuietAlternatives] All sources failed for ${destination}, using generic fallback`);
         arr = this.getGenericQuietSpots(destination);
       }
 
@@ -1621,5 +1790,154 @@ export class AiUtilitiesService {
         type: "Market"
       }
     ];
+  }
+
+  private async getPointsOfInterest(destination: string, style: string): Promise<string[]> {
+    const prompt = `List the top 8 real-world tourist attractions and must-visit landmarks for ${destination} that match a ${style} travel style. Return ONLY a JSON array of strings.`;
+    try {
+      const result = await this.generateWithGemini(prompt, "You are a professional travel researcher. Format: [\"Spot 1\", \"Spot 2\"]");
+      const parsed = JSON.parse(result);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn(`[getPointsOfInterest] Semantic grounding failed:`, e);
+      return [];
+    }
+  }
+
+  private async getWeatherForLocation(lat: number, lon: number): Promise<any> {
+    const key = config.OPENWEATHER_API_KEY;
+    if (!key) return null;
+    try {
+      const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Parses a free-text travel schedule into a structured itinerary.
+   * Used by the "Import My Plan" feature.
+   */
+  async parseSchedule(input: {
+    scheduleText: string;
+    startDate?: string;
+    groupSize?: number;
+    budget?: number;
+    currency?: string;
+  }): Promise<{
+    destination: string;
+    days: number;
+    startDate?: string;
+    itinerary: Array<{
+      day: number;
+      date?: string;
+      theme: string;
+      activities: Array<{
+        id: string;
+        time: string;
+        title: string;
+        type: string;
+        from?: string;
+        to?: string;
+        notes?: string;
+        address?: string;
+        duration_minutes: number;
+      }>;
+    }>;
+    costBreakdown?: Record<string, any>;
+    notes?: string;
+  }> {
+    const { scheduleText, startDate, groupSize = 1, budget, currency = 'INR' } = input;
+
+    const prompt = `You are a travel itinerary parser. Parse the following travel schedule text into a structured JSON itinerary.
+
+Schedule text:
+"""
+${scheduleText}
+"""
+
+Additional info:
+- Start date: ${startDate || 'Not specified'}
+- Group size: ${groupSize} person(s)
+- Budget: ${budget ? `${budget} ${currency}` : 'Not specified'}
+- Currency: ${currency}
+
+Rules:
+1. Extract each day as a separate itinerary entry.
+2. For travel legs (flights, car drives, trains, treks), use type "travel" and include "from" and "to" fields.
+3. For darshans/temple visits use type "sightseeing".
+4. For stays/hotels use type "hotel".
+5. Assign realistic times (flights in morning/evening, drives after breakfast, etc.).
+6. Set a descriptive "theme" for each day (e.g., "Travel to Haridwar", "Badrinath Darshan").
+7. Generate unique IDs for each activity using format "act-{dayNum}-{idx}".
+8. If startDate is given, calculate the "date" for each day (YYYY-MM-DD format).
+9. Identify the primary multi-city destination as a descriptive string (e.g., "Chardham Yatra - Uttarakhand & UP").
+10. Assign duration_minutes: travel legs 120-480, sightseeing 60-120, hotel 0.
+
+Return ONLY valid JSON, no markdown, no explanation:
+{
+  "destination": "string",
+  "days": number,
+  "startDate": "YYYY-MM-DD or null",
+  "itinerary": [
+    {
+      "day": 1,
+      "date": "YYYY-MM-DD or null",
+      "theme": "string",
+      "activities": [
+        {
+          "id": "act-1-0",
+          "time": "06:00 PM",
+          "title": "string",
+          "type": "travel|sightseeing|hotel|restaurant|other",
+          "from": "string or null",
+          "to": "string or null",
+          "notes": "string or null",
+          "address": "string or null",
+          "duration_minutes": number
+        }
+      ]
+    }
+  ],
+  "notes": "string or null"
+}`;
+
+    let raw = '';
+    try {
+      raw = await this.generateWithGemini(prompt);
+    } catch (e) {
+      // Fallback to OpenAI if Gemini fails
+      if (this.openai) {
+        const res = await this.openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+        });
+        raw = res.choices[0]?.message?.content || '{}';
+      } else {
+        throw new Error('No AI provider available');
+      }
+    }
+
+    // Strip markdown fences if present
+    raw = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+
+    const parsed = JSON.parse(raw);
+
+    // Ensure each activity has an id
+    for (const day of parsed.itinerary || []) {
+      for (let i = 0; i < (day.activities || []).length; i++) {
+        if (!day.activities[i].id) {
+          day.activities[i].id = `act-${day.day}-${i}`;
+        }
+        if (!day.activities[i].duration_minutes) {
+          day.activities[i].duration_minutes = 60;
+        }
+      }
+    }
+
+    return parsed;
   }
 }

@@ -11,19 +11,34 @@ const baseToJSON = {
   },
 } as const;
 
-export interface IUser extends Document {
-  _id: string;
+export interface IBaseUser {
+  _id?: string;
+  id: string;
   email?: string;
   password?: string;
   firstName?: string;
   lastName?: string;
   profileImageUrl?: string;
+  avatar?: string;
   phoneNumber?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  failedLoginAttempts?: number;
+  lockUntil?: Date;
   isGuest?: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  homeCity?: string;
+  dietaryPreferences?: string[];
+  preferredTransport?: string;
+  interests?: string[];
+  googleConnected?: boolean;
+  googleId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface IUser extends IBaseUser, Document {
+  _id: string;
+  id: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -34,10 +49,19 @@ const userSchema = new Schema<IUser>(
     firstName: { type: String },
     lastName: { type: String },
     profileImageUrl: { type: String },
+    avatar: { type: String },
     phoneNumber: { type: String },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
     isGuest: { type: Boolean, default: false },
+    homeCity: { type: String },
+    dietaryPreferences: { type: [String], default: [] },
+    preferredTransport: { type: String },
+    interests: { type: [String], default: [] },
+    googleConnected: { type: Boolean, default: false },
+    googleId: { type: String },
   },
   {
     timestamps: true,
@@ -58,13 +82,22 @@ export const insertUserSchema = z.object({
   firstName: z.string().trim().optional(),
   lastName: z.string().trim().optional(),
   profileImageUrl: z.string().url().optional(),
+  avatar: z.string().optional(),
   phoneNumber: z.string().trim().optional(),
   resetPasswordToken: z.string().optional(),
   resetPasswordExpires: z.coerce.date().optional(),
+  failedLoginAttempts: z.number().optional(),
+  lockUntil: z.coerce.date().optional(),
   isGuest: z.boolean().optional(),
+  homeCity: z.string().optional(),
+  dietaryPreferences: z.array(z.string()).optional(),
+  preferredTransport: z.string().optional(),
+  interests: z.array(z.string()).optional(),
+  googleConnected: z.boolean().optional(),
+  googleId: z.string().optional(),
 });
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = IUser;
+export type User = IBaseUser;
 
 export interface ISession extends Document {
   userId: string;
@@ -117,7 +150,12 @@ export interface IItineraryActivity {
   time?: string;
   title: string;
   location?: string;
+  address?: string; // AI provided address
+  lat?: number;
+  lon?: number;
   notes?: string;
+  votes?: number; // Fix 16: Collaborative Vibe Voting
+  vibeSignals?: string[]; // e.g. ["Too expensive", "Hidden gem"]
   [key: string]: any; // Flexible for additional fields
 }
 
@@ -126,12 +164,21 @@ export interface IItineraryDay {
   day?: number;     // 1-based day number (from AI)
   date?: Date;
   activities: IItineraryActivity[];
+  reasoning?: string; // Stage 5: Explainability
+  confidenceScore?: 'high' | 'medium' | 'low'; // Stage 5: Reliability
+}
+export interface ICollaborator {
+  userId: string;
+  role: 'editor' | 'viewer';
+  joinedAt: Date;
 }
 
 export interface ITrip extends Document {
   userId: string;
+  origin?: string;
   destination: string;
   imageUrl?: string;
+  imageCaption?: string;
   currency?: string;
   budget?: number;
   days: number;
@@ -144,11 +191,14 @@ export interface ITrip extends Document {
   endDate?: Date;
   itinerary?: IItineraryDay[];
   expenses?: IExpense[];
+  collaborators?: ICollaborator[];
   notes?: string;
   aiPlanMarkdown?: string;
   isDraft?: boolean;
   syncStatus?: "synced" | "pending" | "conflict";
   costBreakdown?: Record<string, any>;
+  shareId?: string;
+  isPublic?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -156,8 +206,10 @@ export interface ITrip extends Document {
 const tripSchema = new Schema<ITrip>(
   {
     userId: { type: String, required: true, ref: "User", index: true },
+    origin: { type: String },
     destination: { type: String, required: true },
     imageUrl: { type: String },
+    imageCaption: { type: String },
     currency: { type: String, default: "INR" },
     budget: { type: Number, min: 0 },
     days: { type: Number, required: true, min: 1 },
@@ -188,9 +240,16 @@ const tripSchema = new Schema<ITrip>(
       description: { type: String, default: "" },
       date: { type: Date, default: Date.now },
     }],
+    collaborators: [{
+      userId: { type: String, required: true, ref: "User" },
+      role: { type: String, required: true, enum: ["editor", "viewer"], default: "editor" },
+      joinedAt: { type: Date, default: Date.now },
+    }],
     notes: { type: String },
     aiPlanMarkdown: { type: String },
     costBreakdown: { type: Schema.Types.Mixed }, // JSON object for budget details
+    shareId: { type: String, unique: true, sparse: true },
+    isPublic: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -207,6 +266,7 @@ export const TripModel: Model<ITrip> = mongoose.model<ITrip>("Trip", tripSchema)
 
 export const insertTripSchema = z.object({
   userId: z.string().min(1),
+  origin: z.string().optional(),
   destination: z.string().min(1),
   imageUrl: z.string().url().optional(),
   currency: z.string().default("INR").optional(),
@@ -233,18 +293,25 @@ export const insertTripSchema = z.object({
     day: z.number().int().min(1).optional(),      // Allow 'day' from AI
     date: z.coerce.date().optional(),
     activities: z.array(z.object({
-      id: z.string().optional(), // Inbound from AI might lack ID, but we should generate one
+      id: z.string().optional(),
       time: z.string().optional(),
       title: z.string().min(1),
       location: z.string().optional(),
+      address: z.string().optional(),
+      lat: z.number().optional(),
+      lon: z.number().optional(),
       notes: z.string().optional(),
     }).catchall(z.any())).default([]),
+    reasoning: z.string().optional(),
+    confidenceScore: z.enum(['high', 'medium', 'low']).optional(),
   })).optional(),
   notes: z.string().optional(),
   aiPlanMarkdown: z.string().optional(),
   isDraft: z.boolean().optional(),
   syncStatus: z.enum(["synced", "pending", "conflict"]).optional(),
   costBreakdown: z.record(z.any()).optional(), // Store flexible JSON cost data
+  shareId: z.string().optional(),
+  isPublic: z.boolean().optional(),
   expenses: z.array(z.object({
     id: z.string(),
     amount: z.number(),
@@ -266,6 +333,16 @@ export interface IJournalEntry extends Document {
   location?: string;
   latitude?: number;
   longitude?: number;
+  dayIndex?: number; // Auto-contextualized day of trip
+  isRecap?: boolean; // Fix 15: AI Journey Recap Cards
+  recapMeta?: {
+    title: string;
+    highlights: string[];
+    memorableMoment?: string;
+    travelTip?: string;
+    awards?: Array<{ title: string; icon: string; description: string }>;
+    visualVibe?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -280,6 +357,9 @@ const journalEntrySchema = new Schema<IJournalEntry>(
     location: { type: String },
     latitude: { type: Number, min: -90, max: 90 },
     longitude: { type: Number, min: -180, max: 180 },
+    dayIndex: { type: Number, min: 0 },
+    isRecap: { type: Boolean, default: false },
+    recapMeta: { type: Schema.Types.Mixed },
   },
   {
     timestamps: true,
@@ -302,6 +382,7 @@ export const insertJournalEntrySchema = z.object({
   location: z.string().optional(),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
+  dayIndex: z.number().int().min(0).optional(),
 });
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
 export type JournalEntry = IJournalEntry;
@@ -408,9 +489,134 @@ export const insertPackingListSchema = z.object({
 export type InsertPackingList = z.infer<typeof insertPackingListSchema>;
 export type PackingList = IPackingList;
 
+export interface IAtlasConversation extends Document {
+  tripId: string;
+  userId: string;
+  messages: Array<{
+    role: "system" | "user" | "assistant" | "model" | "tool";
+    content?: string;
+    tool_calls?: any[];
+    tool_call_id?: string;
+    name?: string;
+    timestamp?: Date;
+  }>;
+  metadata?: {
+    totalToolCalls?: number;
+    toolsUsed?: string[];
+    lastConfidence?: number;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const atlasConversationSchema = new Schema<IAtlasConversation>(
+  {
+    tripId: { type: String, required: true, index: true },
+    userId: { type: String, required: true, index: true },
+    messages: [
+      {
+        role: { type: String, enum: ['user', 'assistant', 'tool', 'system'], required: true },
+        content: { type: String },
+        tool_calls: { type: Schema.Types.Mixed },
+        tool_call_id: { type: String },
+        name: { type: String },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
+    metadata: {
+      totalToolCalls: { type: Number, default: 0 },
+      toolsUsed: [{ type: String }],
+      lastConfidence: { type: Number },
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: baseToJSON,
+    versionKey: false,
+  }
+);
+
+atlasConversationSchema.index({ tripId: 1, userId: 1 }, { unique: true });
+
+export const AtlasConversationModel: Model<IAtlasConversation> = mongoose.model<IAtlasConversation>("AtlasConversation", atlasConversationSchema);
+
+export interface ICrowdDensity extends Document {
+  latitude: number;
+  longitude: number;
+  density: number; // 1-10
+  timestamp: Date;
+  placeId?: string;
+  source: "user-report" | "external-api";
+}
+
+const crowdDensitySchema = new Schema<ICrowdDensity>(
+  {
+    latitude: { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    density: { type: Number, required: true, min: 1, max: 10 },
+    timestamp: { type: Date, default: Date.now },
+    placeId: { type: String },
+    source: { type: String, enum: ["user-report", "external-api"], default: "user-report" },
+  },
+  {
+    timestamps: false,
+    toJSON: baseToJSON,
+    versionKey: false,
+  }
+);
+
+crowdDensitySchema.index({ latitude: 1, longitude: 1 });
+crowdDensitySchema.index({ timestamp: 1 }, { expireAfterSeconds: 86400 * 7 }); // Keep for 7 days
+
+export const CrowdDensityModel: Model<ICrowdDensity> = mongoose.model<ICrowdDensity>("CrowdDensity", crowdDensitySchema);
+
+export const insertCrowdDensitySchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  density: z.number().min(1).max(10),
+  placeId: z.string().optional(),
+});
+
+export interface IFeedback extends Document {
+  type: string;
+  category: string;
+  subject: string;
+  description: string;
+  email: string;
+  userId?: string;
+  status: string;
+}
+
+const feedbackSchema = new Schema<IFeedback>(
+  {
+    type: { type: String, required: true },
+    category: { type: String, required: true },
+    subject: { type: String, required: true },
+    description: { type: String, required: true },
+    email: { type: String, required: true },
+    userId: { type: String },
+    status: { type: String, default: "open" }
+  },
+  { timestamps: true, toJSON: baseToJSON, versionKey: false }
+);
+
+export const FeedbackModel: Model<IFeedback> = mongoose.model<IFeedback>("Feedback", feedbackSchema);
+
+export const insertFeedbackSchema = z.object({
+  type: z.string(),
+  category: z.string(),
+  subject: z.string(),
+  description: z.string(),
+  email: z.string().email(),
+});
+export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+export type Feedback = IFeedback;
+
 export async function connectMongo(uri: string) {
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(uri, {
     dbName: "tripmate",
+    serverSelectionTimeoutMS: 5000, // 5 seconds timeout
+    connectTimeoutMS: 10000,
   });
 }

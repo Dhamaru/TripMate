@@ -17,13 +17,13 @@ export class ResearchAgent {
         console.log(`[ResearchAgent] Initiating context gathering for: ${destination}`);
 
         try {
-            // 1. Fetch Location Coordinates (Geocoding)
+            // 1. Fetch Location Coordinates (Geocoding - Using FREE Nominatim/OSM)
             const geoResult = await this.geocodeDestination(destination);
 
             const contextFetchPromises = [];
 
             // 2. Fetch Ambient Context (Weather)
-            if (this.weatherService && geoResult) {
+            if (this.weatherService && geoResult && geoResult.lat !== 0) {
                 contextFetchPromises.push(
                     this.weatherService.getWeatherForLocation(geoResult.lat, geoResult.lon)
                         .catch(() => null) // Graceful degradation
@@ -40,7 +40,7 @@ export class ResearchAgent {
             const [weatherContext, localAnchors] = await Promise.all(contextFetchPromises);
 
             const latency = Date.now() - startTime;
-            console.log(`[ResearchAgent] Context gathered in ${latency}ms`);
+            console.log(`[ResearchAgent] Context gathered in ${latency}ms for ${destination}`);
 
             return {
                 geo: geoResult,
@@ -52,20 +52,48 @@ export class ResearchAgent {
         } catch (error) {
             console.error(`[ResearchAgent] Critical failure during research phase:`, error);
             // Fallback: If research fails completely, return minimal context so Orchestrator doesn't crash
-            return { geo: null, weather: null, anchors: [], error: 'Research degraded' };
+            return { geo: { lat: 0, lon: 0 }, weather: null, anchors: [], error: 'Research degraded' };
         }
     }
 
     private async geocodeDestination(dest: string) {
-        // Mock simulation of geocoding for MVP, would use Google Maps API natively
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(dest)}&limit=1`;
+            const response = await fetch(url, {
+                headers: { "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)" }
+            });
+            if (!response.ok) throw new Error("Geocoding failed");
+            const data = await response.json();
+            if (data && data.length > 0) {
+                return { lat: Number(data[0].lat), lon: Number(data[0].lon) };
+            }
+        } catch (e) {
+            console.warn(`[ResearchAgent] Geocoding fallback:`, e);
+        }
         return { lat: 0, lon: 0 };
     }
 
     private async fetchLocalAnchors(dest: string, style: string) {
-        // Return high-level anchors the generator MUST use, preventing hallucination
-        if (dest.toLowerCase().includes('hyderabad')) {
-            return ['Charminar', 'Golconda Fort', 'Ramoji Film City'];
+        // If we have a dedicated places service (e.g. Google Places), use it
+        if (this.placesService && typeof this.placesService.getPointsOfInterest === 'function') {
+            return await this.placesService.getPointsOfInterest(dest, style);
         }
+
+        // Fallback: Hardcoded anchors for major cities to prevent total hallucination
+        const anchorMap: Record<string, string[]> = {
+            'hyderabad': ['Charminar', 'Golconda Fort', 'Ramoji Film City', 'Birla Mandir'],
+            'chennai': ['Marina Beach', 'Kapaleeshwarar Temple', 'Fort St. George', 'Santhome Cathedral'],
+            'tokyo': ['Tokyo Tower', 'Shibuya Crossing', 'Senso-ji Temple', 'Meiji Jingu'],
+            'paris': ['Eiffel Tower', 'Louvre Museum', 'Notre-Dame Cathedral', 'Arc de Triomphe'],
+            'london': ['Big Ben', 'London Eye', 'Tower Bridge', 'British Museum'],
+            'new york': ['Statue of Liberty', 'Central Park', 'Times Square', 'Empire State Building']
+        };
+
+        const normalizedDest = dest.toLowerCase();
+        for (const city in anchorMap) {
+            if (normalizedDest.includes(city)) return anchorMap[city];
+        }
+
         return []; // Fallback empty
     }
 }

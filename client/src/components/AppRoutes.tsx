@@ -1,11 +1,10 @@
-import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
-import { queryClient } from "@/lib/queryClient";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import { AuthProvider } from "@/components/AuthProvider";
+import { useAuthStore } from "@/store";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicRoute } from "@/components/PublicRoute";
 
@@ -46,9 +45,9 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 
 function TripsAlias({ params }: { params: { id: string } }) {
   const [, navigate] = useLocation();
-  // forward to the actual route used by the app
-  navigate(`/app/trips/${params.id}`, { replace: true });
-  return null;
+  useEffect(() => {
+    navigate(`/app/trips/${params.id}`, { replace: true });
+  }, [navigate, params.id]);
   return null;
 }
 
@@ -61,16 +60,11 @@ function AppRedirect() {
 }
 
 function Router() {
-  const { isAuthenticated, isLoading, token } = useAuth() as any;
-
   return (
     <Switch>
       {/* Public routes */}
-      <Route path="/">
-        <PublicRoute>
-          <Landing />
-        </PublicRoute>
-      </Route>
+      <Route path="/" component={Landing} />
+
       <Route path="/signin">
         <PublicRoute>
           <AuthLayout>
@@ -101,30 +95,12 @@ function Router() {
       </Route>
 
       {/* Support Routes */}
-      <Route path="/help">
-        <PublicRoute>
-          <HelpCenter />
-        </PublicRoute>
-      </Route>
-      <Route path="/privacy">
-        <PublicRoute>
-          <PrivacyPolicy />
-        </PublicRoute>
-      </Route>
-      <Route path="/terms">
-        <PublicRoute>
-          <TermsOfService />
-        </PublicRoute>
-      </Route>
-      <Route path="/contact">
-        <PublicRoute>
-          <ContactUs />
-        </PublicRoute>
-      </Route>
-
+      <Route path="/help" component={HelpCenter} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
+      <Route path="/contact" component={ContactUs} />
 
       {/* Protected routes under /app */}
-
       <Route path="/app/home">
         <ProtectedRoute>
           <AppLayout>
@@ -251,8 +227,8 @@ function Router() {
           </AppLayout>
         </ProtectedRoute>
       </Route>
-      <Route path="/app" component={AppRedirect} />
 
+      <Route path="/app" component={AppRedirect} />
 
       {/* Aliases for deep links without /app prefix */}
       <Route path="/trips/:id" component={TripsAlias} />
@@ -279,16 +255,15 @@ function AppRoutes() {
       window.removeEventListener('beforeinput', beforeInputHandler as EventListener, { capture: true } as any);
     };
   }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <ErrorBoundary>
-            <Router />
-          </ErrorBoundary>
-        </TooltipProvider>
-      </AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <ErrorBoundary>
+          <Router />
+        </ErrorBoundary>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

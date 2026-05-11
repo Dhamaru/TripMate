@@ -40,8 +40,10 @@ export default function TripsHistory() {
     }, [error, isLoading]);
 
     const filteredTrips = trips?.filter(trip => {
-        const matchesSearch = trip.destination.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === "all" || trip.status === statusFilter;
+        const destination = trip?.destination || "";
+        const status = trip?.status || "planning";
+        const matchesSearch = destination.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === "all" || status === statusFilter;
         return matchesSearch && matchesStatus;
     }) || [];
 
@@ -179,9 +181,9 @@ export default function TripsHistory() {
                                         <CardContent className="w-2/3 p-3 sm:p-4 flex flex-col justify-between">
                                             <div className="space-y-2">
                                                 <div className="flex items-start justify-between gap-2">
-                                                    <h3 className="text-lg sm:text-xl font-bold text-white truncate">{trip.destination}</h3>
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${getStatusColor(trip.status)}`}>
-                                                        {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+                                                    <h3 className="text-lg sm:text-xl font-bold text-white truncate">{trip?.destination || "New Trip"}</h3>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${getStatusColor(trip?.status || "planning")}`}>
+                                                        {(trip?.status || "planning").charAt(0).toUpperCase() + (trip?.status || "planning").slice(1)}
                                                     </span>
                                                 </div>
 
@@ -192,17 +194,17 @@ export default function TripsHistory() {
                                                     </div>
                                                     <div>
                                                         <p className="text-ios-gray">Duration</p>
-                                                        <p className="text-white font-medium">{trip.days} days</p>
+                                                        <p className="text-white font-medium">{trip?.days || 0} days</p>
                                                     </div>
                                                     <div>
                                                         <p className="text-ios-gray">Group</p>
                                                         <p className="text-white font-medium truncate">
-                                                            {Number(trip.groupSize) === 1 ? 'Solo' : `${trip.groupSize} People`}
+                                                            {Number(trip?.groupSize || 1) === 1 ? 'Solo' : `${trip?.groupSize} People`}
                                                         </p>
                                                     </div>
                                                     <div>
                                                         <p className="text-ios-gray">Style</p>
-                                                        <p className="text-white font-medium capitalize truncate">{trip.travelStyle.replace('-', ' ')}</p>
+                                                        <p className="text-white font-medium capitalize truncate">{(trip?.travelStyle || "standard").replace('-', ' ')}</p>
                                                     </div>
                                                 </div>
                                             </div>

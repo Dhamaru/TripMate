@@ -1,21 +1,27 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-ios-darker">
-      <Card className="w-full max-w-md mx-4 bg-ios-card border-ios-gray">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-ios-red" />
-            <h1 className="text-2xl font-bold text-white">404 Page Not Found</h1>
-          </div>
+  const [, navigate] = useLocation();
+  const { isAuthenticated } = useAuth();
 
-          <p className="mt-4 text-sm text-ios-gray">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-ios-darker px-4">
+      <div className="text-center max-w-md">
+        <div className="text-8xl mb-6" aria-hidden="true">🗺️</div>
+        <h1 className="text-3xl font-bold text-white mb-3">We lost this page</h1>
+        <p className="text-ios-gray mb-8 leading-relaxed">
+          The page you are looking for does not exist or has been moved.
+          Head back home and pick up where you left off.
+        </p>
+        <Button
+          onClick={() => navigate(isAuthenticated ? "/app/home" : "/")}
+          className="bg-ios-blue hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold"
+        >
+          Back to TripMate
+        </Button>
+      </div>
     </div>
   );
 }

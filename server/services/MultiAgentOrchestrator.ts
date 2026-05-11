@@ -18,7 +18,7 @@ export class MultiAgentOrchestrator {
         this.researchAgent = new ResearchAgent({ places: services.places, weather: services.weather });
         this.draftingAgent = new DraftingAgent({ openai: services.openai, geminiHelper: services.geminiHelper });
         this.criticAgent = new CriticAgent({ openai: services.openai, modeler: this.modeler });
-        this.formattingAgent = new FormattingAgent({ openai: services.openai });
+        this.formattingAgent = new FormattingAgent({ openai: services.openai, geminiHelper: services.geminiHelper });
     }
 
     /**

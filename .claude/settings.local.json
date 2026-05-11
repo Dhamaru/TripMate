@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\(client/src/pages|client/src/components|client/src/hooks|server/|shared|^[^/]*\\\\.\\(ts|js\\)$\\)\")",
+      "Bash(grep -E '\\\\.\\(ts|js|json\\)$')",
+      "Bash(wc -l \"/c/Users/kasiv/OneDrive/Documents/TripMate/server/services\"/*.ts \"/c/Users/kasiv/OneDrive/Documents/TripMate/server/services/agents\"/*.ts)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -30 \"{}\"')",
+      "Bash(ls -lh \"/c/Users/kasiv/OneDrive/Documents/TripMate/\"*.ts \"/c/Users/kasiv/OneDrive/Documents/TripMate/\"*.js \"/c/Users/kasiv/OneDrive/Documents/TripMate/\"*.json)",
+      "Bash(grep:*)",
+      "Bash(ls \"/c/Users/kasiv/OneDrive/Documents/TripMate/client/src/components\" -d */)",
+      "Bash(ls \"C:/Users/kasiv/OneDrive/Documents/TripMate/\"orig_*.tsx)",
+      "Bash(ls \"C:/Users/kasiv/OneDrive/Documents/TripMate/\"*.log)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(npm run:*)",
+      "Bash(echo \"Server PID: $!\")",
+      "Bash(curl -s http://localhost:5000/api/v1/auth/user)",
+      "Bash(curl -s http://localhost:5000/)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(node -e ':*)",
+      "Bash(npx tsx:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"Server started with PID: $!\")",
+      "Bash(cross-env NODE_ENV=development NO_VITE=1 npx tsx server/index.ts)",
+      "Bash(NODE_ENV=development NO_VITE=1 npx tsx server/index.ts)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('token:', d.get\\('token','MISSING'\\)\\); print\\('user:', d.get\\('user',{}\\).get\\('email','MISSING'\\)\\); print\\('error:', d.get\\('error','none'\\)\\)\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(taskkill /F /IM tsx.exe)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(bash)",
+      "Bash(xargs wc *)"
+    ]
+  }
+}

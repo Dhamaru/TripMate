@@ -1,29 +1,33 @@
-import { useAuth } from "@/hooks/useAuth"
+import { useAuthStore } from "@/store"
 import { useLocation } from "wouter"
+import React, { useEffect } from "react"
 
 interface PublicRouteProps {
   children: React.ReactNode
 }
 
 export function PublicRoute({ children }: PublicRouteProps) {
-  const { isAuthenticated, isLoading, token } = useAuth() as any
+  const { isAuthenticated, isLoading } = useAuthStore()
   const [, navigate] = useLocation()
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate("/app/home")
+    }
+  }, [isLoading, isAuthenticated, navigate])
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-ios-darker flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
-          <p className="text-ios-gray">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ff385c] mx-auto mb-4" />
+          <p className="text-[#929292] text-sm">Loading...</p>
         </div>
       </div>
     )
   }
 
-  if (isAuthenticated || !!token) {
-    navigate("/app/home")
-    return null
-  }
+  if (isAuthenticated) return null
 
   return <>{children}</>
 }

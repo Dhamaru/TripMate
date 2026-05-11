@@ -1,4 +1,0 @@
-- Task 1: Delete duplicate GET/PUT /api/v1/auth/user routes [COMPLETED]
-- Task 2: Delete duplicate packing list CRUD routes [COMPLETED]
-- Task 3: Remove debug server_debug.log writes from journal update [COMPLETED]
-- Task 4: Delete debug-only routes from production [COMPLETED]

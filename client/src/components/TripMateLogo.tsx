@@ -17,16 +17,19 @@ export function TripMateLogo({ size = 'md', showText = true, className = '' }: T
     lg: 'text-2xl'
   };
 
-  const iconSizeClasses = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-lg'
-  };
-
   return (
     <div className={`flex items-center space-x-2 ${className}`}>
-      <div className={`${sizeClasses[size]} bg-gradient-to-br from-ios-blue to-ios-orange rounded-lg flex items-center justify-center`}>
-        <i className={`fas fa-plane text-white ${iconSizeClasses[size]}`}></i>
+      <div className={`${sizeClasses[size]} relative flex items-center justify-center`}>
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{ stopColor: '#007AFF', stopOpacity: 1 }} />
+              <stop offset="100%" style={{ stopColor: '#FF9500', stopOpacity: 1 }} />
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" rx="20" fill="url(#logo-grad)" />
+          <path d="M30 35 L70 50 L30 65 L35 50 Z" fill="white" />
+        </svg>
       </div>
       {showText && (
         <span className={`font-bold text-foreground ${textSizeClasses[size]}`}>

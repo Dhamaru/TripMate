@@ -22,9 +22,7 @@ export default function Sessions() {
   async function loadSessions() {
     setIsLoading(true);
     try {
-      const token = (window as any).__authToken || null;
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch('/api/v1/auth/sessions', { credentials: 'include', headers });
+      const res = await fetch('/api/v1/auth/sessions', { credentials: 'include' });
       if (res.ok) {
         const json = await res.json();
         setSessions(Array.isArray(json) ? json : []);
@@ -35,9 +33,7 @@ export default function Sessions() {
   }
 
   async function revokeSession(id: string) {
-    const token = (window as any).__authToken || null;
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(`/api/v1/auth/sessions/${id}/revoke`, { method: 'POST', credentials: 'include', headers });
+    const res = await fetch(`/api/v1/auth/sessions/${id}/revoke`, { method: 'POST', credentials: 'include' });
     if (res.ok) loadSessions();
   }
 

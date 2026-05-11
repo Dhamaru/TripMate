@@ -1,94 +1,110 @@
-# TripMate 🌍✈️
+# TripMate — AI Travel Planner
 
-TripMate is your all-in-one AI-powered travel companion designed to make your journeys seamless and memorable. From planning personalized itineraries to tracking your travel memories, TripMate has you covered.
+> **Agentic AI travel planning powered by Groq (llama-3.3-70b-versatile) and Atlas, your personal travel intelligence agent.**
 
-## ✨ Key Features
+## Prerequisites
+- Node.js 20+
+- MongoDB (local) or MongoDB Atlas free tier
+- Groq API key (free at [console.groq.com](https://console.groq.com))
+- Google Places API key
+- Gemini API key (for emergency info)
 
-### 🗺️ Smart Trip Planner
-- **AI-Generated Itineraries**: Create personalized travel plans based on your interests, budget, and duration.
-- **Interactive Maps**: Visualize your trip with integrated maps and route planning.
-- **Customizable Plans**: Edit and refine your itinerary to fit your schedule.
+## Setup
 
-### 📝 Travel Journal
-- **Digital Diary**: Document your experiences, thoughts, and memories in a beautiful digital journal.
-- **Rich Media**: Attach photos and location tags to your entries.
-- **Timeline View**: Relive your trips chronologically.
+```bash
+# 1. Clone
+git clone <repo> && cd tripmate
 
-### 🧳 Smart Packing List
-- **AI Suggestions**: Get packing recommendations based on your destination, weather, and activities.
-- **Checklists**: Keep track of what you've packed and what's missing.
+# 2. Install dependencies
+npm install
 
-### 🛠️ Travel Tools
-- **☀️ Weather Insights**: Real-time weather forecasts for your destinations to help you pack right.
-- **💱 Currency Converter**: Instant currency conversion rates for hassle-free shopping and budgeting.
-- **🆘 Emergency Services**: Quickly locate nearby hospitals, police stations, and embassies.
-- **🗣️ Translator**: Break language barriers with an integrated translation tool.
-- **🗺️ Offline Maps**: Access essential map data even without an internet connection.
+# 3. Configure environment
+cp .env.example .env
+# Edit .env and fill in your API keys
 
-### 👤 User Profile
-- **Trip History**: Access all your past and upcoming trips in one place.
-- **Personal Preferences**: Save your travel preferences for better recommendations.
-- **Secure Authentication**: Sign up and sign in securely to keep your data safe.
+# 4. Seed database with test data
+npm run db:seed
 
-## 🚀 Tech Stack
+# 5. Start development servers
+npm run dev
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:5000
+```
 
-- **Frontend**: React, TypeScript, Tailwind CSS, Vite
-- **Backend**: Node.js, Express
-- **Database**: MongoDB (via Mongoose)
-- **AI**: OpenAI API (for trip generation and suggestions)
-- **Maps**: Leaflet / Google Maps API
-- **Authentication**: Passport.js
+## Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEY` | ✅ | Groq API key from console.groq.com |
+| `GEMINI_API_KEY` | ✅ | Google AI Studio key (emergency info) |
+| `GOOGLE_PLACES_API_KEY` | ✅ | Google Cloud Places API key |
+| `DATABASE_URL` | ✅ | MongoDB connection string |
+| `SESSION_SECRET` | ✅ | Random string for session signing |
+| `JWT_SECRET` | ✅ | Random string for JWT signing |
+| `NODE_ENV` | ✅ | `development` or `production` |
+| `VITE_API_URL` | ✅ | Frontend API base: `http://localhost:5000` |
 
-## 🛠️ Installation & Setup
+## npm Scripts
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start both frontend and backend |
+| `npm run dev:server` | Backend only (port 5000) |
+| `npm run dev:client` | Frontend only (port 3000) |
+| `npm run build` | Production build |
+| `npm run typecheck` | TypeScript check (0 errors) |
+| `npm run lint` | ESLint check |
+| `npm test` | Run all tests |
+| `npm run test:coverage` | Tests with coverage report |
+| `npm run test:server` | Server tests only |
+| `npm run test:client` | Client tests only |
+| `npm run db:seed` | Seed database with test data |
 
-### Prerequisites
-- Node.js (v20+)
-- Docker (optional, for containerized deployment)
+## Architecture
 
-### Local Development
+```
+Browser (React + Vite :3000)
+        │
+        │ HTTP / SSE
+        ▼
+Express API (Node.js :5000)
+        │── Auth Middleware (Passport.js + JWT)
+        │── Validate Middleware (Zod)
+        │── Rate Limit Middleware
+        │── Cache Middleware (node-cache)
+        │── Compression Middleware (gzip)
+        │
+        │── Agent Router ──────► Atlas Agent Loop (Groq/llama-3.3-70b)
+        │                              │── Tool Executor
+        │                                    │── weatherHandler   (Open-Meteo, free)
+        │                                    │── currencyHandler  (Frankfurter, free)
+        │                                    │── emergencyHandler (Gemini API)
+        │                                    │── placesHandler    (Google Places)
+        │                                    │── packingHandler   (Groq sub-call)
+        │                                    │── translateHandler (MyMemory, free)
+        │                                    │── budgetHandler    (Budget Engine)
+        │                                    └── tripPlannerHandler
+        │
+        │── Trip / Itinerary / Packing / Journal Routers
+        │
+        ▼
+MongoDB (Mongoose)
+        │── User, Trip, PackingList, JournalEntry, Conversation
+```
 
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/Dhamaru/TripMate.git
-    cd TripMate
-    ```
+## Features
+- **Atlas Agent** — agentic conversational AI with tool-use (weather, currency, places, emergency info, budget breakdown, packing lists)
+- **Trip Planner Wizard** — AI-generated multi-day itineraries with confidence scores and reasoning
+- **Itinerary Manager** — Drag-and-drop activities with chronological validation and Atlas day optimization
+- **Smart Packing List** — AI-generated context-aware packing with weather integration
+- **Journal AI** — Entry contextualization, prose enhancement, and trip recap generation
+- **SSE Streaming** — Real-time Atlas responses with token streaming
+- **Caching** — In-memory cache for weather (1h), currency (30m), places (24h), and emergency info (24h)
 
-2.  **Install dependencies**
-    ```bash
-    npm install
-    ```
+## Test Credentials (after `db:seed`)
+```
+Email:    test@tripmate.dev
+Password: TestPass123!
+```
 
-3.  **Set up environment variables**
-    Create a `.env` file in the root directory and add your API keys:
-    ```env
-    OPENAI_API_KEY=your_openai_api_key
-    DATABASE_URL=your_mongodb_connection_string
-    SESSION_SECRET=your_session_secret
-    ```
-
-4.  **Run the development server**
-    ```bash
-    npm run dev
-    ```
-    The app will be available at `http://localhost:5000`.
-
-### 🐳 Docker Deployment
-
-1.  **Build the Docker image**
-    ```bash
-    docker build -t tripmate .
-    ```
-
-2.  **Run the container**
-    ```bash
-    docker-compose up
-    ```
-    Access the app at `http://localhost:5000`.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License.
+## Documentation
+- [`docs/API.md`](docs/API.md) — Full REST API reference
+- [`docs/AGENT_PROMPTS.md`](docs/AGENT_PROMPTS.md) — Atlas prompt system reference

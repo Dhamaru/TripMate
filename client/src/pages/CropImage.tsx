@@ -12,7 +12,7 @@ import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function CropImagePage() {
-  const { user, token } = useAuth() as any;
+  const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
@@ -26,7 +26,7 @@ export default function CropImagePage() {
     }
   }, []);
 
-  const [imageUrl, setImageUrl] = useState<string>(srcParam || user?.profileImageUrl || "");
+  const [imageUrl, setImageUrl] = useState<string>(srcParam || user?.avatar || user?.profileImageUrl || "");
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string>("");
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 480, h: 480 });
   const editorCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,10 +38,10 @@ export default function CropImagePage() {
   const [startPt, setStartPt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [startCrop, setStartCrop] = useState<{ x: number; y: number; w: number; h: number }>({ x: 0, y: 0, w: 0, h: 0 });
   const [aspect] = useState<'square' | 'circle' | 'free'>("circle");
-  const rotation = 0;
-  const flipH = false;
-  const flipV = false;
-  const zoom = 1;
+  const [rotation, setRotation] = useState<number>(0);
+  const [flipH, setFlipH] = useState<boolean>(false);
+  const [flipV, setFlipV] = useState<boolean>(false);
+  const [zoom, setZoom] = useState<number>(1);
   const brightness = 0;
   const contrast = 0;
   const saturation = 100;
@@ -124,7 +124,7 @@ export default function CropImagePage() {
 
   useEffect(() => {
     renderPreview();
-  }, [resolvedImageUrl, imageUrl, crop, aspect, rotation, brightness, contrast, saturation, canvasSize]);
+  }, [resolvedImageUrl, imageUrl, crop, aspect, rotation, flipH, flipV, zoom, brightness, contrast, saturation, canvasSize]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -191,36 +191,6 @@ export default function CropImagePage() {
 
     setIsSaving(true);
     try {
-      // Try to refresh token if expired
-      let currentToken = token;
-      if (!currentToken) {
-        try {
-          const refreshRes = await fetch("/api/v1/auth/refresh", {
-            method: "POST",
-            credentials: "include"
-          });
-          if (refreshRes.ok) {
-            const data = await refreshRes.json();
-            currentToken = data?.token;
-            if (currentToken) {
-              (window as any).__authToken = currentToken;
-            }
-          }
-        } catch (e) {
-          console.error('Token refresh failed:', e);
-        }
-      }
-
-      // If still no token, show error
-      if (!currentToken) {
-        toast({
-          title: 'Authentication required',
-          description: 'Please sign in again to save your profile picture.',
-          variant: 'destructive'
-        });
-        setIsSaving(false);
-        return;
-      }
 
       const sourceCanvas = editorCanvasRef.current;
       if (!sourceCanvas) throw new Error('no_canvas');
@@ -313,7 +283,7 @@ export default function CropImagePage() {
             <div className="flex items-center space-x-4">
               <Link href="/app/profile">
                 <Avatar className="h-8 w-8 cursor-pointer">
-                  <AvatarImage src={user?.profileImageUrl} alt="Profile" />
+                  <AvatarImage src={user?.avatar || user?.profileImageUrl} alt="Profile" />
                   <AvatarFallback>{((user?.firstName || user?.email || 'U') as string).slice(0, 1).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </Link>
@@ -344,7 +314,7 @@ export default function CropImagePage() {
               </div>
               <div>
                 <canvas ref={previewCanvasRef} width={300} height={300} className="w-full h-auto rounded-full border border-ios-gray mb-4" />
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mb-4">
                   <Input id="fileInput" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                   <Button variant="secondary" onClick={openFileDialog} className="flex-1">
                     <i className="fas fa-image mr-2"></i>
@@ -354,6 +324,54 @@ export default function CropImagePage() {
                     <i className="fas fa-check mr-2"></i>
                     {isSaving ? 'Saving…' : 'OK'}
                   </Button>
+                </div>
+
+                {/* Transform controls */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-ios-gray mb-1 block">Zoom: {zoom.toFixed(1)}x</label>
+                    <input
+                      type="range" min="0.5" max="3" step="0.05"
+                      value={zoom}
+                      onChange={e => setZoom(parseFloat(e.target.value))}
+                      className="w-full accent-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ios-gray mb-1 block">Rotation: {rotation}°</label>
+                    <input
+                      type="range" min="-180" max="180" step="1"
+                      value={rotation}
+                      onChange={e => setRotation(parseInt(e.target.value))}
+                      className="w-full accent-blue-400"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={flipH ? "default" : "secondary"}
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => setFlipH(f => !f)}
+                    >
+                      <i className="fas fa-arrows-alt-h mr-1"></i> Flip H
+                    </Button>
+                    <Button
+                      variant={flipV ? "default" : "secondary"}
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => setFlipV(f => !f)}
+                    >
+                      <i className="fas fa-arrows-alt-v mr-1"></i> Flip V
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => { setRotation(0); setZoom(1); setFlipH(false); setFlipV(false); }}
+                    >
+                      <i className="fas fa-undo mr-1"></i> Reset
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

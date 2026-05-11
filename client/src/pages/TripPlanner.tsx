@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
-import type { User } from "@shared/schema";
+import { useAuthStore, useTripStore } from "@/store";
+import type { Trip } from "@/types/api.types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
@@ -46,11 +46,13 @@ const travelStyles = [
 
 export default function TripPlanner() {
   const [, setLocation] = useLocation();
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth() as { user: User | undefined; isLoading: boolean; isAuthenticated: boolean };
+  const { user, isLoading: authLoading, isAuthenticated } = useAuthStore();
+  const { createTrip } = useTripStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [tripForm, setTripForm] = useState({
+    origin: '',
     destination: '',
     budget: '',
     currency: 'INR',
@@ -65,6 +67,18 @@ export default function TripPlanner() {
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedPackingItems, setSelectedPackingItems] = useState<string[]>([]);
   const hasSaved = useRef(false);
+
+  // "Import My Plan" mode
+  const [planMode, setPlanMode] = useState<'ai' | 'import'>('ai');
+  const [importForm, setImportForm] = useState({
+    scheduleText: '',
+    startDate: '',
+    groupSize: '',
+    budget: '',
+    currency: 'INR',
+  });
+  const [isParsing, setIsParsing] = useState(false);
+  const importSaved = useRef(false);
 
 
   // Redirect if not authenticated
@@ -84,8 +98,7 @@ export default function TripPlanner() {
 
   const createTripMutation = useMutation({
     mutationFn: async (tripData: any) => {
-      const response = await apiRequest('POST', '/api/v1/trips', tripData);
-      return response.json();
+      return await createTrip(tripData);
     },
     onSuccess: async (trip: any) => {
       console.log("[Render Check] TripPlanner loaded with latest fixes.");
@@ -93,62 +106,18 @@ export default function TripPlanner() {
 
       console.log("Trip created response:", trip); // Debug log
 
-      // Create packing list with selected items if any are selected
-      if (selectedPackingItems.length > 0 && planTripMutation.data?.packingList) {
-        try {
-          const packingListItems = selectedPackingItems.map((itemName, index) => ({
-            name: itemName,
-            quantity: 1,
-            packed: false,
-            category: 'general'
-          }));
-
-          await apiRequest('POST', '/api/v1/packing-lists', {
-            name: `${trip.destination} - Packing List`,
-            tripId: trip.id || trip._id,
-            items: packingListItems
-          });
-
-          queryClient.invalidateQueries({ queryKey: ['/api/v1/packing-lists'] });
-        } catch (error) {
-          console.error('Failed to create packing list:', error);
-          // Don't fail the whole trip creation if packing list fails
-        }
-      }
-
       toast({
         title: "Trip Created!",
         description: "Your trip has been successfully planned.",
       });
 
-      const targetId = trip.id || trip._id;
+      const targetId = trip.id;
       if (targetId) {
         setLocation(`/app/trips/${targetId}`);
-      } else {
-        console.error("Trip ID missing in response:", trip);
-        const keys = Object.keys(trip || {}).join(', ');
-        const preview = JSON.stringify(trip).slice(0, 100);
-        toast({
-          title: "Error: Trip ID Missing",
-          description: `Created but ID missing. Keys: [${keys}]. Preview: ${preview}`,
-          variant: "destructive"
-        });
-        // Do not redirect so we can see the error
       }
     },
     onError: (error: any) => {
       console.error('Trip creation error:', error);
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/signin";
-        }, 500);
-        return;
-      }
       const errorMessage = error?.message || "Failed to create trip. Please try again.";
       toast({
         title: "Error",
@@ -158,8 +127,67 @@ export default function TripPlanner() {
     },
   });
 
+  const handleImportSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importForm.scheduleText.trim() || importForm.scheduleText.trim().length < 10) {
+      toast({ title: "Missing Schedule", description: "Please paste your travel schedule.", variant: "destructive" });
+      return;
+    }
+    if (!importForm.groupSize) {
+      toast({ title: "Missing Info", description: "Please enter group size.", variant: "destructive" });
+      return;
+    }
+    setIsParsing(true);
+    importSaved.current = false;
+    try {
+      const res = await apiRequest('POST', '/api/v1/trips/parse-schedule', {
+        scheduleText: importForm.scheduleText,
+        startDate: importForm.startDate || undefined,
+        groupSize: parseInt(importForm.groupSize) || 1,
+        budget: importForm.budget ? parseFloat(importForm.budget) : undefined,
+        currency: importForm.currency || 'INR',
+      });
+      const parsed = await res.json();
+      if (!parsed || !parsed.itinerary) {
+        toast({ title: "Parse Failed", description: "Could not parse your schedule. Please check the format.", variant: "destructive" });
+        return;
+      }
+
+      const tripData = {
+        origin: importForm.scheduleText.match(/from\s+([A-Za-z ]+)/i)?.[1]?.split(' to ')[0]?.trim() || '',
+        destination: parsed.destination || 'Multi-city Trip',
+        budget: importForm.budget ? parseFloat(importForm.budget) : undefined,
+        days: parsed.days || parsed.itinerary.length,
+        groupSize: parseInt(importForm.groupSize) || 1,
+        travelStyle: 'standard' as const,
+        currency: importForm.currency || 'INR',
+        status: 'planning' as const,
+        startDate: parsed.startDate ? new Date(parsed.startDate) : importForm.startDate ? new Date(importForm.startDate) : undefined,
+        notes: parsed.notes || '',
+        itinerary: parsed.itinerary.map((day: any, idx: number) => ({
+          dayIndex: idx,
+          day: day.day || idx + 1,
+          date: day.date ? new Date(day.date) : undefined,
+          activities: (day.activities || []).map((act: any) => ({
+            ...act,
+            title: act.title || 'Activity',
+            address: act.address || act.to || act.from || '',
+          })),
+        })),
+      };
+
+      createTripMutation.mutate(tripData);
+    } catch (err: any) {
+      console.error('[ImportSchedule] Error:', err);
+      toast({ title: "Error", description: "Failed to parse schedule. Please try again.", variant: "destructive" });
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
   const planTripMutation = useMutation({
     mutationFn: async () => {
+      const origin = tripForm.origin.trim();
       const dest = tripForm.destination.trim();
       const days = parseInt(tripForm.days) || 1;
       const persons = parseInt(tripForm.groupSize) || 1;
@@ -168,7 +196,7 @@ export default function TripPlanner() {
       const typeOfTrip = selectedStyle || 'relaxed';
       const travelMedium = tripForm.transportMode || 'road';
       const preferences = tripForm.notes || '';
-      const payload = { destination: dest, days, persons, budget, currency, typeOfTrip, travelMedium, preferences } as any;
+      const payload = { origin, destination: dest, days, persons, budget, currency, typeOfTrip, travelMedium, preferences } as any;
 
       const trySafeParse = (obj: any) => safeParsePlan(obj);
 
@@ -416,6 +444,7 @@ export default function TripPlanner() {
       const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
 
       const tripData = {
+        origin: tripForm.origin,
         destination: tripForm.destination,
         budget: tripForm.budget ? parseFloat(tripForm.budget) : (planData.costBreakdown?.totalINR || planData.costBreakdown?.total || 0),
         days: parseInt(tripForm.days) || 1,
@@ -453,7 +482,7 @@ export default function TripPlanner() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tripForm.destination || !tripForm.days || !tripForm.groupSize || !selectedStyle) {
+    if (!tripForm.origin || !tripForm.destination || !tripForm.days || !tripForm.groupSize || !selectedStyle) {
       toast({ title: "Missing Information", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
@@ -493,6 +522,126 @@ export default function TripPlanner() {
           </p>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="flex gap-2 p-1 bg-ios-card border border-ios-gray rounded-xl mb-6">
+          <button
+            type="button"
+            onClick={() => setPlanMode('ai')}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'ai' ? 'bg-ios-blue text-white shadow' : 'text-ios-gray hover:text-white'}`}
+          >
+            <i className="fas fa-magic mr-2"></i>Let AI Plan
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlanMode('import')}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'import' ? 'bg-ios-blue text-white shadow' : 'text-ios-gray hover:text-white'}`}
+          >
+            <i className="fas fa-paste mr-2"></i>Import My Plan
+          </button>
+        </div>
+
+        {/* Import My Plan Mode */}
+        {planMode === 'import' && (
+          <Card className="bg-ios-card border-ios-gray elev-1 mb-6">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white">Import Your Schedule</CardTitle>
+              <p className="text-sm text-ios-gray mt-1">Paste your travel plan as plain text — AI will structure it into a day-by-day itinerary.</p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleImportSchedule} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Your Schedule <span className="text-ios-red">*</span>
+                  </label>
+                  <Textarea
+                    placeholder={`Paste your travel plan here. For example:\n\n22nd evening - Hyderabad to Delhi ✈️\n23rd morning - Delhi to Haridwar 🚗, then Haridwar to Joshi Math\n24th - Joshi Math to Badrinath\n25th - Badrinath darshan\n...`}
+                    value={importForm.scheduleText}
+                    onChange={(e) => setImportForm(prev => ({ ...prev, scheduleText: e.target.value }))}
+                    className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray min-h-[200px] font-mono text-sm"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-white mb-2">Start Date</label>
+                    <Input
+                      type="date"
+                      value={importForm.startDate}
+                      onChange={(e) => setImportForm(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="bg-ios-darker border-ios-gray text-white h-11"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-white mb-2">
+                      Group Size <span className="text-ios-red">*</span>
+                    </label>
+                    <Select
+                      value={importForm.groupSize}
+                      onValueChange={(value) => setImportForm(prev => ({ ...prev, groupSize: value }))}
+                    >
+                      <SelectTrigger className="bg-ios-darker border-ios-gray text-white h-11">
+                        <SelectValue placeholder="Select group size" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-ios-darker border-ios-gray">
+                        <SelectItem value="1" className="text-white">Solo traveler</SelectItem>
+                        <SelectItem value="2" className="text-white">Couple (2 people)</SelectItem>
+                        <SelectItem value="4" className="text-white">Small group (3–5 people)</SelectItem>
+                        <SelectItem value="8" className="text-white">Large group (6+ people)</SelectItem>
+                        <SelectItem value="15" className="text-white">Big group (10–20 people)</SelectItem>
+                        <SelectItem value="30" className="text-white">Group tour (20+ people)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-white mb-2">Budget (optional)</label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={importForm.currency}
+                        onValueChange={(value) => setImportForm(prev => ({ ...prev, currency: value }))}
+                      >
+                        <SelectTrigger className="w-[90px] bg-ios-darker border-ios-gray text-white h-11">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-ios-darker border-ios-gray">
+                          <SelectItem value="INR" className="text-white">₹ INR</SelectItem>
+                          <SelectItem value="USD" className="text-white">$ USD</SelectItem>
+                          <SelectItem value="EUR" className="text-white">€ EUR</SelectItem>
+                          <SelectItem value="GBP" className="text-white">£ GBP</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 50000"
+                        value={importForm.budget}
+                        onChange={(e) => setImportForm(prev => ({ ...prev, budget: e.target.value }))}
+                        className="flex-1 bg-ios-darker border-ios-gray text-white h-11"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isParsing || createTripMutation.isPending}
+                  className="w-full bg-gradient-to-r from-ios-blue to-purple-600 text-white py-4 text-base font-semibold rounded-xl disabled:opacity-50"
+                >
+                  {isParsing ? (
+                    <><i className="fas fa-brain fa-spin mr-2"></i>Parsing Your Schedule...</>
+                  ) : createTripMutation.isPending ? (
+                    <><i className="fas fa-save fa-spin mr-2"></i>Saving Trip...</>
+                  ) : (
+                    <><i className="fas fa-wand-magic-sparkles mr-2"></i>Parse & Create Trip</>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AI Plan Mode */}
+        {planMode === 'ai' && (
         <Card className="bg-ios-card border-ios-gray elev-1">
           <CardHeader>
             <CardTitle className="text-xl font-bold text-white">Trip Details</CardTitle>
@@ -500,6 +649,19 @@ export default function TripPlanner() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6" data-testid="trip-planning-form">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Starting Location <span className="text-ios-red">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Where are you traveling from?"
+                    value={tripForm.origin}
+                    onChange={(e) => setTripForm(prev => ({ ...prev, origin: e.target.value }))}
+                    className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray"
+                    required
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">
                     Destination <span className="text-ios-red">*</span>
@@ -664,9 +826,10 @@ export default function TripPlanner() {
             </form>
           </CardContent>
         </Card>
+        )} {/* end planMode === 'ai' */}
 
         {/* Loading Skeleton */}
-        {(createTripMutation.isPending || planTripMutation.isPending) && (
+        {(createTripMutation.isPending || planTripMutation.isPending || isParsing) && (
           <Card className="bg-ios-card border-ios-gray elev-1 mt-8">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-white">
@@ -711,8 +874,13 @@ export default function TripPlanner() {
                     <div>
                       <div className="font-bold text-white mb-2">Cost Breakdown</div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-ios-gray">
-                        {['accommodationINR', 'foodINR', 'transportINR', 'activitiesINR', 'miscINR', 'totalINR'].map((k) => (
-                          <div key={k}><span className="text-white capitalize">{k.replace('INR', '').replace(/([A-Z])/g, ' $1')}</span><div>₹{Number(planTripMutation.data.costBreakdown[k]).toLocaleString('en-IN')}</div></div>
+                        {['grandTransit', 'accommodationINR', 'foodINR', 'transportINR', 'activitiesINR', 'miscINR', 'totalINR'].map((k) => (
+                          <div key={k}>
+                            <span className="text-white capitalize">
+                              {k === 'grandTransit' ? 'Travel to Destination' : k.replace('INR', '').replace(/([A-Z])/g, ' $1')}
+                            </span>
+                            <div>₹{Number(planTripMutation.data.costBreakdown[k] || 0).toLocaleString('en-IN')}</div>
+                          </div>
                         ))}
                       </div>
                     </div>

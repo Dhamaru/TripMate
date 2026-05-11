@@ -12,3 +12,7 @@ replit.nix
 .env
 .env.*
 !.env.example
+uploads/
+*.log
+*.log.*
+*_errors.txt

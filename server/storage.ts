@@ -11,6 +11,8 @@ import {
   type InsertJournalEntry,
   type PackingList,
   type InsertPackingList,
+  type Feedback,
+  type InsertFeedback
 } from "@shared/schema";
 
 export interface IStorage {
@@ -50,6 +52,9 @@ export interface IStorage {
   createPackingListTemplate(data: any): Promise<any>;
   getUserPackingListTemplates(userId: string): Promise<any[]>;
   deletePackingListTemplate(id: string, userId: string): Promise<boolean>;
+
+  // Feedback operations
+  createFeedback(feedback: InsertFeedback & { userId?: string }): Promise<Feedback>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -311,6 +316,14 @@ export class DatabaseStorage implements IStorage {
     const { PackingListTemplateModel } = await import("@shared/schema");
     const result = await PackingListTemplateModel.deleteOne({ _id: id, userId }).exec();
     return result.deletedCount === 1;
+  }
+
+  // Feedback operations
+  async createFeedback(feedbackData: InsertFeedback & { userId?: string }): Promise<Feedback> {
+    const { FeedbackModel } = await import("@shared/schema");
+    const feedback = new FeedbackModel(feedbackData);
+    await feedback.save();
+    return feedback;
   }
 }
 

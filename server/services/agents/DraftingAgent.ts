@@ -18,7 +18,6 @@ export class DraftingAgent {
         console.log(`[DraftingAgent] Formulating draft baseline...`);
 
         const prompt = `
-      You are an expert, meticulous travel planner.
       Your task is to draft a feasible itinerary baseline for the following goal:
       ${goalText}
 
@@ -26,18 +25,52 @@ export class DraftingAgent {
       1. BUDGET: ${constraints.budget} ${constraints.currency} is a STRICT, HARD limit for the ENTIRE TRIP.
       2. If the user's travel style (e.g., "Luxury") conflicts with the strict numeric budget (e.g., "$50"), YOU MUST PRIORITIZE THE NUMERIC BUDGET. Do not suggest $500 luxury hotels if the budget is $50. Scale back the experience to fit the math.
       3. Pace: ${constraints.travelStyle}
-      4. Group Size: ${constraints.persons} (Total budget must cover everyone)
+      4. UNIQUENESS: Every single activity must be UNIQUE. DO NOT repeat the same park, museum, or landmark on different days unless it's a massive site requiring multiple days. DO NOT repeat restaurant names - travelers want variety!
+      5. LOCALITY: All places MUST be real venues in ${constraints.destination}. No generic placeholders.
 
       GROUNDING CONTEXT (Provided by Research Phase):
       ${JSON.stringify(context.geo)}
       High-Priority Anchors MUST be included: ${JSON.stringify(context.anchors)}
 
-      Emit a JSON structure matching the full trip requirements. DO NOT provide markdown, ONLY the JSON.
-      Format: {
-        "costBreakdown": { "accommodation": 0, "food": 0, "transport": 0, "activities": 0, "misc": 0, "total": 0 },
-        "itinerary": [{ "day": 1, "theme": "...", "activities": [ { "name": "...", "type": "...", "cost": 0, "time": "09:00 AM", "duration_minutes": 60 } ] }]
+      Constraints:
+      - Destination: ${constraints.destination}
+      - Duration: EXACTLY ${constraints.days} days
+      - Persons: ${constraints.persons}
+      - Style: ${constraints.travelStyle}
+      - Budget: ${constraints.budget || 'Calculated'} ${constraints.currency || 'INR'}
+
+      You MUST generate EXACTLY ${constraints.days} unique days of activities. Each day must have at least 3-4 activities (Breakfast, Activity 1, Lunch, Activity 2, Dinner/Evening).
+      Failure to provide unique activities for ALL ${constraints.days} days will result in a plan rejection.
+
+      For every activity, you MUST provide:
+      1. Exact real-world "placeName" and "address".
+      2. Geographic coordinates ("lat" and "lon") as NUMERICAL FLOATS.
+      3. Realistic "cost" and "duration_minutes".
+
+      JSON OUTPUT STRUCTURE:
+      {
+        "itinerary": [
+          {
+            "day": 1,
+            "theme": "...",
+            "activities": [
+              {
+                "time": "09:00 AM",
+                "title": "...",
+                "placeName": "...",
+                "address": "...",
+                "lat": 0.0,
+                "lon": 0.0,
+                "type": "sightseeing",
+                "entryFee": 0,
+                "cost": 0,
+                "duration_minutes": 60
+              }
+            ]
+          }
+        ],
+        "costBreakdown": { "accommodation": 0, "food": 0, "transport": 0, "activities": 0, "misc": 0, "total": 0 }
       }
-      The "costBreakdown.total" MUST be less than or equal to ${constraints.budget}.
     `;
 
         try {

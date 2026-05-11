@@ -1,372 +1,424 @@
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
-@import url('./styles/utilities.css');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────
+   TripMate Design System — Airbnb-inspired
+   Source: getdesign.md/airbnb · Adapted 2026-05-02
+   ───────────────────────────────────────────────────────── */
+
 :root {
-  --background: hsl(220 13% 13%);
-  --foreground: hsl(200 6.6667% 91.1765%);
-  --card: hsl(220 13% 18%);
+  /* ── Airbnb Brand Tokens ─────────────────────────── */
+  --airbnb-primary: #ff385c;
+  --airbnb-primary-active: #e00b41;
+  --airbnb-primary-disabled: #ffd1da;
+  --airbnb-primary-error: #c13515;
 
+  --airbnb-ink: #222222;
+  --airbnb-body: #3f3f3f;
+  --airbnb-muted: #6a6a6a;
+  --airbnb-muted-soft: #929292;
 
-  --card-foreground: hsl(200 6.6667% 91.1765%);
-  --popover: hsl(0 0% 0%);
-  --popover-foreground: hsl(200 6.6667% 91.1765%);
-  --primary: hsl(203.8863 88.2845% 53.1373%);
-  --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(220 13% 18%);
-  --secondary-foreground: hsl(0 0% 100%);
-  --muted: hsl(220 13% 15%);
-  --muted-foreground: hsl(210 3.3898% 46.2745%);
-  --accent: hsl(220 13% 18%);
-  --accent-foreground: hsl(203.8863 88.2845% 53.1373%);
-  --destructive: hsl(356.3033 90.5579% 54.3137%);
-  --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(220 13% 18%);
-  --input: hsl(220 13% 18%);
-  --ring: hsl(203.8863 88.2845% 53.1373%);
-  --chart-1: hsl(203.8863 88.2845% 53.1373%);
-  --chart-2: hsl(159.7826 100% 36.0784%);
-  --chart-3: hsl(42.0290 92.8251% 56.2745%);
-  --chart-4: hsl(147.1429 78.5047% 41.9608%);
-  --chart-5: hsl(341.4894 75.2000% 50.9804%);
-  --sidebar: hsl(220 13% 18%);
-  --sidebar-foreground: hsl(200 6.6667% 91.1765%);
-  --sidebar-primary: hsl(203.8863 88.2845% 53.1373%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(220 13% 18%);
-  --sidebar-accent-foreground: hsl(203.8863 88.2845% 53.1373%);
-  --sidebar-border: hsl(220 13% 18%);
-  --sidebar-ring: hsl(203.8863 88.2845% 53.1373%);
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
-  --radius: 1.3rem;
-  --radius-sm: 0.5rem;
-  --radius-md: 1rem;
-  --radius-lg: 1.25rem;
-  --radius-pill: 9999px;
-  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.30);
-  --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.30);
-  --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 1px 2px -1px hsl(0 0% 0% / 0.30);
-  --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 1px 2px -1px hsl(0 0% 0% / 0.30);
-  --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 2px 4px -1px hsl(0 0% 0% / 0.30);
-  --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.30), 0px 4px 6px -1px hsl(0 0% 0% / 0.30);
-  --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.30);
-  --tracking-normal: 0em;
-  --spacing: 0.25rem;
-  /* iOS-inspired dark theme colors */
-  --ios-darker: hsl(220 13% 13%);
-  --ios-card: #1c1c1e;
-  --ios-gray: #98989d;
-  /* Improved from #8e8e93 for better contrast */
-  --ios-blue: #0a84ff;
-  --ios-green: #30d158;
-  --ios-orange: #ff9f0a;
-  --ios-red: #ff453a;
-  --ios-purple: #bf5af2;
+  --airbnb-hairline: #dddddd;
+  --airbnb-hairline-soft: #ebebeb;
+  --airbnb-border-strong: #c1c1c1;
 
-  /* Standardized spacing scale (4px base) */
-  --spacing-1: 0.25rem;
-  /* 4px */
-  --spacing-2: 0.5rem;
-  /* 8px */
-  --spacing-3: 0.75rem;
-  /* 12px */
-  --spacing-4: 1rem;
-  /* 16px */
-  --spacing-6: 1.5rem;
-  /* 24px */
-  --spacing-8: 2rem;
-  /* 32px */
-  --spacing-12: 3rem;
-  /* 48px */
-  --spacing-16: 4rem;
-  /* 64px */
+  --airbnb-canvas: #ffffff;
+  --airbnb-surface: #f7f7f7;
+  --airbnb-surface-strong: #f2f2f2;
 
-  /* Consistent transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --airbnb-teal: #00a699;
+  --airbnb-orange: #fc642d;
+  --airbnb-link: #428bff;
+  --airbnb-luxe: #460479;
+  --airbnb-plus: #92174d;
 
-  /* Elevation shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
-  --surface: hsl(220 13% 14%);
-  --surface-2: hsl(220 13% 18%);
-  --text-primary: hsl(200 7% 92%);
-  --text-secondary: hsl(210 4% 60%);
-  --border-subtle: hsl(220 13% 22%);
-  --border-strong: hsl(220 13% 30%);
-  --sidebar-collapsed: 64px;
-  --sidebar-expanded: 260px;
-  --sidebar-current: var(--sidebar-collapsed);
-  --z-header: 60;
-  --z-sidebar: 50;
-  --z-modal: 80;
-  --z-toast: 90;
+  /* ── Airbnb Radius Scale ─────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;    /* buttons */
+  --radius-md: 14px;   /* cards, modals */
+  --radius-lg: 20px;
+  --radius-xl: 32px;
+  --radius-full: 9999px; /* pills, avatars */
+  --radius: 0.5rem;    /* shadcn compat */
+
+  /* ── Airbnb Elevation ────────────────────────────── */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-card-hover: rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px 0, rgba(0,0,0,0.1) 0 4px 8px 0;
+  --shadow-modal: 0 8px 32px rgba(0,0,0,0.12);
+  --shadow-search: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+
+  /* ── Shadcn/Radix CSS Variable Map (Light Mode) ──── */
+  --background: 0 0% 100%;           /* canvas white */
+  --foreground: 0 0% 13%;            /* ink #222 */
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 13%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 13%;
+
+  --primary: 350 100% 61%;           /* rausch #ff385c */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 0 0% 97%;             /* surface-soft #f7f7f7 */
+  --secondary-foreground: 0 0% 13%;
+
+  --muted: 0 0% 92%;                 /* hairline-soft #ebebeb */
+  --muted-foreground: 0 0% 42%;      /* muted #6a6a6a */
+
+  --accent: 0 0% 95%;                /* surface-strong #f2f2f2 */
+  --accent-foreground: 0 0% 13%;
+
+  --destructive: 14 75% 42%;         /* primary-error #c13515 */
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 0 0% 87%;                /* hairline #dddddd */
+  --input: 0 0% 87%;
+  --ring: 350 100% 61%;              /* rausch for focus rings */
+
+  /* ── Chart Colors (Airbnb palette) ──────────────── */
+  --chart-1: 350 100% 61%;           /* rausch */
+  --chart-2: 17 97% 60%;             /* airbnb-orange */
+  --chart-3: 174 100% 33%;           /* teal */
+  --chart-4: 216 100% 63%;           /* link blue */
+  --chart-5: 305 91% 20%;            /* luxe purple */
+
+  /* ── Sidebar ─────────────────────────────────────── */
+  --sidebar: 0 0% 97%;               /* surface-soft */
+  --sidebar-foreground: 0 0% 13%;
+  --sidebar-primary: 350 100% 61%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 95%;
+  --sidebar-accent-foreground: 0 0% 13%;
+  --sidebar-border: 0 0% 92%;
+  --sidebar-ring: 350 100% 61%;
+
+  /* ── Nav ─────────────────────────────────────────── */
+  --nav-height: 80px;
+  --sidebar-width: 240px;
+
+  /* ── iOS Compat Bridge (existing components) ─────── */
+  --ios-blue: #007AFF;
+  --ios-orange: #FF9500;
+  --ios-green: #34C759;
+  --ios-red: #FF3B30;
+  --ios-gray: #8E8E93;
+  --ios-dark: #1C1C1E;
+  --ios-darker: #0A0A0A;
+  --ios-card: rgba(28, 28, 30, 0.7);
 }
+
+/* ── Base Styles ──────────────────────────────────── */
 
 @layer base {
   * {
-    border-color: var(--border);
+    box-sizing: border-box;
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
-    font-family: var(--font-sans);
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23007AFF'/><stop offset='100%' stop-color='%23FF9500'/></linearGradient></defs><path fill='url(%23g)' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: Inter, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    margin: 0;
   }
 
-  body.sidebar-expanded {
-    --sidebar-current: var(--sidebar-expanded);
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--airbnb-ink);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
   }
 
-  body.sidebar-collapsed {
-    --sidebar-current: var(--sidebar-collapsed);
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 
-  .with-sidebar {
-    padding-left: var(--sidebar-current);
-  }
-
-  @media (max-width: 767px) {
-    .with-sidebar {
-      padding-left: 0;
-    }
-  }
-
-  .gradient-bg {
-    background: linear-gradient(135deg, hsl(214 100% 50%) 0%, hsl(250 100% 60%) 100%);
-  }
-
-  .card-shadow {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  .ios-blur {
-    backdrop-filter: blur(20px);
-    background: rgba(28, 28, 30, 0.8);
-  }
-
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
-
-  a,
-  button,
-  input,
-  select,
-  textarea,
-  [role='button'] {
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23007AFF'/><stop offset='100%' stop-color='%23FF9500'/></linearGradient></defs><path fill='url(%23g)' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
-  }
-
-  /* Custom scrollbar for dark theme */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: hsl(220 13% 15%);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: hsl(220 13% 25%);
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: hsl(220 13% 35%);
-  }
-
-  /* Focus styles for accessibility */
-  .focus-visible:focus-visible {
-    outline: 2px solid hsl(214 100% 50%);
-    outline-offset: 2px;
+  img {
+    display: block;
+    max-width: 100%;
   }
 }
 
-@layer utilities {
-  .pt-header-gap {
-    padding-top: 1rem;
-  }
+/* ── Airbnb Component Utilities ───────────────────── */
 
-  .responsive-container {
-    width: 100%;
-    max-width: 80rem;
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
+@layer components {
+  /* Buttons */
+  .btn-primary {
+    background-color: var(--airbnb-primary);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 14px 24px;
+    height: 48px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.25;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background-color 0.15s ease, transform 0.1s ease;
   }
+  .btn-primary:hover { background-color: var(--airbnb-primary-active); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background-color: var(--airbnb-primary-disabled); cursor: not-allowed; }
 
-  @media (min-width: 640px) {
-    .responsive-container {
-      padding-left: 1.5rem;
-      padding-right: 1.5rem;
-    }
+  .btn-secondary {
+    background-color: var(--airbnb-canvas);
+    color: var(--airbnb-ink);
+    border-radius: var(--radius-sm);
+    padding: 13px 23px;
+    height: 48px;
+    font-size: 16px;
+    font-weight: 500;
+    border: 1px solid var(--airbnb-ink);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background-color 0.15s ease;
   }
+  .btn-secondary:hover { background-color: var(--airbnb-surface); }
 
-  @media (min-width: 1024px) {
-    .responsive-container {
-      padding-left: 2rem;
-      padding-right: 2rem;
-    }
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--airbnb-ink);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
   }
+  .btn-ghost:hover { background-color: var(--airbnb-surface); }
 
-  .smooth-transition {
-    transition: all 150ms ease-out;
+  .btn-pill {
+    background-color: var(--airbnb-primary);
+    color: #fff;
+    border-radius: var(--radius-full);
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
   }
+  .btn-pill:hover { background-color: var(--airbnb-primary-active); }
 
-  .hover-lift {
-    transform: translateY(0);
-    transition: transform 150ms ease-out;
+  /* Cards */
+  .card-trip {
+    background-color: var(--airbnb-canvas);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
-
-  .hover-lift:hover {
+  .card-trip:hover {
+    box-shadow: var(--shadow-card-hover);
     transform: translateY(-2px);
   }
 
-  .interactive-tap:active {
-    transform: translateY(0.5px) scale(0.99);
+  /* Search bar (pill shape) */
+  .search-bar {
+    background-color: var(--airbnb-canvas);
+    border: 1px solid var(--airbnb-hairline);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-search);
+    height: 64px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
   }
 
-  .icon {
-    width: 1em;
-    height: 1em;
+  /* Search orb (Rausch pill CTA) */
+  .search-orb {
+    background-color: var(--airbnb-primary);
+    color: #fff;
+    border-radius: var(--radius-full);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease;
+  }
+  .search-orb:hover { background-color: var(--airbnb-primary-active); }
+
+  /* Badges */
+  .badge-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-full);
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.18;
+    background-color: var(--airbnb-canvas);
+    color: var(--airbnb-ink);
+    border: 1px solid var(--airbnb-hairline);
   }
 
-  .elev-1 {
-    box-shadow: var(--shadow-sm);
+  .badge-pill-primary {
+    background-color: var(--airbnb-primary);
+    color: #fff;
+    border-color: var(--airbnb-primary);
   }
 
-  .elev-2 {
-    box-shadow: var(--shadow-md);
+  .badge-pill-teal {
+    background-color: var(--airbnb-teal);
+    color: #fff;
+    border-color: var(--airbnb-teal);
   }
 
-  .text-balance {
-    text-wrap: balance;
+  /* Navigation */
+  .top-nav {
+    background-color: var(--airbnb-canvas);
+    border-bottom: 1px solid var(--airbnb-hairline-soft);
+    height: var(--nav-height);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-
-    .smooth-transition,
-    .hover-lift {
-      transition: none;
-    }
+  /* Sidebar */
+  .app-sidebar {
+    background-color: var(--airbnb-surface);
+    border-right: 1px solid var(--airbnb-hairline-soft);
+    width: var(--sidebar-width);
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    overflow-y: auto;
   }
 
-  .text-ios-blue {
-    color: hsl(214 100% 50%);
+  /* Inputs */
+  .input-airbnb {
+    background-color: var(--airbnb-canvas);
+    border: 1px solid var(--airbnb-hairline);
+    border-radius: var(--radius-sm);
+    height: 56px;
+    padding: 14px 12px;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--airbnb-ink);
+    width: 100%;
+    transition: border-color 0.15s ease;
+    outline: none;
+  }
+  .input-airbnb:focus {
+    border-color: var(--airbnb-ink);
+    border-width: 2px;
+  }
+  .input-airbnb::placeholder {
+    color: var(--airbnb-muted);
   }
 
-  .text-ios-orange {
-    color: hsl(28 100% 50%);
+  /* Card image photo-first */
+  .card-photo {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    aspect-ratio: 4/3;
+  }
+  .card-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+  .card-trip:hover .card-photo img {
+    transform: scale(1.03);
+  }
+  .card-photo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 55%);
+    pointer-events: none;
   }
 
-  .text-ios-green {
-    color: hsl(145 63% 49%);
+  /* Avatar */
+  .avatar {
+    border-radius: var(--radius-full);
+    border: 2px solid var(--airbnb-canvas);
+    overflow: hidden;
+    object-fit: cover;
   }
 
-  .text-ios-red {
-    color: hsl(5 100% 58%);
+  /* Section spacing */
+  .section-gap {
+    padding-top: 64px;
+    padding-bottom: 64px;
   }
 
-  .text-ios-gray {
-    color: hsl(240 4% 55%);
+  /* Grid layouts */
+  .card-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 
-  .bg-ios-blue {
-    background-color: hsl(214 100% 50%);
+  @media (min-width: 768px) {
+    .card-grid { grid-template-columns: repeat(2, 1fr); }
   }
-
-  .bg-ios-orange {
-    background-color: hsl(28 100% 50%);
+  @media (min-width: 1024px) {
+    .card-grid { grid-template-columns: repeat(3, 1fr); }
   }
-
-  .bg-ios-green {
-    background-color: hsl(145 63% 49%);
-  }
-
-  .bg-ios-red {
-    background-color: hsl(5 100% 58%);
-  }
-
-  .bg-ios-gray {
-    background-color: hsl(240 4% 55%);
-  }
-
-  .bg-ios-dark {
-    background-color: hsl(220 13% 11%);
-  }
-
-  .bg-ios-darker {
-    background-color: var(--ios-darker);
-  }
-
-  .bg-ios-card {
-    background-color: hsl(220 13% 18%);
-  }
-
-  .border-ios-blue {
-    border-color: hsl(214 100% 50%);
-  }
-
-  .border-ios-orange {
-    border-color: hsl(28 100% 50%);
-  }
-
-  .border-ios-green {
-    border-color: hsl(145 63% 49%);
-  }
-
-  .border-ios-red {
-    border-color: hsl(5 100% 58%);
-  }
-
-  .border-ios-gray {
-    border-color: hsl(240 4% 55%);
-  }
-
-  .border-ios-card {
-    border-color: hsl(220 13% 18%);
-  }
-
-  .hover\:bg-ios-blue:hover {
-    background-color: hsl(214 100% 50%);
-  }
-
-  .hover\:bg-ios-card:hover {
-    background-color: hsl(220 13% 18%);
-  }
-
-  .hover\:border-ios-blue:hover {
-    border-color: hsl(214 100% 50%);
-  }
-
-  .aspect-feature-card {
-    aspect-ratio: 4 / 5;
-    min-height: 260px;
+  @media (min-width: 1280px) {
+    .card-grid { grid-template-columns: repeat(4, 1fr); }
   }
 }
+
+/* ── Utility Overrides ────────────────────────────── */
+
+@layer utilities {
+  .text-ink { color: var(--airbnb-ink); }
+  .text-body { color: var(--airbnb-body); }
+  .text-muted-airbnb { color: var(--airbnb-muted); }
+  .text-rausch { color: var(--airbnb-primary); }
+
+  .bg-canvas { background-color: var(--airbnb-canvas); }
+  .bg-surface { background-color: var(--airbnb-surface); }
+  .bg-rausch { background-color: var(--airbnb-primary); }
+
+  .border-airbnb { border-color: var(--airbnb-hairline); }
+  .border-airbnb-soft { border-color: var(--airbnb-hairline-soft); }
+
+  .shadow-card { box-shadow: var(--shadow-card); }
+  .shadow-card-hover { box-shadow: var(--shadow-card-hover); }
+  .shadow-search { box-shadow: var(--shadow-search); }
+}
+
+/* ── Scrollbar ────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--airbnb-surface); }
+::-webkit-scrollbar-thumb { background: var(--airbnb-hairline); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--airbnb-muted); }
+
+/* ── Root ─────────────────────────────────────────── */
+
+#root { min-height: 100vh; }

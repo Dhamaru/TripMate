@@ -186,6 +186,38 @@ export default function Journal() {
   const [photos, setPhotos] = useState<FileList | null>(null);
   const [keptPhotos, setKeptPhotos] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
+  const [isAugmenting, setIsAugmenting] = useState(false);
+
+  const handleAiEnhance = async () => {
+    if (!entryForm.content.trim()) {
+      toast({ title: "No content", description: "Write something first for AI to enhance!", variant: "destructive" });
+      return;
+    }
+
+    setIsAugmenting(true);
+    try {
+      const res = await apiRequest('POST', '/api/v1/journal/augment', {
+        content: entryForm.content,
+        destination: entryForm.location
+      });
+      const data = await res.json();
+
+      setEntryForm(prev => ({
+        ...prev,
+        content: data.augmentedContent,
+        title: prev.title || (data.suggestedLabels?.[0] ? `My ${data.suggestedLabels[0]} Trip` : prev.title)
+      }));
+
+      toast({
+        title: "Entry Enhanced!",
+        description: `Tone: ${data.sentiment}. Labels suggested: ${data.suggestedLabels?.join(', ')}`,
+      });
+    } catch (err) {
+      toast({ title: "AI Error", description: "Failed to enhance entry.", variant: "destructive" });
+    } finally {
+      setIsAugmenting(false);
+    }
+  };
 
   const startListening = () => {
     if ('webkitSpeechRecognition' in window) {
@@ -379,16 +411,29 @@ export default function Journal() {
                     <label className="block text-sm font-medium text-white">
                       Content <span className="text-ios-red">*</span>
                     </label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={startListening}
-                      className={`${isListening ? 'text-red-500 animate-pulse' : 'text-ios-blue'}`}
-                    >
-                      <i className={`fas fa-microphone${isListening ? '' : '-alt'} mr-1`}></i>
-                      {isListening ? 'Listening...' : 'Dictate'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleAiEnhance}
+                        disabled={isAugmenting}
+                        className="text-ios-orange hover:text-orange-600"
+                      >
+                        <i className={`fas fa-${isAugmenting ? 'spinner fa-spin' : 'magic'} mr-1`}></i>
+                        {isAugmenting ? 'Enhancing...' : 'AI Enhance'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={startListening}
+                        className={`${isListening ? 'text-red-500 animate-pulse' : 'text-ios-blue'}`}
+                      >
+                        <i className={`fas fa-microphone${isListening ? '' : '-alt'} mr-1`}></i>
+                        {isListening ? 'Listening...' : 'Dictate'}
+                      </Button>
+                    </div>
                   </div>
                   <Textarea
                     value={entryForm.content}

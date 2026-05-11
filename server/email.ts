@@ -1,3 +1,4 @@
+import { config } from "./config";
 import nodemailer from "nodemailer";
 
 // Interface for the transporter to allow type checking
@@ -17,10 +18,10 @@ interface TransporterConfig {
 
 async function createTransporter() {
     // Check if we have production SMTP credentials
-    const hasSmtpCreds = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+    const hasSmtpCreds = config.SMTP_HOST && config.SMTP_USER && config.SMTP_PASS;
 
     if (!hasSmtpCreds) {
-        if (process.env.NODE_ENV === "production") {
+        if (config.NODE_ENV === "production") {
             console.warn("WARNING: Missing SMTP credentials in production. Email sending will fail.");
         } else {
             console.log("Development mode: Using Ethereal Email fallback.");
@@ -42,32 +43,32 @@ async function createTransporter() {
     }
 
     // Configure for provided SMTP credentials
-    const port = parseInt(process.env.SMTP_PORT || "587");
-    const host = process.env.SMTP_HOST || "smtp.ethereal.email";
+    const port = config.SMTP_PORT;
+    const host = config.SMTP_HOST || "smtp.ethereal.email";
 
 
 
     // For other SMTP providers
-    const config: TransporterConfig = {
+    const configData: TransporterConfig = {
         host: host,
         port: port,
         secure: port === 465, // true for 465, false for other ports
         auth: {
-            user: process.env.SMTP_USER || "",
-            pass: process.env.SMTP_PASS || "",
+            user: config.SMTP_USER || "",
+            pass: config.SMTP_PASS || "",
         },
         tls: {
-            rejectUnauthorized: process.env.NODE_ENV === "production",
+            rejectUnauthorized: config.NODE_ENV === "production",
         }
     };
 
     // Force IPv4 and add timeouts (helps with ETIMEDOUT on some cloud providers)
     // @ts-ignore - 'family' is a valid option but might not be in the strict type definition we used
-    (config as any).family = 4;
-    (config as any).greetingTimeout = 10000; // 10s timeout
+    (configData as any).family = 4;
+    (configData as any).greetingTimeout = 10000; // 10s timeout
 
-    console.log(`Configuring SMTP transport: Host=${config.host}, Port=${config.port}, Secure=${config.secure}`);
-    return nodemailer.createTransport(config as any);
+    console.log(`Configuring SMTP transport: Host=${configData.host}, Port=${configData.port}, Secure=${configData.secure}`);
+    return nodemailer.createTransport(configData as any);
 }
 
 // Initialize transporter wrapper
@@ -85,7 +86,7 @@ export async function sendEmail(options: nodemailer.SendMailOptions) {
 
         // If using Ethereal (detected by host), log the preview URL
         const isEthereal = info.messageId && ((transporter as any).transporter?.options as any)?.host === "smtp.ethereal.email";
-        if (isEthereal || !process.env.SMTP_HOST) {
+        if (isEthereal || !config.SMTP_HOST) {
             console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info as any));
         }
 
@@ -97,14 +98,14 @@ export async function sendEmail(options: nodemailer.SendMailOptions) {
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
-    const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5000"}/reset-password?token=${token}`;
+    const resetUrl = `${config.FRONTEND_URL || "http://localhost:5000"}/reset-password?token=${token}`;
     console.log("=================================================================");
     console.log("PASSWORD RESET LINK (Dev/Test Helper):");
     console.log(resetUrl);
     console.log("=================================================================");
 
     const message = {
-        from: `"TripMate Support" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'kasivasi2005@gmail.com'}>`,
+        from: `"TripMate Support" <${config.SMTP_FROM_EMAIL || config.SMTP_USER || 'kasivasi2005@gmail.com'}>`,
         to: email,
         subject: "Password Reset Request",
         text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n` +
@@ -129,7 +130,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
         // If using Ethereal (detected by host), log the preview URL
         // Cast to any to avoid TS errors with union types
         const isEthereal = info.messageId && ((transporter as any).transporter?.options as any)?.host === "smtp.ethereal.email";
-        if (isEthereal || !process.env.SMTP_HOST) {
+        if (isEthereal || !config.SMTP_HOST) {
             console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info as any));
         }
 

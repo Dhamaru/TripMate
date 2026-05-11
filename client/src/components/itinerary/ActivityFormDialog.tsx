@@ -28,6 +28,9 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
         duration_minutes: 60,
         lat: undefined as number | undefined,
         lon: undefined as number | undefined,
+        from: '',
+        to: '',
+        notes: '',
     });
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -50,6 +53,9 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                 duration_minutes: activity.duration_minutes || 60,
                 lat: activity.lat,
                 lon: activity.lon,
+                from: activity.from || '',
+                to: activity.to || '',
+                notes: activity.notes || '',
             });
             setSearchTerm(activity.placeName || '');
         } else {
@@ -65,6 +71,9 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                 duration_minutes: 60,
                 lat: undefined,
                 lon: undefined,
+                from: '',
+                to: '',
+                notes: '',
             });
             setSearchTerm('');
         }
@@ -118,6 +127,9 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.title.trim()) {
+            return;
+        }
         onSave(formData);
         onOpenChange(false);
     };
@@ -241,17 +253,54 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                             <SelectContent className="bg-ios-card border-ios-gray shadow-2xl">
                                 <SelectItem value="sightseeing" className="text-white">Sightseeing</SelectItem>
                                 <SelectItem value="restaurant" className="text-white">Restaurant</SelectItem>
-                                <SelectItem value="hotel" className="text-white">Hotel</SelectItem>
-                                <SelectItem value="transport" className="text-white">Transport</SelectItem>
+                                <SelectItem value="hotel" className="text-white">Hotel / Stay</SelectItem>
+                                <SelectItem value="travel" className="text-white">Travel Leg (Flight / Drive / Trek)</SelectItem>
+                                <SelectItem value="transport" className="text-white">Local Transport</SelectItem>
                                 <SelectItem value="shopping" className="text-white">Shopping</SelectItem>
                                 <SelectItem value="other" className="text-white">Other</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
+                    {/* From / To fields for travel legs */}
+                    {formData.type === 'travel' && (
+                        <div className="grid grid-cols-2 gap-4 p-3 bg-ios-blue/5 border border-ios-blue/20 rounded-lg">
+                            <div>
+                                <Label className="text-white font-medium mb-1.5 block">From</Label>
+                                <Input
+                                    value={formData.from}
+                                    onChange={(e) => setFormData({ ...formData, from: e.target.value })}
+                                    placeholder="e.g. Hyderabad"
+                                    className="bg-ios-darker border-ios-gray/50 text-white h-10"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-white font-medium mb-1.5 block">To</Label>
+                                <Input
+                                    value={formData.to}
+                                    onChange={(e) => setFormData({ ...formData, to: e.target.value })}
+                                    placeholder="e.g. Delhi"
+                                    className="bg-ios-darker border-ios-gray/50 text-white h-10"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Notes */}
+                    <div>
+                        <Label className="text-white font-medium mb-1.5 block">Notes</Label>
+                        <Textarea
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            placeholder="Any additional details..."
+                            className="bg-ios-darker border-ios-gray/50 text-white min-h-[60px]"
+                            rows={2}
+                        />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="cost" className="text-white font-medium mb-1.5 block">Est. Cost ($)</Label>
+                            <Label htmlFor="cost" className="text-white font-medium mb-1.5 block">Est. Cost</Label>
                             <Input
                                 id="cost"
                                 type="number"

@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TripMateLogo } from "@/components/TripMateLogo";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { PackingList } from "@/components/PackingList";
 import { TripMap } from "@/components/TripMap";
 import { BudgetTracker } from "@/components/budget/BudgetTracker";
 import { ItineraryManager } from "@/components/itinerary/ItineraryManager";
+import { CollaboratorManager } from "@/components/collaboration/CollaboratorManager";
+import { RecapPanel } from "@/components/journal/RecapPanel";
+import PresenceBubbles from "@/components/collaboration/PresenceBubbles";
+import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,15 +18,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useRef } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { z } from "zod";
 import { logInfo, logError } from "@/lib/logger";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Link, useParams, useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useMemo } from "react";
-import type { Trip, JournalEntry, User } from "@shared/schema";
+import { useAuthStore, useTripStore, useAgentStore } from "@/store";
+import type { Trip, JournalEntry } from "@/types/api.types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 
@@ -40,15 +42,72 @@ const statusColors = {
 };
 
 export default function TripDetail() {
+  const getWeatherIcon = (condition: string) => {
+    const c = (condition || '').toLowerCase();
+    if (c.includes('clear') || c.includes('sun')) return 'fas fa-sun text-ios-orange';
+    if (c.includes('rain') || c.includes('drizzle')) return 'fas fa-cloud-rain text-ios-blue';
+    if (c.includes('snow')) return 'fas fa-snowflake text-blue-200';
+    if (c.includes('storm') || c.includes('thunder')) return 'fas fa-bolt text-purple-400';
+    return 'fas fa-cloud text-ios-gray';
+  };
+
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth() as { user: User | undefined; isLoading: boolean; isAuthenticated: boolean };
+  const { user, isLoading: authLoading, isAuthenticated } = useAuthStore();
+  const { currentTrip: trip, fetchTrip, isLoading: tripLoading, error, deleteTrip } = useTripStore();
   const { toast, dismiss } = useToast();
   const activeToastId = useRef<string | null>(null);
   const queryClient = useQueryClient();
+  const socketRef = useSocket();
+  const { setContext } = useAgentStore();
+
+  useEffect(() => {
+    if (id) {
+      setContext({ currentTripId: id });
+    }
+    return () => setContext({ currentTripId: undefined });
+  }, [id, setContext]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !id) return;
+
+    socket.on('trip-mutation', (mutation: { type: string; data?: any }) => {
+      // Invalidate relevant queries based on mutation type
+      if (mutation.type === 'itinerary-updated') {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+      } else if (mutation.type === 'expenses-updated') {
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
+      } else if (mutation.type === 'packing-updated' || mutation.type === 'packing-deleted') {
+        queryClient.invalidateQueries({ queryKey: ['packing_lists', id] });
+      } else if (mutation.type === 'journal-updated' || mutation.type === 'journal-deleted') {
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/journal'] });
+      } else if (mutation.type === 'collaborators-updated') {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+      } else if (mutation.type === 'trip-updated') {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+      }
+      
+      toast({
+        title: "Live Update",
+        description: `A collaborator updated the ${mutation.type.split('-')[0]}.`,
+      });
+    });
+
+    socket.on('atlas-thinking', ({ isThinking }: { isThinking: boolean }) => {
+      setIsAtlasThinking(isThinking);
+    });
+
+    return () => {
+      socket.off('trip-mutation');
+      socket.off('atlas-thinking');
+    };
+  }, [id, queryClient, socketRef, toast]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isAtlasThinking, setIsAtlasThinking] = useState(false);
   const [tripForm, setTripForm] = useState({
+    origin: '',
     destination: '',
     budget: '',
     days: '',
@@ -118,6 +177,39 @@ export default function TripDetail() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: hacks } = useQuery<any>({
+    queryKey: ['trip_hacks', id],
+    enabled: !!id && isAuthenticated,
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/v1/trips/${id}/hacks`);
+      return res.json();
+    }
+  });
+
+  const { data: quietPlaces, isLoading: quietLoading } = useQuery<any>({
+    queryKey: ['trip_quiet_places', id],
+    enabled: !!id && isAuthenticated,
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/v1/trips/${id}/quiet-places`);
+      return res.json();
+    }
+  });
+
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+  useEffect(() => {
+    if (tripForm.destination) {
+      fetch(`/api/v1/geocode?q=${encodeURIComponent(tripForm.destination)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            setCoords({ lat: Number(data[0].lat), lon: Number(data[0].lon) });
+          }
+        })
+        .catch(() => { });
+    }
+  }, [tripForm.destination]);
+
   useEffect(() => {
     try {
       const count = Array.isArray(sightsResults) ? sightsResults.length : 0;
@@ -158,10 +250,11 @@ export default function TripDetail() {
     } catch { }
   }, [id, isAuthenticated]);
 
-  const { data: trip, isLoading: tripLoading, error } = useQuery<Trip>({
-    queryKey: ['/api/v1/trips', id],
-    enabled: !!id,
-  });
+  useEffect(() => {
+    if (id) {
+      fetchTrip(id);
+    }
+  }, [id, fetchTrip]);
 
   useEffect(() => {
     if (error && isUnauthorizedError(error)) {
@@ -273,6 +366,7 @@ export default function TripDetail() {
   const handleMapDeleteActivity = async (dayIndex: number, activityIndex: number) => {
     if (!trip?.itinerary || !Array.isArray(trip.itinerary)) return;
     const day = trip.itinerary[dayIndex];
+    if (!day) return;
     if (!day || !day.activities || !day.activities[activityIndex]) return;
     const activity = day.activities[activityIndex];
     deleteActivityMutation.mutate({ dayIndex, activityId: activity.id });
@@ -280,15 +374,12 @@ export default function TripDetail() {
 
   useEffect(() => {
     if (trip) {
-      console.log('Trip Details Loaded:', trip);
-      console.log('Trip Itinerary Type:', Array.isArray(trip.itinerary) ? 'Array' : typeof trip.itinerary);
-      console.log('Trip Itinerary Length:', Array.isArray(trip.itinerary) ? trip.itinerary.length : 'N/A');
-
       setTripForm({
+        origin: trip.origin || '',
         destination: trip.destination,
         budget: trip.budget?.toString() || '',
         days: trip.days.toString(),
-        groupSize: trip.groupSize.toString(),
+        groupSize: trip.groupSize?.toString() || '',
         travelStyle: trip.travelStyle,
         status: trip.status as 'planning' | 'active' | 'completed',
         notes: trip.notes || ''
@@ -310,6 +401,7 @@ export default function TripDetail() {
     }
 
     const updates = {
+      origin: tripForm.origin,
       destination: tripForm.destination,
       budget: tripForm.budget ? parseFloat(tripForm.budget) : undefined,
       days: parseInt(tripForm.days),
@@ -322,22 +414,24 @@ export default function TripDetail() {
     updateTripMutation.mutate(updates);
   };
 
-  const handleDelete = () => {
-    // Removed confirm for debugging/user request
-    console.log('Deleting trip...');
-    deleteTripMutation.mutate();
+  const handleDelete = async () => {
+    if (id) {
+      await deleteTrip(id);
+      setLocation('/app/home');
+    }
   };
 
   const handleCancel = () => {
     if (trip) {
       setTripForm({
+        origin: trip.origin || '',
         destination: trip.destination,
         budget: trip.budget?.toString() || '',
         days: trip.days.toString(),
-        groupSize: trip.groupSize.toString(),
+        groupSize: trip.groupSize?.toString() || '',
         travelStyle: trip.travelStyle,
         status: trip.status as 'planning' | 'active' | 'completed',
-        notes: (trip.itinerary as any)?.notes || ''
+        notes: trip.notes || ''
       });
     }
     setIsEditing(false);
@@ -396,7 +490,7 @@ export default function TripDetail() {
       const payload = {
         location: tripForm.destination,
         budget: aiBudget ? parseFloat(aiBudget) : (trip?.budget ?? undefined),
-        people: aiGroupSize ? parseInt(aiGroupSize) : (trip?.groupSize ?? undefined),
+        people: aiGroupSize ? parseInt(aiGroupSize) : (trip?.groupSize ? parseInt(trip.groupSize.toString()) : undefined),
         notes: aiNotes || tripForm.notes || undefined,
         days: parseInt(tripForm.days),
         travelStyle: tripForm.travelStyle,
@@ -412,20 +506,6 @@ export default function TripDetail() {
       try {
         return await makeRequest();
       } catch (error) {
-        if (isUnauthorizedError(error)) {
-          try {
-            const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
-            if (refreshRes.ok) {
-              const data = await refreshRes.json();
-              if (data.token) {
-                (window as any).__authToken = data.token;
-                return await makeRequest();
-              }
-            }
-          } catch {
-            // Refresh failed, throw original error
-          }
-        }
         throw error;
       }
     },
@@ -527,22 +607,63 @@ export default function TripDetail() {
                 {trip.destination}
               </h1>
               <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm md:text-base text-ios-gray">
+                {trip.origin && (
+                  <>
+                    <span>from {trip.origin}</span>
+                    <span>•</span>
+                  </>
+                )}
                 <span>{trip.days} {Number(trip.days) === 1 ? 'day' : 'days'}</span>
                 <span>•</span>
                 <span>₹{trip.budget} budget</span>
                 <span>•</span>
                 <span className="capitalize">
-                  {String(trip.groupSize).replace('-', ' ')}
+                  {(String(trip.groupSize || 'Solo')).replace('-', ' ')}
                   {/^\d+$/.test(String(trip.groupSize)) ? (Number(trip.groupSize) === 1 ? ' traveler' : ' travelers') : ''}
                 </span>
               </div>
             </div>
+            <AnimatePresence>
+              {isAtlasThinking && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center space-x-2 bg-ios-blue/10 border border-ios-blue/20 px-3 py-1.5 rounded-full"
+                >
+                  <div className="flex space-x-1">
+                    <motion.div
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
+                      className="w-1.5 h-1.5 bg-ios-blue rounded-full"
+                    />
+                    <motion.div
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                      className="w-1.5 h-1.5 bg-ios-blue rounded-full"
+                    />
+                    <motion.div
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                      className="w-1.5 h-1.5 bg-ios-blue rounded-full"
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-ios-blue">Atlas is thinking...</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="flex items-center gap-2 self-start">
-              <Badge className={`${statusColors[trip.status as keyof typeof statusColors] || 'bg-ios-gray'} text-white`}>
-                {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+              <Badge className={`${statusColors[trip?.status as keyof typeof statusColors] || 'bg-ios-gray'} text-white`}>
+                {trip?.status ? (trip.status.charAt(0).toUpperCase() + trip.status.slice(1)) : 'Planning'}
               </Badge>
               {!isEditing && (
                 <div className="flex space-x-2">
+                  {id && trip && (
+                    <div className="flex items-center space-x-4">
+                      <PresenceBubbles tripId={id} />
+                      <CollaboratorManager tripId={id} ownerId={trip.userId} />
+                    </div>
+                  )}
                   <Button
                     onClick={() => setIsEditing(true)}
                     variant="outline"
@@ -578,6 +699,40 @@ export default function TripDetail() {
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+
+                {(trip as any).imageCaption && (
+                  <div className="absolute bottom-4 left-4 z-10">
+                    <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
+                       <i className="fas fa-camera text-ios-blue text-xs"></i>
+                       <span className="text-white text-xs font-medium tracking-wide drop-shadow-sm">{(trip as any).imageCaption}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image refresh button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-4 right-4 z-20 text-white/70 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md transition-all rounded-full border border-white/10"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    toast({ title: "Refreshing image...", description: "Looking for a better photo." });
+                    try {
+                      await apiRequest('POST', `/api/v1/trips/${id}/image?force=true`);
+                      toast({ title: "Refreshing...", description: "Looking for a new photo." });
+                      // We don't need to invalidate immediately as the socket will handle the 'trip-updated' broadcast
+                      // But purely as a fallback:
+                      setTimeout(() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
+                      }, 3000);
+                    } catch (err) {
+                      toast({ title: "Failed to refresh", variant: "destructive" });
+                    }
+                  }}
+                  title="Refresh Image"
+                >
+                  <i className="fas fa-sync-alt animate-hover-spin"></i>
+                </Button>
               </>
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-ios-blue to-purple-600 transition-opacity"></div>
@@ -598,6 +753,18 @@ export default function TripDetail() {
             <CardContent>
               <form className="space-y-6" data-testid="trip-edit-form">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-white mb-2">
+                      Starting Location
+                    </label>
+                    <Input
+                      type="text"
+                      value={tripForm.origin}
+                      onChange={(e) => setTripForm(prev => ({ ...prev, origin: e.target.value }))}
+                      className="bg-ios-darker border-border text-white"
+                      placeholder="Where are you traveling from?"
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-semibold text-white mb-2">
                       Destination <span className="text-ios-red">*</span>
@@ -741,10 +908,10 @@ export default function TripDetail() {
                   <p className="font-bold text-foreground capitalize">{trip.travelStyle.replace('-', ' ')}</p>
                 </div>
                 <div className="text-center p-4 bg-secondary radius-md">
-                  {weather ? (
+                  {weather?.current ? (
                     <>
                       <div className="flex items-center justify-center gap-2 mb-2">
-                        <i className={`${weather.current.icon} text-ios-blue text-2xl`}></i>
+                        <i className={`${weather.current.icon || getWeatherIcon(weather.current.condition)} text-2xl`}></i>
                       </div>
                       <p className="text-sm text-muted-foreground">{weather.current.condition}</p>
                       <p className="font-bold text-foreground">{Math.round(weather.current.temperature)}°C</p>
@@ -785,12 +952,98 @@ export default function TripDetail() {
           <TripMap
             destination={trip.destination}
             itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []}
+            origin={trip.origin}
             onAddActivity={handleMapAddActivity}
             onDeleteActivity={handleMapDeleteActivity}
           />
 
           {/* Cost Breakdown & Budget Tracker */}
           <BudgetTracker trip={trip} />
+
+          {/* Travel Smart Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Travel Hacks */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                  <i className="fas fa-lightbulb text-ios-orange"></i>
+                  Travel Hacks & Savvy Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {hacks?.hacks?.map((hack: string, i: number) => (
+                    <div key={i} className="flex gap-3 text-sm text-ios-gray">
+                      <div className="text-ios-orange pt-1">•</div>
+                      <div>{hack}</div>
+                    </div>
+                  ))}
+                  {(!hacks || hacks.hacks?.length === 0) && <p className="text-ios-gray italic text-sm">Fetching smart tips...</p>}
+                </div>
+                {hacks?.economicalAlternatives?.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-bold text-white mb-3">Economical Alternatives</h4>
+                    <div className="space-y-2">
+                      {hacks.economicalAlternatives.map((alt: string, i: number) => (
+                        <div key={i} className="bg-ios-green/10 border border-ios-green/20 radius-md p-3 text-xs text-ios-green">
+                          <i className="fas fa-wallet mr-2"></i>
+                          {alt}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quiet Alternatives */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                  <i className="fas fa-leaf text-ios-green"></i>
+                  Escape the Crowds
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {quietPlaces?.spots?.map((spot: any, i: number) => (
+                    <div key={i} className="border-b border-border pb-4 last:border-0 last:pb-0">
+                      <div className="font-bold text-white text-sm mb-1">{spot.name}</div>
+                      <div className="text-xs text-ios-gray mb-2">{spot.address}</div>
+
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {spot.crowdLevel && (
+                          <Badge variant="outline" className="text-xs bg-green-900/20 text-green-400 border-green-900/50">
+                            <i className="fas fa-users-slash mr-1"></i> {spot.crowdLevel} Crowds
+                          </Badge>
+                        )}
+                        {spot.type && (
+                          <Badge variant="outline" className="text-xs bg-blue-900/20 text-blue-400 border-blue-900/50">
+                            {spot.type}
+                          </Badge>
+                        )}
+                        {spot.bestTime && (
+                          <Badge variant="outline" className="text-xs bg-orange-900/20 text-orange-400 border-orange-900/50">
+                            <i className="fas fa-clock mr-1"></i> {spot.bestTime}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="text-xs text-ios-blue bg-ios-blue/10 p-2 radius-sm">
+                        <i className="fas fa-info-circle mr-2"></i>
+                        {spot.reason}
+                      </div>
+                    </div>
+                  ))}
+                  {(!quietPlaces?.spots || quietPlaces.spots.length === 0) && (
+                    <p className="text-ios-gray italic text-sm">
+                      {quietLoading ? "Discovery in progress..." : "No quiet spots found for this area."}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Itinerary Manager */}
           <div className="space-y-6">
@@ -800,9 +1053,12 @@ export default function TripDetail() {
             <ItineraryManager trip={trip} />
           </div>
 
-          <div className="mt-8 mb-8 space-y-6">
+          <div id="suggested-places-section" className="mt-8 mb-8 space-y-6 border-t border-border pt-8">
             <div className="flex flex-col items-center gap-4">
-              <h3 className="text-white font-semibold">What are you looking for?</h3>
+              <h3 className="text-white font-semibold text-lg flex items-center gap-2">
+                <i className="fas fa-map-marked-alt text-ios-blue"></i>
+                What are you looking for at your destination?
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg mx-auto">
                 <Button
                   onClick={() => setShowHotels(!showHotels)}
@@ -866,9 +1122,9 @@ export default function TripDetail() {
                                 <>
                                   {(hotelResults || []).slice(0, 5).map((i: any) => (
                                     <div key={`h-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
-                                      <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
-                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${tripForm.destination}`)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
+                                      <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
+                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
@@ -893,9 +1149,9 @@ export default function TripDetail() {
                                 <>
                                   {(foodResults || []).slice(0, 5).map((i: any) => (
                                     <div key={`f-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
-                                      <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
-                                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${tripForm.destination}`)}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
+                                      <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
+                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
@@ -920,10 +1176,10 @@ export default function TripDetail() {
                                 <>
                                   {(sightsResults || []).slice(0, 5).map((i: any) => (
                                     <div key={`s-${i.id}`} className="text-sm text-white bg-ios-darker radius-md p-3 hover:bg-secondary transition-colors">
-                                      <div className="font-semibold">{String(i.name_en || i.name_local)}</div>
-                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.display_name || '')}</div>
+                                      <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
+                                      <div className="text-xs text-ios-gray mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
                                       <a
-                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${String(i.name_en || i.name_local || '')} ${tripForm.destination}`)}`}
+                                        href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="text-xs text-ios-blue hover:underline mt-2 inline-flex items-center"
@@ -955,11 +1211,20 @@ export default function TripDetail() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-bold text-white">Trip Journal</CardTitle>
-                  <Link href="/app/journal">
-                    <Button variant="outline" size="sm" className="bg-ios-darker border-border text-white hover:bg-card smooth-transition interactive-tap radius-md">
-                      View All
-                    </Button>
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <RecapPanel 
+                      tripId={id!} 
+                      destination={trip.destination}
+                      entryCount={tripJournalEntries.length} 
+                      onRecapSaved={() => queryClient.invalidateQueries({ queryKey: ['/api/v1/journal'] })} 
+                      recapJournalEntry={tripJournalEntries.find(e => e.type === 'recap')}
+                    />
+                    <Link href="/app/journal">
+                      <Button variant="outline" size="sm" className="bg-ios-darker border-border text-white hover:bg-card smooth-transition interactive-tap radius-md">
+                        View All
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Lock, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,9 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
 
 const resetPasswordSchema = z.object({
     password: z.string().min(6, "Password must be at least 6 characters"),
@@ -91,117 +92,133 @@ export default function ResetPasswordPage() {
 
     if (!token) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-ios-darker p-4">
-                <Card className="w-full max-w-md bg-ios-card border-ios-gray">
-                    <CardContent className="pt-6 text-center">
-                        <p className="text-ios-red mb-4">Invalid or missing reset token.</p>
-                        <Button onClick={() => navigate("/signin")} variant="outline" className="border-ios-gray text-white">
-                            Back to Sign In
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
+            <Card className="bg-ios-card/50 backdrop-blur-xl border-ios-gray/30 radius-card p-1 shadow-2xl overflow-hidden">
+                <CardContent className="p-8 text-center pt-12 pb-12">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Lock className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Invalid Token</h2>
+                    <p className="text-ios-gray font-medium mb-8">
+                        The reset link is invalid or has expired.
+                    </p>
+                    <Button 
+                        onClick={() => navigate("/signin")} 
+                        variant="outline" 
+                        className="w-full h-14 border-ios-gray/30 rounded-xl text-white hover:bg-white/5 font-bold"
+                    >
+                        Back to Sign In
+                    </Button>
+                </CardContent>
+            </Card>
         );
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-ios-darker p-4">
-            <Card className="w-full max-w-md bg-ios-card border-ios-gray">
-                <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-white">Reset Password</CardTitle>
-                    <CardDescription className="text-ios-gray">
-                        Enter your new password below.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="password"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-white">New Password</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <Lock className="absolute left-3 top-3 h-4 w-4 text-ios-gray" />
-                                                <Input
-                                                    type={showPassword ? "text" : "password"}
-                                                    placeholder="••••••••"
-                                                    className="pl-9 pr-9 bg-ios-darker border-ios-gray text-white placeholder:text-ios-gray/50"
-                                                    {...field}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-ios-gray hover:text-white"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                >
-                                                    {showPassword ? (
-                                                        <EyeOff className="h-4 w-4" />
-                                                    ) : (
-                                                        <Eye className="h-4 w-4" />
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="confirmPassword"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-white">Confirm Password</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <Lock className="absolute left-3 top-3 h-4 w-4 text-ios-gray" />
-                                                <Input
-                                                    type={showConfirmPassword ? "text" : "password"}
-                                                    placeholder="••••••••"
-                                                    className="pl-9 pr-9 bg-ios-darker border-ios-gray text-white placeholder:text-ios-gray/50"
-                                                    {...field}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-ios-gray hover:text-white"
-                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                >
-                                                    {showConfirmPassword ? (
-                                                        <EyeOff className="h-4 w-4" />
-                                                    ) : (
-                                                        <Eye className="h-4 w-4" />
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <Button
-                                type="submit"
-                                className="w-full bg-ios-blue hover:bg-blue-600 text-white"
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Resetting...
-                                    </>
-                                ) : (
-                                    "Reset Password"
-                                )}
-                            </Button>
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
-        </div>
+        <Card className="bg-ios-card/50 backdrop-blur-xl border-ios-gray/30 radius-card p-1 shadow-2xl overflow-hidden">
+            <CardContent className="p-8">
+                <div className="flex flex-col items-center text-center mt-2 mb-8">
+                    <div className="w-16 h-16 bg-ios-blue/20 rounded-2xl flex items-center justify-center mb-6">
+                        <Lock className="w-8 h-8 text-ios-blue" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
+                    <p className="text-ios-gray font-medium">
+                        Create a strong new password for your account
+                    </p>
+                </div>
+
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                    <FormLabel className="text-sm font-medium text-white ml-1">New Password</FormLabel>
+                                    <FormControl>
+                                        <div className="relative">
+                                            <Input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="••••••••"
+                                                className="bg-ios-darker/50 border-ios-gray/30 h-14 rounded-xl text-white placeholder:text-ios-gray pr-12 focus:border-ios-blue smooth-transition"
+                                                {...field}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-ios-gray hover:text-white"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-5 w-5" />
+                                                ) : (
+                                                    <Eye className="h-5 w-5" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage className="text-red-400 font-medium ml-1" />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="confirmPassword"
+                            render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                    <FormLabel className="text-sm font-medium text-white ml-1">Confirm Password</FormLabel>
+                                    <FormControl>
+                                        <div className="relative">
+                                            <Input
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                placeholder="••••••••"
+                                                className="bg-ios-darker/50 border-ios-gray/30 h-14 rounded-xl text-white placeholder:text-ios-gray pr-12 focus:border-ios-blue smooth-transition"
+                                                {...field}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-ios-gray hover:text-white"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            >
+                                                {showConfirmPassword ? (
+                                                    <EyeOff className="h-5 w-5" />
+                                                ) : (
+                                                    <Eye className="h-5 w-5" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage className="text-red-400 font-medium ml-1" />
+                                </FormItem>
+                            )}
+                        />
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full h-14 bg-gradient-to-r from-ios-blue to-purple-600 hover:scale-[1.02] active:scale-[0.98] smooth-transition rounded-xl font-bold text-lg shadow-lg shadow-ios-blue/20 mt-2"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Resetting...
+                                </>
+                            ) : (
+                                "Update Password"
+                            )}
+                        </Button>
+                    </form>
+                </Form>
+
+                <div className="mt-8 text-center">
+                    <Link href="/signin">
+                        <Button variant="ghost" size="sm" className="text-ios-gray hover:text-white hover:bg-transparent font-semibold">
+                            Back to Sign In
+                        </Button>
+                    </Link>
+                </div>
+            </CardContent>
+        </Card>
     );
 }

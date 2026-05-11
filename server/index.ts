@@ -1,107 +1,166 @@
-import "dotenv/config";
-import express, { type Request, Response, NextFunction } from "express";
-import cluster from "cluster";
-import os from "os";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { config } from "./config";
+import express from "express";
+import fs from "fs";
+import path from "path";
+import { createServer } from "http";
+import { setupAuth } from "./auth";
 import { connectDB } from "./db";
+import { setupVite, serveStatic, log } from "./vite";
+import cookieParser from "cookie-parser";
+import compression from "compression";
+import mongoose from "mongoose";
+
+import { corsMiddleware, helmetMiddleware, mongoSanitizeMiddleware, hppMiddleware } from './middleware/security.middleware';
+import { requestIdMiddleware } from './middleware/requestId.middleware';
+import { requestLoggerMiddleware } from './middleware/requestLogger.middleware';
+import { errorHandler } from './middleware/errorHandler.middleware';
+import { generalLimiter } from './middleware/rateLimit.middleware';
+import { csrfMiddleware } from './middleware/csrf.middleware';
+import { initSkills } from './agent/skillsLoader';
+
+// Routes
+import authRoutes from "./routes/auth.routes";
+import tripsRoutes from "./routes/trips.routes";
+import sharedRoutes from "./routes/shared.routes";
+import atlasRoutes from "./routes/atlas.routes";
+import toolsRoutes from "./routes/tools.routes";
+import plannerRoutes from "./routes/planner.routes";
+import itineraryRoutes from './routes/itinerary.routes';
+import packingRoutes from './routes/packing.routes';
+import journalRoutes from './routes/journal.routes';
+import orchestratorRoutes from "./routes/orchestrator.routes";
+import suggestionRoutes from "./routes/suggestion.routes";
+import feedbackRoutes from "./routes/feedback.routes";
+import agentRoutes from "./routes/agent.routes";
+import placesRoutes from "./routes/places.routes";
+import emergencyRoutes from "./routes/emergency.routes";
+import weatherRoutes from "./routes/weather.routes";
+import crowdRoutes from "./routes/crowd.routes";
+import { socketService } from "./services/SocketService";
 
 const app = express();
-app.locals.ready = false; // Server ready state
+export { app };
+app.locals.ready = false;
 app.set("etag", false);
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.disable("x-powered-by");
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+// 1. Global Middleware (Attach synchronously)
+app.use(corsMiddleware);
+app.use(helmetMiddleware);
+app.use(mongoSanitizeMiddleware);
+app.use(hppMiddleware);
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+app.use(express.json({ limit: config.BODY_JSON_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: config.BODY_URLENCODED_LIMIT }));
+app.use(cookieParser(config.SESSION_SECRET));
+app.use(requestIdMiddleware);
+app.use(requestLoggerMiddleware);
+app.use(csrfMiddleware);
+app.use("/api/v1", generalLimiter);
 
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+// 2. Serve uploads as static files
+app.use("/uploads", express.static(path.join(import.meta.dirname, "uploads")));
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
+// 2. Auth Setup (Non-blocking call)
+setupAuth(app).catch(err => console.error("[Server] Auth Setup Error:", err));
 
-      log(logLine);
-    }
-  });
+// 3. API Routes (Specific routes FIRST to avoid shadowing)
+app.use("/api/v1", toolsRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/trips", tripsRoutes);
+app.use("/api/v1/places", placesRoutes);
+app.use("/api/v1/emergency", emergencyRoutes);
+app.use("/api/v1/weather", weatherRoutes);
+app.use("/api/v1/atlas", atlasRoutes);
+app.use("/api/v1/orchestrator", orchestratorRoutes);
+app.use("/api/v1/suggestions", suggestionRoutes);
+app.use("/api/v1/planner", plannerRoutes);
+app.use("/api/v1/itinerary", itineraryRoutes);
+app.use("/api/v1/agent", agentRoutes);
+app.use("/api/v1/feedback", feedbackRoutes);
+app.use("/api/v1/crowd", crowdRoutes);
 
-  next();
-});
+// Generic/Shared routes (Last, as they match widely)
+app.use("/api/v1", sharedRoutes);
 
-(async function start() {
+// Error Handling (Must be last)
+app.use(errorHandler);
+
+async function startServer() {
+  console.log("[Server] Starting server initialization...");
+  console.log("[Server] Connecting to MongoDB...");
   await connectDB();
-  const server = await registerRoutes(app);
+  console.log("[Server] MongoDB connection sequence finished.");
+  console.log("[Server] Current NODE_ENV:", config.NODE_ENV);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err?.status || err?.statusCode || 500;
-    const message = err?.message || "Internal Server Error";
-    try {
-      res.status(status).json({ message });
-    } catch { }
-    console.error('[error]', status, message);
-    // do NOT throw, keep process alive
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+  console.log("[Server] Initializing Atlas Skills...");
+  try {
+    await initSkills();
+    console.log("[Server] Atlas Skills initialization finished.");
+  } catch (err) {
+    console.error("[Server] Atlas Skills initialization failed:", err);
   }
 
-  // Serve app on fixed port 5000 by default
-  const port = Number(process.env.PORT) || 5000;
+  const server = createServer(app);
+  
+  console.log("[Server] Initializing Socket Service...");
+  socketService.init(server);
+  console.log("[Server] Socket Service initialized.");
+
+  // Only compress in production to avoid Vite HMR issues
+  if (app.get("env") !== "development") {
+    app.use(compression());
+  }
+
+  // 5. Frontend Middleware (Catch-all)
+  console.log(`[Server] Environment: ${app.get("env")}`);
+  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  
+  if (app.get("env") === "development" && !process.env.NO_VITE) {
+    console.log("[Server] Setting up Vite dev middleware...");
+    await setupVite(app, server);
+  } else if (app.get("env") === "production" || fs.existsSync(distPath)) {
+    console.log("[Server] Serving static files from dist/public...");
+    serveStatic(app);
+  } else {
+    console.log("[Server] Skipping frontend middleware (NO_VITE=true and no build found)");
+  }
+
+  const port = config.PORT;
   server.listen(port, "0.0.0.0", () => {
     app.locals.ready = true;
     log(`serving on port ${port} pid=${process.pid}`);
   });
 
   const shutdown = (signal: string) => {
-    try {
-      log(`received ${signal}, starting graceful shutdown`);
-      app.locals.ready = false;
-      server.close(() => {
+    log(`received ${signal}, starting graceful shutdown`);
+    app.locals.ready = false;
+    server.close(() => {
+      mongoose.connection.close(false).finally(() => {
         log("server closed, exiting");
         process.exit(0);
       });
-      setTimeout(() => process.exit(0), 10000);
-    } catch {
-      process.exit(1);
-    }
+    });
+    setTimeout(() => process.exit(0), 10000);
   };
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('uncaughtException', (e) => {
-    console.error('uncaughtException', e);
-  });
-  process.on('unhandledRejection', (e) => {
-    console.error('unhandledRejection', e);
-  });
-})();
-
-if (process.env.NODE_ENV === 'production' && process.env.CLUSTER === '1' && cluster.isPrimary) {
-  const workers = parseInt(process.env.CLUSTER_WORKERS || String(os.cpus().length), 10);
-  log(`starting cluster with ${workers} workers`);
-  for (let i = 0; i < workers; i++) cluster.fork();
-  cluster.on('exit', (worker) => {
-    log(`worker ${worker.process.pid} exited, respawning`);
-    cluster.fork();
-  });
 }
+
+startServer().catch((err) => {
+  console.error("Critical server startup error:", err);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (e) => {
+  console.error('[CRITICAL] Uncaught Exception:', e.name, e.message);
+  console.error(e.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+  // We don't exit(1) here to allow the server to survive minor agent failures
+});
+

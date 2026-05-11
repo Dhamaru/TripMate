@@ -1,12 +1,16 @@
-import { useState } from "react";
-import { type Trip, type IExpense } from "@shared/schema";
+import { useState, useRef } from "react";
+import type { Trip } from "@/types/api.types";
+import { type IExpense } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, AlertTriangle, TrendingUp, Lightbulb } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BudgetTrackerProps {
     trip: Trip;
@@ -26,15 +30,46 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
     });
 
     const expenses = trip.expenses || [];
-    const totalSpent = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+    const { data: forecast, isLoading: forecasting } = useQuery<any>({
+        queryKey: [`/api/v1/trips/${trip._id}/budget-forecast`],
+        enabled: !!trip._id,
+    });
+
+    // Calculate AI-generated itinerary costs
+    let itineraryCost = 0;
+    if (Array.isArray(trip.itinerary)) {
+        trip.itinerary.forEach((day: any) => {
+            if (Array.isArray(day.activities)) {
+                day.activities.forEach((act: any) => {
+                    itineraryCost += (Number(act.cost) || 0);
+                });
+            }
+        });
+    }
+
+    const manualSpent = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+    const grandTransit = Number(trip.budgetBreakdown?.grandTransit || 0);
+    const totalSpent = manualSpent + itineraryCost + grandTransit;
     const budget = trip.budget || 0;
     const remaining = budget - totalSpent;
 
     // Prepare Chart Data
+    // We add an "AI Itinerary" slice to the pie chart to represent the planned activities
     const chartData = CATEGORIES.map(cat => {
-        const value = expenses.filter(e => e.category === cat).reduce((acc, curr) => acc + Number(curr.amount), 0);
+        let value = expenses.filter(e => e.category === cat).reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+        // If the category is Activities, include the AI itinerary cost
+        if (cat === "Activities" && itineraryCost > 0) {
+            value += itineraryCost;
+        }
+
         return { name: cat, value };
     }).filter(d => d.value > 0);
+
+    if (grandTransit > 0) {
+        chartData.push({ name: "Transit to Destination", value: grandTransit });
+    }
 
     const handleAdd = async () => {
         if (!newExpense.amount || !newExpense.description) return;
@@ -65,6 +100,37 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
 
     return (
         <div className="space-y-6">
+            {/* AI Burn Rate Alert */}
+            <AnimatePresence>
+                {forecast?.burnRate > 1 && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                    >
+                        <Card className="bg-red-500/10 border-red-500/20 overflow-hidden">
+                            <CardContent className="p-4 flex items-start gap-3">
+                                <div className="p-2 bg-red-500/20 rounded-full text-red-500">
+                                    <AlertTriangle className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-bold text-red-500">High Burn Rate Detected</h4>
+                                        <Badge variant="outline" className="text-red-500 border-red-500/50 bg-red-500/10">
+                                            {Math.round((forecast.burnRate - 1) * 100)}% Over Target
+                                        </Badge>
+                                    </div>
+                                    <p className="text-sm text-red-200/70 mt-1">
+                                        Your current spending pace exceeds your proportional daily budget. 
+                                        {forecast.alerts?.[0] || "We recommend reviewing your upcoming planned expenses."}
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Summary Card */}
                 <Card className="bg-card border-border">
@@ -131,6 +197,44 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* AI Insights & Pivots */}
+            <AnimatePresence>
+                {forecast?.pivots?.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
+                        <Card className="bg-ios-blue/5 border-ios-blue/20">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                                    <Lightbulb className="w-4 h-4 text-ios-blue" />
+                                    AI Smart Pivots
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {forecast.pivots.map((pivot: string, i: number) => (
+                                        <div key={i} className="flex gap-3 text-sm text-ios-gray bg-ios-darker/50 p-3 rounded-lg border border-border/50">
+                                            <div className="text-ios-blue font-bold">#{(i + 1)}</div>
+                                            <div>{pivot}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-4 flex items-center justify-between text-xs pt-4 border-t border-border/50">
+                                    <div className="flex items-center gap-2 text-ios-gray">
+                                        <TrendingUp className="w-4 h-4" />
+                                        Est. Final Cost: <span className="text-white font-bold">{trip.currency} {forecast?.estimatedFinalCost?.toLocaleString()}</span>
+                                    </div>
+                                    <div className="text-ios-blue flex items-center gap-1">
+                                        <i className="fas fa-robot"></i> AI Forecast
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Expense List & Add Form */}
             <Card className="bg-card border-border">

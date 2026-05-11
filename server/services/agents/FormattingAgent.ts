@@ -28,6 +28,8 @@ export const zTripPlan = z.object({
             cost: z.number().optional(),
             duration_minutes: z.number(),
             localFoodRecommendations: z.array(z.string()).default([]),
+            lat: z.number().optional(),
+            lon: z.number().optional(),
             routeFromPrevious: z.object({ mode: z.string(), distance_km: z.number(), travel_time_minutes: z.number(), from: z.string(), to: z.string() }).optional()
         })).min(1),
         reasoning: z.string().optional(),
@@ -50,9 +52,11 @@ export const zTripPlan = z.object({
 
 export class FormattingAgent {
     private openai: any;
+    private geminiHelper: any;
 
-    constructor(services: { openai: any }) {
+    constructor(services: { openai: any, geminiHelper: any }) {
         this.openai = services.openai;
+        this.geminiHelper = services.geminiHelper;
     }
 
     /**
@@ -95,6 +99,8 @@ export class FormattingAgent {
                         cost: Number(act.cost) || Number(act.estimatedCost) || 0,
                         duration_minutes: Number(act.duration_minutes) || Number(act.duration) || 60,
                         time: act.time || act.timeOfDay || "09:00 AM",
+                        lat: act.lat || act.latitude || (act.coords && act.coords.lat),
+                        lon: act.lon || act.lng || act.longitude || (act.coords && act.coords.lon),
                         localFoodRecommendations: []
                     };
                 }) : []
@@ -134,13 +140,21 @@ export class FormattingAgent {
       `;
 
             try {
-                const fixRes: any = await withRetries(() => this.openai.chat.completions.create({
-                    model: "gpt-4o-mini",
-                    response_format: { type: "json_object" },
-                    messages: [{ role: "system", content: fixPrompt }]
-                }), 2, 2000);
+                let fixedPayload: any;
+                if (this.openai) {
+                    const fixRes: any = await withRetries(() => this.openai.chat.completions.create({
+                        model: "gpt-4o-mini",
+                        response_format: { type: "json_object" },
+                        messages: [{ role: "system", content: fixPrompt }]
+                    }), 2, 2000);
+                    fixedPayload = JSON.parse(fixRes.choices[0].message.content || '{}');
+                } else if (this.geminiHelper) {
+                    const fixResText: string = await withRetries(() => this.geminiHelper(fixPrompt, "application/json"), 2, 2000);
+                    fixedPayload = JSON.parse(fixResText);
+                } else {
+                    throw new Error("No LLM available for JSON repair.");
+                }
 
-                const fixedPayload = JSON.parse(fixRes.choices[0].message.content || '{}');
                 console.log(`[FormattingAgent] Self-correction completed.`);
                 return fixedPayload;
             } catch (fixError) {
