@@ -497,9 +497,9 @@ export default function TripPlanner() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-muted flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F59E0B] mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -507,7 +507,7 @@ export default function TripPlanner() {
   }
 
   return (
-    <div className="min-h-screen bg-muted text-foreground">
+    <div className="space-y-6">
       {/* Navigation Header */}
 
 
@@ -527,14 +527,14 @@ export default function TripPlanner() {
           <button
             type="button"
             onClick={() => setPlanMode('ai')}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'ai' ? 'bg-[#ff385c] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'ai' ? 'bg-[#F59E0B] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <i className="fas fa-magic mr-2"></i>Let AI Plan
           </button>
           <button
             type="button"
             onClick={() => setPlanMode('import')}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'import' ? 'bg-[#ff385c] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'import' ? 'bg-[#F59E0B] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <i className="fas fa-paste mr-2"></i>Import My Plan
           </button>
@@ -557,7 +557,7 @@ export default function TripPlanner() {
                     placeholder={`Paste your travel plan here. For example:\n\n22nd evening - Hyderabad to Delhi ✈️\n23rd morning - Delhi to Haridwar 🚗, then Haridwar to Joshi Math\n24th - Joshi Math to Badrinath\n25th - Badrinath darshan\n...`}
                     value={importForm.scheduleText}
                     onChange={(e) => setImportForm(prev => ({ ...prev, scheduleText: e.target.value }))}
-                    className="bg-muted border text-white placeholder-ios-gray min-h-[200px] font-mono text-sm"
+                    className="bg-muted border text-foreground placeholder:text-muted-foreground min-h-[200px] font-mono text-sm"
                     required
                   />
                 </div>
@@ -625,7 +625,7 @@ export default function TripPlanner() {
                 <Button
                   type="submit"
                   disabled={isParsing || createTripMutation.isPending}
-                  className="w-full bg-[#ff385c] text-white py-4 text-base font-semibold rounded-xl disabled:opacity-50"
+                  className="w-full bg-[#F59E0B] text-white py-4 text-base font-semibold rounded-xl disabled:opacity-50"
                 >
                   {isParsing ? (
                     <><i className="fas fa-brain fa-spin mr-2"></i>Parsing Your Schedule...</>
@@ -658,7 +658,7 @@ export default function TripPlanner() {
                     placeholder="Where are you traveling from?"
                     value={tripForm.origin}
                     onChange={(e) => setTripForm(prev => ({ ...prev, origin: e.target.value }))}
-                    className="bg-muted border text-white placeholder-ios-gray"
+                    className="bg-muted border text-foreground placeholder:text-muted-foreground"
                     required
                   />
                 </div>
@@ -671,7 +671,7 @@ export default function TripPlanner() {
                     placeholder="Where do you want to go?"
                     value={tripForm.destination}
                     onChange={(e) => setTripForm(prev => ({ ...prev, destination: e.target.value }))}
-                    className="bg-muted border text-white placeholder-ios-gray"
+                    className="bg-muted border text-foreground placeholder:text-muted-foreground"
                     required
                     data-testid="input-destination"
                   />
@@ -702,7 +702,7 @@ export default function TripPlanner() {
                       placeholder="75000"
                       value={tripForm.budget}
                       onChange={(e) => setTripForm(prev => ({ ...prev, budget: e.target.value }))}
-                      className="flex-1 bg-muted border text-white placeholder-ios-gray"
+                      className="flex-1 bg-muted border text-foreground placeholder:text-muted-foreground"
                       min="0"
                       data-testid="input-budget"
                     />
@@ -718,7 +718,7 @@ export default function TripPlanner() {
                     placeholder="e.g. 5"
                     value={tripForm.days}
                     onChange={(e) => setTripForm(prev => ({ ...prev, days: e.target.value }))}
-                    className="bg-muted border text-white placeholder-ios-gray"
+                    className="bg-muted border text-foreground placeholder:text-muted-foreground"
                     required
                     data-testid="input-duration"
                   />
@@ -759,8 +759,8 @@ export default function TripPlanner() {
                       type="button"
                       onClick={() => handleStyleSelect(style.id)}
                       className={`relative overflow-hidden group radius-md h-32 md:h-40 text-center smooth-transition flex flex-col items-center justify-center border-2 ${selectedStyle === style.id
-                        ? 'border-ios-blue ring-2 ring-ios-blue/20'
-                        : 'border hover:border-ios-blue/50 shadow-lg'
+                        ? 'border-[#F59E0B] ring-2 ring-[#F59E0B]/20'
+                        : 'border hover:border-[#F59E0B]/50 shadow-lg'
                         }`}
                       data-testid={`travel-style-${style.id}`}
                     >
@@ -776,7 +776,7 @@ export default function TripPlanner() {
                       <div className="relative z-10">
                         <div className="text-lg font-bold text-white drop-shadow-md">{style.name}</div>
                         {selectedStyle === style.id && (
-                          <div className="mt-1 bg-[#ff385c] text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                          <div className="mt-1 bg-[#F59E0B] text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                             Selected
                           </div>
                         )}
@@ -792,7 +792,7 @@ export default function TripPlanner() {
                   placeholder="Any specific preferences, requirements, or things you'd like to include in your trip?"
                   value={tripForm.notes}
                   onChange={(e) => setTripForm(prev => ({ ...prev, notes: e.target.value }))}
-                  className="bg-muted border text-white placeholder-ios-gray min-h-[100px]"
+                  className="bg-muted border text-foreground placeholder:text-muted-foreground min-h-[100px]"
                   data-testid="textarea-notes"
                 />
               </div>
@@ -800,7 +800,7 @@ export default function TripPlanner() {
               <Button
                 type="submit"
                 disabled={createTripMutation.isPending || planTripMutation.isPending}
-                className="w-full bg-[#ff385c] text-white py-4 radius-md text-lg font-semibold smooth-transition interactive-tap disabled:opacity-50"
+                className="w-full bg-[#F59E0B] text-white py-4 radius-md text-lg font-semibold smooth-transition interactive-tap disabled:opacity-50"
                 data-testid="button-create-trip"
               >
                 {createTripMutation.isPending ? (
@@ -1006,7 +1006,7 @@ export default function TripPlanner() {
                         status: 'planning' as const,
                         notes: tripForm.notes
                       });
-                    }} className="bg-[#ff385c]">Save Trip</Button>
+                    }} className="bg-[#F59E0B]">Save Trip</Button>
                     <Button variant="outline" onClick={() => window.print()}>Export as PDF</Button>
                     <Button variant="outline" onClick={() => {
                       const shareData = { title: 'Trip Plan', text: `Plan for ${planTripMutation.data.destination}`, url: window.location.href };
@@ -1047,7 +1047,7 @@ export default function TripPlanner() {
         <Card className="bg-card border elev-1 mt-8">
           <CardContent className="p-6">
             <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-ios-orange rounded-xl flex items-center justify-center mr-3">
+              <div className="w-10 h-10 bg-[#F59E0B] rounded-xl flex items-center justify-center mr-3">
                 <i className="fas fa-lightbulb text-white"></i>
               </div>
               <h3 className="text-lg font-bold text-white">AI Planning Tips</h3>
