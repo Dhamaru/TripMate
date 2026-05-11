@@ -38,7 +38,7 @@ const travelStyles = [
 const statusColors = {
   planning: 'bg-amber-500',
   active: 'bg-emerald-500',
-  completed: 'bg-ios-gray'
+  completed: 'bg-muted-foreground'
 };
 
 export default function TripDetail() {
@@ -580,7 +580,7 @@ export default function TripDetail() {
 
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E3A8A] mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading trip details...</p>
           </div>
         </div>
@@ -653,7 +653,7 @@ export default function TripDetail() {
               )}
             </AnimatePresence>
             <div className="flex items-center gap-2 self-start">
-              <Badge className={`${statusColors[trip?.status as keyof typeof statusColors] || 'bg-ios-gray'} text-white`}>
+              <Badge className={`${statusColors[trip?.status as keyof typeof statusColors] || 'bg-muted-foreground'} text-white`}>
                 {trip?.status ? (trip.status.charAt(0).toUpperCase() + trip.status.slice(1)) : 'Planning'}
               </Badge>
               {!isEditing && (
@@ -735,7 +735,7 @@ export default function TripDetail() {
                 </Button>
               </>
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-ios-blue to-purple-600 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-[#1E3A8A] to-purple-600 transition-opacity"></div>
             )}
 
             {/* Text overlay removed to prevent duplication with the main header */}
@@ -918,7 +918,7 @@ export default function TripDetail() {
                     </>
                   ) : weatherLoading ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-ios-blue mx-auto mb-2"></div>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1E3A8A] mx-auto mb-2"></div>
                       <p className="text-sm text-muted-foreground">Weather</p>
                       <p className="font-bold text-foreground text-xs">Loading...</p>
                     </>
@@ -1100,7 +1100,7 @@ export default function TripDetail() {
                   <CardContent>
                     {(hotelsLoading || foodLoading || sightsLoading) && !(hotelResults || foodResults || sightsResults) ? (
                       <div className="flex justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ios-blue"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E3A8A]"></div>
                       </div>
                     ) : (
                       <div className={`grid gap-6 ${[showHotels, showRestaurants, showSpots].filter(Boolean).length === 1

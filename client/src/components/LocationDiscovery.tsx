@@ -188,12 +188,12 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
             </CardHeader>
             <CardContent>
                 <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as any)} className="space-y-4">
-                    <TabsList className="grid grid-cols-3 w-full bg-ios-darker">
+                    <TabsList className="grid grid-cols-3 w-full bg-muted">
                         {categories.map((cat) => (
                             <TabsTrigger
                                 key={cat.id}
                                 value={cat.id}
-                                className="data-[state=active]:bg-ios-blue data-[state=active]:text-white h-12 flex items-center gap-2 overflow-hidden px-1 sm:px-3"
+                                className="data-[state=active]:bg-[#1E3A8A] data-[state=active]:text-white h-12 flex items-center gap-2 overflow-hidden px-1 sm:px-3"
                             >
                                 <div
                                     className="w-8 h-8 rounded-md bg-cover bg-center shrink-0 border border-white/10"
@@ -215,12 +215,12 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                    className="bg-ios-darker border-border text-white"
+                                    className="bg-muted border-border text-white"
                                 />
                                 <Button
                                     onClick={handleSearch}
                                     disabled={searchMutation.isPending}
-                                    className="bg-ios-blue hover:bg-ios-blue/80"
+                                    className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/80"
                                 >
                                     {searchMutation.isPending ? (
                                         <i className="fas fa-spinner fa-spin" />
@@ -234,7 +234,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                             <Button
                                 onClick={handleAISuggestions}
                                 disabled={aiRecommendationsMutation.isPending}
-                                className="w-full bg-gradient-to-r from-purple-600 to-ios-blue hover:from-purple-700 hover:to-ios-blue/90"
+                                className="w-full bg-gradient-to-r from-purple-600 to-[#1E3A8A] hover:from-purple-700 hover:to-[#1E3A8A]/90"
                             >
                                 {aiRecommendationsMutation.isPending ? (
                                     <>
@@ -264,7 +264,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                 initial={{ opacity: 0, y: 20 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: index * 0.1 }}
-                                                className="bg-ios-darker rounded-lg p-4 border border-ios-gray/20 hover:border-ios-blue/30 transition-all"
+                                                className="bg-muted rounded-lg p-4 border border-border hover:border-[#1E3A8A]/30 transition-all"
                                             >
                                                 <div className="flex gap-3">
                                                     {/* Photo */}
@@ -275,7 +275,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                             className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
                                                         />
                                                     ) : (
-                                                        <div className="w-20 h-20 rounded-lg bg-ios-gray/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                        <div className="w-20 h-20 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
                                                             <div
                                                                 className="w-full h-full bg-cover bg-center opacity-50"
                                                                 style={{ backgroundImage: `url(${cat.image})` }}
@@ -286,7 +286,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                     {/* Details */}
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="font-semibold text-white truncate">{place.name}</h4>
-                                                        <div className="flex items-center gap-2 text-sm text-ios-gray mt-1">
+                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                                             {place.rating && (
                                                                 <div className="flex items-center gap-1">
                                                                     <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
@@ -297,12 +297,12 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                                 <span>{'₹'.repeat(place.priceLevel)}</span>
                                                             )}
                                                         </div>
-                                                        <p className="text-xs text-ios-gray mt-1 line-clamp-1">
+                                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                                                             <MapPin className="w-3 h-3 inline mr-1" />
                                                             {place.address}
                                                         </p>
                                                         {place.reason && (
-                                                            <p className="text-xs text-ios-blue mt-2 italic">
+                                                            <p className="text-xs text-[#1E3A8A] dark:text-blue-400 mt-2 italic">
                                                                 💡 {place.reason}
                                                             </p>
                                                         )}
@@ -321,7 +321,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                         <Button
                                                             onClick={() => handleNavigate(place)}
                                                             size="sm"
-                                                            className="bg-ios-blue hover:bg-ios-blue/80"
+                                                            className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/80"
                                                         >
                                                             <Navigation className="w-4 h-4" />
                                                         </Button>
@@ -331,7 +331,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                         ))}
                                     </motion.div>
                                 ) : (
-                                    <div className="text-center text-ios-gray py-8">
+                                    <div className="text-center text-muted-foreground py-8">
                                         <div
                                             className="w-12 h-12 mx-auto mb-2 opacity-20 bg-cover bg-center rounded-lg"
                                             style={{ backgroundImage: `url(${cat.image})` }}

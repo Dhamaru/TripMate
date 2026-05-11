@@ -40,27 +40,27 @@ export default function Sessions() {
   useEffect(() => { loadSessions(); }, []);
 
   return (
-    <div className="min-h-screen bg-ios-darker text-white">
+    <div className="min-h-screen bg-muted text-foreground">
 
 
       <main className="py-8 px-4 max-w-3xl mx-auto">
-        <Card className="bg-ios-card border-ios-gray">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white">Active Sessions</CardTitle>
+            <CardTitle className="text-foreground">Active Sessions</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-ios-gray">Loading…</div>
+              <div className="text-muted-foreground">Loading…</div>
             ) : sessions.length === 0 ? (
-              <div className="text-ios-gray">No active sessions.</div>
+              <div className="text-muted-foreground">No active sessions.</div>
             ) : (
               <div className="space-y-3">
                 {sessions.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-3 rounded-md border border-ios-gray">
+                  <div key={s.id} className="flex items-center justify-between p-3 rounded-md border border-border">
                     <div className="text-sm">
                       <div>{s.device || 'web'}</div>
-                      <div className="text-ios-gray">{s.ip} · {(s.expiresAt || '').replace('T', ' ').slice(0, 19)}</div>
-                      <div className="text-ios-gray truncate max-w-xl">{s.userAgent}</div>
+                      <div className="text-muted-foreground">{s.ip} · {(s.expiresAt || '').replace('T', ' ').slice(0, 19)}</div>
+                      <div className="text-muted-foreground truncate max-w-xl">{s.userAgent}</div>
                     </div>
                     <Button variant="destructive" size="sm" onClick={() => revokeSession(s.id)}>Revoke</Button>
                   </div>

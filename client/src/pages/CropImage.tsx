@@ -272,12 +272,12 @@ export default function CropImagePage() {
   };
 
   return (
-    <div className="min-h-screen bg-ios-darker text-white">
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-ios-darker/80 border-b border-ios-card">
+    <div className="min-h-screen bg-muted text-foreground">
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-muted/80 border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <Button onClick={() => navigate('/profile')} variant="ghost" size="sm" className="text-ios-gray hover:text-white smooth-transition interactive-tap min-tap-target">Back</Button>
+              <Button onClick={() => navigate('/profile')} variant="ghost" size="sm" className="text-muted-foreground hover:text-white smooth-transition interactive-tap min-tap-target">Back</Button>
               <TripMateLogo size="md" />
             </div>
             <div className="flex items-center space-x-4">
@@ -294,14 +294,14 @@ export default function CropImagePage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-header-gap">
         <h1 className="text-3xl font-bold mb-6">Edit Profile Picture</h1>
-        <Card className="bg-ios-card border-ios-gray">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-xl font-bold text-white">Crop & Adjust</CardTitle>
+            <CardTitle className="text-xl font-bold text-foreground">Crop & Adjust</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div ref={containerRef} className="relative">
-                <canvas ref={editorCanvasRef} width={canvasSize.w} height={canvasSize.h} className="w-full h-auto rounded border border-ios-gray touch-none" aria-label="Image editor canvas" />
+                <canvas ref={editorCanvasRef} width={canvasSize.w} height={canvasSize.h} className="w-full h-auto rounded border border-border touch-none" aria-label="Image editor canvas" />
                 <div className="absolute inset-0">
                   <div className="absolute border-2 border-blue-400 touch-none" style={{ left: crop.x, top: crop.y, width: crop.w, height: crop.h, borderRadius: aspect === 'circle' ? '9999px' : '0' }}>
                     <div className="absolute -left-2 -top-2 w-8 h-8 -ml-2 -mt-2 bg-blue-400/50 rounded-full cursor-nw-resize flex items-center justify-center touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('nw'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
@@ -313,7 +313,7 @@ export default function CropImagePage() {
                 </div>
               </div>
               <div>
-                <canvas ref={previewCanvasRef} width={300} height={300} className="w-full h-auto rounded-full border border-ios-gray mb-4" />
+                <canvas ref={previewCanvasRef} width={300} height={300} className="w-full h-auto rounded-full border border-border mb-4" />
                 <div className="flex items-center gap-3 mb-4">
                   <Input id="fileInput" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                   <Button variant="secondary" onClick={openFileDialog} className="flex-1">
@@ -329,7 +329,7 @@ export default function CropImagePage() {
                 {/* Transform controls */}
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-ios-gray mb-1 block">Zoom: {zoom.toFixed(1)}x</label>
+                    <label className="text-xs text-muted-foreground mb-1 block">Zoom: {zoom.toFixed(1)}x</label>
                     <input
                       type="range" min="0.5" max="3" step="0.05"
                       value={zoom}
@@ -338,7 +338,7 @@ export default function CropImagePage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-ios-gray mb-1 block">Rotation: {rotation}°</label>
+                    <label className="text-xs text-muted-foreground mb-1 block">Rotation: {rotation}°</label>
                     <input
                       type="range" min="-180" max="180" step="1"
                       value={rotation}

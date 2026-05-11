@@ -551,7 +551,7 @@ export default function TripPlanner() {
               <form onSubmit={handleImportSchedule} className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Your Schedule <span className="text-ios-red">*</span>
+                    Your Schedule <span className="text-red-500">*</span>
                   </label>
                   <Textarea
                     placeholder={`Paste your travel plan here. For example:\n\n22nd evening - Hyderabad to Delhi ✈️\n23rd morning - Delhi to Haridwar 🚗, then Haridwar to Joshi Math\n24th - Joshi Math to Badrinath\n25th - Badrinath darshan\n...`}
@@ -574,7 +574,7 @@ export default function TripPlanner() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
-                      Group Size <span className="text-ios-red">*</span>
+                      Group Size <span className="text-red-500">*</span>
                     </label>
                     <Select
                       value={importForm.groupSize}
@@ -651,7 +651,7 @@ export default function TripPlanner() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Starting Location <span className="text-ios-red">*</span>
+                    Starting Location <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="text"
@@ -664,7 +664,7 @@ export default function TripPlanner() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Destination <span className="text-ios-red">*</span>
+                    Destination <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="text"
@@ -710,7 +710,7 @@ export default function TripPlanner() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Trip Duration <span className="text-ios-red">*</span>
+                    Trip Duration <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="number"
@@ -725,7 +725,7 @@ export default function TripPlanner() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Group Size <span className="text-ios-red">*</span>
+                    Group Size <span className="text-red-500">*</span>
                   </label>
                   <Select
                     value={tripForm.groupSize}
@@ -750,7 +750,7 @@ export default function TripPlanner() {
 
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-2">
-                  Travel Style <span className="text-ios-red">*</span>
+                  Travel Style <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {travelStyles.map((style) => (
@@ -1030,7 +1030,7 @@ export default function TripPlanner() {
           planTripMutation.data && planTripMutation.data.error && (
             <Card className="bg-card border elev-1 mt-8">
               <CardContent className="p-6">
-                <div className="text-ios-red font-semibold mb-2">We couldn’t parse the plan — try regenerating.</div>
+                <div className="text-red-500 font-semibold mb-2">We couldn’t parse the plan — try regenerating.</div>
                 <Button variant="secondary" onClick={() => planTripMutation.mutate()} disabled={planTripMutation.isPending}>
                   {planTripMutation.isPending ? 'Generating…' : 'Regenerate'}
                 </Button>

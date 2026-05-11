@@ -136,7 +136,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-ios-card border-ios-gray text-white max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl backdrop-blur-xl">
+            <DialogContent className="bg-card border-border text-white max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl backdrop-blur-xl">
                 <DialogHeader>
                     <DialogTitle className="text-white text-xl font-bold">
                         {activity ? 'Edit Activity' : 'Add Activity'}
@@ -145,7 +145,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="relative">
                         <Label htmlFor="placeSearch" className="text-white font-medium mb-1.5 flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-ios-blue" />
+                            <MapPin className="w-4 h-4 text-[#1E3A8A] dark:text-blue-400" />
                             Find Location
                         </Label>
                         <div className="relative">
@@ -154,26 +154,26 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                 value={searchTerm}
                                 onChange={(e) => handleSearch(e.target.value)}
                                 placeholder="Search for a place, restaurant, park..."
-                                className="bg-ios-darker border-ios-gray/50 text-white pl-10 h-11 focus:border-ios-blue transition-all"
+                                className="bg-muted border-border text-white pl-10 h-11 focus:border-[#1E3A8A] transition-all"
                             />
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-ios-gray">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                                 {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                             </div>
                         </div>
 
                         {showSuggestions && (
-                            <div className="absolute z-50 left-0 right-0 mt-1 bg-ios-darker border border-ios-gray/50 rounded-lg shadow-2xl overflow-hidden backdrop-blur-xl">
+                            <div className="absolute z-50 left-0 right-0 mt-1 bg-muted border border-border rounded-lg shadow-2xl overflow-hidden backdrop-blur-xl">
                                 {suggestions.map((p, i) => (
                                     <button
                                         key={i}
                                         type="button"
                                         onClick={() => selectPlace(p)}
-                                        className="w-full text-left px-4 py-3 hover:bg-ios-blue/10 border-b border-ios-gray/20 last:border-0 transition-colors group"
+                                        className="w-full text-left px-4 py-3 hover:bg-[#1E3A8A]/10 border-b border-border last:border-0 transition-colors group"
                                     >
-                                        <div className="font-medium text-white group-hover:text-ios-blue transition-colors">
+                                        <div className="font-medium text-white group-hover:text-[#1E3A8A] dark:text-blue-400 transition-colors">
                                             {p.name || p.display_name?.split(',')[0]}
                                         </div>
-                                        <div className="text-xs text-ios-gray truncate mt-0.5">
+                                        <div className="text-xs text-muted-foreground truncate mt-0.5">
                                             {p.display_name}
                                         </div>
                                     </button>
@@ -182,14 +182,14 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                         )}
                     </div>
 
-                    <div className="pt-2 border-t border-ios-gray/20">
+                    <div className="pt-2 border-t border-border">
                         <Label htmlFor="title" className="text-white font-medium mb-1.5 block">Activity Title *</Label>
                         <Input
                             id="title"
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             placeholder="e.g., Visit Taj Mahal"
-                            className="bg-ios-darker border-ios-gray/50 text-white h-11"
+                            className="bg-muted border-border text-white h-11"
                             required
                         />
                     </div>
@@ -202,7 +202,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                 type="time"
                                 value={formData.time}
                                 onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                                className="bg-ios-darker border-ios-gray/50 text-white h-11"
+                                className="bg-muted border-border text-white h-11"
                             />
                         </div>
                         <div>
@@ -212,7 +212,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                 type="number"
                                 value={formData.duration_minutes}
                                 onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) || 60 })}
-                                className="bg-ios-darker border-ios-gray/50 text-white h-11"
+                                className="bg-muted border-border text-white h-11"
                             />
                         </div>
                     </div>
@@ -233,12 +233,12 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                             value={formData.address}
                             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                             placeholder="Full address (auto-filled if location selected)"
-                            className="bg-ios-darker border-ios-gray/50 text-white min-h-[80px]"
+                            className="bg-muted border-border text-white min-h-[80px]"
                             rows={2}
                         />
                         {formData.lat && (
-                            <div className="text-[10px] text-ios-blue mt-1 flex items-center gap-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-ios-blue animate-pulse" />
+                            <div className="text-[10px] text-[#1E3A8A] dark:text-blue-400 mt-1 flex items-center gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#1E3A8A] animate-pulse" />
                                 Coordinates captured: {formData.lat.toFixed(4)}, {formData.lon?.toFixed(4)}
                             </div>
                         )}
@@ -247,10 +247,10 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                     <div>
                         <Label htmlFor="type" className="text-white font-medium mb-1.5 block">Type</Label>
                         <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                            <SelectTrigger className="bg-ios-darker border-ios-gray/50 text-white h-11">
+                            <SelectTrigger className="bg-muted border-border text-white h-11">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-ios-card border-ios-gray shadow-2xl">
+                            <SelectContent className="bg-card border-border shadow-2xl">
                                 <SelectItem value="sightseeing" className="text-white">Sightseeing</SelectItem>
                                 <SelectItem value="restaurant" className="text-white">Restaurant</SelectItem>
                                 <SelectItem value="hotel" className="text-white">Hotel / Stay</SelectItem>
@@ -264,14 +264,14 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
 
                     {/* From / To fields for travel legs */}
                     {formData.type === 'travel' && (
-                        <div className="grid grid-cols-2 gap-4 p-3 bg-ios-blue/5 border border-ios-blue/20 rounded-lg">
+                        <div className="grid grid-cols-2 gap-4 p-3 bg-[#1E3A8A]/5 border border-[#1E3A8A]/20 rounded-lg">
                             <div>
                                 <Label className="text-white font-medium mb-1.5 block">From</Label>
                                 <Input
                                     value={formData.from}
                                     onChange={(e) => setFormData({ ...formData, from: e.target.value })}
                                     placeholder="e.g. Hyderabad"
-                                    className="bg-ios-darker border-ios-gray/50 text-white h-10"
+                                    className="bg-muted border-border text-white h-10"
                                 />
                             </div>
                             <div>
@@ -280,7 +280,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                     value={formData.to}
                                     onChange={(e) => setFormData({ ...formData, to: e.target.value })}
                                     placeholder="e.g. Delhi"
-                                    className="bg-ios-darker border-ios-gray/50 text-white h-10"
+                                    className="bg-muted border-border text-white h-10"
                                 />
                             </div>
                         </div>
@@ -293,7 +293,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                             placeholder="Any additional details..."
-                            className="bg-ios-darker border-ios-gray/50 text-white min-h-[60px]"
+                            className="bg-muted border-border text-white min-h-[60px]"
                             rows={2}
                         />
                     </div>
@@ -306,7 +306,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                 type="number"
                                 value={formData.cost}
                                 onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })}
-                                className="bg-ios-darker border-ios-gray/50 text-white h-11"
+                                className="bg-muted border-border text-white h-11"
                             />
                         </div>
                         <div>
@@ -316,7 +316,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                 type="number"
                                 value={formData.entryFee}
                                 onChange={(e) => setFormData({ ...formData, entryFee: parseFloat(e.target.value) || 0 })}
-                                className="bg-ios-darker border-ios-gray/50 text-white h-11"
+                                className="bg-muted border-border text-white h-11"
                             />
                         </div>
                     </div>
@@ -326,13 +326,13 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                             type="button"
                             variant="destructive"
                             onClick={() => onOpenChange(false)}
-                            className="flex-1 bg-transparent hover:bg-ios-red/10 border border-ios-red/50 text-ios-red h-12"
+                            className="flex-1 bg-transparent hover:bg-red-500/10 border border-red-500/50 text-red-500 h-12"
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
-                            className="flex-1 bg-gradient-to-r from-ios-blue to-blue-600 hover:opacity-90 h-12 font-bold shadow-lg shadow-ios-blue/20"
+                            className="flex-1 bg-gradient-to-r from-[#1E3A8A] to-blue-600 hover:opacity-90 h-12 font-bold shadow-lg shadow-blue-800/20"
                         >
                             {activity ? 'Update' : 'Add'} Activity
                         </Button>

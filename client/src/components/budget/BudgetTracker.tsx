@@ -140,21 +140,21 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     <CardContent>
                         <div className="flex justify-between mb-4 text-white">
                             <div>
-                                <p className="text-sm text-ios-gray">Total Budget</p>
+                                <p className="text-sm text-muted-foreground">Total Budget</p>
                                 <p className="text-2xl font-bold">{trip.currency} {budget.toLocaleString()}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-sm text-ios-gray">Spent</p>
-                                <p className="text-2xl font-bold text-ios-blue">{trip.currency} {totalSpent.toLocaleString()}</p>
+                                <p className="text-sm text-muted-foreground">Spent</p>
+                                <p className="text-2xl font-bold text-[#1E3A8A] dark:text-blue-400">{trip.currency} {totalSpent.toLocaleString()}</p>
                             </div>
                         </div>
                         <div className="w-full bg-secondary h-4 rounded-full overflow-hidden">
                             <div
-                                className={`h-full ${remaining < 0 ? 'bg-red-500' : 'bg-ios-green'}`}
+                                className={`h-full ${remaining < 0 ? 'bg-red-500' : 'bg-emerald-600'}`}
                                 style={{ width: `${Math.min((totalSpent / (budget || 1)) * 100, 100)}%` }}
                             />
                         </div>
-                        <p className={`text-right mt-2 text-sm ${remaining < 0 ? 'text-red-500' : 'text-ios-green'}`}>
+                        <p className={`text-right mt-2 text-sm ${remaining < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
                             {remaining < 0 ? `Over budget by ${Math.abs(remaining).toLocaleString()}` : `${remaining.toLocaleString()} remaining`}
                         </p>
                     </CardContent>
@@ -190,7 +190,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-ios-gray">
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
                                 No expenses logged yet.
                             </div>
                         )}
@@ -205,28 +205,28 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                     >
-                        <Card className="bg-ios-blue/5 border-ios-blue/20">
+                        <Card className="bg-[#1E3A8A]/5 border-[#1E3A8A]/20">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-                                    <Lightbulb className="w-4 h-4 text-ios-blue" />
+                                    <Lightbulb className="w-4 h-4 text-[#1E3A8A] dark:text-blue-400" />
                                     AI Smart Pivots
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {forecast.pivots.map((pivot: string, i: number) => (
-                                        <div key={i} className="flex gap-3 text-sm text-ios-gray bg-ios-darker/50 p-3 rounded-lg border border-border/50">
-                                            <div className="text-ios-blue font-bold">#{(i + 1)}</div>
+                                        <div key={i} className="flex gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border/50">
+                                            <div className="text-[#1E3A8A] dark:text-blue-400 font-bold">#{(i + 1)}</div>
                                             <div>{pivot}</div>
                                         </div>
                                     ))}
                                 </div>
                                 <div className="mt-4 flex items-center justify-between text-xs pt-4 border-t border-border/50">
-                                    <div className="flex items-center gap-2 text-ios-gray">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
                                         <TrendingUp className="w-4 h-4" />
                                         Est. Final Cost: <span className="text-white font-bold">{trip.currency} {forecast?.estimatedFinalCost?.toLocaleString()}</span>
                                     </div>
-                                    <div className="text-ios-blue flex items-center gap-1">
+                                    <div className="text-[#1E3A8A] dark:text-blue-400 flex items-center gap-1">
                                         <i className="fas fa-robot"></i> AI Forecast
                                     </div>
                                 </div>
@@ -248,7 +248,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     {isAdding && (
                         <div className="mb-4 p-4 bg-secondary rounded-lg grid gap-4 md:grid-cols-4 items-end">
                             <div>
-                                <label className="text-xs text-ios-gray mb-1 block">Description</label>
+                                <label className="text-xs text-muted-foreground mb-1 block">Description</label>
                                 <Input
                                     value={newExpense.description}
                                     onChange={e => setNewExpense({ ...newExpense, description: e.target.value })}
@@ -257,7 +257,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-ios-gray mb-1 block">Amount</label>
+                                <label className="text-xs text-muted-foreground mb-1 block">Amount</label>
                                 <Input
                                     type="number"
                                     value={newExpense.amount}
@@ -266,7 +266,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-ios-gray mb-1 block">Category</label>
+                                <label className="text-xs text-muted-foreground mb-1 block">Category</label>
                                 <Select
                                     value={newExpense.category}
                                     onValueChange={(val: any) => setNewExpense({ ...newExpense, category: val })}
@@ -279,23 +279,23 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button onClick={handleAdd} className="bg-ios-blue hover:bg-ios-blue/90">Save</Button>
+                            <Button onClick={handleAdd} className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/90">Save</Button>
                         </div>
                     )}
 
                     <div className="space-y-2">
                         {expenses.length === 0 && !isAdding && (
-                            <div className="text-center text-ios-gray py-4">No expenses recorded.</div>
+                            <div className="text-center text-muted-foreground py-4">No expenses recorded.</div>
                         )}
                         {expenses.map((expense) => (
                             <div key={expense.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-ios-blue/10 flex items-center justify-center text-ios-blue">
+                                    <div className="w-10 h-10 rounded-full bg-[#1E3A8A]/10 flex items-center justify-center text-[#1E3A8A] dark:text-blue-400">
                                         <i className={`fas fa-${expense.category === 'Food' ? 'utensils' : expense.category === 'Transport' ? 'car' : 'tag'}`}></i>
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="font-medium text-white truncate">{expense.description}</div>
-                                        <div className="text-xs text-ios-gray">{expense.category} • {new Date(expense.date).toLocaleDateString()}</div>
+                                        <div className="text-xs text-muted-foreground">{expense.category} • {new Date(expense.date).toLocaleDateString()}</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">

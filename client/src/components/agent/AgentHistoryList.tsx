@@ -46,20 +46,20 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
 
   if (isLoading && jobs.length === 0) {
     return (
-      <Card className="bg-ios-darker/50 border-white/5">
+      <Card className="bg-muted/50 border-white/5">
         <CardContent className="p-8 flex flex-col items-center justify-center space-y-4">
-          <Brain className="w-8 h-8 text-ios-blue animate-pulse" />
-          <p className="text-ios-gray text-sm">Consulting our archives...</p>
+          <Brain className="w-8 h-8 text-[#1E3A8A] dark:text-blue-400 animate-pulse" />
+          <p className="text-muted-foreground text-sm">Consulting our archives...</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className={`bg-ios-darker/50 border-white/5 backdrop-blur-xl ${className}`}>
+    <Card className={`bg-muted/50 border-white/5 backdrop-blur-xl ${className}`}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold text-white flex items-center gap-2">
-          <Brain className="w-4 h-4 text-ios-blue" />
+          <Brain className="w-4 h-4 text-[#1E3A8A] dark:text-blue-400" />
           Intelligence Logs
         </CardTitle>
       </CardHeader>
@@ -80,7 +80,7 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
                       <p className="text-xs font-bold text-white uppercase tracking-wider">
                         {job.trigger.replace(/_/g, ' ')}
                       </p>
-                      <p className="text-[10px] text-ios-gray">
+                      <p className="text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
                       </p>
                     </div>
@@ -88,7 +88,7 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
                       className={`${
                         job.status === 'completed' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                         job.status === 'failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                        'bg-ios-blue/10 text-ios-blue border-ios-blue/20'
+                        'bg-[#1E3A8A]/10 text-[#1E3A8A] dark:text-blue-400 border-[#1E3A8A]/20'
                       } text-[10px] px-2 py-0`}
                     >
                       {job.status}
@@ -107,21 +107,21 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
                         {res.agent.replace('Agent', '')}
                         
                         {/* Tooltip-like popup */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-24 p-2 bg-ios-darker border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-                          <p className="text-[8px] text-ios-gray">Conf: {(res.confidence * 100).toFixed(0)}%</p>
-                          <p className="text-[8px] text-ios-gray">{res.durationMs}ms</p>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-24 p-2 bg-muted border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+                          <p className="text-[8px] text-muted-foreground">Conf: {(res.confidence * 100).toFixed(0)}%</p>
+                          <p className="text-[8px] text-muted-foreground">{res.durationMs}ms</p>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-2 flex items-center gap-4 text-[10px] text-ios-gray">
+                  <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-ios-blue" />
+                      <Clock className="w-3 h-3 text-[#1E3A8A] dark:text-blue-400" />
                       {job.totalDurationMs}ms
                     </span>
                     <span className="flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-ios-blue" />
+                      <Zap className="w-3 h-3 text-[#1E3A8A] dark:text-blue-400" />
                       {job.totalTokensUsed} tokens
                     </span>
                   </div>
@@ -131,7 +131,7 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
             
             {jobs.length === 0 && (
               <div className="py-8 text-center">
-                <p className="text-xs text-ios-gray">No intelligence events recorded yet.</p>
+                <p className="text-xs text-muted-foreground">No intelligence events recorded yet.</p>
               </div>
             )}
           </div>

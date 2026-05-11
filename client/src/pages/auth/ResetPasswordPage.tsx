@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-ios-blue smooth-transition"
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1E3A8A] smooth-transition"
                                                 {...field}
                                             />
                                             <Button
@@ -172,7 +172,7 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showConfirmPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-ios-blue smooth-transition"
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1E3A8A] smooth-transition"
                                                 {...field}
                                             />
                                             <Button

@@ -250,7 +250,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
 
   if (isLoading) {
     return (
-      <Card className={`bg-ios-card border-ios-gray ${className}`} data-testid="packing-list-loading">
+      <Card className={`bg-card border-border ${className}`} data-testid="packing-list-loading">
         <CardHeader>
           <CardTitle className="text-lg font-bold text-white">Smart Packing List</CardTitle>
         </CardHeader>
@@ -271,7 +271,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
   const totalCount = items.length;
 
   return (
-    <Card className={`bg-ios-card border-ios-gray ${className}`} data-testid="packing-list">
+    <Card className={`bg-card border-border ${className}`} data-testid="packing-list">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-bold text-white">Smart Packing List</CardTitle>
@@ -279,16 +279,16 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
             onClick={generateSmartSuggestions}
             size="sm"
             variant="outline"
-            className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card"
+            className="bg-muted border-border text-white hover:bg-card"
             data-testid="button-smart-suggestions"
             disabled={suggesting}
           >
-            <i className="fas fa-lightbulb text-ios-orange mr-1"></i>
+            <i className="fas fa-lightbulb text-[#F59E0B] mr-1"></i>
             Suggest
           </Button>
         </div>
         {totalCount > 0 && (
-          <p className="text-sm text-ios-gray">
+          <p className="text-sm text-muted-foreground">
             {packedCount} of {totalCount} items packed
           </p>
         )}
@@ -297,17 +297,17 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center space-x-3 p-3 bg-ios-darker rounded-xl"
+            className="flex items-center space-x-3 p-3 bg-muted rounded-xl"
             data-testid={`packing-item-${item.id}`}
           >
             <Checkbox
               checked={item.packed}
               onCheckedChange={() => toggleItem(item.id)}
-              className="border-ios-gray data-[state=checked]:bg-ios-blue"
+              className="border-border data-[state=checked]:bg-[#1E3A8A]"
               data-testid={`checkbox-item-${item.id}`}
             />
             <span
-              className={`flex-1 text-sm ${item.packed ? 'line-through text-ios-gray' : 'text-white'
+              className={`flex-1 text-sm ${item.packed ? 'line-through text-muted-foreground' : 'text-white'
                 }`}
             >
               {item.name}
@@ -316,7 +316,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
               onClick={() => removeItem(item.id)}
               size="sm"
               variant="ghost"
-              className="text-ios-red hover:text-red-400 h-6 w-6 p-0"
+              className="text-red-500 hover:text-red-400 h-6 w-6 p-0"
               data-testid={`button-remove-${item.id}`}
             >
               <i className="fas fa-trash text-xs"></i>
@@ -330,13 +330,13 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             placeholder="Add new item..."
-            className="bg-ios-darker border-ios-gray text-white placeholder-ios-gray flex-1"
+            className="bg-muted border-border text-white placeholder:text-muted-foreground flex-1"
             onKeyPress={(e) => e.key === 'Enter' && addItem()}
             data-testid="input-new-item"
           />
           <Button
             onClick={addItem}
-            className="bg-ios-blue hover:bg-blue-600"
+            className="bg-[#1E3A8A] hover:bg-blue-600"
             disabled={!newItemName.trim() || createListMutation.isPending || updateListMutation.isPending}
             data-testid="button-add-item"
           >
@@ -346,19 +346,19 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
 
         {totalCount === 0 && (
           <div className="text-center py-8">
-            <div className="text-ios-gray mb-4">
+            <div className="text-muted-foreground mb-4">
               <i className="fas fa-suitcase text-4xl"></i>
             </div>
-            <p className="text-ios-gray text-sm mb-2">Your packing list is empty</p>
-            <p className="text-ios-gray text-xs">
+            <p className="text-muted-foreground text-sm mb-2">Your packing list is empty</p>
+            <p className="text-muted-foreground text-xs">
               Add items manually or use smart suggestions
             </p>
           </div>
         )}
 
         <div className="text-center">
-          <p className="text-xs text-ios-gray">
-            <i className="fas fa-lightbulb text-ios-orange mr-1"></i>
+          <p className="text-xs text-muted-foreground">
+            <i className="fas fa-lightbulb text-[#F59E0B] mr-1"></i>
             AI suggests items based on weather & destination
           </p>
         </div>

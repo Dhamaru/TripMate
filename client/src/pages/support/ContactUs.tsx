@@ -22,8 +22,8 @@ export default function ContactUs() {
     };
 
     return (
-        <div className="min-h-screen bg-ios-darker text-white">
-            <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-ios-darker/80 border-b border-ios-card">
+        <div className="min-h-screen bg-muted text-foreground">
+            <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-muted/80 border-b border-border">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <Link href="/">
@@ -32,7 +32,7 @@ export default function ContactUs() {
                             </div>
                         </Link>
                         <Link href="/">
-                            <Button variant="ghost" className="text-ios-gray hover:text-white">Back to Home</Button>
+                            <Button variant="ghost" className="text-muted-foreground hover:text-white">Back to Home</Button>
                         </Link>
                     </div>
                 </div>
@@ -41,7 +41,7 @@ export default function ContactUs() {
             <div className="pt-24 pb-20 max-w-6xl mx-auto px-4">
                 <div className="text-center mb-16">
                     <h1 className="text-4xl font-bold mb-4">Get in Touch</h1>
-                    <p className="text-ios-gray max-w-2xl mx-auto">
+                    <p className="text-muted-foreground max-w-2xl mx-auto">
                         Have questions about TripMate? We're here to help. Send us a message and we'll respond within 24 hours.
                     </p>
                 </div>
@@ -49,40 +49,40 @@ export default function ContactUs() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                     {/* Contact Info */}
                     <div className="space-y-8">
-                        <Card className="bg-ios-card border-ios-gray">
+                        <Card className="bg-card border-border">
                             <CardContent className="p-6 flex items-start space-x-4">
-                                <div className="w-12 h-12 bg-ios-blue/10 rounded-full flex items-center justify-center shrink-0">
-                                    <Mail className="text-ios-blue w-6 h-6" />
+                                <div className="w-12 h-12 bg-[#1E3A8A]/10 rounded-full flex items-center justify-center shrink-0">
+                                    <Mail className="text-[#1E3A8A] dark:text-blue-400 w-6 h-6" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-bold text-white mb-1">Email Us</h3>
-                                    <p className="text-ios-gray text-sm mb-2">For general inquiries and support</p>
-                                    <a href="mailto:support@tripmate.com" className="text-ios-blue hover:underline">support@tripmate.com</a>
+                                    <p className="text-muted-foreground text-sm mb-2">For general inquiries and support</p>
+                                    <a href="mailto:support@tripmate.com" className="text-[#1E3A8A] dark:text-blue-400 hover:underline">support@tripmate.com</a>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-ios-card border-ios-gray">
+                        <Card className="bg-card border-border">
                             <CardContent className="p-6 flex items-start space-x-4">
-                                <div className="w-12 h-12 bg-ios-green/10 rounded-full flex items-center justify-center shrink-0">
-                                    <Phone className="text-ios-green w-6 h-6" />
+                                <div className="w-12 h-12 bg-emerald-600/10 rounded-full flex items-center justify-center shrink-0">
+                                    <Phone className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-bold text-white mb-1">Call Us</h3>
-                                    <p className="text-ios-gray text-sm mb-2">Mon-Fri from 8am to 5pm</p>
-                                    <a href="tel:+1234567890" className="text-ios-green hover:underline">+1 (234) 567-890</a>
+                                    <p className="text-muted-foreground text-sm mb-2">Mon-Fri from 8am to 5pm</p>
+                                    <a href="tel:+1234567890" className="text-emerald-600 dark:text-emerald-400 hover:underline">+1 (234) 567-890</a>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-ios-card border-ios-gray">
+                        <Card className="bg-card border-border">
                             <CardContent className="p-6 flex items-start space-x-4">
-                                <div className="w-12 h-12 bg-ios-orange/10 rounded-full flex items-center justify-center shrink-0">
-                                    <MapPin className="text-ios-orange w-6 h-6" />
+                                <div className="w-12 h-12 bg-[#F59E0B]/10 rounded-full flex items-center justify-center shrink-0">
+                                    <MapPin className="text-[#F59E0B] w-6 h-6" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-bold text-white mb-1">Visit Us</h3>
-                                    <p className="text-ios-gray text-sm">
+                                    <p className="text-muted-foreground text-sm">
                                         123 Innovation Drive<br />
                                         Tech Valley, CA 94043
                                     </p>
@@ -92,7 +92,7 @@ export default function ContactUs() {
                     </div>
 
                     {/* Contact Form */}
-                    <div className="bg-ios-card border border-ios-gray rounded-xl p-8">
+                    <div className="bg-card border border-border rounded-xl p-8">
                         <h2 className="text-2xl font-bold text-white mb-6">Send a Message</h2>
                         {submitted ? (
                             <div className="text-center py-12">
@@ -110,25 +110,25 @@ export default function ContactUs() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium text-gray-300">First Name</label>
-                                        <Input placeholder="John" className="bg-ios-darker border-ios-gray text-white" required />
+                                        <Input placeholder="John" className="bg-muted border-border text-white" required />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium text-gray-300">Last Name</label>
-                                        <Input placeholder="Doe" className="bg-ios-darker border-ios-gray text-white" required />
+                                        <Input placeholder="Doe" className="bg-muted border-border text-white" required />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-300">Email</label>
-                                    <Input type="email" placeholder="john@example.com" className="bg-ios-darker border-ios-gray text-white" required />
+                                    <Input type="email" placeholder="john@example.com" className="bg-muted border-border text-white" required />
                                 </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-300">Message</label>
-                                    <Textarea placeholder="How can we help you?" className="bg-ios-darker border-ios-gray text-white min-h-[150px]" required />
+                                    <Textarea placeholder="How can we help you?" className="bg-muted border-border text-white min-h-[150px]" required />
                                 </div>
 
-                                <Button type="submit" className="w-full bg-ios-blue hover:bg-blue-600">
+                                <Button type="submit" className="w-full bg-[#1E3A8A] hover:bg-blue-600">
                                     Send Message
                                 </Button>
                             </form>

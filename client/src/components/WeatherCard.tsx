@@ -162,14 +162,14 @@ export function WeatherCard({ destination }: { destination?: string }) {
 
   if (!destination || !destination.trim()) {
     return (
-      <Card className="bg-ios-card border-ios-gray" role="region" aria-label="Weather" data-testid="weather-card-empty">
+      <Card className="bg-card border-border" role="region" aria-label="Weather" data-testid="weather-card-empty">
         <CardHeader>
           <CardTitle className="text-lg font-bold text-white">Weather</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-ios-gray">No destination set — add a destination to view weather</p>
+          <p className="text-sm text-muted-foreground">No destination set — add a destination to view weather</p>
           <div className="mt-2">
-            <Button className="bg-ios-blue hover:bg-blue-600">Edit Trip</Button>
+            <Button className="bg-[#1E3A8A] hover:bg-blue-600">Edit Trip</Button>
           </div>
         </CardContent>
       </Card>
@@ -178,7 +178,7 @@ export function WeatherCard({ destination }: { destination?: string }) {
 
   if (loading && !weather) {
     return (
-      <Card className="bg-ios-card border-ios-gray" role="region" aria-label="Weather loading" data-testid="weather-card-loading">
+      <Card className="bg-card border-border" role="region" aria-label="Weather loading" data-testid="weather-card-loading">
         <CardHeader>
           <CardTitle className="text-lg font-bold text-white">Weather</CardTitle>
         </CardHeader>
@@ -205,32 +205,32 @@ export function WeatherCard({ destination }: { destination?: string }) {
 
   if (error && !weather) {
     return (
-      <Card className="bg-ios-card border-ios-gray" role="region" aria-label="Weather error" data-testid="weather-card-error">
+      <Card className="bg-card border-border" role="region" aria-label="Weather error" data-testid="weather-card-error">
         <CardHeader>
           <CardTitle className="text-lg font-bold text-white">Weather</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-ios-gray">Unable to load weather data</p>
-          <p className="text-xs text-ios-gray mt-1">{error}</p>
-          <div className="mt-3"><Button onClick={() => revalidate()} className="bg-ios-blue hover:bg-blue-600">Retry</Button></div>
+          <p className="text-sm text-muted-foreground">Unable to load weather data</p>
+          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+          <div className="mt-3"><Button onClick={() => revalidate()} className="bg-[#1E3A8A] hover:bg-blue-600">Retry</Button></div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="bg-ios-card border-ios-gray" role="region" aria-label="Weather" data-testid="weather-card">
+    <Card className="bg-card border-border" role="region" aria-label="Weather" data-testid="weather-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-bold text-white">Weather</CardTitle>
           <div className="flex items-center gap-2">
             {offline && (
-              <span className="text-xs px-2 py-1 rounded bg-ios-darker border border-ios-gray text-ios-gray" aria-label="offline-badge">offline</span>
+              <span className="text-xs px-2 py-1 rounded bg-muted border border-border text-muted-foreground" aria-label="offline-badge">offline</span>
             )}
             {revalidating && (
-              <span className="text-xs px-2 py-1 rounded bg-ios-darker border border-ios-gray text-ios-gray" aria-label="revalidating-badge">updating…</span>
+              <span className="text-xs px-2 py-1 rounded bg-muted border border-border text-muted-foreground" aria-label="revalidating-badge">updating…</span>
             )}
-            <Button variant="outline" className="bg-ios-darker border-ios-gray text-white hover:bg-ios-card px-2 py-1 text-xs" onClick={toggleUnit} aria-label="Toggle units">°{unit}</Button>
+            <Button variant="outline" className="bg-muted border-border text-white hover:bg-card px-2 py-1 text-xs" onClick={toggleUnit} aria-label="Toggle units">°{unit}</Button>
           </div>
         </div>
       </CardHeader>
@@ -238,26 +238,26 @@ export function WeatherCard({ destination }: { destination?: string }) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="text-3xl font-bold text-white" aria-label="current-temperature">{currentView.temperature}°{unit}</div>
-            <div className="text-sm text-ios-gray" aria-label="current-conditions">{currentView.conditions || '—'}</div>
-            <div className="text-xs text-ios-gray mt-1" aria-label="current-details">feels like {currentView.feelsLike}°{unit} • humidity {currentView.humidity}% • wind {currentView.wind} {currentView.windUnit}</div>
+            <div className="text-sm text-muted-foreground" aria-label="current-conditions">{currentView.conditions || '—'}</div>
+            <div className="text-xs text-muted-foreground mt-1" aria-label="current-details">feels like {currentView.feelsLike}°{unit} • humidity {currentView.humidity}% • wind {currentView.wind} {currentView.windUnit}</div>
           </div>
           {currentView.icon && (
-            <i className={`${currentView.icon} text-ios-blue text-3xl`} aria-label="weather-icon"></i>
+            <i className={`${currentView.icon} text-[#1E3A8A] dark:text-blue-400 text-3xl`} aria-label="weather-icon"></i>
           )}
         </div>
         {days.length > 0 && (
           <div className="grid grid-cols-7 gap-2 text-center">
             {days.map((d, i) => (
-              <div key={i} className="rounded-xl bg-ios-darker p-2" aria-label={`forecast-day-${i}`}>
-                <div className="text-xs text-ios-gray">{d.label}</div>
-                {d.icon && <i className={`${d.icon} text-ios-blue text-base`} aria-label="day-icon"></i>}
+              <div key={i} className="rounded-xl bg-muted p-2" aria-label={`forecast-day-${i}`}>
+                <div className="text-xs text-muted-foreground">{d.label}</div>
+                {d.icon && <i className={`${d.icon} text-[#1E3A8A] dark:text-blue-400 text-base`} aria-label="day-icon"></i>}
                 <div className="text-xs text-white">{d.high} / {d.low}°{unit}</div>
               </div>
             ))}
           </div>
         )}
         <div className="mt-3">
-          <ul className="list-disc ml-6 text-xs text-ios-gray" aria-label="advice-list">
+          <ul className="list-disc ml-6 text-xs text-muted-foreground" aria-label="advice-list">
             {(weather?.advice || weather?.recommendations || []).slice(0, 4).map((a, i) => (
               <li key={i}>{String(a)}</li>
             ))}

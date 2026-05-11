@@ -151,7 +151,7 @@ export default function JournalDetail() {
         return (
             <div className=" flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ios-blue mx-auto mb-4"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E3A8A] mx-auto mb-4"></div>
                     <p className="text-muted-foreground">Loading memory...</p>
                 </div>
             </div>
@@ -261,7 +261,7 @@ export default function JournalDetail() {
                                             type="text"
                                             value={entryForm.title}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
-                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
                                             required
                                         />
                                     </div>
@@ -271,7 +271,7 @@ export default function JournalDetail() {
                                             type="text"
                                             value={entryForm.location}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, location: e.target.value }))}
-                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -279,7 +279,7 @@ export default function JournalDetail() {
                                         <textarea
                                             value={entryForm.content}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, content: e.target.value }))}
-                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ios-blue min-h-[200px]"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] min-h-[200px]"
                                             required
                                         />
                                     </div>

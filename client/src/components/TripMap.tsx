@@ -376,7 +376,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                             <div className="relative w-40 md:w-52">
                                 <Input
                                     placeholder="Search to pin..."
-                                    className="h-7 text-[10px] pr-6 bg-black/40 border-ios-blue/50 text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:border-ios-blue"
+                                    className="h-7 text-[10px] pr-6 bg-black/40 border-[#1E3A8A]/50 text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:border-[#1E3A8A]"
                                     onKeyDown={async (e) => {
                                         if (e.key === 'Enter') {
                                             const q = (e.currentTarget as HTMLInputElement).value;
@@ -462,7 +462,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                         }
                                     }}
                                 />
-                                <Search className="absolute right-2 top-1.5 h-3 w-3 text-ios-blue" />
+                                <Search className="absolute right-2 top-1.5 h-3 w-3 text-[#1E3A8A] dark:text-blue-400" />
                             </div>
 
                             <Button
@@ -479,7 +479,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                 variant={showPaths ? "secondary" : "outline"}
                                 size="sm"
                                 onClick={() => setShowPaths(!showPaths)}
-                                className={`h-7 px-2 text-[10px] uppercase tracking-wider ${showPaths ? 'bg-ios-blue text-white' : 'border-ios-blue text-ios-blue hover:bg-ios-blue/10'}`}
+                                className={`h-7 px-2 text-[10px] uppercase tracking-wider ${showPaths ? 'bg-[#1E3A8A] text-white' : 'border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-400 hover:bg-[#1E3A8A]/10'}`}
                             >
                                 <i className="fas fa-route mr-1"></i>
                                 {showPaths ? 'Hide Route' : 'Show Route'}
@@ -490,16 +490,16 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-7 px-2 text-[10px] uppercase tracking-wider border-ios-green text-ios-green hover:bg-ios-green/10"
+                                        className="h-7 px-2 text-[10px] uppercase tracking-wider border-emerald-600 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10"
                                     >
                                         <i className="fas fa-bullhorn mr-1"></i>
                                         Report
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="bg-ios-card border-ios-gray p-4 w-60 z-[1100]">
+                                <PopoverContent className="bg-card border-border p-4 w-60 z-[1100]">
                                     <div className="space-y-4">
                                         <div className="text-sm font-bold text-white">Report Crowd Density</div>
-                                        <div className="text-xs text-ios-gray">How crowded is it here right now?</div>
+                                        <div className="text-xs text-muted-foreground">How crowded is it here right now?</div>
                                         <Slider
                                             value={[reportDensity]}
                                             onValueChange={(v) => setReportDensity(v[0])}
@@ -508,13 +508,13 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                             step={1}
                                             className="py-2"
                                         />
-                                        <div className="flex justify-between text-[10px] text-ios-gray">
+                                        <div className="flex justify-between text-[10px] text-muted-foreground">
                                             <span>Quiet</span>
                                             <span>Packed</span>
                                         </div>
                                         <Button
                                             onClick={handleReportCrowd}
-                                            className="w-full bg-ios-green hover:bg-green-600 h-8 text-xs"
+                                            className="w-full bg-emerald-600 hover:bg-green-600 h-8 text-xs"
                                         >
                                             Submit Report
                                         </Button>
@@ -538,11 +538,11 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                 <div className="relative w-full h-[300px] md:h-[400px]">
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 z-10">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ios-blue"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E3A8A]"></div>
                         </div>
                     )}
                     {!coords && !loading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 text-ios-gray">
+                        <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 text-muted-foreground">
                             Location not found
                         </div>
                     )}

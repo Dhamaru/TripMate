@@ -124,7 +124,7 @@ export default function ForgotPasswordPage() {
                                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
                                                 <Input
                                                     placeholder="your@email.com"
-                                                    className="pl-12 bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-ios-blue smooth-transition"
+                                                    className="pl-12 bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#1E3A8A] smooth-transition"
                                                     {...field}
                                                 />
                                             </div>

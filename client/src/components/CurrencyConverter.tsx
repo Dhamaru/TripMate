@@ -245,7 +245,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
               <p className="text-xs text-muted-foreground">
                 1 {fromCurrency} = {conversion.rate} {toCurrency}
               </p>
-              <p className="text-[10px] text-ios-gray mt-1 opacity-70">{conversion.disclaimer}</p>
+              <p className="text-[10px] text-muted-foreground mt-1 opacity-70">{conversion.disclaimer}</p>
             </div>
 
             {/* Historical Chart */}

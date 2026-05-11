@@ -236,7 +236,7 @@ export default function Profile() {
                 onClick={openFileDialog}
                 title="Change picture"
               >
-                <Avatar className="w-24 h-24 rounded-full overflow-hidden bg-muted ring-2 ring-offset-2 ring-offset-background ring-ios-blue">
+                <Avatar className="w-24 h-24 rounded-full overflow-hidden bg-muted ring-2 ring-offset-2 ring-offset-background ring-[#1E3A8A]">
                   <AvatarImage src={profileImageUrl} alt="Profile" className="object-cover transition-transform group-hover:scale-105" />
                   <AvatarFallback className="text-2xl">{firstName?.[0] || email?.[0] || 'U'}</AvatarFallback>
                 </Avatar>

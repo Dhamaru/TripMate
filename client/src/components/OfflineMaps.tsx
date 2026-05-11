@@ -495,22 +495,22 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Tab Navigation */}
-      <div className="flex space-x-2 bg-ios-darker p-1 rounded-lg w-fit">
+      <div className="flex space-x-2 bg-muted p-1 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('explore')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-ios-blue text-white shadow' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1E3A8A] text-white shadow' : 'text-gray-400 hover:text-white'}`}
         >
           Explore
         </button>
         <button
           onClick={() => setActiveTab('navigation')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-ios-blue text-white shadow' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1E3A8A] text-white shadow' : 'text-gray-400 hover:text-white'}`}
         >
           Navigation
         </button>
         <button
           onClick={() => setActiveTab('saved')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-ios-blue text-white shadow' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1E3A8A] text-white shadow' : 'text-gray-400 hover:text-white'}`}
         >
           Saved Pins
         </button>
@@ -518,7 +518,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
       <div id={activeTab === 'saved' ? 'tab-indicator-saved' : undefined}></div>
 
-      <Card className="bg-ios-card border-ios-gray" data-testid="offline-map-display">
+      <Card className="bg-card border-border" data-testid="offline-map-display">
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-lg font-bold text-white flex gap-2 items-center">
@@ -549,11 +549,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         </CardHeader>
         <CardContent className="p-0 sm:p-6">
           <div className="relative w-full h-[350px] md:h-[500px] sm:rounded-xl overflow-hidden group">
-            <div ref={mapContainerRef} className="w-full h-full bg-ios-darker" style={{ zIndex: 0 }} />
+            <div ref={mapContainerRef} className="w-full h-full bg-muted" style={{ zIndex: 0 }} />
 
             {/* Navigation Overlay Controls */}
             {activeTab === 'navigation' && (
-              <div className="absolute top-2 left-2 right-2 sm:left-16 sm:right-auto z-[400] bg-ios-card/95 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 sm:w-64">
+              <div className="absolute top-2 left-2 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 sm:w-64">
                 <div className="flex items-center justify-between">
                   <h4 className="text-white font-semibold text-sm">Live Navigation</h4>
                   <div className="sm:hidden flex items-center gap-2">
@@ -618,7 +618,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       }
                     }
                   }}
-                  className="bg-ios-blue text-white shadow-lg text-xs sm:text-sm"
+                  className="bg-[#1E3A8A] text-white shadow-lg text-xs sm:text-sm"
                 >
                   <i className="fas fa-plus mr-1 sm:mr-2"></i>
                   <span className="hidden xs:inline">Add Pin</span>
@@ -656,7 +656,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
       {/* Filtering & Search only visible in Explore */}
       {activeTab === 'explore' && (
-        <Card className="bg-ios-card border-ios-gray">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-white text-base">Search Places</CardTitle>
           </CardHeader>
@@ -672,9 +672,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     fetchPlaces(searchQuery);
                   }
                 }}
-                className="bg-ios-darker border-ios-gray text-white flex-1"
+                className="bg-muted border-border text-white flex-1"
               />
-              <Button onClick={() => fetchPlaces(searchQuery)} className="bg-ios-blue w-full sm:w-auto">Search</Button>
+              <Button onClick={() => fetchPlaces(searchQuery)} className="bg-[#1E3A8A] w-full sm:w-auto">Search</Button>
             </div>
 
             {/* Category Filters */}
@@ -713,7 +713,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       <div className="text-xs text-muted-foreground truncate">{p.displayName}</div>
                       {p.category && (
                         <div className="mt-1">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-ios-blue/10 text-ios-blue capitalize">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#1E3A8A]/10 text-[#1E3A8A] dark:text-blue-400 capitalize">
                             {p.category.replace(/_/g, ' ')}
                           </span>
                         </div>
@@ -732,11 +732,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       )}
 
       {/* Storage Dashboard */}
-      <Card className="bg-ios-card border-ios-gray">
+      <Card className="bg-card border-border">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <CardTitle className="text-white text-base">Storage Usage</CardTitle>
-            <span className="text-xs text-ios-gray">{totalSize} MB / 2 GB</span>
+            <span className="text-xs text-muted-foreground">{totalSize} MB / 2 GB</span>
           </div>
         </CardHeader>
         <CardContent>
@@ -746,7 +746,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       </Card>
 
       {/* Region Grid */}
-      <Card className="bg-ios-card border-ios-gray">
+      <Card className="bg-card border-border">
         <CardHeader><CardTitle className="text-white">Saved Regions</CardTitle></CardHeader>
         <CardContent>
           {mapRegions.length === 0 ? (
@@ -758,7 +758,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {mapRegions.map(r => (
-                <div key={r.id} className="bg-ios-darker rounded-xl overflow-hidden border border-gray-800 group relative">
+                <div key={r.id} className="bg-muted rounded-xl overflow-hidden border border-gray-800 group relative">
                   {/* Fake Map Preview Header */}
                   <div className="h-24 bg-gradient-to-br from-gray-800 to-gray-900 relative">
                     <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#9ca3af 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
@@ -790,7 +790,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                         <Progress value={r.progress} className="h-1.5" />
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" className="w-full border-ios-blue text-ios-blue hover:bg-ios-blue hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
+                      <Button size="sm" variant="outline" className="w-full border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-400 hover:bg-[#1E3A8A] hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
                         <i className="fas fa-download mr-1"></i> Download
                       </Button>
                     )}

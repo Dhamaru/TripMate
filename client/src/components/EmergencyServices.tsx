@@ -255,7 +255,7 @@ export function EmergencyServices({ location = "Current Location", coords: propC
                   onClick={() => handleGetDirections(service)}
                   size="sm"
                   variant="secondary"
-                  className="flex-1 bg-muted hover:bg-ios-gray/30 text-white h-8"
+                  className="flex-1 bg-muted hover:bg-muted/30 text-white h-8"
                 >
                   <i className="fas fa-location-arrow mr-2 text-xs"></i> Route
                 </Button>

@@ -17,10 +17,10 @@ interface AuthModalProps {
 export function AuthModal({ open, onClose, onSignIn }: AuthModalProps) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px] bg-ios-card border-ios-gray text-white">
+            <DialogContent className="sm:max-w-[425px] bg-card border-border text-white">
                 <DialogHeader>
                     <DialogTitle className="text-white">Authentication Required</DialogTitle>
-                    <DialogDescription className="text-ios-gray">
+                    <DialogDescription className="text-muted-foreground">
                         Your session has expired. Please sign in again to complete this action.
                     </DialogDescription>
                 </DialogHeader>
@@ -28,13 +28,13 @@ export function AuthModal({ open, onClose, onSignIn }: AuthModalProps) {
                     <Button
                         variant="outline"
                         onClick={onClose}
-                        className="border-ios-gray text-white hover:bg-ios-gray/20"
+                        className="border-border text-white hover:bg-muted/20"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={onSignIn}
-                        className="bg-ios-blue hover:bg-blue-600 text-white"
+                        className="bg-[#1E3A8A] hover:bg-blue-600 text-white"
                     >
                         Sign In
                     </Button>

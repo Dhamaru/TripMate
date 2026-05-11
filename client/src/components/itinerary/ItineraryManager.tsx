@@ -385,7 +385,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
             setItinerary(emptyItinerary);
             return null; // Next render will show cards
         }
-        return <div className="text-ios-gray text-center pt-8 pb-8 bg-secondary/20 rounded-xl border border-dashed border-ios-gray/30">No itinerary generated yet.</div>;
+        return <div className="text-muted-foreground text-center pt-8 pb-8 bg-secondary/20 rounded-xl border border-dashed border-border">No itinerary generated yet.</div>;
     }
 
     const tripStartDate = (trip as any).startDate ? new Date((trip as any).startDate) : null;
