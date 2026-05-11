@@ -71,7 +71,7 @@ function getBackgroundGradient(condition: string, temp: number): string {
   if (cond.includes('clear') || cond.includes('sun')) return temp > 25 ? 'bg-gradient-to-br from-orange-500 via-amber-600 to-red-600' : 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-700';
   if (cond.includes('snow')) return 'bg-gradient-to-br from-blue-100 via-blue-200 to-white text-slate-800'; // Light theme for snow? Maybe keep dark for consistency but frosty.
   if (cond.includes('storm') || cond.includes('thunder')) return 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900';
-  return 'bg-gradient-to-br from-ios-blue to-purple-600'; // Default
+  return 'bg-gradient-to-br from-[#1E3A8A] to-blue-700'; // Default
 }
 
 export function WeatherWidget({ location, coords = null, className = '' }: WeatherWidgetProps) {
@@ -120,9 +120,9 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
 
   if (isLoading) {
     return (
-      <Card className={`bg-ios-card border-ios-gray ${className}`} data-testid="weather-widget-loading">
+      <Card className={`bg-card border ${className}`} data-testid="weather-widget-loading">
         <CardHeader>
-          <CardTitle className="text-lg font-bold text-white">Weather</CardTitle>
+          <CardTitle className="text-lg font-bold text-foreground">Weather</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-4">
@@ -147,19 +147,19 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
 
   if (error || !weather) {
     return (
-      <Card className={`bg-ios-card border-ios-gray ${className}`} data-testid="weather-widget-error">
+      <Card className={`bg-card border ${className}`} data-testid="weather-widget-error">
         <CardHeader>
-          <CardTitle className="text-lg font-bold text-white">Weather</CardTitle>
+          <CardTitle className="text-lg font-bold text-foreground">Weather</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-ios-gray text-sm">Unable to load weather data</p>
+          <p className="text-muted-foreground text-sm">Unable to load weather data</p>
           {error && (
-            <p className="text-xs text-ios-gray mt-2" data-testid="weather-error-message">{(error as Error).message}</p>
+            <p className="text-xs text-muted-foreground mt-2" data-testid="weather-error-message">{(error as Error).message}</p>
           )}
           <div className="mt-3">
             <button
               onClick={() => refetch()}
-              className="px-3 py-1 rounded bg-ios-blue hover:bg-blue-600 text-white text-sm"
+              className="px-3 py-1 rounded bg-[#1E3A8A] hover:bg-blue-800 text-white text-sm"
               data-testid="button-weather-retry"
             >
               Retry

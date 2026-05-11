@@ -16,7 +16,25 @@
   --emerald-horizon: #10B981;
   --ink-gray: #111827;
   --alabaster-white: #FFFFFF;
-  
+
+  /* ── Airbnb-compat bridge (maps to DESIGN.md tokens) ── */
+  --airbnb-ink: #111827;
+  --airbnb-primary: #F59E0B;
+  --airbnb-primary-active: #D97706;
+  --airbnb-primary-disabled: #FCD34D;
+  --airbnb-canvas: #FFFFFF;
+  --airbnb-surface: #F9FAFB;
+  --airbnb-body: #374151;
+  --airbnb-muted: #9CA3AF;
+  --airbnb-hairline: #E5E7EB;
+  --airbnb-hairline-soft: #F3F4F6;
+  --airbnb-teal: #10B981;
+  --nav-height: 64px;
+  --sidebar-width: 260px;
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-card-hover: rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px 0, rgba(0,0,0,0.1) 0 4px 8px 0;
+  --shadow-search: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+
   /* ── Radius Scale (Stitch) ─────────────────────────── */
   --radius-xs: 4px;
   --radius-sm: 8px;    

@@ -982,10 +982,10 @@ export default function TripDetail() {
                 </div>
                 {hacks?.economicalAlternatives?.length > 0 && (
                   <div className="mt-6">
-                    <h4 className="text-sm font-bold text-white mb-3">Economical Alternatives</h4>
+                    <h4 className="text-sm font-bold text-foreground mb-3">Economical Alternatives</h4>
                     <div className="space-y-2">
                       {hacks.economicalAlternatives.map((alt: string, i: number) => (
-                        <div key={i} className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-500">
+                        <div key={i} className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-700 dark:text-emerald-400">
                           <i className="fas fa-wallet mr-2"></i>
                           {alt}
                         </div>

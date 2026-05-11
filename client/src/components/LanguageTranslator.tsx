@@ -62,13 +62,13 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
   };
 
   return (
-    <Card className={`bg-ios-card border-ios-gray p-4 space-y-4 ${className}`} data-testid="language-translator">
+    <Card className={`bg-card border p-4 space-y-4 ${className}`} data-testid="language-translator">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold text-white">Language Translator</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">Language Translator</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="block text-sm text-white mb-1">Text to Translate</label>
+          <label className="block text-sm text-foreground mb-1">Text to Translate</label>
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -79,35 +79,35 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
               }
             }}
             placeholder="Enter text..."
-            className="bg-ios-darker border-ios-gray text-white"
+            className="bg-muted border text-foreground placeholder:text-muted-foreground"
           />
         </div>
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-sm text-white mb-1">From</label>
+            <label className="block text-sm text-foreground mb-1">From</label>
             <Select value={fromLanguage} onValueChange={setFromLanguage}>
-              <SelectTrigger className="bg-ios-darker border-ios-gray text-white">
+              <SelectTrigger className="bg-muted border text-foreground">
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
-              <SelectContent className="bg-ios-darker border-ios-gray">
+              <SelectContent className="bg-card border">
                 {LANGUAGES.map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code} className="text-white hover:bg-ios-card">
+                  <SelectItem key={lang.code} value={lang.code} className="text-foreground">
                     {lang.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <Button className="self-end bg-ios-darker border-ios-gray text-white hover:bg-ios-card" type="button" onClick={swapLanguages} variant="outline">⇄</Button>
+          <Button className="self-end bg-muted border text-foreground hover:bg-muted/80" type="button" onClick={swapLanguages} variant="outline">⇄</Button>
           <div className="flex-1">
-            <label className="block text-sm text-white mb-1">To</label>
+            <label className="block text-sm text-foreground mb-1">To</label>
             <Select value={toLanguage} onValueChange={setToLanguage}>
-              <SelectTrigger className="bg-ios-darker border-ios-gray text-white">
+              <SelectTrigger className="bg-muted border text-foreground">
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
-              <SelectContent className="bg-ios-darker border-ios-gray">
+              <SelectContent className="bg-card border">
                 {LANGUAGES.map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code} className="text-white hover:bg-ios-card">
+                  <SelectItem key={lang.code} value={lang.code} className="text-foreground">
                     {lang.name}
                   </SelectItem>
                 ))}
@@ -115,20 +115,20 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
             </Select>
           </div>
         </div>
-        <Button onClick={handleTranslate} className="w-full bg-ios-blue hover:bg-blue-600" disabled={isLoading || !text.trim()}>Translate</Button>
+        <Button onClick={handleTranslate} className="w-full bg-[#1E3A8A] hover:bg-blue-800" disabled={isLoading || !text.trim()}>Translate</Button>
         {isLoading ? (
           <Skeleton className="w-full h-20" />
         ) : translation?.translatedText ? (
-          <div className="p-3 border border-ios-gray rounded bg-ios-darker">
-            <strong className="text-ios-blue">Result:</strong>
-            <p className="text-green-400 mt-1 text-lg">{translation.translatedText}</p>
+          <div className="p-3 border rounded bg-muted">
+            <strong className="text-[#1E3A8A] dark:text-blue-400">Result:</strong>
+            <p className="text-emerald-600 dark:text-emerald-400 mt-1 text-lg">{translation.translatedText}</p>
             {translation.pronunciation && (
-              <p className="text-gray-400 mt-2 text-sm italic border-t border-gray-700 pt-1">
+              <p className="text-muted-foreground mt-2 text-sm italic border-t pt-1">
                 Pronunciation: {translation.pronunciation}
               </p>
             )}
             {translation.meaning && (
-              <p className="text-gray-400 mt-1 text-sm border-t border-gray-700 pt-1">
+              <p className="text-muted-foreground mt-1 text-sm border-t pt-1">
                 Meaning: {translation.meaning}
               </p>
             )}

@@ -22,7 +22,7 @@ const travelStyles = [
     id: 'adventure',
     image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800',
     name: 'Adventure',
-    color: 'text-[#ff385c]'
+    color: 'text-[#F59E0B]'
   },
   {
     id: 'relaxed',
@@ -34,7 +34,7 @@ const travelStyles = [
     id: 'cultural',
     image: 'https://images.unsplash.com/photo-1528181304800-259b08848526?auto=format&fit=crop&q=80&w=800',
     name: 'Cultural',
-    color: 'text-[#ff385c]'
+    color: 'text-[#F59E0B]'
   },
   {
     id: 'culinary',
@@ -899,7 +899,7 @@ export default function TripPlanner() {
                                 <div>
                                   <div className="text-sm text-muted-foreground">{String(a.time)} • {String(a.placeName || a.title || '')}</div>
                                   {a.address && (
-                                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-[#ff385c] underline">
+                                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-[#F59E0B] underline">
                                       {String(a.address)}
                                     </a>
                                   )}

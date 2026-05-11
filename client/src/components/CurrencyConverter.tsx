@@ -111,20 +111,20 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
   const historicalData = conversion ? generateHistoricalData(conversion.rate) : [];
 
   return (
-    <Card className={`bg-ios-card border-ios-gray ${className}`} data-testid="currency-converter">
+    <Card className={`bg-card border ${className}`} data-testid="currency-converter">
       <CardHeader>
-        <CardTitle className="text-lg font-bold text-white flex justify-between items-center">
+        <CardTitle className="text-lg font-bold text-foreground flex justify-between items-center">
           <span>Currency Converter</span>
-          <div className="flex bg-ios-darker rounded-lg p-1 space-x-1">
+          <div className="flex bg-muted rounded-lg p-1 space-x-1">
             <button
               onClick={() => setActiveTab('convert')}
-              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'convert' ? 'bg-ios-blue text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'convert' ? 'bg-[#1E3A8A] text-white' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Convert
             </button>
             <button
               onClick={() => setActiveTab('budget')}
-              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'budget' ? 'bg-ios-blue text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'budget' ? 'bg-[#1E3A8A] text-white' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Budget
             </button>
@@ -136,14 +136,14 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-white mb-1">From</label>
+              <label className="block text-sm font-medium text-foreground mb-1">From</label>
               <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                <SelectTrigger className="bg-ios-darker border-ios-gray text-white" data-testid="select-from-currency">
+                <SelectTrigger className="bg-muted border text-foreground" data-testid="select-from-currency">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-ios-darker border-ios-gray text-white">
+                <SelectContent className="bg-card border text-foreground">
                   {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code} className="hover:bg-ios-card focus:bg-ios-card focus:text-white">
+                    <SelectItem key={currency.code} value={currency.code} className="text-foreground">
                       {currency.code} - {currency.name}
                     </SelectItem>
                   ))}
@@ -152,14 +152,14 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-1">To</label>
+              <label className="block text-sm font-medium text-foreground mb-1">To</label>
               <Select value={toCurrency} onValueChange={setToCurrency}>
-                <SelectTrigger className="bg-ios-darker border-ios-gray text-white" data-testid="select-to-currency">
+                <SelectTrigger className="bg-muted border text-foreground" data-testid="select-to-currency">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-ios-darker border-ios-gray text-white">
+                <SelectContent className="bg-card border text-foreground">
                   {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code} className="hover:bg-ios-card focus:bg-ios-card focus:text-white">
+                    <SelectItem key={currency.code} value={currency.code} className="text-foreground">
                       {currency.code} - {currency.name}
                     </SelectItem>
                   ))}
@@ -172,7 +172,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
             <Button
               onClick={swapCurrencies}
               variant="outline"
-              className="flex-1 bg-ios-darker border-ios-gray text-white hover:bg-ios-card"
+              className="flex-1 bg-muted border text-foreground hover:bg-muted/80"
               data-testid="button-swap-currencies"
             >
               <i className="fas fa-exchange-alt mr-2"></i>
@@ -183,19 +183,19 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
           {activeTab === 'convert' ? (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-white mb-1">Amount</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Amount</label>
                 <Input
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
-                  className="bg-ios-darker border-ios-gray text-white"
+                  className="bg-muted border text-foreground"
                   data-testid="input-amount"
                 />
               </div>
               <Button
                 onClick={handleConvert}
-                className="w-full bg-ios-blue hover:bg-blue-600"
+                className="w-full bg-[#1E3A8A] hover:bg-blue-800"
                 disabled={isLoading}
                 data-testid="button-convert"
               >
@@ -205,19 +205,19 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-white mb-1">Trip Budget ({fromCurrency})</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Trip Budget ({fromCurrency})</label>
                 <Input
                   type="number"
                   value={budget}
                   onChange={(e) => setBudget(e.target.value)}
                   placeholder="Total budget"
-                  className="bg-ios-darker border-ios-gray text-white"
+                  className="bg-muted border text-foreground"
                 />
               </div>
               {conversion && budget && (
-                <div className="p-3 bg-ios-darker rounded-lg border border-gray-800">
-                  <div className="text-sm text-gray-400">Equivalent in {toCurrency}</div>
-                  <div className="text-xl font-bold text-green-400">
+                <div className="p-3 bg-muted rounded-lg border">
+                  <div className="text-sm text-muted-foreground">Equivalent in {toCurrency}</div>
+                  <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
                     {Math.round(parseFloat(budget) * conversion.rate).toLocaleString()} {CURRENCIES.find(c => c.code === toCurrency)?.symbol}
                   </div>
                 </div>
@@ -236,13 +236,13 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
 
         {conversion && activeTab === 'convert' && (
           <div className="space-y-4">
-            <div className="bg-ios-darker rounded-xl p-4" data-testid="conversion-result">
+            <div className="bg-muted rounded-xl p-4" data-testid="conversion-result">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl font-bold text-ios-blue">
+                <span className="text-2xl font-bold text-[#1E3A8A] dark:text-blue-400">
                   {conversion.convertedAmount.toLocaleString()} {CURRENCIES.find(c => c.code === toCurrency)?.symbol}
                 </span>
               </div>
-              <p className="text-xs text-ios-gray">
+              <p className="text-xs text-muted-foreground">
                 1 {fromCurrency} = {conversion.rate} {toCurrency}
               </p>
               <p className="text-[10px] text-ios-gray mt-1 opacity-70">{conversion.disclaimer}</p>
@@ -250,7 +250,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
 
             {/* Historical Chart */}
             <div className="h-[200px] w-full">
-              <p className="text-xs text-gray-400 mb-2">30-Day Trend (Approx.)</p>
+              <p className="text-xs text-muted-foreground mb-2">30-Day Trend (Approx.)</p>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={historicalData}>
                   <defs>
@@ -262,10 +262,10 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
                   <XAxis dataKey="date" hide />
                   <YAxis hide domain={['auto', 'auto']} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
-                    itemStyle={{ color: '#60a5fa' }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+                    itemStyle={{ color: '#1E3A8A' }}
                     formatter={(value: number) => [value, 'Rate']}
-                    labelStyle={{ color: '#9ca3af' }}
+                    labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
                   />
                   <Area type="monotone" dataKey="rate" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRate)" />
                 </AreaChart>
