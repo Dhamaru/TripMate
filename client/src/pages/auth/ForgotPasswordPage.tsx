@@ -68,11 +68,11 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <Card className="bg-ios-card/50 backdrop-blur-xl border-ios-gray/30 radius-card p-1 shadow-2xl overflow-hidden">
+        <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
             <CardContent className="p-8">
                 <div className="flex items-center mb-6">
                     <Link href="/signin">
-                        <Button variant="ghost" size="sm" className="pl-0 text-ios-gray hover:text-white hover:bg-transparent group">
+                        <Button variant="ghost" size="sm" className="pl-0 text-white/60 hover:text-white hover:bg-transparent group">
                             <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
                             Back to Sign In
                         </Button>
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
 
                 <div className="flex flex-col items-center text-center mb-8">
                     <h2 className="text-3xl font-bold text-white mb-2">Forgot Password</h2>
-                    <p className="text-ios-gray font-medium">
+                    <p className="text-white/60 font-medium">
                         Enter your email to receive a reset link
                     </p>
                 </div>
@@ -92,19 +92,19 @@ export default function ForgotPasswordPage() {
                         animate={{ opacity: 1, scale: 1 }}
                         className="text-center py-6 space-y-6"
                     >
-                        <div className="mx-auto w-16 h-16 bg-ios-blue/20 rounded-2xl flex items-center justify-center">
-                            <Mail className="w-8 h-8 text-ios-blue" />
+                        <div className="mx-auto w-16 h-16 bg-[#F59E0B]/20 rounded-2xl flex items-center justify-center">
+                            <Mail className="w-8 h-8 text-[#F59E0B]" />
                         </div>
                         <div className="space-y-2">
                             <h3 className="text-xl font-bold text-white">Check your email</h3>
-                            <p className="text-ios-gray font-medium">
+                            <p className="text-white/60 font-medium">
                                 We've sent a password reset link to <br/>
                                 <span className="text-white font-bold">{form.getValues("email")}</span>
                             </p>
                         </div>
                         <Button
                             variant="outline"
-                            className="w-full h-14 border-ios-gray/30 rounded-xl text-white hover:bg-card/5 font-bold"
+                            className="w-full h-14 border-white/20 rounded-xl text-white hover:bg-white/10 font-bold"
                             onClick={() => setIsSubmitted(false)}
                         >
                             Try another email
@@ -121,10 +121,10 @@ export default function ForgotPasswordPage() {
                                         <FormLabel className="text-sm font-medium text-white ml-1">Email Address</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ios-gray" />
+                                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
                                                 <Input
                                                     placeholder="your@email.com"
-                                                    className="pl-12 bg-ios-darker/50 border-ios-gray/30 h-14 rounded-xl text-white placeholder:text-ios-gray focus:border-ios-blue smooth-transition"
+                                                    className="pl-12 bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-ios-blue smooth-transition"
                                                     {...field}
                                                 />
                                             </div>
@@ -136,7 +136,7 @@ export default function ForgotPasswordPage() {
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full h-14 bg-gradient-to-r from-ios-blue to-purple-600 hover:scale-[1.02] active:scale-[0.98] smooth-transition rounded-xl font-bold text-lg shadow-lg shadow-ios-blue/20 mt-2"
+                                className="w-full h-14 bg-[#F59E0B] hover:bg-[#D97706] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
                             >
                                 {isLoading ? (
                                     <>

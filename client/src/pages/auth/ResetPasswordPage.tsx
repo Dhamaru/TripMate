@@ -92,19 +92,19 @@ export default function ResetPasswordPage() {
 
     if (!token) {
         return (
-            <Card className="bg-ios-card/50 backdrop-blur-xl border-ios-gray/30 radius-card p-1 shadow-2xl overflow-hidden">
+            <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
                 <CardContent className="p-8 text-center pt-12 pb-12">
                     <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <Lock className="w-8 h-8 text-red-500" />
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-2">Invalid Token</h2>
-                    <p className="text-ios-gray font-medium mb-8">
+                    <p className="text-white/60 font-medium mb-8">
                         The reset link is invalid or has expired.
                     </p>
                     <Button 
                         onClick={() => navigate("/signin")} 
                         variant="outline" 
-                        className="w-full h-14 border-ios-gray/30 rounded-xl text-white hover:bg-card/5 font-bold"
+                        className="w-full h-14 border-white/20 rounded-xl text-white hover:bg-white/10 font-bold"
                     >
                         Back to Sign In
                     </Button>
@@ -114,14 +114,14 @@ export default function ResetPasswordPage() {
     }
 
     return (
-        <Card className="bg-ios-card/50 backdrop-blur-xl border-ios-gray/30 radius-card p-1 shadow-2xl overflow-hidden">
+        <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
             <CardContent className="p-8">
                 <div className="flex flex-col items-center text-center mt-2 mb-8">
-                    <div className="w-16 h-16 bg-ios-blue/20 rounded-2xl flex items-center justify-center mb-6">
-                        <Lock className="w-8 h-8 text-ios-blue" />
+                    <div className="w-16 h-16 bg-[#F59E0B]/20 rounded-2xl flex items-center justify-center mb-6">
+                        <Lock className="w-8 h-8 text-[#F59E0B]" />
                     </div>
                     <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
-                    <p className="text-ios-gray font-medium">
+                    <p className="text-white/60 font-medium">
                         Create a strong new password for your account
                     </p>
                 </div>
@@ -139,14 +139,14 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-ios-darker/50 border-ios-gray/30 h-14 rounded-xl text-white placeholder:text-ios-gray pr-12 focus:border-ios-blue smooth-transition"
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-ios-blue smooth-transition"
                                                 {...field}
                                             />
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-ios-gray hover:text-white"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-white/60 hover:text-white"
                                                 onClick={() => setShowPassword(!showPassword)}
                                             >
                                                 {showPassword ? (
@@ -172,14 +172,14 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showConfirmPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-ios-darker/50 border-ios-gray/30 h-14 rounded-xl text-white placeholder:text-ios-gray pr-12 focus:border-ios-blue smooth-transition"
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-ios-blue smooth-transition"
                                                 {...field}
                                             />
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-ios-gray hover:text-white"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-white/60 hover:text-white"
                                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                             >
                                                 {showConfirmPassword ? (
@@ -197,7 +197,7 @@ export default function ResetPasswordPage() {
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full h-14 bg-gradient-to-r from-ios-blue to-purple-600 hover:scale-[1.02] active:scale-[0.98] smooth-transition rounded-xl font-bold text-lg shadow-lg shadow-ios-blue/20 mt-2"
+                            className="w-full h-14 bg-[#F59E0B] hover:bg-[#D97706] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
                         >
                             {isLoading ? (
                                 <>
@@ -213,7 +213,7 @@ export default function ResetPasswordPage() {
 
                 <div className="mt-8 text-center">
                     <Link href="/signin">
-                        <Button variant="ghost" size="sm" className="text-ios-gray hover:text-white hover:bg-transparent font-semibold">
+                        <Button variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-transparent font-semibold">
                             Back to Sign In
                         </Button>
                     </Link>

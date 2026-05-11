@@ -272,7 +272,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           <div className="grid grid-cols-7 gap-1 text-xs text-center">
             {weather.forecast.map((day, index) => (
               <div key={index} data-testid={`weather-forecast-${index}`} aria-live="polite" className="flex flex-col items-center">
-                <p className="text-white/70 mb-1">{day.day.split(' ')[0].slice(0, 3)}</p>
+                <p className="text-white/70 mb-1">{String((day as any).day || (day as any).date || '').split(' ')[0].slice(0, 3) || '—'}</p>
                 {day.icon && <i className={`${day.icon} text-white text-lg my-1`}></i>}
                 <div className="flex flex-col">
                   <span className="font-bold text-white">{unit === 'C' ? day.high : toF(day.high)}°</span>

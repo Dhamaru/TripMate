@@ -104,11 +104,11 @@ export default function SignInPage() {
   };
 
   return (
-    <Card className="bg-ios-card/50 backdrop-blur-xl border-ios-gray/30 radius-card p-1 shadow-2xl overflow-hidden">
+    <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
       <CardContent className="p-8">
         <div className="flex flex-col items-center text-center mt-2 mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">Sign In</h2>
-          <p className="text-ios-gray font-medium">Enter your credentials to access your trips</p>
+          <p className="text-white/60 font-medium">Enter your credentials to access your trips</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -121,14 +121,14 @@ export default function SignInPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
+              className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#F59E0B] transition-colors font-medium"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between ml-1">
               <Label htmlFor="password" className="text-sm font-medium text-white">Password</Label>
-              <Link href="/forgot-password" className="text-xs font-semibold text-ios-blue hover:text-blue-400 smooth-transition">
+              <Link href="/forgot-password" className="text-xs font-semibold text-[#F59E0B] hover:text-amber-300 smooth-transition">
                 Forgot Password?
               </Link>
             </div>
@@ -140,7 +140,7 @@ export default function SignInPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 pr-12 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#F59E0B] transition-colors font-medium"
               />
               <Button
                 type="button"
@@ -159,11 +159,11 @@ export default function SignInPage() {
               id="remember" 
               checked={remember} 
               onCheckedChange={(checked) => setRemember(checked as boolean)}
-              className="border-ios-gray/30 data-[state=checked]:bg-ios-blue data-[state=checked]:border-ios-blue"
+              className="border-white/20 data-[state=checked]:bg-[#F59E0B] data-[state=checked]:border-[#F59E0B]"
             />
             <label
               htmlFor="remember"
-              className="text-xs font-medium text-ios-gray cursor-pointer"
+              className="text-xs font-medium text-white/60 cursor-pointer"
             >
               Remember me on this device
             </label>
@@ -180,7 +180,7 @@ export default function SignInPage() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 bg-gradient-to-r from-ios-blue to-purple-600 hover:scale-[1.02] active:scale-[0.98] smooth-transition rounded-xl font-bold text-lg shadow-lg shadow-ios-blue/20"
+            className="w-full h-14 bg-[#F59E0B] hover:bg-[#D97706] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
           >
             {isLoading ? "Signing In..." : "Sign In"}
           </Button>
@@ -190,7 +190,7 @@ export default function SignInPage() {
             variant="outline"
             onClick={handleGuestLogin}
             disabled={isLoading}
-            className="w-full h-14 border-ios-gray/30 rounded-xl hover:bg-card/5 smooth-transition font-bold text-lg text-white"
+            className="w-full h-14 border-white/20 rounded-xl hover:bg-white/10 smooth-transition font-bold text-lg text-white"
           >
             Continue as Guest
           </Button>
@@ -198,16 +198,16 @@ export default function SignInPage() {
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-ios-gray/20"></div>
+            <div className="w-full border-t border-white/10"></div>
           </div>
           <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold">
-            <span className="bg-[#1C1C1E] px-3 text-ios-gray">New to TripMate?</span>
+            <span className="bg-transparent px-3 text-white/40">New to TripMate?</span>
           </div>
         </div>
 
         <Button
           variant="outline"
-          className="h-14 border-ios-gray/30 rounded-xl hover:bg-card/5 smooth-transition w-full font-bold text-lg text-white"
+          className="h-14 border-white/20 rounded-xl hover:bg-white/10 smooth-transition w-full font-bold text-lg text-white"
           onClick={() => navigate("/signup")}
         >
           Create Account

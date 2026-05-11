@@ -108,13 +108,18 @@ export async function weatherHandler(args: { location: string; units?: string })
         const current = data.current || {};
         const daily = data.daily || {};
 
-        const forecast = (daily.time || []).slice(0, 7).map((date: string, i: number) => ({
-            date,
-            high: Math.round(daily.temperature_2m_max?.[i] ?? 0),
-            low: Math.round(daily.temperature_2m_min?.[i] ?? 0),
-            precipitationChance: daily.precipitation_probability_max?.[i] ?? 0,
-            condition: mapWeatherCode(daily.weather_code?.[i] ?? 0),
-        }));
+        const forecast = (daily.time || []).slice(0, 7).map((date: string, i: number) => {
+            const d = new Date(date);
+            const day = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short' });
+            return {
+                day,
+                date,
+                high: Math.round(daily.temperature_2m_max?.[i] ?? 0),
+                low: Math.round(daily.temperature_2m_min?.[i] ?? 0),
+                precipitationChance: daily.precipitation_probability_max?.[i] ?? 0,
+                condition: mapWeatherCode(daily.weather_code?.[i] ?? 0),
+            };
+        });
 
         const highs = forecast.length > 0 ? forecast.map((f: { high: number }) => f.high) : [0];
         const lows = forecast.length > 0 ? forecast.map((f: { low: number }) => f.low) : [0];

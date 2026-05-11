@@ -67,11 +67,11 @@ export default function SignUpPage() {
   };
 
   return (
-    <Card className="bg-ios-card/50 backdrop-blur-xl border-ios-gray/30 radius-card p-1 shadow-2xl overflow-hidden">
+    <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
       <CardContent className="p-8">
         <div className="flex flex-col items-center text-center mt-2 mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">Sign Up</h2>
-          <p className="text-ios-gray font-medium">Create your personalized travel account</p>
+          <p className="text-white/60 font-medium">Create your personalized travel account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -86,7 +86,7 @@ export default function SignUpPage() {
                 value={formData.firstName}
                 onChange={handleChange}
                 required
-                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#F59E0B] transition-colors font-medium"
               />
             </div>
             <div className="space-y-2">
@@ -99,7 +99,7 @@ export default function SignUpPage() {
                 value={formData.lastName}
                 onChange={handleChange}
                 required
-                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#F59E0B] transition-colors font-medium"
               />
             </div>
           </div>
@@ -114,14 +114,14 @@ export default function SignUpPage() {
               value={formData.email}
               onChange={handleChange}
               required
-              className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 focus:border-ios-blue smooth-transition font-medium"
+              className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#F59E0B] transition-colors font-medium"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label htmlFor="password" className="text-sm font-medium text-white ml-1">Password</Label>
-              <Link href="/forgot-password" className="text-xs font-semibold text-ios-blue hover:text-blue-400 smooth-transition">
+              <Link href="/forgot-password" className="text-xs font-semibold text-[#F59E0B] hover:text-amber-300 smooth-transition">
                 Forgot Password?
               </Link>
             </div>
@@ -134,7 +134,7 @@ export default function SignUpPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 pr-12 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#F59E0B] transition-colors font-medium"
               />
               <Button
                 type="button"
@@ -159,7 +159,7 @@ export default function SignUpPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                className="bg-card border-ios-gray/30 h-14 rounded-xl text-black placeholder:text-black/40 pr-12 focus:border-ios-blue smooth-transition font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#F59E0B] transition-colors font-medium"
               />
               <Button
                 type="button"
@@ -184,7 +184,7 @@ export default function SignUpPage() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 bg-gradient-to-r from-ios-blue to-purple-600 hover:scale-[1.02] active:scale-[0.98] smooth-transition rounded-xl font-bold text-lg shadow-lg shadow-ios-blue/20 mt-6"
+            className="w-full h-14 bg-[#F59E0B] hover:bg-[#D97706] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
           >
             {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
@@ -192,22 +192,22 @@ export default function SignUpPage() {
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-ios-gray/20"></div>
+            <div className="w-full border-t border-white/10"></div>
           </div>
           <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold">
-            <span className="bg-[#1C1C1E] px-3 text-ios-gray">Already have an account?</span>
+            <span className="bg-transparent px-3 text-white/40">Already have an account?</span>
           </div>
         </div>
 
         <Button
           variant="outline"
-          className="h-14 border-ios-gray/30 rounded-xl hover:bg-card/5 smooth-transition w-full font-bold text-lg text-white"
+          className="h-14 border-white/20 rounded-xl hover:bg-white/10 smooth-transition w-full font-bold text-lg text-white"
           onClick={() => navigate("/signin")}
         >
           Sign In Instead
         </Button>
 
-        <p className="mt-8 text-center text-[10px] text-ios-gray font-medium uppercase tracking-widest px-8">
+        <p className="mt-8 text-center text-[10px] text-white/60 font-medium uppercase tracking-widest px-8">
           By creating an account, you agree to our Terms of Service and Privacy Policy.
         </p>
       </CardContent>
