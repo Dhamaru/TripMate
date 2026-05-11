@@ -172,7 +172,7 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-medium">
                                                         {col.userId?.firstName} {col.userId?.lastName}
-                                                        {col.userId?._id === auth?.user?._id && " (You)"}
+                                                        {(col.userId?._id === user?.id || col.userId === user?.id) && " (You)"}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
                                                         {col.userId?.email}

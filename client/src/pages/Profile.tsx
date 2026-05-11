@@ -13,7 +13,7 @@ import { LogOut, Link as LinkIcon, AlertTriangle } from "lucide-react";
 import { authApi } from "@/lib/api/auth.api";
 
 export default function Profile() {
-  const { user, logout, token } = useAuth() as { user: User | undefined; logout: () => void; token: string | null };
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
@@ -42,7 +42,6 @@ export default function Profile() {
       const url = '/api/v1/auth/user/avatar';
       return await new Promise((resolve, reject) => {
         xhr.open('POST', url);
-        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable) {
             const percent = Math.round((evt.loaded / evt.total) * 100);
@@ -118,7 +117,6 @@ export default function Profile() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           firstName: payload.firstName,
