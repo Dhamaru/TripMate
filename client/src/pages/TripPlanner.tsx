@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { safeParsePlan } from "@/lib/planParser";
+import { safeParsePlan, isValidPlanLike } from "@/lib/planParser";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -205,23 +205,19 @@ export default function TripPlanner() {
         if (res.ok) {
           const json = await res.json().catch(() => null);
           const parsed = trySafeParse(json);
-          if (parsed) return parsed;
-          const rawText = await res.text();
-          const parsed2 = trySafeParse(rawText);
-          if (parsed2) return parsed2;
+          if (parsed && isValidPlanLike(parsed)) return parsed;
           throw new Error('parse_failed');
         }
       } catch { }
 
       try {
         const res2 = await apiRequest('POST', '/api/tools/planTrip', payload);
-        let data2: any = null;
-        try { data2 = await res2.json(); } catch { }
-        const parsed3 = trySafeParse(data2);
-        if (parsed3) return parsed3;
-        const rawText2 = await res2.text();
-        const parsed4 = trySafeParse(rawText2);
-        if (parsed4) return parsed4;
+        if (res2.ok) {
+          let data2: any = null;
+          try { data2 = await res2.json(); } catch { }
+          const parsed3 = trySafeParse(data2);
+          if (parsed3 && isValidPlanLike(parsed3)) return parsed3;
+        }
       } catch (e: any) {
         console.error('planTrip API error:', e?.message || e);
       }
@@ -251,7 +247,7 @@ export default function TripPlanner() {
       };
       let center = { lat: 0, lon: 0, display: dest };
       try {
-        const geoRes = await apiRequest('GET', `/api/v1/geocode?query=${encodeURIComponent(dest)}`);
+        const geoRes = await apiRequest('GET', `/api/v1/geocode?q=${encodeURIComponent(dest)}`);
         const data = await geoRes.json().catch(() => []);
         const gj = Array.isArray(data) ? data[0] : null;
         if (gj && Number.isFinite(gj.lat) && Number.isFinite(gj.lon)) {
@@ -583,7 +579,7 @@ export default function TripPlanner() {
                       <SelectTrigger className="bg-muted border text-white h-11">
                         <SelectValue placeholder="Select group size" />
                       </SelectTrigger>
-                      <SelectContent className="bg-muted border">
+                      <SelectContent position="popper" className="bg-muted border z-50">
                         <SelectItem value="1" className="text-white">Solo traveler</SelectItem>
                         <SelectItem value="2" className="text-white">Couple (2 people)</SelectItem>
                         <SelectItem value="4" className="text-white">Small group (3–5 people)</SelectItem>
@@ -603,7 +599,7 @@ export default function TripPlanner() {
                         <SelectTrigger className="w-[90px] bg-muted border text-white h-11">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-muted border">
+                        <SelectContent position="popper" className="bg-muted border z-50">
                           <SelectItem value="INR" className="text-white">₹ INR</SelectItem>
                           <SelectItem value="USD" className="text-white">$ USD</SelectItem>
                           <SelectItem value="EUR" className="text-white">€ EUR</SelectItem>
@@ -686,7 +682,7 @@ export default function TripPlanner() {
                       <SelectTrigger className="w-[100px] bg-muted border text-white">
                         <SelectValue placeholder="INR" />
                       </SelectTrigger>
-                      <SelectContent className="bg-muted border">
+                      <SelectContent position="popper" className="bg-muted border z-50">
                         <SelectItem value="INR" className="text-white hover:bg-card">₹ INR</SelectItem>
                         <SelectItem value="USD" className="text-white hover:bg-card">$ USD</SelectItem>
                         <SelectItem value="GBP" className="text-white hover:bg-card">£ GBP</SelectItem>
@@ -738,7 +734,7 @@ export default function TripPlanner() {
                     >
                       <SelectValue placeholder="Select group size" />
                     </SelectTrigger>
-                    <SelectContent className="bg-muted border">
+                    <SelectContent position="popper" className="bg-muted border z-50">
                       <SelectItem value="1" className="text-white hover:bg-card">Solo traveler</SelectItem>
                       <SelectItem value="2" className="text-white hover:bg-card">Couple (2 people)</SelectItem>
                       <SelectItem value="4" className="text-white hover:bg-card">Small group (3-5 people)</SelectItem>

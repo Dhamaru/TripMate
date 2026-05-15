@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuthStore } from "@/store";
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -129,11 +129,8 @@ export default function SignUpPage() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center">
               <Label htmlFor="password" className="text-sm font-medium text-white ml-1">Password</Label>
-              <Link href="/forgot-password" className="text-xs font-semibold text-[#F59E0B] hover:text-amber-300 smooth-transition">
-                Forgot Password?
-              </Link>
             </div>
             <div className="relative group">
               <Input
@@ -150,7 +147,7 @@ export default function SignUpPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-black"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-white/60"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -175,7 +172,7 @@ export default function SignUpPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-black"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-white/60"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}

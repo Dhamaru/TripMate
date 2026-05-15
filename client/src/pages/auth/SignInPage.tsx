@@ -3,7 +3,6 @@ import { useAuthStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useLocation, Link } from "wouter";
@@ -24,7 +23,6 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { signIn, isAuthenticated, signOut, guestSignIn } = useAuthStore();
   const [, navigate] = useLocation();
@@ -64,7 +62,6 @@ export default function SignInPage() {
         setPassword("");
         setError("");
         setIsLoading(false);
-        setRemember(false);
         signOut?.();
         navigate("/");
       }
@@ -152,27 +149,12 @@ export default function SignInPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-black"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-white/60"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </Button>
             </div>
-          </div>
-
-          <div className="flex items-center space-x-2 ml-1">
-            <Checkbox 
-              id="remember" 
-              checked={remember} 
-              onCheckedChange={(checked) => setRemember(checked as boolean)}
-              className="border-white/20 data-[state=checked]:bg-[#F59E0B] data-[state=checked]:border-[#F59E0B]"
-            />
-            <label
-              htmlFor="remember"
-              className="text-xs font-medium text-white/60 cursor-pointer"
-            >
-              Remember me on this device
-            </label>
           </div>
 
           {error && (

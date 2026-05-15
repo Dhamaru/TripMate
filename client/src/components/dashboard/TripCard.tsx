@@ -34,7 +34,7 @@ export function TripCard({ trip }: { trip: Trip }) {
     return (
         <div
             className="relative group rounded-2xl overflow-hidden cursor-pointer aspect-[3/4] bg-card border border-border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
-            onClick={() => navigate(`/trip/${trip.id}`)}
+            onClick={() => navigate(`/app/trips/${trip.id}`)}
             role="article"
             aria-label={`Trip to ${trip.destination}`}
         >

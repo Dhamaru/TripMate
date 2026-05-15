@@ -10,6 +10,7 @@ import { config as appConfig } from "../config";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import mongoose from "mongoose";
 
 const router = Router();
 
@@ -82,5 +83,51 @@ router.post("/user/avatar", requireAuth, upload.single("image"), authController.
 router.post("/upload-avatar", requireAuth, authController.uploadAvatar);
 
 router.post("/delete-account", requireAuth, authController.deleteAccount);
+
+router.get("/sessions", requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as any)?._id?.toString() || (req.user as any)?.id?.toString();
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const col = mongoose.connection.db?.collection("sessions");
+    if (!col) return res.json([]);
+    const docs = await col.find({}).toArray();
+    const result = docs
+      .map((doc: any) => {
+        try {
+          const s = typeof doc.session === "string" ? JSON.parse(doc.session) : doc.session;
+          if (s?.passport?.user !== userId) return null;
+          return {
+            id: doc._id?.toString(),
+            userAgent: s?.userAgent || null,
+            ip: s?.ip || null,
+            device: s?.device || null,
+            expiresAt: doc.expires?.toISOString() || null,
+            isCurrent: req.sessionID === doc._id?.toString(),
+          };
+        } catch { return null; }
+      })
+      .filter(Boolean);
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch sessions" });
+  }
+});
+
+router.post("/sessions/:id/revoke", requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as any)?._id?.toString() || (req.user as any)?.id?.toString();
+    const { id } = req.params;
+    const col = mongoose.connection.db?.collection("sessions");
+    if (!col) return res.status(500).json({ error: "Session store unavailable" });
+    const doc = await col.findOne({ _id: id as any });
+    if (!doc) return res.status(404).json({ error: "Session not found" });
+    const s = typeof doc.session === "string" ? JSON.parse(doc.session) : doc.session;
+    if (s?.passport?.user !== userId) return res.status(403).json({ error: "Forbidden" });
+    await col.deleteOne({ _id: id as any });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to revoke session" });
+  }
+});
 
 export default router;

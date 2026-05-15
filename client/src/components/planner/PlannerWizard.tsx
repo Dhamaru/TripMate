@@ -79,7 +79,7 @@ export function PlannerWizard() {
                     if (status.status === 'done' && status.tripId) {
                         clearInterval(poll)
                         setStep(6)
-                        setTimeout(() => navigate(`/app/trip/${status.tripId}`), 1500)
+                        setTimeout(() => navigate(`/app/trips/${status.tripId}`), 1500)
                     }
                     if (status.status === 'failed') {
                         clearInterval(poll)

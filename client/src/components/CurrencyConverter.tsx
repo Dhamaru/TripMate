@@ -27,19 +27,6 @@ interface ConversionResult {
   disclaimer: string;
 }
 
-// Mock historical data generator
-const generateHistoricalData = (rate: number) => {
-  return Array.from({ length: 30 }, (_, i) => {
-    const day = new Date();
-    day.setDate(day.getDate() - (29 - i));
-    // Random fluctuation ±5%
-    const fluctuation = 1 + (Math.random() * 0.1 - 0.05);
-    return {
-      date: day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      rate: Number((rate * fluctuation).toFixed(4))
-    };
-  });
-};
 
 export function CurrencyConverter({ className = '' }: { className?: string }) {
   const [amount, setAmount] = useState('100');
@@ -47,6 +34,28 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
   const [toCurrency, setToCurrency] = useState('EUR');
   const [budget, setBudget] = useState('');
   const [activeTab, setActiveTab] = useState<'convert' | 'budget'>('convert');
+
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 29);
+  const startDateStr = startDate.toISOString().split('T')[0];
+
+  const { data: historicalData = [] } = useQuery<{ date: string; rate: number }[]>({
+    queryKey: ['/frankfurter/history', fromCurrency, toCurrency],
+    queryFn: async () => {
+      try {
+        const r = await fetch(
+          `https://api.frankfurter.app/${startDateStr}..?from=${fromCurrency}&to=${toCurrency}`
+        );
+        if (!r.ok) return [];
+        const json = await r.json();
+        return Object.entries(json.rates as Record<string, Record<string, number>>).map(([date, rates]) => ({
+          date: new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          rate: rates[toCurrency] ?? 0,
+        }));
+      } catch { return []; }
+    },
+    staleTime: 60 * 60 * 1000,
+  });
 
   const { data: conversion, isLoading, refetch } = useQuery<ConversionResult>({
     queryKey: ['/api/v1/currency', fromCurrency, toCurrency, amount],
@@ -107,8 +116,6 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
     setFromCurrency(toCurrency);
     setToCurrency(fromCurrency);
   };
-
-  const historicalData = conversion ? generateHistoricalData(conversion.rate) : [];
 
   return (
     <Card className={`bg-card border ${className}`} data-testid="currency-converter">
@@ -250,7 +257,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
 
             {/* Historical Chart */}
             <div className="h-[200px] w-full">
-              <p className="text-xs text-muted-foreground mb-2">30-Day Trend (Approx.)</p>
+              <p className="text-xs text-muted-foreground mb-2">30-Day Trend</p>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={historicalData}>
                   <defs>
