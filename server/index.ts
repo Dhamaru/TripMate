@@ -42,6 +42,7 @@ const app = express();
 export { app };
 app.locals.ready = false;
 app.set("etag", false);
+app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 // 1. Global Middleware (Attach synchronously)

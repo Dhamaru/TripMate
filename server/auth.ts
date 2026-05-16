@@ -10,6 +10,7 @@ import MongoStore from "connect-mongo";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
+import { getBackendBaseUrl } from "./urls";
 
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "./email";
@@ -100,7 +101,8 @@ export async function setupAuth(app: Express) {
     passport.use(new GoogleStrategy({
       clientID: config.GOOGLE_CLIENT_ID,
       clientSecret: config.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${config.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/api/v1/auth/google/callback`
+      callbackURL: "/api/v1/auth/google/callback",
+      proxy: true
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         const rawEmail = profile.emails?.[0]?.value;
