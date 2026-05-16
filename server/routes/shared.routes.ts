@@ -14,11 +14,18 @@ router.use(requireAuth);
 
 // Packing Routes
 router.get("/packing", packingController.getPackingLists);
+router.get("/packing-lists", packingController.getPackingLists);
 router.post("/packing", validate(createPackingListSchema), packingController.createPackingList);
-router.put("/packing/:id/item/:itemId", validate(updatePackingItemSchema), packingController.updatePackingItem);
+router.post("/packing-lists", validate(createPackingListSchema), packingController.createPackingList);
+router.put("/packing/:id", packingController.updatePackingList);
+router.put("/packing-lists/:id", packingController.updatePackingList);
+router.patch("/packing/:id/items/:itemId/toggle", packingController.togglePackingItem);
+router.put("/packing-lists/:id/item/:itemId", validate(updatePackingItemSchema), packingController.updatePackingItem);
 router.delete("/packing/:id", packingController.deletePackingList);
+router.delete("/packing-lists/:id", packingController.deletePackingList);
 // Packing AI — generate smart list for a trip
 router.post("/packing/generate/:id", packingController.generatePackingList);
+router.post("/packing-lists/generate/:id", packingController.generatePackingList);
 
 // Journal Routes
 router.get("/journal", journalController.getEntries);

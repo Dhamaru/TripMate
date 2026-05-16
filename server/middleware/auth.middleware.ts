@@ -9,12 +9,24 @@ export const requireAuth = (
     try {
         const token = req.cookies?.token
             ?? req.headers.authorization?.replace('Bearer ', '')
-        if (!token) throw new UnauthorizedError('Authentication required')
+        
+        if (!token) {
+            return next(new UnauthorizedError('Authentication required'));
+        }
+
         const decoded = jwt.verify(token, config.JWT_SECRET) as any;
-        req.user = decoded
-        next()
-    } catch {
-        next(new UnauthorizedError('Invalid or expired token'))
+        
+        // Populate req.user to match expected structure in controllers
+        req.user = {
+            ...decoded,
+            _id: decoded.sub,
+            id: decoded.sub
+        };
+        
+        next();
+    } catch (err: any) {
+        console.warn(`[AuthMiddleware] Auth failure: ${err.message}`);
+        next(new UnauthorizedError('Invalid or expired token'));
     }
 }
 
@@ -24,10 +36,15 @@ export const optionalAuth = (
     try {
         const token = req.cookies?.token
             ?? req.headers.authorization?.replace('Bearer ', '')
+        
         if (token) {
             const decoded = jwt.verify(token, config.JWT_SECRET) as any;
-            req.user = decoded
+            req.user = {
+                ...decoded,
+                _id: decoded.sub,
+                id: decoded.sub
+            };
         }
     } catch { /* ignore */ }
-    next()
+    next();
 }

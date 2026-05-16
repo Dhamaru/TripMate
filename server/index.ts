@@ -84,6 +84,16 @@ app.use("/api/v1/crowd", crowdRoutes);
 // Generic/Shared routes (Last, as they match widely)
 app.use("/api/v1", sharedRoutes);
 
+// ─── Backward Compatibility & Special Case Routes ──────────────────────────
+// Support non-v1 tools calls if any remain in frontend
+app.use("/api/tools", toolsRoutes);
+
+// Map /api/auth to authRoutes for legacy/Apple compatibility
+app.use("/api/auth", authRoutes);
+
+// Explicit Apple Callback mapping if needed (some integrations require specific non-v1 paths)
+app.post("/api/auth/apple/callback", authRoutes);
+
 // Error Handling (Must be last)
 app.use(errorHandler);
 

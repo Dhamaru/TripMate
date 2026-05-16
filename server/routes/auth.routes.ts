@@ -72,17 +72,27 @@ router.get(
 );
 
 // Protected routes
-router.get("/profile", requireAuth, authController.getProfile);
-router.put("/profile", requireAuth, authController.updateProfile);
-router.put("/change-password", requireAuth, authController.changePassword);
+// User profile management - using /user to match frontend expectations
+router.get("/user", requireAuth, authController.getProfile);
+router.put("/user", requireAuth, authController.updateProfile);
+router.get("/profile", requireAuth, authController.getProfile); // Compatibility
+router.put("/profile", requireAuth, authController.updateProfile); // Compatibility
 
-// Fix: Match frontend route /api/v1/auth/user/avatar and handle file upload
+// Avatar upload
 router.post("/user/avatar", requireAuth, upload.single("image"), authController.uploadAvatar);
 
-// Legacy/Alternative route
-router.post("/upload-avatar", requireAuth, authController.uploadAvatar);
+// Apple OAuth
+router.get("/apple", passport.authenticate('apple'));
+router.post("/apple/callback", passport.authenticate('apple', { session: false }), (req: any, res: Response) => {
+    const token = (req.user as any)?.token;
+    res.redirect(`${config.CLIENT_URL}/auth-success?token=${token}`);
+});
 
+// Settings & Security
+router.post("/change-password", requireAuth, authController.changePassword);
+router.put("/change-password", requireAuth, authController.changePassword); // Support both
 router.post("/delete-account", requireAuth, authController.deleteAccount);
+router.delete("/delete-account", requireAuth, authController.deleteAccount); // Support both
 
 router.get("/sessions", requireAuth, async (req, res) => {
   try {

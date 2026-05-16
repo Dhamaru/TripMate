@@ -189,3 +189,50 @@ export const deletePackingList = async (req: Request, res: Response, next: NextF
         next(error);
     }
 };
+
+export const updatePackingList = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user?._id || req.user?.id;
+        
+        const list = await PackingListModel.findOneAndUpdate(
+            { _id: id, userId },
+            req.body,
+            { new: true }
+        );
+        
+        if (!list) throw new NotFoundError("Packing list not found");
+        
+        if (list.tripId) {
+            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list });
+        }
+        
+        res.json(list);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const togglePackingItem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id: listId, itemId } = req.params;
+        const userId = req.user?._id || req.user?.id;
+
+        const list = await PackingListModel.findOne({ _id: listId, userId });
+        if (!list) throw new NotFoundError("Packing list not found");
+
+        const item = (list.items as any).id(itemId);
+        if (!item) throw new NotFoundError("Item not found");
+
+        item.packed = !item.packed;
+        await list.save();
+
+        if (list.tripId) {
+            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list });
+        }
+
+        res.json(item);
+    } catch (error) {
+        next(error);
+    }
+};

@@ -3,6 +3,7 @@ import { config } from "../config";
 import { BadRequestError } from "../errors";
 import mongoose from "mongoose";
 import os from "os";
+import { AiUtilitiesService } from "../AiUtilitiesService";
 
 const startTime = Date.now();
 
@@ -98,7 +99,6 @@ export const getProactiveInsights = async (_req: Request, res: Response, next: N
     }
 };
 export const latestCurrency = async (req: Request, res: Response, next: NextFunction) => {
-    console.log("[Debug] latestCurrency hit", req.url);
     try {
         const { base = 'USD', symbols } = req.query;
         let url = `https://api.frankfurter.app/latest?from=${base}`;
@@ -109,6 +109,100 @@ export const latestCurrency = async (req: Request, res: Response, next: NextFunc
 
         const data = await response.json();
         res.status(200).json(data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const convertCurrency = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { amount, from, to } = req.query;
+        if (!amount || !from || !to) throw new BadRequestError("Missing required parameters");
+        
+        const aiUtils = new AiUtilitiesService();
+        const result = await aiUtils.currency(
+            Number(amount), 
+            String(from), 
+            String(to), 
+            new Date().toISOString()
+        );
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const translateText = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { text, from, to } = req.body;
+        if (!text || !to) throw new BadRequestError("Missing text or target language");
+        
+        const aiUtils = new AiUtilitiesService();
+        const result = await aiUtils.translate(text, from || "auto", to);
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getWeather = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { city, lat, lon } = req.query;
+        let queryCity = city as string;
+        
+        if (!queryCity && lat && lon) {
+            // Reverse geocode if needed, or just search by lat/lon if service supports it
+            // For now let's assume city is provided or we use a default
+            queryCity = `${lat},${lon}`;
+        }
+        
+        if (!queryCity) throw new BadRequestError("Missing city or coordinates");
+
+        const aiUtils = new AiUtilitiesService();
+        const result = await aiUtils.weather(queryCity);
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getEmergencyContacts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { location } = req.query;
+        if (!location) throw new BadRequestError("Missing location");
+
+        const aiUtils = new AiUtilitiesService();
+        const result = await aiUtils.emergency(String(location));
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const planTrip = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const aiUtils = new AiUtilitiesService();
+        const result = await aiUtils.planTrip(req.body);
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const reverseGeocode = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { lat, lon } = req.query;
+        if (!lat || !lon) throw new BadRequestError("Missing lat or lon");
+
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+        const response = await fetch(url, {
+            headers: { "User-Agent": "TripMate/2.0.0" }
+        });
+        
+        if (!response.ok) throw new Error("Reverse geocoding failed");
+
+        const data = await response.json();
+        res.json(data);
     } catch (error) {
         next(error);
     }
