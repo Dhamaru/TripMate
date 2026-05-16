@@ -27,6 +27,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
     const mapInstanceRef = useRef<L.Map | null>(null);
     const markersLayerRef = useRef<L.LayerGroup | null>(null);
     const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+    const [geocodeError, setGeocodeError] = useState(false);
     const [loading, setLoading] = useState(false);
     const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark');
     const [isAddMode, setIsAddMode] = useState(false);
@@ -48,6 +49,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
     useEffect(() => {
         console.log('[TripMap] Destination changed to:', destination);
         setCoords(null);
+        setGeocodeError(false);
     }, [destination]);
 
 
@@ -86,6 +88,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                     setCoords({ lat, lon });
                 } else {
                     console.warn(`[TripMap] Geocoding returned no results for ${destination}`, data);
+                    setGeocodeError(true);
                 }
             } catch (err) {
                 console.error("[TripMap] Geocoding exception:", err);
@@ -365,6 +368,13 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
     }, [coords, mapTheme, itinerary, showPaths]);
 
     if (!destination) return null;
+
+    if (!loading && geocodeError) return (
+        <Card className="bg-card border-border p-6 text-center">
+            <p className="text-muted-foreground text-sm">Map unavailable — could not locate <span className="font-semibold text-foreground">{destination}</span>.</p>
+            <p className="text-xs text-muted-foreground mt-1">Try editing the trip destination to a more specific city name.</p>
+        </Card>
+    );
 
     return (
         <Card className="bg-card border-border">

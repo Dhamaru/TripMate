@@ -3,6 +3,12 @@ import { JournalEntryModel, TripModel } from "@shared/schema";
 import { NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
 
+function fileUrls(req: Request): string[] {
+    const files = req.files as Express.Multer.File[] | undefined;
+    if (!files || !files.length) return [];
+    return files.map(f => `/uploads/journal/${f.filename}`);
+}
+
 export const createEntry = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user?._id || req.user?.id;
@@ -10,6 +16,7 @@ export const createEntry = async (req: Request, res: Response, next: NextFunctio
             return res.status(401).json({ error: "Unauthorized" });
         }
         const entryData = req.body;
+        const uploadedPhotos = fileUrls(req);
 
         // If tripId is provided, verify access
         if (entryData.tripId) {
@@ -26,6 +33,7 @@ export const createEntry = async (req: Request, res: Response, next: NextFunctio
         const entry = await JournalEntryModel.create({
             ...entryData,
             userId,
+            photos: uploadedPhotos,
         });
 
         if (entry.tripId) {
@@ -97,9 +105,14 @@ export const updateEntry = async (req: Request, res: Response, next: NextFunctio
             }
         }
 
+        const uploadedPhotos = fileUrls(req);
+        let keptPhotos: string[] = [];
+        try { keptPhotos = JSON.parse(req.body.existingPhotos || "[]"); } catch { }
+        const allPhotos = [...keptPhotos, ...uploadedPhotos];
+
         const updatedEntry = await JournalEntryModel.findByIdAndUpdate(
             entryId,
-            req.body,
+            { ...req.body, ...(allPhotos.length > 0 ? { photos: allPhotos } : {}) },
             { new: true }
         );
 

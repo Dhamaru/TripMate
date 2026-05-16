@@ -123,6 +123,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<{ lat: number; lon: number; name: string } | null>(null);
+  const [navDestInput, setNavDestInput] = useState("");
 
   // Filters
   const [filters, setFilters] = useState({
@@ -293,6 +296,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           const { latitude, longitude, heading } = pos.coords;
           const map = mapInstanceRef.current;
 
+          setUserLocation({ lat: latitude, lon: longitude });
           if (heading) setCurrentHeading(heading);
 
           if (map) {
@@ -340,27 +344,44 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   }, [isNavigating]);
 
 
-  // Routing Logic (Basic Straight Line)
-  const handleCalculateRoute = () => {
-    // Mocking functionality: If we have a destination selected (Preview or Pin), draw line from map center.
+  // Routing via OSRM (open-source, no API key needed)
+  const handleCalculateRoute = async () => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    const center = map.getCenter();
-    // Random offset for demo route
-    const dest = { lat: center.lat + 0.01, lng: center.lng + 0.01 };
+    if (!userLocation) {
+      toast({ title: "Location needed", description: "Enable location to calculate a route.", variant: "destructive" });
+      return;
+    }
 
-    if (routePolylineRef.current) routePolylineRef.current.remove();
+    if (!selectedPlace) {
+      toast({ title: "No destination", description: "Select a place on the map first.", variant: "destructive" });
+      return;
+    }
 
-    const points: [number, number][] = [
-      [center.lat, center.lng],
-      [dest.lat, dest.lng]
-    ];
+    try {
+      const { lat: sLat, lon: sLon } = userLocation;
+      const { lat: dLat, lon: dLon } = selectedPlace;
+      const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${dLon},${dLat}?overview=full&geometries=geojson`;
+      const res = await fetch(url);
+      const json = await res.json();
+      const coords: [number, number][] = json?.routes?.[0]?.geometry?.coordinates?.map(
+        ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
+      ) ?? [];
 
-    routePolylineRef.current = L.polyline(points, { color: 'blue', dashArray: '5, 10' }).addTo(map);
-    map.fitBounds(L.latLngBounds(points));
-    setRoutePoints(points);
-    toast({ title: "Route Calculated", description: "Showing basic direction line." });
+      if (!coords.length) throw new Error("No route found");
+
+      if (routePolylineRef.current) routePolylineRef.current.remove();
+      routePolylineRef.current = L.polyline(coords, { color: '#1E3A8A', weight: 4 }).addTo(map);
+      map.fitBounds(L.latLngBounds(coords));
+      setRoutePoints(coords);
+
+      const distKm = (json.routes[0].distance / 1000).toFixed(1);
+      const mins = Math.round(json.routes[0].duration / 60);
+      toast({ title: "Route Ready", description: `${distKm} km · ~${mins} min driving` });
+    } catch {
+      toast({ title: "Route unavailable", description: "Could not calculate route. Check connection.", variant: "destructive" });
+    }
   };
 
 
@@ -571,26 +592,52 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 </div>
 
                 <div className="border-t border-gray-700 pt-3">
-                  <h4 className="text-white font-semibold text-sm mb-2">Quick Route</h4>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={handleCalculateRoute}>
-                      Draw Line
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs border-red-500/50 text-red-400 hover:bg-red-500/10"
-                      onClick={() => {
-                        if (routePolylineRef.current) {
-                          routePolylineRef.current.remove();
-                          routePolylineRef.current = null;
+                  <h4 className="text-white font-semibold text-sm mb-2">Route</h4>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Destination (city or place)"
+                      value={navDestInput}
+                      onChange={(e) => setNavDestInput(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && navDestInput.trim()) {
+                          try {
+                            const r = await fetch(`/api/v1/geocode?q=${encodeURIComponent(navDestInput.trim())}`);
+                            const data = await r.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                              setSelectedPlace({ lat: Number(data[0].lat), lon: Number(data[0].lon), name: data[0].display_name?.split(',')[0] || navDestInput });
+                              toast({ title: "Destination set", description: data[0].display_name?.split(',')[0] || navDestInput });
+                            } else {
+                              toast({ title: "Not found", description: "Try a different name.", variant: "destructive" });
+                            }
+                          } catch { toast({ title: "Search failed", variant: "destructive" }); }
                         }
-                        setRoutePoints([]);
-                        toast({ title: "Route Cleared" });
                       }}
-                    >
-                      Clear
-                    </Button>
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-[#F59E0B]"
+                    />
+                    {selectedPlace && <p className="text-[10px] text-[#F59E0B] truncate">→ {selectedPlace.name}</p>}
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={handleCalculateRoute}>
+                        Get Route
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs border-red-500/50 text-red-400 hover:bg-red-500/10"
+                        onClick={() => {
+                          if (routePolylineRef.current) {
+                            routePolylineRef.current.remove();
+                            routePolylineRef.current = null;
+                          }
+                          setRoutePoints([]);
+                          setSelectedPlace(null);
+                          setNavDestInput("");
+                          toast({ title: "Route Cleared" });
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -100,25 +100,43 @@ router.get("/sessions", requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any)?._id?.toString() || (req.user as any)?.id?.toString();
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    // Try MongoDB sessions first (session-based auth)
     const col = mongoose.connection.db?.collection("sessions");
-    if (!col) return res.json([]);
-    const docs = await col.find({}).toArray();
-    const result = docs
-      .map((doc: any) => {
-        try {
-          const s = typeof doc.session === "string" ? JSON.parse(doc.session) : doc.session;
-          if (s?.passport?.user !== userId) return null;
-          return {
-            id: doc._id?.toString(),
-            userAgent: s?.userAgent || null,
-            ip: s?.ip || null,
-            device: s?.device || null,
-            expiresAt: doc.expires?.toISOString() || null,
-            isCurrent: req.sessionID === doc._id?.toString(),
-          };
-        } catch { return null; }
-      })
-      .filter(Boolean);
+    let result: any[] = [];
+    if (col) {
+      const docs = await col.find({}).toArray();
+      result = docs
+        .map((doc: any) => {
+          try {
+            const s = typeof doc.session === "string" ? JSON.parse(doc.session) : doc.session;
+            const passportUser = s?.passport?.user;
+            if (!passportUser || passportUser !== userId) return null;
+            return {
+              id: doc._id?.toString(),
+              userAgent: req.headers["user-agent"] || null,
+              ip: req.ip || null,
+              device: null,
+              expiresAt: doc.expires?.toISOString() || null,
+              isCurrent: req.sessionID === doc._id?.toString(),
+            };
+          } catch { return null; }
+        })
+        .filter(Boolean);
+    }
+
+    // JWT-auth users have no session row — return synthetic current session
+    if (result.length === 0) {
+      result = [{
+        id: "current",
+        userAgent: req.headers["user-agent"] || null,
+        ip: req.ip || null,
+        device: null,
+        expiresAt: null,
+        isCurrent: true,
+      }];
+    }
+
     res.json(result);
   } catch {
     res.status(500).json({ error: "Failed to fetch sessions" });
@@ -129,6 +147,8 @@ router.post("/sessions/:id/revoke", requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any)?._id?.toString() || (req.user as any)?.id?.toString();
     const { id } = req.params;
+    // Synthetic JWT session — nothing to delete in DB
+    if (id === "current") return res.json({ ok: true });
     const col = mongoose.connection.db?.collection("sessions");
     if (!col) return res.status(500).json({ error: "Session store unavailable" });
     const doc = await col.findOne({ _id: id as any });
