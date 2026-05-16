@@ -6,7 +6,6 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import MemoryStore from "memorystore";
-import MongoStore from "connect-mongo";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
@@ -26,34 +25,15 @@ export async function comparePasswords(supplied: string, stored: string) {
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000;
   const MemoryStoreSession = MemoryStore(session);
-  // Parse dbName from URI or default to 'tripmate'
-  const getDbName = (uri: string) => {
-    try { const u = new URL(uri); return u.pathname.replace('/', '') || 'tripmate'; } catch { return 'tripmate'; }
-  };
-  const sessionStore = config.MONGODB_URI
-    ? MongoStore.create({
-      mongoUrl: config.MONGODB_URI,
-      dbName: getDbName(config.MONGODB_URI) || 'tripmate',
-      collectionName: "sessions",
-      ttl: Math.floor(sessionTtl / 1000),
-      autoRemove: 'interval',
-      autoRemoveInterval: 10,
-      touchAfter: 24 * 3600,
-    })
-    : new MemoryStoreSession({
-      checkPeriod: 86400000,
-    });
+  const sessionStore = new MemoryStoreSession({ checkPeriod: 86400000 });
   return session({
-    name: "sid",
     secret: config.SESSION_SECRET,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
-    proxy: config.NODE_ENV === "production",
     cookie: {
       httpOnly: true,
-      secure: config.NODE_ENV === "production" ? "auto" : false,
-      sameSite: "lax",
+      secure: false,
       maxAge: sessionTtl,
     },
   });
@@ -166,15 +146,8 @@ export async function setupAuth(app: Express) {
     }
   }));
 
-  passport.serializeUser((user: any, cb) => cb(null, user._id || user.id));
-  passport.deserializeUser(async (id: string, cb) => {
-    try {
-      const user = await storage.getUser(id);
-      cb(null, (user as any) ?? false);
-    } catch (err) {
-      cb(err);
-    }
-  });
+  passport.serializeUser((user: any, cb) => cb(null, user));
+  passport.deserializeUser((user: any, cb) => cb(null, user));
 
   // OAuth routes have been moved to server/routes.ts 
   // to ensure consistent session creation (Access+Refresh Tokens)

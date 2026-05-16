@@ -66,11 +66,7 @@ router.get(
     if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
       return res.redirect("/signin?error=google_not_configured");
     }
-    try {
-      passport.authenticate("google", { session: true, failureRedirect: "/signin?error=auth_failed" })(req, res, next);
-    } catch (err) {
-      res.redirect("/signin?error=auth_failed");
-    }
+    passport.authenticate("google", { session: false, failureRedirect: "/signin?error=auth_failed" })(req, res, next);
   },
   authController.googleCallback
 );
