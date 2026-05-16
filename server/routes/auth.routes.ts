@@ -81,13 +81,6 @@ router.put("/profile", requireAuth, authController.updateProfile); // Compatibil
 // Avatar upload
 router.post("/user/avatar", requireAuth, upload.single("image"), authController.uploadAvatar);
 
-// Apple OAuth
-router.get("/apple", passport.authenticate('apple'));
-router.post("/apple/callback", passport.authenticate('apple', { session: false }), (req: any, res: Response) => {
-    const token = (req.user as any)?.token;
-    res.redirect(`${config.CLIENT_URL}/auth-success?token=${token}`);
-});
-
 // Settings & Security
 router.post("/change-password", requireAuth, authController.changePassword);
 router.put("/change-password", requireAuth, authController.changePassword); // Support both
