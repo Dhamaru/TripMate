@@ -58,15 +58,7 @@ router.get("/google", (req, res, next) => {
   if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
     return res.redirect("/signin?error=google_not_configured");
   }
-  try {
-    passport.authenticate("google", { scope: ["profile", "email"] })(req, res, (err?: any) => {
-      if (err) return next(err);
-      // Strategy didn't redirect — not registered or misconfigured
-      res.redirect("/signin?error=google_not_configured");
-    });
-  } catch (err) {
-    next(err);
-  }
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
 router.get(
   "/google/callback",

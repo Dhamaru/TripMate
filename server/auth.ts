@@ -101,8 +101,7 @@ export async function setupAuth(app: Express) {
     passport.use(new GoogleStrategy({
       clientID: config.GOOGLE_CLIENT_ID,
       clientSecret: config.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/v1/auth/google/callback",
-      proxy: true
+      callbackURL: `${config.FRONTEND_URL || 'https://tripmate-ylt6.onrender.com'}/api/v1/auth/google/callback`,
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         const rawEmail = profile.emails?.[0]?.value;
