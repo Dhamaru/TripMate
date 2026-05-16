@@ -8,6 +8,10 @@ import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
 
+function isApiPath(url: string) {
+  return url === "/api" || url.startsWith("/api/");
+}
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -47,7 +51,7 @@ export async function setupVite(app: Express, server: Server) {
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
-    if (url.startsWith("/api")) {
+    if (isApiPath(url)) {
       return next();
     }
 
@@ -99,7 +103,10 @@ export function serveStatic(app: Express) {
   }));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  app.use("*", (req, res) => {
+    if (isApiPath(req.path)) {
+      return res.status(404).json({ message: "API route not found" });
+    }
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.resolve(distPath, "index.html"));
   });

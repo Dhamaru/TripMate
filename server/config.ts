@@ -15,6 +15,7 @@ const envSchema = z.object({
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     NVIDIA_API_KEY: z.string().optional(),
     FRONTEND_URL: z.string().optional(),
+    BACKEND_URL: z.string().optional(),
     OPENWEATHER_API_KEY: z.string().optional(),
     WEATHER_API_KEY: z.string().optional(),
     SMTP_HOST: z.string().optional(),

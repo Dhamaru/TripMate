@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { config } from "../config";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { getFrontendBaseUrl } from "../urls";
 
 const JWT_EXPIRY = "7d";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -152,15 +153,16 @@ export const signout = (req: Request, res: Response, next: NextFunction) => {
 
 export const googleCallback = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const frontendBaseUrl = getFrontendBaseUrl(req);
     const user = req.user as any;
-    if (!user) return res.redirect(`${config.FRONTEND_URL}/signin?error=auth_failed`);
+    if (!user) return res.redirect(`${frontendBaseUrl}/signin?error=auth_failed`);
 
     const userId = user._id || user.id;
-    if (!userId) return res.redirect(`${config.FRONTEND_URL}/signin?error=auth_failed`);
+    if (!userId) return res.redirect(`${frontendBaseUrl}/signin?error=auth_failed`);
 
     const token = signToken(userId);
     setAuthCookie(req, res, token);
-    res.redirect(`${config.FRONTEND_URL}/app/home`);
+    res.redirect(`${frontendBaseUrl}/app/home`);
   } catch (error) {
     next(error);
   }
