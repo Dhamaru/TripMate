@@ -23,6 +23,7 @@ const envSchema = z.object({
     SMTP_PASS: z.string().optional(),
     SMTP_PORT: z.coerce.number().default(587),
     SMTP_FROM_EMAIL: z.string().optional(),
+    RESEND_API_KEY: z.string().optional(),
     TRANSLATE_API_URL: z.string().optional(),
     TRANSLATE_API_KEY: z.string().optional(),
     CLUSTER: z.coerce.number().optional(),
