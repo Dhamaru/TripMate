@@ -218,21 +218,20 @@ export class AiUtilitiesService {
       const result = { translatedText: String(json.translatedText || ""), pronunciation: json.pronunciation ? String(json.pronunciation) : undefined };
       return this.setCached(key, result);
     } catch {
-      // Fallback mock translation
-      const map: Record<string, (s: string) => string> = {
-        en: (s) => s,
-        es: (s) => `«${s}»`,
-        fr: (s) => `«${s}»`,
-        de: (s) => `„${s}“`,
-        it: (s) => `«${s}»`,
-        pt: (s) => `«${s}»`,
-        ru: (s) => s,
-        ja: (s) => s,
-        ko: (s) => s,
-        zh: (s) => s,
-      };
-      const transform = map[to] || ((s: string) => s);
-      const result = { translatedText: transform(t), pronunciation: undefined };
+      // Fallback: MyMemory free translation API (no key required)
+      try {
+        const langPair = `${from === 'auto' ? 'en' : from}|${to}`;
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=${encodeURIComponent(langPair)}`;
+        const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/2.0.0' } });
+        if (r.ok) {
+          const json = await r.json();
+          const translated = String(json?.responseData?.translatedText || t);
+          const result = { translatedText: translated, pronunciation: undefined };
+          return this.setCached(key, result);
+        }
+      } catch { /* fall through */ }
+      // Last resort: return original text with note
+      const result = { translatedText: t, pronunciation: 'Translation unavailable' };
       return this.setCached(key, result);
     }
   }
