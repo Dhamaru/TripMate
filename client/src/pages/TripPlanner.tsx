@@ -101,10 +101,10 @@ export default function TripPlanner() {
       return await createTrip(tripData);
     },
     onSuccess: async (trip: any) => {
-      console.log("[Render Check] TripPlanner loaded with latest fixes.");
+
       queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
 
-      console.log("Trip created response:", trip); // Debug log
+
 
       toast({
         title: "Trip Created!",
@@ -218,9 +218,7 @@ export default function TripPlanner() {
           const parsed3 = trySafeParse(data2);
           if (parsed3 && isValidPlanLike(parsed3)) return parsed3;
         }
-      } catch (e: any) {
-        console.error('planTrip API error:', e?.message || e);
-      }
+      } catch { }
       const speedKmH = travelMedium === 'walk' ? 4 : travelMedium === 'transit' ? 20 : 30;
       const pace = typeOfTrip === 'relaxed' ? 'relaxed' : typeOfTrip === 'adventure' ? 'fast' : 'normal';
       const startHour = pace === 'relaxed' ? 9 : pace === 'fast' ? 8 : 8.5;
@@ -252,9 +250,8 @@ export default function TripPlanner() {
         const gj = Array.isArray(data) ? data[0] : null;
         if (gj && Number.isFinite(gj.lat) && Number.isFinite(gj.lon)) {
           center = { lat: Number(gj.lat), lon: Number(gj.lon), display: String(gj.displayName || dest) };
-          console.log(`[TripPlanner] Center found: ${center.lat}, ${center.lon}`);
         } else {
-          console.warn('[TripPlanner] Geocoding failed or returned empty - center is (0,0)');
+          // center stays (0,0) — planTrip AI fallback will still run
         }
       } catch { }
       const fetchItems = async (q: string) => {
@@ -264,15 +261,17 @@ export default function TripPlanner() {
           const arr = Array.isArray(j) ? j : (Array.isArray(j?.items) ? j.items : []);
           return arr.map((i: any) => {
             const rawAddr = [i.road, i.city, i.country, i.postcode].filter(Boolean).join(', ');
+            const lat = Number(i.lat ?? i.location?.lat ?? i.geometry?.location?.lat);
+            const lon = Number(i.lon ?? i.location?.lng ?? i.location?.lon ?? i.geometry?.location?.lng);
             return {
               id: String(i.id || i.osm_id || Math.random()),
               name: String(i.name || i.name_en || i.name_local || i.display_name || ''),
-              address: rawAddr || String(i.display_name || '').split(',').slice(0, 3).join(', '),
-              lat: Number(i.lat),
-              lon: Number(i.lon),
-              display: String(i.display_name || '')
+              address: i.address || rawAddr || String(i.display_name || i.formatted_address || '').split(',').slice(0, 3).join(', '),
+              lat,
+              lon,
+              display: String(i.display_name || i.formatted_address || '')
             };
-          }).filter((x: any) => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+          }).filter((x: any) => Number.isFinite(x.lat) && Number.isFinite(x.lon) && x.lat !== 0);
         } catch { return []; }
       };
       const attractions = await fetchItems(`${dest} tourist attractions`);

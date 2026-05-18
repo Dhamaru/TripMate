@@ -277,21 +277,48 @@ async function fetchImageForTrip(tripId: string, destination: string, skipCount:
 
         // 1. Wikipedia — article images are always the landmark itself, no people
         try {
-            // Try exact match first, then first word (e.g. "Kedarnath" from "Kedarnath, Uttarakhand")
-            const wikiTitles = [destination, destination.split(',')[0].trim()];
+            const firstWord = destination.split(',')[0].trim();
+            const wikiTitles = [...new Set([destination, firstWord])];
             for (const title of wikiTitles) {
+                // pageimages prop returns the main article image (always the landmark, no people)
                 const wikiRes = await fetch(
-                    `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=1200&origin=*`,
-                    { headers: { 'User-Agent': 'TripMate/2.0.0' } }
+                    `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=1200`,
+                    { headers: { 'User-Agent': 'TripMate/2.0.0 (kasivasl2005@gmail.com)' } }
                 );
                 const wikiData = await wikiRes.json();
                 const pages = wikiData?.query?.pages || {};
                 const page = Object.values(pages)[0] as any;
-                // Skip if no image or missing (-1 = not found)
                 if (page && page.pageid !== -1 && page.thumbnail?.source) {
-                    imageUrl = page.thumbnail.source;
-                    imageCaption = page.title || destination;
+                    // Upgrade thumbnail to full-res by removing size constraint
+                    const src: string = page.thumbnail.source;
+                    const fullRes = src.replace(/\/\d+px-/, '/1200px-');
+                    imageUrl = fullRes;
+                    imageCaption = page.title || firstWord;
                     break;
+                }
+            }
+
+            // If no direct match, try Wikipedia opensearch to find correct article title
+            if (!imageUrl) {
+                const searchRes = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(firstWord)}&limit=1&format=json`,
+                    { headers: { 'User-Agent': 'TripMate/2.0.0 (kasivasl2005@gmail.com)' } }
+                );
+                const searchData = await searchRes.json();
+                const foundTitle = (searchData?.[1] as string[])?.[0];
+                if (foundTitle) {
+                    const imgRes = await fetch(
+                        `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(foundTitle)}&prop=pageimages&format=json&pithumbsize=1200`,
+                        { headers: { 'User-Agent': 'TripMate/2.0.0 (kasivasl2005@gmail.com)' } }
+                    );
+                    const imgData = await imgRes.json();
+                    const pages2 = imgData?.query?.pages || {};
+                    const page2 = Object.values(pages2)[0] as any;
+                    if (page2 && page2.pageid !== -1 && page2.thumbnail?.source) {
+                        const src: string = page2.thumbnail.source;
+                        imageUrl = src.replace(/\/\d+px-/, '/1200px-');
+                        imageCaption = page2.title || firstWord;
+                    }
                 }
             }
         } catch { /* ignore, try next source */ }

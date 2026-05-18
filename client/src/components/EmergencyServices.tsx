@@ -54,22 +54,19 @@ export function EmergencyServices({ location = "Current Location", coords: propC
           const { latitude, longitude } = pos.coords;
           setCoords({ lat: latitude, lon: longitude });
 
-          // Reverse Geocode to get readable name
+          // Reverse Geocode via backend proxy
           try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            const res = await fetch(`/api/v1/reverse-geocode?lat=${latitude}&lon=${longitude}`);
             const data = await res.json();
             const addr = data.address;
-            const placeName = addr.city || addr.town || addr.village || addr.county || addr.suburb;
-            const state = addr.state || addr.country;
+            const placeName = addr?.city || addr?.town || addr?.village || addr?.county || addr?.suburb;
+            const state = addr?.state || addr?.country;
             if (placeName) {
-              const readableName = `${placeName}${state ? `, ${state}` : ''}`;
-              setLocString(readableName);
+              setLocString(`${placeName}${state ? `, ${state}` : ''}`);
             }
-          } catch (err) {
-            console.error("Reverse geocoding failed", err);
-          }
+          } catch { /* silent */ }
         },
-        (err) => console.error("Geo error", err)
+        () => { /* silent geolocation error */ }
       );
     } else if (!propCoords && location !== "Current Location") {
       // If user typed a city manually, we don't have coords yet, reset coords so we don't hold onto old ones

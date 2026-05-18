@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "wikipedia-mcp": {
+      "command": "uvx",
+      "args": [
+        "wikipedia-mcp-server@latest"
+      ]
+    }
+  }
+}

@@ -91,9 +91,13 @@ export const weatherProxy = async (req: Request, res: Response, next: NextFuncti
     }
 };
 
-export const getProactiveInsights = async (_req: Request, res: Response, next: NextFunction) => {
+export const getProactiveInsights = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        res.json({ insights: ["Pack sunscreen!", "Check for flight delays"] });
+        const destination = String(req.query.destination || req.query.city || '');
+        if (!destination) return res.json({ insights: [], suggestedPackingItems: [] });
+        const aiUtils = new AiUtilitiesService();
+        const result = await aiUtils.getProactiveInsights(destination, []);
+        res.json(result);
     } catch (error) {
         next(error);
     }

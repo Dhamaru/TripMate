@@ -116,10 +116,10 @@ export function WeatherCard({ destination }: { destination?: string }) {
     try {
       const lang = typeof navigator !== 'undefined' ? String(navigator.language || 'en').slice(0, 2) : 'en';
       const url = `/api/v1/weather?location=${encodeURIComponent(loc)}&units=${encodeURIComponent(unit === 'F' ? 'imperial' : 'metric')}&lang=${encodeURIComponent(lang)}`;
-      if (typeof console !== 'undefined') console.log(`[weather:card:request] ${url}`);
+
       const res = await apiRequest('GET', url);
       const j = await res.json();
-      if (typeof console !== 'undefined') console.log(`[weather:card:response] source=${String(j?.source || '')} forecast=${Array.isArray(j?.forecast) ? j.forecast.length : 0}`);
+
       return j as BackendWeather;
     } catch (e: any) {
       console.warn('[weather:card:error]', e?.message || e);

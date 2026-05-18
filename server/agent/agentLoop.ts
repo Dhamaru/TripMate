@@ -208,7 +208,7 @@ export async function runAgentLoop(
                         toolsUsed.push(toolName);
                     }
                     totalToolCalls++;
-                    input.onToolCall?.(toolName);
+                    input.onTool?.(toolName);
 
                     const toolResult = await executeTool(
                         toolName,

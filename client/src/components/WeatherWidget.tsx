@@ -96,10 +96,10 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
         const url = coordStr
           ? `/api/v1/weather?lat=${encodeURIComponent(coordStr.split(',')[0])}&lon=${encodeURIComponent(coordStr.split(',')[1])}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}`
           : `/api/v1/weather?location=${encodeURIComponent(loc)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}`;
-        if (typeof console !== 'undefined') console.log(`[weather:request] ${url}`);
+
         const res = await apiRequest('GET', url);
         const data = await res.json();
-        if (typeof console !== 'undefined') console.log(`[weather:response] source=${String(data?.source || '')} forecast=${Array.isArray(data?.forecast) ? data.forecast.length : 0}`);
+
         try {
           const raw = localStorage.getItem(CACHE_KEY);
           const cache = raw ? JSON.parse(raw) as Record<string, { ts: number; data: WeatherData }> : {};
