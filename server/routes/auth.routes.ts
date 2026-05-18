@@ -55,10 +55,16 @@ router.get("/providers", (_req, res) => {
 });
 
 router.get("/google", (req, res, next) => {
+  console.log("[OAuth] GET /google hit - CLIENT_ID set:", !!appConfig.GOOGLE_CLIENT_ID);
   if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
+    console.log("[OAuth] Missing credentials, redirecting to error");
     return res.redirect("/signin?error=google_not_configured");
   }
-  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+  console.log("[OAuth] Calling passport.authenticate('google')");
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, (err?: any) => {
+    console.log("[OAuth] passport callback called - err:", err?.message || "none");
+    next(err);
+  });
 });
 router.get(
   "/google/callback",
