@@ -229,7 +229,7 @@ export default function Profile() {
           <CardTitle className="text-xl font-bold text-foreground">Account Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form key={userData?._id ?? userData?.email ?? 'loading'} onSubmit={handleSubmit} className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 space-x-0 sm:space-x-4">
               <div
                 className="w-24 h-24 relative group cursor-pointer shrink-0"

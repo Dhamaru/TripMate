@@ -276,7 +276,7 @@ export const uploadAvatar = async (req: Request, res: Response, next: NextFuncti
       { avatar: avatarUrl },
       { new: true }
     );
-    res.json({ avatar: user?.avatar });
+    res.json(user);
   } catch (error) {
     next(error);
   }
