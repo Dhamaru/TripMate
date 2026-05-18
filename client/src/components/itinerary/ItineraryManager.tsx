@@ -51,80 +51,71 @@ function SortableActivity({
 
     const isTravelLeg = activity.type === 'travel';
 
+    const typeColors: Record<string, string> = {
+        travel: 'bg-[#F59E0B]/20 text-[#F59E0B]',
+        food: 'bg-emerald-500/20 text-emerald-400',
+        sightseeing: 'bg-blue-500/20 text-blue-400',
+        accommodation: 'bg-purple-500/20 text-purple-400',
+        activity: 'bg-cyan-500/20 text-cyan-400',
+    };
+    const typeLabel: Record<string, string> = {
+        travel: 'Travel', food: 'Food', sightseeing: 'Sight', accommodation: 'Stay', activity: 'Activity',
+    };
+    const typeClass = typeColors[activity.type || 'activity'] || typeColors.activity;
+
     return (
-        <div ref={setNodeRef} style={style} className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 last:border-0 transition-colors group relative ${isTravelLeg ? 'bg-[#F59E0B]/5 hover:bg-[#F59E0B]/8' : 'hover:bg-muted/30'}`}>
-            <div {...attributes} {...listeners} className="shrink-0 w-11 h-11 flex items-center justify-center text-muted-foreground cursor-grab active:cursor-grabbing hover:text-muted-foreground transition-colors">
-                <GripVertical className="w-5 h-5" />
+        <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2.5 border-b border-white/5 last:border-0 transition-colors group ${isTravelLeg ? 'bg-[#F59E0B]/5' : 'hover:bg-white/3'}`}>
+            {/* Drag handle */}
+            <div {...attributes} {...listeners} className="shrink-0 text-white/20 cursor-grab active:cursor-grabbing hover:text-white/50 transition-colors">
+                <GripVertical className="w-4 h-4" />
             </div>
 
-            <div className="flex-1 min-w-0 flex items-start gap-3">
-                {activity.time && (
-                    <div className="shrink-0 text-xs font-mono bg-white/10 px-2 py-1 rounded text-gray-300 w-14 text-center mt-0.5">
-                        {activity.time}
+            {/* Time badge */}
+            {activity.time && (
+                <div className="shrink-0 text-[10px] font-mono bg-white/10 px-2 py-0.5 rounded text-gray-400 w-12 text-center">
+                    {activity.time}
+                </div>
+            )}
+
+            {/* Main content */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {isTravelLeg && (activity.from || activity.to) ? (
+                        <>
+                            {activity.from && <span className="text-sm font-medium text-white">{activity.from}</span>}
+                            {activity.from && activity.to && <span className="text-[#F59E0B] text-xs">→</span>}
+                            {activity.to && <span className="text-sm font-medium text-white">{activity.to}</span>}
+                        </>
+                    ) : (
+                        <span className="text-sm font-medium text-white truncate">{activity.title || activity.placeName}</span>
+                    )}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${typeClass}`}>
+                        {typeLabel[activity.type || 'activity'] || 'Activity'}
+                    </span>
+                    {activity.duration_minutes && (
+                        <span className="text-[10px] text-white/30 shrink-0">
+                            <Clock className="inline w-2.5 h-2.5 mr-0.5" />{activity.duration_minutes}m
+                        </span>
+                    )}
+                </div>
+                {activity.location && (
+                    <div className="flex items-center gap-1 text-[10px] text-white/40 mt-0.5 truncate">
+                        <MapPin className="w-2.5 h-2.5 shrink-0" />{activity.location}
                     </div>
                 )}
+            </div>
 
-                <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                            {isTravelLeg && (activity.from || activity.to) ? (
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                    {activity.from && <span className="font-medium text-white">{activity.from}</span>}
-                                    {activity.from && activity.to && <span className="text-[#F59E0B] text-sm">→</span>}
-                                    {activity.to && <span className="font-medium text-white">{activity.to}</span>}
-                                    <span className="text-xs text-[#F59E0B] bg-[#F59E0B]/10 px-1.5 py-0.5 rounded-full ml-1">Travel</span>
-                                </div>
-                            ) : (
-                                <h4 className="font-medium text-white break-words">{activity.title || activity.placeName}</h4>
-                            )}
-                            {isTravelLeg && activity.title && (activity.from || activity.to) && (
-                                <p className="text-xs text-muted-foreground mt-0.5">{activity.title}</p>
-                            )}
-                        </div>
+            {/* Vibe vote — inline, compact */}
+            <VibeVoting tripId={tripId} dayIndex={dayIndex} activityId={activity.id} initialVotes={activity.votes} />
 
-                        <div className="flex items-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                                onClick={(e) => { e.stopPropagation(); onMove('up'); }}
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-[#F59E0B] disabled:opacity-30"
-                                disabled={index === 0}
-                                title="Move Up"
-                            >
-                                <ChevronUp className="w-4 h-4" />
-                            </Button>
-                            <Button
-                                onClick={(e) => { e.stopPropagation(); onMove('down'); }}
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-[#F59E0B] disabled:opacity-30"
-                                disabled={index === total - 1}
-                                title="Move Down"
-                            >
-                                <ChevronDown className="w-4 h-4" />
-                            </Button>
-                            <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Edit">
-                                <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" title="Delete">
-                                <Trash2 className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    </div>
-                    {activity.location && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                            <MapPin className="w-3 h-3" /> {activity.location}
-                        </div>
-                    )}
-                    {activity.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{activity.notes}</p>}
-
-                    <VibeVoting
-                        tripId={tripId}
-                        dayIndex={dayIndex}
-                        activityId={activity.id}
-                        initialVotes={activity.votes}
-                    />
-                </div>
+            {/* Action buttons — always visible, small */}
+            <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+                <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white" title="Edit">
+                    <Edit2 className="w-3.5 h-3.5" />
+                </Button>
+                <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-red-400" title="Delete">
+                    <Trash2 className="w-3.5 h-3.5" />
+                </Button>
             </div>
         </div>
     );

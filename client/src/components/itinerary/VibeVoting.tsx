@@ -53,26 +53,24 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
   };
 
   return (
-    <div className="flex items-center gap-1 mt-2">
+    <div className="flex items-center gap-0.5 shrink-0">
       <Button
         variant="ghost"
-        size="sm"
-        className={`h-7 px-2 gap-1.5 transition-colors ${userVote === 1 ? 'text-green-500 bg-green-500/10 hover:bg-green-500/20' : 'text-muted-foreground hover:text-foreground'}`}
+        size="icon"
+        className={`h-7 w-7 transition-colors ${userVote === 1 ? 'text-green-400 bg-green-500/10' : 'text-white/25 hover:text-green-400 hover:bg-green-500/10'}`}
         onClick={() => void handleVote(1)}
         title="Boost this vibe"
       >
-        <ThumbsUp className="h-3.5 w-3.5" />
-        <span className="text-xs font-medium">{votes > 0 ? votes : ''}</span>
+        <ThumbsUp className="h-3 w-3" />
       </Button>
-
       <Button
         variant="ghost"
-        size="sm"
-        className={`h-7 px-2 transition-colors ${userVote === -1 ? 'text-orange-500 bg-orange-500/10 hover:bg-orange-500/20' : 'text-muted-foreground hover:text-foreground'}`}
+        size="icon"
+        className={`h-7 w-7 transition-colors ${userVote === -1 ? 'text-orange-400 bg-orange-500/10' : 'text-white/25 hover:text-orange-400 hover:bg-orange-500/10'}`}
         onClick={() => void handleVote(-1)}
-        title="Vibe check (low priority)"
+        title="Vibe check"
       >
-        <ThumbsDown className="h-3.5 w-3.5" />
+        <ThumbsDown className="h-3 w-3" />
       </Button>
     </div>
   );

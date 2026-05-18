@@ -290,25 +290,50 @@ async function fetchImageForTrip(tripId: string, destination: string, skipCount:
         let imageUrl: string | null = null;
         let imageCaption: string | null = null;
 
-        for (const q of queries) {
+        // Try Google Places — use skipCount as preferred index but fall back through all results
+        outer: for (const q of queries) {
             const res = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
             const data = await res.json();
-            if (data.results && data.results.length > skipCount) {
-                const place = data.results[skipCount] || data.results[0];
-                if (place.photos?.[0]?.photo_reference) {
+            const results: any[] = data.results || [];
+            // Try from skipCount offset, wrap around to find any result with a photo
+            const indices = [...Array(results.length).keys()].sort((a, b) => {
+                if (a === skipCount) return -1;
+                if (b === skipCount) return 1;
+                return a - b;
+            });
+            for (const i of indices) {
+                const place = results[i];
+                if (place?.photos?.[0]?.photo_reference) {
                     imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${place.photos[0].photo_reference}&key=${key}`;
                     imageCaption = place.name || destination;
-                    break;
+                    break outer;
                 }
             }
         }
 
+        // Fallback: Wikipedia featured image
+        if (!imageUrl) {
+            try {
+                const wikiRes = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(destination)}&prop=pageimages&format=json&pithumbsize=1200&origin=*`,
+                    { headers: { 'User-Agent': 'TripMate/2.0.0' } }
+                );
+                const wikiData = await wikiRes.json();
+                const pages = wikiData?.query?.pages || {};
+                const page = Object.values(pages)[0] as any;
+                if (page?.thumbnail?.source) {
+                    imageUrl = page.thumbnail.source;
+                    imageCaption = destination;
+                }
+            } catch { /* ignore */ }
+        }
+
         if (imageUrl) {
-            const updated = await TripModel.findByIdAndUpdate(tripId, { 
-                imageUrl, 
-                imageCaption 
+            const updated = await TripModel.findByIdAndUpdate(tripId, {
+                imageUrl,
+                imageCaption
             }, { new: true });
-            
+
             if (updated) {
                 socketService.broadcastMutation(tripId, { type: "trip-updated", data: updated });
             }
