@@ -243,12 +243,19 @@ export class AiUtilitiesService {
     const cached = this.getCached<{ current: any; forecast: any[]; recommendations: any[] }>(key);
     if (cached) return cached;
 
+    // Check if input is already lat,lon coords
+    const coordMatch = c.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+
     try {
-      const owKey = config.WEATHER_API_KEY;
+      const owKey = config.WEATHER_API_KEY || config.OPENWEATHER_API_KEY;
       if (owKey) {
-        let coord: { lat: number; lon: number } | null = null;
+        let coord: { lat: number; lon: number } | null = coordMatch
+          ? { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[2]) }
+          : null;
         let currentJson: any;
-        const currentRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c)}&units=metric&appid=${owKey}`);
+        const currentRes = coordMatch
+          ? await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${coordMatch[1]}&lon=${coordMatch[2]}&units=metric&appid=${owKey}`)
+          : await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c)}&units=metric&appid=${owKey}`);
         currentJson = await currentRes.json();
         if (!currentRes.ok) {
           const geoRes = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(c)}&limit=1&appid=${owKey}`);
@@ -341,6 +348,56 @@ export class AiUtilitiesService {
       const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback' } = { current, forecast, recommendations, source: 'ai' };
       return this.setCached(key, result);
     } catch {
+      // Try Open-Meteo (free, no API key) via Nominatim geocoding
+      try {
+        let lat: string, lon: string;
+        if (coordMatch) {
+          lat = coordMatch[1]; lon = coordMatch[2];
+        } else {
+          const geoRes = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(c)}&limit=1`,
+            { headers: { 'User-Agent': 'TripMate/2.0.0' } }
+          );
+          if (!geoRes.ok) throw new Error('geo_fail');
+          const geoJson = await geoRes.json();
+          if (!Array.isArray(geoJson) || geoJson.length === 0) throw new Error('geo_no_results');
+          lat = geoJson[0].lat; lon = geoJson[0].lon;
+        }
+        {
+            const meteoRes = await fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&forecast_days=7&timezone=auto`
+            );
+            if (meteoRes.ok) {
+              const meteo = await meteoRes.json();
+              const wc = meteo.current_weather?.weathercode ?? 0;
+              const condMap = (code: number) => {
+                if (code === 0) return 'Clear';
+                if (code <= 3) return 'Clouds';
+                if (code <= 49) return 'Mist';
+                if (code <= 69) return 'Rain';
+                if (code <= 79) return 'Snow';
+                if (code <= 99) return 'Thunderstorm';
+                return 'Clouds';
+              };
+              const iconMap: Record<string, string> = { Clear: 'fas fa-sun', Clouds: 'fas fa-cloud', Rain: 'fas fa-cloud-rain', Snow: 'fas fa-snowflake', Thunderstorm: 'fas fa-bolt', Mist: 'fas fa-smog' };
+              const cond = condMap(wc);
+              const temp = Math.round(meteo.current_weather?.temperature ?? 20);
+              const current = { temperature: temp, condition: cond, humidity: 60, windSpeed: Math.round(meteo.current_weather?.windspeed ?? 10), icon: iconMap[cond] || 'fas fa-cloud' };
+              const daily = meteo.daily || {};
+              const forecast = Array.from({ length: 7 }, (_, i) => {
+                const hi = Math.round(daily.temperature_2m_max?.[i] ?? temp);
+                const lo = Math.round(daily.temperature_2m_min?.[i] ?? temp - 5);
+                const dc = condMap(daily.weathercode?.[i] ?? 0);
+                return { day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`, high: hi, low: lo, condition: dc, icon: iconMap[dc] || 'fas fa-cloud' };
+              });
+              const recommendations: string[] = temp < 10 ? ['Dress warmly — cold temperatures expected', 'Check road conditions'] : temp >= 30 ? ['Stay hydrated', 'Use sunscreen'] : ['Comfortable weather — light layers recommended'];
+              const result = { current, forecast, recommendations, source: 'fallback-route' as const };
+              return this.setCached(key, result);
+            }
+        }
+      } catch { /* fall through to generic */ }
+
+      // Last resort: generic month-based estimate (clearly labelled)
       const now = new Date();
       const month = now.getMonth();
       const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
@@ -351,13 +408,7 @@ export class AiUtilitiesService {
         low: Math.round(baseTemp - 5 + (i % 2)),
         condition: i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",
       }));
-      const recommendations = [
-        "Carry light cotton clothing",
-        "Stay hydrated",
-        "Use sunscreen during midday",
-        "Check local advisories for heat or rain",
-      ];
-      const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback' } = { current, forecast, recommendations, source: 'fallback' };
+      const result = { current, forecast, recommendations: ["Weather data unavailable — shown estimate only"], source: 'fallback' as const };
       return this.setCached(key, result);
     }
   }
