@@ -718,13 +718,17 @@ export default function TripDetail() {
                     e.stopPropagation();
                     toast({ title: "Refreshing image...", description: "Looking for a better photo." });
                     try {
-                      await apiRequest('POST', `/api/v1/trips/${id}/image?force=true`);
-                      toast({ title: "Refreshing...", description: "Looking for a new photo." });
-                      // We don't need to invalidate immediately as the socket will handle the 'trip-updated' broadcast
-                      // But purely as a fallback:
-                      setTimeout(() => {
+                      const res = await apiRequest('POST', `/api/v1/trips/${id}/image?force=true`);
+                      const data = await res.json();
+                      if (data?.imageUrl) {
+                        queryClient.setQueryData(['/api/v1/trips', id], (old: any) =>
+                          old ? { ...old, imageUrl: data.imageUrl, imageCaption: data.imageCaption } : old
+                        );
+                        toast({ title: "Image updated!", description: "Found a new photo." });
+                      } else {
                         queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
-                      }, 3000);
+                        toast({ title: "Image refreshed." });
+                      }
                     } catch (err) {
                       toast({ title: "Failed to refresh", variant: "destructive" });
                     }

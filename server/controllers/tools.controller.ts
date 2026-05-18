@@ -185,19 +185,20 @@ export const translateText = async (req: Request, res: Response, next: NextFunct
 
 export const getWeather = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { city, lat, lon } = req.query;
-        let queryCity = city as string;
-        
-        if (!queryCity && lat && lon) {
-            // Reverse geocode if needed, or just search by lat/lon if service supports it
-            // For now let's assume city is provided or we use a default
-            queryCity = `${lat},${lon}`;
+        const { city, location, lat, lon } = req.query;
+        // Accept city, location, or lat/lon
+        const queryCity = (city || location) as string | undefined;
+        let query: string;
+        if (queryCity) {
+            query = queryCity;
+        } else if (lat && lon) {
+            query = `${lat},${lon}`;
+        } else {
+            throw new BadRequestError("Missing city, location, or coordinates");
         }
-        
-        if (!queryCity) throw new BadRequestError("Missing city or coordinates");
 
         const aiUtils = new AiUtilitiesService();
-        const result = await aiUtils.weather(queryCity);
+        const result = await aiUtils.weather(query);
         res.json(result);
     } catch (error) {
         next(error);
