@@ -176,7 +176,7 @@ export default function Feedback() {
                                     placeholder="your.email@example.com"
                                     value={form.email}
                                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                                    className="bg-muted/50 border text-foreground placeholder:text-muted-foreground"
+                                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                                     required
                                 />
                             </div>
@@ -191,7 +191,7 @@ export default function Feedback() {
                                     placeholder="Brief summary of your feedback or issue"
                                     value={form.subject}
                                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                                    className="bg-muted/50 border text-foreground placeholder:text-muted-foreground"
+                                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                                     required
                                 />
                             </div>
@@ -209,7 +209,7 @@ export default function Feedback() {
                                     }
                                     value={form.description}
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                    className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[200px]"
+                                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground min-h-[200px]"
                                     required
                                 />
                             </div>

@@ -66,28 +66,25 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
             try {
                 const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(destination)}`);
                 if (!res.ok) {
-                    console.error(`[TripMap] Geocode API error: ${res.status} ${res.statusText}`);
                     setLoading(false);
                     return;
                 }
                 const data = await res.json();
-                console.log(`[TripMap] Geocode response for "${destination}":`, JSON.stringify(data));
 
                 if (Array.isArray(data) && data.length > 0) {
-                    const first = data[0];
-                    const lat = Number(first.lat);
-                    const lon = Number(first.lon);
-
-                    console.log(`[TripMap] Geocode result: ${lat}, ${lon} (${first.display_name || first.name})`);
-
-                    // Specific check for San Francisco (37.7749, -122.4194)
-                    if (Math.abs(lat - 37.7749) < 0.05 && Math.abs(lon - (-122.4194)) < 0.05) {
-                        console.warn('[TripMap] WARNING: Geocoder returned coordinates near San Francisco. This matches the reported bug.');
-                    }
-
+                    // Prefer place/boundary results (cities, countries) over streets/addresses
+                    const PLACE_CLASSES = ['place', 'boundary', 'natural', 'tourism'];
+                    const sorted = [...data].sort((a, b) => {
+                        const aIsPlace = PLACE_CLASSES.includes(a.class) ? 1 : 0;
+                        const bIsPlace = PLACE_CLASSES.includes(b.class) ? 1 : 0;
+                        if (aIsPlace !== bIsPlace) return bIsPlace - aIsPlace;
+                        return (Number(b.importance) || 0) - (Number(a.importance) || 0);
+                    });
+                    const best = sorted[0];
+                    const lat = Number(best.lat);
+                    const lon = Number(best.lon);
                     setCoords({ lat, lon });
                 } else {
-                    console.warn(`[TripMap] Geocoding returned no results for ${destination}`, data);
                     setGeocodeError(true);
                 }
             } catch (err) {
