@@ -7,6 +7,7 @@ import { config } from "../config";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { getFrontendBaseUrl } from "../urls";
+import { storage } from "../storage";
 
 const JWT_EXPIRY = "7d";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -212,8 +213,16 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-export const getProfile = (req: Request, res: Response) => {
-  res.json(req.user);
+export const getProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req.user as any)?._id || (req.user as any)?.id || (req.user as any)?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
