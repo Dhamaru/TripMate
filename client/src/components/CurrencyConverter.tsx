@@ -246,7 +246,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
             <div className="bg-muted rounded-xl p-4" data-testid="conversion-result">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-2xl font-bold text-[#1E3A8A] dark:text-blue-400">
-                  {conversion.convertedAmount.toLocaleString()} {CURRENCIES.find(c => c.code === toCurrency)?.symbol}
+                  {(conversion.convertedAmount ?? 0).toLocaleString()} {CURRENCIES.find(c => c.code === toCurrency)?.symbol}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
