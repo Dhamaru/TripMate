@@ -253,14 +253,13 @@ export const forceUpdateImage = async (req: Request, res: Response, next: NextFu
         const trip = await TripModel.findOne({ _id: req.params.id, userId });
         if (!trip) throw new NotFoundError("Trip not found");
 
-        // Logic to clear existing image and re-trigger background fetch
         await TripModel.findByIdAndUpdate(trip.id, { $unset: { imageUrl: 1, imageCaption: 1 } });
-        
-        // Trigger fresh fetch with a random offset to get a different image
-        const randomOffset = Math.floor(Math.random() * 5); // Pick from top 5 results
-        setImmediate(() => fetchImageForTrip(trip.id, trip.destination, randomOffset));
 
-        res.json({ success: true, message: "Image refresh triggered" });
+        const randomOffset = Math.floor(Math.random() * 5);
+        await fetchImageForTrip(trip.id, trip.destination, randomOffset);
+
+        const updated = await TripModel.findById(trip.id);
+        res.json(updated);
     } catch (error) {
         next(error);
     }
