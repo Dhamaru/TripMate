@@ -277,7 +277,7 @@ export default function CropImagePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <Button onClick={() => navigate('/profile')} variant="ghost" size="sm" className="text-muted-foreground hover:text-white smooth-transition interactive-tap min-tap-target">Back</Button>
+              <Button onClick={() => navigate('/app/profile')} variant="ghost" size="sm" className="text-muted-foreground hover:text-white smooth-transition interactive-tap min-tap-target">Back</Button>
               <TripMateLogo size="md" />
             </div>
             <div className="flex items-center space-x-4">

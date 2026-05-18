@@ -100,13 +100,27 @@ export const getProactiveInsights = async (_req: Request, res: Response, next: N
 };
 export const latestCurrency = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { base = 'USD', symbols } = req.query;
-        let url = `https://api.frankfurter.app/latest?from=${base}`;
-        if (symbols) url += `&to=${symbols}`;
+        const from = String(req.query.from || req.query.base || 'USD').toUpperCase();
+        const to = req.query.to ? String(req.query.to).toUpperCase() : (req.query.symbols ? String(req.query.symbols).toUpperCase() : undefined);
+        const amount = parseFloat(req.query.amount as string) || 1;
 
-        const response = await fetch(url);
+        if (to) {
+            const url = `https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+            const response = await fetch(url, { headers: { 'User-Agent': 'TripMate/2.0.0' } });
+            if (!response.ok) throw new Error("Currency service failed");
+            const data = await response.json();
+            const rate = (data.rates as Record<string, number>)?.[to] ?? 0;
+            return res.status(200).json({
+                rate,
+                convertedAmount: Math.round(amount * rate * 100) / 100,
+                currencyName: to,
+                disclaimer: "Rates from European Central Bank via Frankfurter API"
+            });
+        }
+
+        const url = `https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}`;
+        const response = await fetch(url, { headers: { 'User-Agent': 'TripMate/2.0.0' } });
         if (!response.ok) throw new Error("Currency service failed");
-
         const data = await response.json();
         res.status(200).json(data);
     } catch (error) {
@@ -168,11 +182,11 @@ export const getWeather = async (req: Request, res: Response, next: NextFunction
 
 export const getEmergencyContacts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { location } = req.query;
+        const location = (req.params.query && decodeURIComponent(req.params.query)) || String(req.query.location || req.query.q || '');
         if (!location) throw new BadRequestError("Missing location");
 
         const aiUtils = new AiUtilitiesService();
-        const result = await aiUtils.emergency(String(location));
+        const result = await aiUtils.emergency(location);
         res.json(result);
     } catch (error) {
         next(error);
