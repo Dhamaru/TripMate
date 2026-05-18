@@ -53,7 +53,7 @@ export default function EmergencyPage() {
   async function geocodeQuery(q: string) {
     if (!q) return null;
     try {
-      const res = await fetch(`/api/v1/geocode?query=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`);
       const json = await res.json().catch(() => null);
       return parseGeocodeResponse(json);
     } catch {

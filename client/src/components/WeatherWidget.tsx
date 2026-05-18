@@ -145,7 +145,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
     );
   }
 
-  if (error || !weather) {
+  if (error || !weather || !weather.current) {
     return (
       <Card className={`bg-card border ${className}`} data-testid="weather-widget-error">
         <CardHeader>

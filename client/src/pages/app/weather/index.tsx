@@ -72,7 +72,7 @@ export default function WeatherPage() {
   async function geocodeQuery(q: string) {
     if (!q) return null;
     try {
-      const res = await fetch(`/api/v1/geocode?query=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`);
       const json = await res.json().catch(() => null);
       const parsed = parseGeocodeResponse(json);
       return parsed;
@@ -93,7 +93,7 @@ export default function WeatherPage() {
     debounceRef.current = window.setTimeout(async () => {
       try {
         const signal = abortRef.current?.signal;
-        const res = await fetch(`/api/v1/geocode?query=${encodeURIComponent(q)}`, { signal });
+        const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`, { signal });
         if (!mountedRef.current) return;
         const j = await res.json().catch(() => null);
         let arr: Array<any> = [];
