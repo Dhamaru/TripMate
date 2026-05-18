@@ -128,6 +128,30 @@ export const latestCurrency = async (req: Request, res: Response, next: NextFunc
     }
 };
 
+export const currencyHistory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const from = String(req.query.from || 'USD').toUpperCase();
+        const to = String(req.query.to || 'EUR').toUpperCase();
+        const days = Math.min(90, Math.max(7, parseInt(req.query.days as string) || 30));
+        const start = new Date();
+        start.setDate(start.getDate() - (days - 1));
+        const startStr = start.toISOString().split('T')[0];
+        const url = `https://api.frankfurter.app/${startStr}..?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+        const response = await fetch(url, { headers: { 'User-Agent': 'TripMate/2.0.0' } });
+        if (!response.ok) throw new Error("Currency history service failed");
+        const data = await response.json();
+        const entries = Object.entries((data.rates || {}) as Record<string, Record<string, number>>)
+            .map(([date, rates]) => ({
+                date: new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                rate: rates[to] ?? 0,
+            }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+        res.json(entries);
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const convertCurrency = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { amount, from, to } = req.query;
@@ -180,14 +204,68 @@ export const getWeather = async (req: Request, res: Response, next: NextFunction
     }
 };
 
+const COUNTRY_SOS: Record<string, { police: string; medical: string; fire: string; common: string }> = {
+    IN: { police: '100', medical: '108', fire: '101', common: '112' },
+    US: { police: '911', medical: '911', fire: '911', common: '911' },
+    GB: { police: '999', medical: '999', fire: '999', common: '999' },
+    AU: { police: '000', medical: '000', fire: '000', common: '000' },
+    CA: { police: '911', medical: '911', fire: '911', common: '911' },
+    DE: { police: '110', medical: '112', fire: '112', common: '112' },
+    FR: { police: '17', medical: '15', fire: '18', common: '112' },
+    JP: { police: '110', medical: '119', fire: '119', common: '110' },
+    CN: { police: '110', medical: '120', fire: '119', common: '110' },
+    SG: { police: '999', medical: '995', fire: '995', common: '999' },
+    AE: { police: '999', medical: '998', fire: '997', common: '999' },
+    TH: { police: '191', medical: '1669', fire: '199', common: '191' },
+    DEFAULT: { police: '112', medical: '112', fire: '112', common: '112' },
+};
+
+async function detectCountryCode(location: string): Promise<string> {
+    try {
+        const isCoords = /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(location.trim());
+        let url: string;
+        if (isCoords) {
+            const [lat, lon] = location.split(',');
+            url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+        } else {
+            url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1&addressdetails=1`;
+        }
+        const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/2.0.0' } });
+        if (!r.ok) return 'DEFAULT';
+        const j = await r.json();
+        const addr = isCoords ? j?.address : j?.[0]?.address;
+        return (addr?.country_code || 'DEFAULT').toUpperCase();
+    } catch {
+        return 'DEFAULT';
+    }
+}
+
 export const getEmergencyContacts = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const location = (req.params.query && decodeURIComponent(req.params.query)) || String(req.query.location || req.query.q || '');
         if (!location) throw new BadRequestError("Missing location");
 
         const aiUtils = new AiUtilitiesService();
-        const result = await aiUtils.emergency(location);
-        res.json(result);
+        const [services, countryCode] = await Promise.all([
+            aiUtils.emergency(location),
+            detectCountryCode(location),
+        ]);
+
+        const sos = COUNTRY_SOS[countryCode] || COUNTRY_SOS['DEFAULT'];
+        res.json({
+            services: services.map((s: any, i: number) => ({
+                id: s.id || String(i),
+                name: s.name,
+                type: s.type,
+                address: s.address || '',
+                phone: s.phone || sos.police,
+                distance: '—',
+                latitude: s.coordinates?.lat || 0,
+                longitude: s.coordinates?.lon || 0,
+            })),
+            countryCode,
+            sosNumbers: { police: sos.police, medical: sos.medical, fire: sos.fire, common: sos.common },
+        });
     } catch (error) {
         next(error);
     }

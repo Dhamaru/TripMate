@@ -12,6 +12,7 @@ router.get("/readiness", toolsController.readiness);
 router.get("/version", toolsController.version);
 router.get("/currency", toolsController.latestCurrency);
 router.get("/currency/latest", toolsController.latestCurrency);
+router.get("/currency/history", toolsController.currencyHistory);
 router.get("/currency/convert", requireAuth, toolsController.convertCurrency);
 router.get("/geocode", toolsController.geocode);
 router.get("/reverse-geocode", toolsController.reverseGeocode);

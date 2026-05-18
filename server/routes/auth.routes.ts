@@ -11,6 +11,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import mongoose from "mongoose";
+import { UserModel } from "@shared/schema";
 
 const router = Router();
 
@@ -80,6 +81,22 @@ router.put("/profile", requireAuth, authController.updateProfile); // Compatibil
 
 // Avatar upload
 router.post("/user/avatar", requireAuth, upload.single("image"), authController.uploadAvatar);
+
+// Google disconnect
+router.post("/google/disconnect", requireAuth, async (req, res, next) => {
+  try {
+    const userId = (req.user as any)?._id || (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const user = await UserModel.findByIdAndUpdate(
+      userId,
+      { $unset: { googleId: 1 }, $set: { googleConnected: false } },
+      { new: true }
+    );
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Settings & Security
 router.post("/change-password", requireAuth, authController.changePassword);

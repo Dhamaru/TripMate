@@ -405,12 +405,36 @@ export default function Profile() {
               </div>
               <div>
                 <h4 className="font-medium text-white">Google</h4>
-                <p className="text-xs text-muted-foreground">Sign in with Google</p>
+                <p className="text-xs text-muted-foreground">
+                  {(userData as any)?.googleConnected ? 'Connected' : 'Sign in with Google'}
+                </p>
               </div>
             </div>
-            <Button variant={(userData as any)?.googleConnected ? 'outline' : 'secondary'} size="sm">
-              {(userData as any)?.googleConnected ? 'Disconnect' : 'Connect'}
-            </Button>
+            {(userData as any)?.googleConnected ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/v1/auth/google/disconnect', { method: 'POST', credentials: 'include' });
+                    if (res.ok) {
+                      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/user'] });
+                      toast({ title: 'Google disconnected' });
+                    } else {
+                      toast({ title: 'Error', description: 'Could not disconnect Google', variant: 'destructive' });
+                    }
+                  } catch {
+                    toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+                  }
+                }}
+              >
+                Disconnect
+              </Button>
+            ) : (
+              <a href="/api/v1/auth/google">
+                <Button variant="secondary" size="sm">Connect</Button>
+              </a>
+            )}
           </div>
         </CardContent>
       </Card>

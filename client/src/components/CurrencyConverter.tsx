@@ -35,23 +35,13 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
   const [budget, setBudget] = useState('');
   const [activeTab, setActiveTab] = useState<'convert' | 'budget'>('convert');
 
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - 29);
-  const startDateStr = startDate.toISOString().split('T')[0];
-
   const { data: historicalData = [] } = useQuery<{ date: string; rate: number }[]>({
-    queryKey: ['/frankfurter/history', fromCurrency, toCurrency],
+    queryKey: ['/api/v1/currency/history', fromCurrency, toCurrency],
     queryFn: async () => {
       try {
-        const r = await fetch(
-          `https://api.frankfurter.app/${startDateStr}..?from=${fromCurrency}&to=${toCurrency}`
-        );
+        const r = await fetch(`/api/v1/currency/history?from=${fromCurrency}&to=${toCurrency}&days=30`);
         if (!r.ok) return [];
-        const json = await r.json();
-        return Object.entries(json.rates as Record<string, Record<string, number>>).map(([date, rates]) => ({
-          date: new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-          rate: rates[toCurrency] ?? 0,
-        }));
+        return r.json();
       } catch { return []; }
     },
     staleTime: 60 * 60 * 1000,
