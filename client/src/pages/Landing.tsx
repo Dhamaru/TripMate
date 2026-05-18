@@ -17,36 +17,60 @@ const features = [
     title: "Smart Trip Planner",
     description: "AI-powered itinerary generation based on your preferences, budget, and travel style.",
     tag: "AI-Powered",
+    iconBg: "bg-[#FFFBEB]",
+    iconColor: "text-[#F59E0B]",
+    tagColor: "text-[#F59E0B] bg-[#FFFBEB]",
+    accentColor: "group-hover:border-[#F59E0B]/30",
   },
   {
     icon: BookOpen,
     title: "Travel Journal",
     description: "Capture memories with photos, notes, and stories. Create beautiful travel recaps.",
     tag: "Memories",
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-500",
+    tagColor: "text-blue-500 bg-blue-50",
+    accentColor: "group-hover:border-blue-200",
   },
   {
     icon: CloudSun,
     title: "Weather Insights",
     description: "7-day forecasts, weather alerts, and packing recommendations for any destination.",
     tag: "Real-time",
+    iconBg: "bg-sky-50",
+    iconColor: "text-sky-500",
+    tagColor: "text-sky-500 bg-sky-50",
+    accentColor: "group-hover:border-sky-200",
   },
   {
     icon: Languages,
     title: "Smart Translator",
     description: "Instant translation for 10+ languages with phonetic pronunciation guides.",
     tag: "Offline",
+    iconBg: "bg-violet-50",
+    iconColor: "text-violet-500",
+    tagColor: "text-violet-500 bg-violet-50",
+    accentColor: "group-hover:border-violet-200",
   },
   {
     icon: Banknote,
     title: "Currency Converter",
     description: "Real-time exchange rates for 20+ currencies with offline rate caching.",
     tag: "Live Rates",
+    iconBg: "bg-emerald-50",
+    iconColor: "text-emerald-500",
+    tagColor: "text-emerald-500 bg-emerald-50",
+    accentColor: "group-hover:border-emerald-200",
   },
   {
     icon: Shield,
     title: "Emergency Services",
     description: "Locate nearby hospitals, police, and embassies with one-tap SOS calling.",
     tag: "Safety",
+    iconBg: "bg-red-50",
+    iconColor: "text-red-500",
+    tagColor: "text-red-500 bg-red-50",
+    accentColor: "group-hover:border-red-200",
   },
 ];
 
@@ -221,7 +245,31 @@ export default function Landing() {
       </nav>
 
       {/* ── Hero ───────────────────────────────────────── */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Decorative background */}
+        <div className="absolute inset-0 -z-10 pointer-events-none" aria-hidden="true">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-70" style={{ background: 'radial-gradient(ellipse at center, #FFFBEB 0%, rgba(254,243,199,0.4) 50%, transparent 100%)' }} />
+          <div className="absolute top-20 left-[10%] w-48 h-48 bg-[#F59E0B]/5 rounded-full blur-3xl" />
+          <div className="absolute top-40 right-[12%] w-64 h-64 bg-[#1E3A8A]/5 rounded-full blur-3xl" />
+          {/* Floating destination chips */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.6 }}
+            className="absolute top-36 left-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#111827] text-xs font-medium px-3 py-1.5 rounded-full">
+            🗼 Paris, France
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0, duration: 0.6 }}
+            className="absolute top-52 right-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#111827] text-xs font-medium px-3 py-1.5 rounded-full">
+            🏯 Kyoto, Japan
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 0.6 }}
+            className="absolute top-72 left-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#111827] text-xs font-medium px-3 py-1.5 rounded-full">
+            🏔️ Kedarnath, India
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4, duration: 0.6 }}
+            className="absolute top-80 right-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#111827] text-xs font-medium px-3 py-1.5 rounded-full">
+            🗽 New York, USA
+          </motion.div>
+        </div>
+
         <div className="max-w-7xl mx-auto">
           <motion.div
             className="text-center"
@@ -230,7 +278,7 @@ export default function Landing() {
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 bg-[#FFFBEB] text-[#F59E0B] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
+            <div className="inline-flex items-center gap-2 bg-[#FFFBEB] text-[#F59E0B] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-[#FDE68A]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
               AI-Powered Travel Planning
             </div>
@@ -387,15 +435,15 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.35, delay: i * 0.05 }}
-                className="bg-white border border-[#ebebeb] rounded-3xl p-6 hover:shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] hover:-translate-y-1 transition-all duration-200 group"
+                className={`bg-white border border-[#ebebeb] rounded-3xl p-6 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 group ${feature.accentColor}`}
                 data-testid={`feature-card-${i}`}
               >
-                <div className="w-11 h-11 bg-[#FFFBEB] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#F59E0B] transition-colors">
-                  <feature.icon className="w-5 h-5 text-[#F59E0B] group-hover:text-white transition-colors" />
+                <div className={`w-12 h-12 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
+                  <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
                 </div>
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-base font-semibold text-[#111827]">{feature.title}</h3>
-                  <span className="text-[10px] font-bold text-[#F59E0B] bg-[#FFFBEB] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${feature.tagColor}`}>
                     {feature.tag}
                   </span>
                 </div>

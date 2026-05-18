@@ -13,6 +13,7 @@ import PresenceBubbles from "@/components/collaboration/PresenceBubbles";
 import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -876,9 +877,28 @@ export default function TripDetail() {
           </Card>
         )}
 
-        {/* Trip Content */}
-        <div className="space-y-6">
-          {/* Trip Details */}
+        {/* Trip Content — Tabbed */}
+        <Tabs defaultValue="overview" className="space-y-0">
+          <TabsList className="flex w-full bg-muted/50 rounded-xl mb-6 p-1 h-auto gap-0.5 overflow-x-auto">
+            <TabsTrigger value="overview"   className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-compass mr-1.5" />Overview
+            </TabsTrigger>
+            <TabsTrigger value="itinerary"  className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-route mr-1.5" />Itinerary
+            </TabsTrigger>
+            <TabsTrigger value="map"        className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-map-marked-alt mr-1.5" />Map
+            </TabsTrigger>
+            <TabsTrigger value="budget"     className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-wallet mr-1.5" />Budget
+            </TabsTrigger>
+            <TabsTrigger value="places"     className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-search-location mr-1.5" />Places
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Overview tab ─────────────────────────────────── */}
+          <TabsContent value="overview" className="space-y-6 mt-0">
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-foreground">Trip Overview</CardTitle>
@@ -951,18 +971,6 @@ export default function TripDetail() {
               )}
             </CardContent>
           </Card>
-
-          {/* Trip Map */}
-          <TripMap
-            destination={trip.destination}
-            itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []}
-            origin={trip.origin}
-            onAddActivity={handleMapAddActivity}
-            onDeleteActivity={handleMapDeleteActivity}
-          />
-
-          {/* Cost Breakdown & Budget Tracker */}
-          <BudgetTracker trip={trip} />
 
           {/* Travel Smart Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1049,15 +1057,32 @@ export default function TripDetail() {
             </Card>
           </div>
 
-          {/* Itinerary Manager */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-foreground">Your Itinerary</h3>
-            </div>
-            <ItineraryManager trip={trip} />
-          </div>
+          </TabsContent>
 
-          <div id="suggested-places-section" className="mt-8 mb-8 space-y-6 border-t border-border pt-8">
+          {/* ── Itinerary tab ─────────────────────────────────── */}
+          <TabsContent value="itinerary" className="mt-0">
+            <ItineraryManager trip={trip} />
+          </TabsContent>
+
+          {/* ── Map tab ─────────────────────────────────── */}
+          <TabsContent value="map" className="mt-0">
+            <TripMap
+              destination={trip.destination}
+              itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []}
+              origin={trip.origin}
+              onAddActivity={handleMapAddActivity}
+              onDeleteActivity={handleMapDeleteActivity}
+            />
+          </TabsContent>
+
+          {/* ── Budget tab ─────────────────────────────────── */}
+          <TabsContent value="budget" className="mt-0">
+            <BudgetTracker trip={trip} />
+          </TabsContent>
+
+          {/* ── Places tab ─────────────────────────────────── */}
+          <TabsContent value="places" className="mt-0">
+          <div id="suggested-places-section" className="space-y-6">
             <div className="flex flex-col items-center gap-4">
               <h3 className="text-white font-semibold text-lg flex items-center gap-2">
                 <i className="fas fa-map-marked-alt text-[#1E3A8A]"></i>
@@ -1208,46 +1233,48 @@ export default function TripDetail() {
               </motion.div>
             )}
           </div>
+          </TabsContent>
 
-          {/* Journal Entries for this Trip */}
-          {tripJournalEntries.length > 0 && (
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl font-bold text-foreground">Trip Journal</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <RecapPanel 
-                      tripId={id!} 
-                      destination={trip.destination}
-                      entryCount={tripJournalEntries.length} 
-                      onRecapSaved={() => queryClient.invalidateQueries({ queryKey: ['/api/v1/journal'] })} 
-                      recapJournalEntry={tripJournalEntries.find(e => e.type === 'recap')}
-                    />
-                    <Link href="/app/journal">
-                      <Button variant="outline" size="sm" className="bg-muted/50 border text-foreground hover:bg-card ">
-                        View All
-                      </Button>
-                    </Link>
-                  </div>
+        </Tabs>
+
+        {/* Journal Entries — always shown below tabs */}
+        {tripJournalEntries.length > 0 && (
+          <Card className="bg-card border-border mt-6">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-bold text-foreground">Trip Journal</CardTitle>
+                <div className="flex items-center gap-2">
+                  <RecapPanel
+                    tripId={id!}
+                    destination={trip.destination}
+                    entryCount={tripJournalEntries.length}
+                    onRecapSaved={() => queryClient.invalidateQueries({ queryKey: ['/api/v1/journal'] })}
+                    recapJournalEntry={tripJournalEntries.find(e => e.type === 'recap')}
+                  />
+                  <Link href="/app/journal">
+                    <Button variant="outline" size="sm" className="bg-muted/50 border text-foreground hover:bg-card">
+                      View All
+                    </Button>
+                  </Link>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {tripJournalEntries.slice(0, 3).map((entry) => (
-                    <div key={entry.id} className="bg-muted/50 rounded-xl p-4">
-                      <h4 className="font-bold text-white mb-2">{entry.title}</h4>
-                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{entry.content}</p>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{entry.location}</span>
-                        <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
-                      </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {tripJournalEntries.slice(0, 3).map((entry) => (
+                  <div key={entry.id} className="bg-muted/50 rounded-xl p-4">
+                    <h4 className="font-bold text-white mb-2">{entry.title}</h4>
+                    <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{entry.content}</p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{entry.location}</span>
+                      <span>{new Date(entry.createdAt!).toLocaleDateString()}</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div >
   );

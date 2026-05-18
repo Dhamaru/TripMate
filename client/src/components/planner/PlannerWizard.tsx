@@ -98,15 +98,48 @@ export function PlannerWizard() {
         }
     }
 
+    const STEPS = [
+        { n: 1, label: 'Destination' },
+        { n: 2, label: 'Dates' },
+        { n: 3, label: 'Budget' },
+        { n: 4, label: 'Style' },
+    ]
+
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-            <div className="w-full max-w-lg bg-card rounded-2xl shadow-2xl p-6 md:p-8 border border-border">
-                {/* Progress Dots */}
-                <div className="flex justify-center gap-2 mb-6" aria-hidden="true">
-                    {[1, 2, 3, 4, 5, 6].map((s) => (
-                        <div key={s} className={`w-2 h-2 rounded-full transition-colors ${s === step ? 'bg-[#F59E0B]' : 'bg-border'}`} />
-                    ))}
-                </div>
+            <div className="w-full max-w-xl bg-card rounded-2xl shadow-2xl p-6 md:p-10 border border-border">
+                {/* Step progress — only show for steps 1–4 */}
+                {step <= 4 && (
+                    <div className="mb-8">
+                        <div className="flex items-center justify-between relative">
+                            {/* connecting line */}
+                            <div className="absolute left-0 right-0 top-4 h-0.5 bg-border -z-0" aria-hidden="true" />
+                            <div
+                                className="absolute left-0 top-4 h-0.5 bg-[#F59E0B] transition-all duration-500 -z-0"
+                                style={{ width: `${((step - 1) / 3) * 100}%` }}
+                                aria-hidden="true"
+                            />
+                            {STEPS.map((s) => {
+                                const done = step > s.n
+                                const active = step === s.n
+                                return (
+                                    <div key={s.n} className="flex flex-col items-center gap-1.5 z-10">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 ${
+                                            done ? 'bg-[#F59E0B] border-[#F59E0B] text-white' :
+                                            active ? 'bg-card border-[#F59E0B] text-[#F59E0B]' :
+                                            'bg-card border-border text-muted-foreground'
+                                        }`}>
+                                            {done ? '✓' : s.n}
+                                        </div>
+                                        <span className={`text-[10px] font-medium hidden sm:block ${active ? 'text-[#F59E0B]' : done ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                            {s.label}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* Step 1 — Destination */}
                 {step === 1 && (
@@ -123,6 +156,11 @@ export function PlannerWizard() {
                 {/* Step 2 — Dates */}
                 {step === 2 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {form.destination && (
+                            <div className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#F59E0B]/10 text-[#F59E0B] px-3 py-1 rounded-full border border-[#F59E0B]/20">
+                                📍 {form.destination}
+                            </div>
+                        )}
                         <h2 className="text-2xl font-bold text-foreground tracking-tight">When are you traveling?</h2>
                         <div className="space-y-4">
                             <label className="block text-sm font-medium text-muted-foreground">
@@ -199,18 +237,31 @@ export function PlannerWizard() {
 
                 {/* Step 5 — Loading */}
                 {step === 5 && (
-                    <div className="space-y-6 text-center animate-in fade-in zoom-in-95 duration-500 py-8">
-                        <div className="w-16 h-16 mx-auto rounded-full border-4 border-[#F59E0B] border-t-transparent animate-spin" aria-hidden="true" />
-                        <h2 className="text-xl font-bold text-foreground tracking-tight">Atlas is planning your trip...</h2>
-                        <div className="text-left bg-muted rounded-xl p-4 mt-8 space-y-2 border border-border" aria-live="polite" aria-label="Generation progress">
+                    <div className="space-y-6 text-center animate-in fade-in zoom-in-95 duration-500 py-6">
+                        <div className="relative w-20 h-20 mx-auto">
+                            <div className="w-20 h-20 rounded-full border-4 border-border" />
+                            <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-[#F59E0B] border-t-transparent animate-spin" aria-hidden="true" />
+                            <span className="absolute inset-0 flex items-center justify-center text-2xl">✈️</span>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-foreground tracking-tight">Atlas is planning your trip</h2>
+                            <p className="text-sm text-muted-foreground mt-1">to {form.destination}</p>
+                        </div>
+                        <div className="text-left bg-muted rounded-xl p-4 space-y-2 border border-border" aria-live="polite" aria-label="Generation progress">
                             {liveSteps.length === 0 && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse py-1"><span>🤔</span> Starting up...</div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse py-1">
+                                    <span className="w-4 h-4 rounded-full border-2 border-[#F59E0B] border-t-transparent animate-spin shrink-0" />
+                                    Starting up...
+                                </div>
                             )}
                             {liveSteps.map((s, i) => {
                                 const isLast = i === liveSteps.length - 1
                                 return (
-                                    <div key={i} className={`flex items-center gap-2 text-sm py-1 ${isLast ? 'text-foreground animate-pulse' : 'text-muted-foreground'}`}>
-                                        {isLast ? <span className="w-4 h-4 rounded-full border-2 border-[#F59E0B] border-t-transparent animate-spin shrink-0" /> : <span className="text-emerald-500 shrink-0">✓</span>}
+                                    <div key={i} className={`flex items-center gap-2 text-sm py-1 ${isLast ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                        {isLast
+                                            ? <span className="w-4 h-4 rounded-full border-2 border-[#F59E0B] border-t-transparent animate-spin shrink-0" />
+                                            : <span className="w-4 h-4 flex-shrink-0 text-center text-emerald-500 font-bold text-xs leading-4">✓</span>
+                                        }
                                         {s}
                                     </div>
                                 )
