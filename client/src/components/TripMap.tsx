@@ -376,14 +376,14 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
     return (
         <Card className="bg-card border-border">
             <CardHeader>
-                <CardTitle className="text-xl font-bold text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full">
-                        <span>Trip Map</span>
-                        <div className="flex flex-wrap gap-2">
-                            <div className="relative w-40 md:w-52">
+                <CardTitle className="text-xl font-bold text-foreground flex flex-col md:flex-row justify-between items-start md:items-center gap-3 w-full">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-3 w-full">
+                        <span className="shrink-0">Trip Map</span>
+                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                            <div className="relative w-44 md:w-56">
                                 <Input
                                     placeholder="Search to pin..."
-                                    className="h-7 text-[10px] pr-6 bg-black/40 border-[#1E3A8A]/50 text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:border-[#1E3A8A]"
+                                    className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#F59E0B]/50 focus-visible:border-[#F59E0B]/50 rounded-lg"
                                     onKeyDown={async (e) => {
                                         if (e.key === 'Enter') {
                                             const q = (e.currentTarget as HTMLInputElement).value;
@@ -469,37 +469,37 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                         }
                                     }}
                                 />
-                                <Search className="absolute right-2 top-1.5 h-3 w-3 text-[#1E3A8A] dark:text-blue-400" />
+                                <Search className="absolute right-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
                             </div>
 
                             <Button
-                                variant={showHeatMap ? "secondary" : "outline"}
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => setShowHeatMap(!showHeatMap)}
-                                className={`h-7 px-2 text-[10px] uppercase tracking-wider ${showHeatMap ? 'bg-orange-500 text-white' : 'border-orange-500 text-orange-500 hover:bg-orange-50'}`}
+                                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showHeatMap ? 'bg-orange-500/15 text-orange-500 hover:bg-orange-500/25' : 'text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10'}`}
                             >
-                                <i className="fas fa-fire mr-1"></i>
+                                <i className="fas fa-fire text-[11px]"></i>
                                 {showHeatMap ? 'Hide Crowds' : 'Heat Map'}
                             </Button>
 
                             <Button
-                                variant={showPaths ? "secondary" : "outline"}
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => setShowPaths(!showPaths)}
-                                className={`h-7 px-2 text-[10px] uppercase tracking-wider ${showPaths ? 'bg-[#1E3A8A] text-white' : 'border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-400 hover:bg-[#1E3A8A]/10'}`}
+                                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? 'bg-[#1E3A8A]/15 text-[#1E3A8A] dark:text-blue-400 dark:bg-blue-400/15 hover:bg-[#1E3A8A]/25' : 'text-muted-foreground hover:text-[#1E3A8A] dark:hover:text-blue-400 hover:bg-[#1E3A8A]/10'}`}
                             >
-                                <i className="fas fa-route mr-1"></i>
+                                <i className="fas fa-route text-[11px]"></i>
                                 {showPaths ? 'Hide Route' : 'Show Route'}
                             </Button>
 
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        className="h-7 px-2 text-[10px] uppercase tracking-wider border-emerald-600 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/10"
+                                        className="h-8 px-3 text-xs font-medium rounded-lg gap-1.5 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
                                     >
-                                        <i className="fas fa-bullhorn mr-1"></i>
+                                        <i className="fas fa-bullhorn text-[11px]"></i>
                                         Report
                                     </Button>
                                 </PopoverTrigger>
