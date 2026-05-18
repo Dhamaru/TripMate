@@ -270,62 +270,66 @@ export const forceUpdateImage = async (req: Request, res: Response, next: NextFu
  */
 async function fetchImageForTrip(tripId: string, destination: string, skipCount: number = 0) {
     try {
-        const key = config.GOOGLE_API_KEY;
-        if (!key || !tripId) return;
-
-        const isVadodara = destination.toLowerCase().includes('vadodara');
-        const queries = isVadodara ? [
-            `Laxmi Vilas Palace Vadodara exterior grand architecture`,
-            `Laxmi Vilas Palace Baroda Gujarat`,
-            `Baroda Museum and Picture Gallery Vadodara heritage`,
-            `Kirti Mandir Vadodara Gujarat`,
-            `${destination} landmark famous monument architecture`
-        ] : [
-            `${destination} famous monument landmark architecture no people`,
-            `${destination} historical monument exterior architecture`,
-            `${destination} scenic viewpoint landscape nature`,
-            `${destination} city skyline travel landscape`
-        ];
+        if (!tripId) return;
 
         let imageUrl: string | null = null;
         let imageCaption: string | null = null;
 
-        // Try Google Places — use skipCount as preferred index but fall back through all results
-        outer: for (const q of queries) {
-            const res = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&key=${key}`);
-            const data = await res.json();
-            const results: any[] = data.results || [];
-            // Try from skipCount offset, wrap around to find any result with a photo
-            const indices = [...Array(results.length).keys()].sort((a, b) => {
-                if (a === skipCount) return -1;
-                if (b === skipCount) return 1;
-                return a - b;
-            });
-            for (const i of indices) {
-                const place = results[i];
-                if (place?.photos?.[0]?.photo_reference) {
-                    imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${place.photos[0].photo_reference}&key=${key}`;
-                    imageCaption = place.name || destination;
-                    break outer;
-                }
-            }
-        }
-
-        // Fallback: Wikipedia featured image
-        if (!imageUrl) {
-            try {
+        // 1. Wikipedia — article images are always the landmark itself, no people
+        try {
+            // Try exact match first, then first word (e.g. "Kedarnath" from "Kedarnath, Uttarakhand")
+            const wikiTitles = [destination, destination.split(',')[0].trim()];
+            for (const title of wikiTitles) {
                 const wikiRes = await fetch(
-                    `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(destination)}&prop=pageimages&format=json&pithumbsize=1200&origin=*`,
+                    `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=1200&origin=*`,
                     { headers: { 'User-Agent': 'TripMate/2.0.0' } }
                 );
                 const wikiData = await wikiRes.json();
                 const pages = wikiData?.query?.pages || {};
                 const page = Object.values(pages)[0] as any;
-                if (page?.thumbnail?.source) {
+                // Skip if no image or missing (-1 = not found)
+                if (page && page.pageid !== -1 && page.thumbnail?.source) {
                     imageUrl = page.thumbnail.source;
-                    imageCaption = destination;
+                    imageCaption = page.title || destination;
+                    break;
                 }
-            } catch { /* ignore */ }
+            }
+        } catch { /* ignore, try next source */ }
+
+        // 2. Google Places — search specifically for tourist attractions (no generic city queries)
+        const key = config.GOOGLE_API_KEY;
+        if (!imageUrl && key) {
+            const queries = [
+                `${destination} tourist attraction landmark`,
+                `${destination} temple fort palace heritage site`,
+                `${destination} national park scenic viewpoint`,
+                `${destination} famous monument`,
+            ];
+
+            outer: for (const q of queries) {
+                const res = await fetch(
+                    `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&type=tourist_attraction&key=${key}`
+                );
+                const data = await res.json();
+                const results: any[] = data.results || [];
+                // Try skipCount offset first, then all others
+                const indices = [...Array(results.length).keys()].sort((a, b) => {
+                    if (a === skipCount) return -1;
+                    if (b === skipCount) return 1;
+                    return a - b;
+                });
+                for (const i of indices) {
+                    const place = results[i];
+                    // Try multiple photo_references per place for variety
+                    const photos: any[] = place?.photos || [];
+                    const photoRef = photos[skipCount % Math.max(photos.length, 1)]?.photo_reference || photos[0]?.photo_reference;
+                    if (photoRef) {
+                        imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1200&photo_reference=${photoRef}&key=${key}`;
+                        imageCaption = place.name || destination;
+                        break outer;
+                    }
+                }
+            }
         }
 
         if (imageUrl) {
