@@ -5,7 +5,7 @@ import { useAgentStore } from '../../store'
 
 export function ChatInput() {
     const [text, setText] = useState('')
-    const { isLoading, sendMessage } = useAgentStore()
+    const { isLoading, streamMessage } = useAgentStore()
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const MAX_CHARS = 2000
     const COUNTER_THRESHOLD = 1800
@@ -21,7 +21,7 @@ export function ChatInput() {
         const trimmed = text.trim()
         if (!trimmed || isLoading) return
         setText('')
-        await sendMessage(trimmed)
+        await streamMessage(trimmed)
     }
 
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {

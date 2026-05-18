@@ -236,7 +236,7 @@ export class AiUtilitiesService {
     }
   }
 
-  async weather(city: string): Promise<{ current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback' }> {
+  async weather(city: string): Promise<{ current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback-route' | 'fallback' }> {
     const c = sanitize(city, 128);
     const key = `weather:${c}`;
     const cached = this.getCached<{ current: any; forecast: any[]; recommendations: any[] }>(key);
@@ -325,7 +325,7 @@ export class AiUtilitiesService {
         if (current.temperature >= 30) recommendations.push('Stay hydrated');
         if (current.condition.includes('Rain')) recommendations.push('Carry a raincoat');
         recommendations.push('Use sunscreen during midday');
-        const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback' } = { current, forecast, recommendations, source: 'openweather' };
+        const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback-route' | 'fallback' } = { current, forecast, recommendations, source: 'openweather' };
         return this.setCached(key, result);
       }
       if (!this.openai) throw new Error('ai_disabled');
@@ -344,7 +344,7 @@ export class AiUtilitiesService {
       const current = json.current || {};
       const forecast = Array.isArray(json.forecast) ? json.forecast.slice(0, 7) : [];
       const recommendations = Array.isArray(json.recommendations) ? json.recommendations : [];
-      const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback' } = { current, forecast, recommendations, source: 'ai' };
+      const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback-route' | 'fallback' } = { current, forecast, recommendations, source: 'ai' };
       return this.setCached(key, result);
     } catch {
       // Try Open-Meteo (free, no API key) via Nominatim geocoding

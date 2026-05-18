@@ -17,6 +17,8 @@ import { errorHandler } from './middleware/errorHandler.middleware';
 import { generalLimiter } from './middleware/rateLimit.middleware';
 import { csrfMiddleware } from './middleware/csrf.middleware';
 import { initSkills } from './agent/skillsLoader';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
 
 // Routes
 import authRoutes from "./routes/auth.routes";
@@ -61,6 +63,13 @@ app.use("/api/v1", generalLimiter);
 
 // 2. Serve uploads as static files
 app.use("/uploads", express.static(path.join(import.meta.dirname, "uploads")));
+
+// Swagger UI — available at /api/docs
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'TripMate API Docs',
+    swaggerOptions: { persistAuthorization: true },
+}));
+app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // 2. Auth Setup (Non-blocking call)
 setupAuth(app).catch(err => console.error("[Server] Auth Setup Error:", err));
