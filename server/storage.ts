@@ -83,6 +83,8 @@ export class DatabaseStorage implements IStorage {
         lastName: userData.lastName,
         profileImageUrl: userData.profileImageUrl,
         phoneNumber: userData.phoneNumber,
+        ...(userData.googleConnected !== undefined && { googleConnected: userData.googleConnected }),
+        ...(userData.googleId !== undefined && { googleId: userData.googleId }),
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     ).exec();

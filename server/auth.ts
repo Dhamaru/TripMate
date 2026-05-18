@@ -96,11 +96,15 @@ export async function setupAuth(app: Express) {
             firstName: profile.name?.givenName,
             lastName: profile.name?.familyName,
             profileImageUrl: profile.photos?.[0]?.value,
+            googleConnected: true,
+            googleId: profile.id,
           });
-        } else if (!user.profileImageUrl && profile.photos?.[0]?.value) {
-          // If user exists but has no profile picture, update it from Google
-          // This ensures we don't overwrite a user-chosen photo, but populate it if missing
-          const updated = await storage.updateUser(user.id, { profileImageUrl: profile.photos[0].value });
+        } else {
+          const updates: Record<string, any> = { googleConnected: true, googleId: profile.id };
+          if (!user.profileImageUrl && profile.photos?.[0]?.value) {
+            updates.profileImageUrl = profile.photos[0].value;
+          }
+          const updated = await storage.updateUser(user.id, updates);
           if (updated) user = updated;
         }
         return done(null, user as any);
