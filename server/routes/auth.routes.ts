@@ -55,8 +55,10 @@ router.get("/providers", (_req, res) => {
 });
 
 router.get("/google", (req, res, next) => {
-  console.log("[OAuth] GET /google hit - CLIENT_ID set:", !!appConfig.GOOGLE_CLIENT_ID);
-  res.send(`[DEBUG] Route reached. GOOGLE_CLIENT_ID set: ${!!appConfig.GOOGLE_CLIENT_ID}`);
+  if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
+    return res.redirect("/signin?error=google_not_configured");
+  }
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
 router.get(
   "/google/callback",
