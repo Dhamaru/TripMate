@@ -67,7 +67,10 @@ export async function runAgentLoop(
     deps: ExecutorDeps
 ): Promise<AgentResponse> {
     const apiKey = config.NVIDIA_API_KEY;
-    if (!apiKey) throw new Error("NVIDIA_API_KEY env var not configured. Add it to Render environment variables.");
+    if (!apiKey) {
+        console.warn("[Agent] NVIDIA_API_KEY not set in env vars. Add it to Render environment variables.");
+        throw new Error("AI service not configured. Please contact support.");
+    }
     const openai = new OpenAI({
         apiKey,
         baseURL: 'https://integrate.api.nvidia.com/v1'
