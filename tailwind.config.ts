@@ -85,8 +85,8 @@ export default {
       // ─── Typography ───────────────────────────────────────────────
       fontFamily: {
         sans: ["DM Sans", "var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "system-ui", "Helvetica Neue", "sans-serif"],
-        display: ["Space Grotesk", "DM Sans", "system-ui", "sans-serif"],
-        serif: ["var(--font-serif)"],
+        display: ["Playfair Display", "Georgia", "serif"],
+        serif: ["Playfair Display", "Georgia", "serif"],
         mono: ["var(--font-mono)"],
       },
 

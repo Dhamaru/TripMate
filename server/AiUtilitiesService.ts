@@ -1935,16 +1935,17 @@ Additional info:
 - Currency: ${currency}
 
 Rules:
-1. Extract each day as a separate itinerary entry.
+1. Extract each day as a separate itinerary entry. Lines like "27th ...", "28th ...", "1st June ...", "Day 3 ...", "May 31 ..." each represent one day.
 2. For travel legs (flights, car drives, trains, treks), use type "travel" and include "from" and "to" fields.
-3. For darshans/temple visits use type "sightseeing".
+3. For darshans/temple visits/sightseeing use type "sightseeing".
 4. For stays/hotels use type "hotel".
 5. Assign realistic times (flights in morning/evening, drives after breakfast, etc.).
 6. Set a descriptive "theme" for each day (e.g., "Travel to Haridwar", "Badrinath Darshan").
 7. Generate unique IDs for each activity using format "act-{dayNum}-{idx}".
-8. If startDate is given, calculate the "date" for each day (YYYY-MM-DD format).
+8. If startDate is given, calculate the "date" for each day (YYYY-MM-DD format). If ordinal dates like "27th" are in the text, use the month/year from startDate to build the full date.
 9. Identify the primary multi-city destination as a descriptive string (e.g., "Chardham Yatra - Uttarakhand & UP").
 10. Assign duration_minutes: travel legs 120-480, sightseeing 60-120, hotel 0.
+11. CRITICAL: Always return valid JSON. Never return empty itinerary — extract at minimum one day per line of the schedule.
 
 Return ONLY valid JSON, no markdown, no explanation:
 {
@@ -1991,16 +1992,18 @@ Return ONLY valid JSON, no markdown, no explanation:
       }
     }
 
-    // Strip markdown fences if present
-    raw = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    const parsed = this.parseJson(raw);
 
-    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.itinerary) || parsed.itinerary.length === 0) {
+      throw new Error('AI could not extract a valid itinerary from the schedule text');
+    }
 
-    // Ensure each activity has an id
-    for (const day of parsed.itinerary || []) {
-      for (let i = 0; i < (day.activities || []).length; i++) {
+    // Ensure each activity has an id and duration
+    for (const day of parsed.itinerary) {
+      if (!Array.isArray(day.activities)) day.activities = [];
+      for (let i = 0; i < day.activities.length; i++) {
         if (!day.activities[i].id) {
-          day.activities[i].id = `act-${day.day}-${i}`;
+          day.activities[i].id = `act-${day.day ?? i + 1}-${i}`;
         }
         if (!day.activities[i].duration_minutes) {
           day.activities[i].duration_minutes = 60;

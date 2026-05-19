@@ -5,138 +5,181 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────
-   TripMate Design System — Airbnb-inspired
-   Source: getdesign.md/airbnb · Adapted 2026-05-02
+   TripMate — Night Atlas Design System
+   Warm dark editorial — Playfair Display + DM Sans
    ───────────────────────────────────────────────────────── */
 
 :root {
-  /* ── TripMate/Stitch Design Tokens ────────────────── */
-  --solar-amber: #F59E0B;
-  --explorer-blue: #1E3A8A;
+  /* ── Brand constants ───────────────────────────────── */
+  --amber:        #E8900A;
+  --amber-dim:    rgba(232, 144, 10, 0.12);
+  --amber-glow:   rgba(232, 144, 10, 0.22);
+  --forest:       #3D7A5A;
+  --cream:        #EDE6D6;
+  --ink:          #0C0A08;
+
+  /* ── Radius ─────────────────────────────────────────── */
+  --radius:       0.75rem;
+  --radius-xs:    4px;
+  --radius-sm:    8px;
+  --radius-md:    14px;
+  --radius-lg:    20px;
+  --radius-xl:    12px;
+  --radius-3xl:   24px;
+  --radius-full:  9999px;
+
+  /* ── Shadows ─────────────────────────────────────────── */
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --shadow-hover: 0 0 0 1px var(--amber-dim), 0 4px 24px rgba(0,0,0,0.35);
+
+  /* ── Dark (default) tokens ───────────────────────────── */
+  --background:       24 10% 5%;       /* #0C0A08 warm ink-black  */
+  --foreground:       38 25% 88%;      /* #EDE6D6 warm cream      */
+
+  --card:             24 8% 8%;        /* #141210 elevated surface */
+  --card-foreground:  38 25% 88%;
+
+  --popover:          24 8% 10%;
+  --popover-foreground: 38 25% 88%;
+
+  --primary:          36 90% 48%;      /* #E6890A rich amber      */
+  --primary-foreground: 0 0% 98%;
+
+  --secondary:        24 8% 14%;
+  --secondary-foreground: 38 20% 80%;
+
+  --muted:            24 8% 12%;       /* #1E1B18 muted surface   */
+  --muted-foreground: 35 10% 52%;      /* #857E74 warm mid-gray   */
+
+  --accent:           24 8% 14%;
+  --accent-foreground: 38 20% 80%;
+
+  --destructive:      0 72% 45%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border:           30 8% 16%;       /* subtle warm border      */
+  --input:            30 8% 14%;
+  --ring:             36 90% 48%;
+
+  /* ── Sidebar ─────────────────────────────────────────── */
+  --sidebar:                  24 10% 6%;
+  --sidebar-foreground:       38 25% 88%;
+  --sidebar-primary:          36 90% 48%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent:           24 8% 12%;
+  --sidebar-accent-foreground: 38 20% 80%;
+  --sidebar-border:           30 8% 14%;
+  --sidebar-ring:             36 90% 48%;
+
+  /* ── Legacy bridge (used by older components) ─────────── */
+  --airbnb-ink:     hsl(var(--foreground));
+  --airbnb-primary: var(--amber);
+  --airbnb-primary-active: #C97908;
+  --airbnb-canvas:  hsl(var(--card));
+  --airbnb-surface: hsl(var(--muted));
+  --airbnb-muted:   hsl(var(--muted-foreground));
+  --airbnb-hairline: hsl(var(--border));
+  --airbnb-hairline-soft: hsl(var(--border));
+  --airbnb-body:    hsl(var(--foreground));
+  --airbnb-teal:    var(--forest);
+  --solar-amber:    var(--amber);
+  --explorer-blue:  #1E3A8A;
   --emerald-horizon: #10B981;
-  --ink-gray: #111827;
-  --alabaster-white: #FFFFFF;
+  --ios-blue:       #1E3A8A;
+  --ios-orange:     var(--amber);
+  --ios-green:      #10B981;
+  --ios-red:        #EF4444;
+  --ios-gray:       #94A3B8;
+  --ios-dark:       #1E293B;
+  --ios-darker:     #0F172A;
+  --ios-card:       rgba(20, 18, 16, 0.92);
+}
 
-  /* ── Airbnb-compat bridge (maps to DESIGN.md tokens) ── */
-  --airbnb-ink: #111827;
-  --airbnb-primary: #F59E0B;
-  --airbnb-primary-active: #D97706;
-  --airbnb-primary-disabled: #FCD34D;
-  --airbnb-canvas: #FFFFFF;
-  --airbnb-surface: #F9FAFB;
-  --airbnb-body: #374151;
-  --airbnb-muted: #9CA3AF;
-  --airbnb-hairline: #E5E7EB;
-  --airbnb-hairline-soft: #F3F4F6;
-  --airbnb-teal: #10B981;
-  --nav-height: 64px;
-  --sidebar-width: 260px;
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
-  --shadow-card-hover: rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px 0, rgba(0,0,0,0.1) 0 4px 8px 0;
-  --shadow-search: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+/* ── Light mode overrides ──────────────────────────────── */
+.light {
+  --background:       0 0% 98%;
+  --foreground:       222 47% 11%;
 
-  /* ── Radius Scale (Stitch) ─────────────────────────── */
-  --radius-xs: 4px;
-  --radius-sm: 8px;    
-  --radius-md: 14px;   
-  --radius-lg: 20px;
-  --radius-xl: 12px;   /* buttons per design spec */
-  --radius-3xl: 24px;  /* cards per design spec */
-  --radius-full: 9999px;
-  --radius: 0.75rem;   /* default radius-xl */
+  --card:             0 0% 100%;
+  --card-foreground:  222 47% 11%;
 
-  /* ── Shadcn/Radix (Light Mode) ────────────────────── */
-  --background: 0 0% 100%;           /* Alabaster White */
-  --foreground: 222.2 84% 4.9%;      /* Ink Gray */
+  --popover:          0 0% 100%;
+  --popover-foreground: 222 47% 11%;
 
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-
-  --primary: 38 92% 50%;             /* Solar Amber #F59E0B */
+  --primary:          38 92% 50%;
   --primary-foreground: 210 40% 98%;
 
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
+  --secondary:        210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
 
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
+  --muted:            210 40% 96%;
+  --muted-foreground: 215 16% 47%;
 
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+  --accent:           210 40% 96%;
+  --accent-foreground: 222 47% 11%;
 
-  --destructive: 0 84.2% 60.2%;
+  --destructive:      0 84% 60%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 38 92% 50%;
+  --border:           214 32% 91%;
+  --input:            214 32% 91%;
+  --ring:             38 92% 50%;
 
-  /* ── Sidebar ─────────────────────────────────────── */
-  --sidebar: 210 40% 98%;
-  --sidebar-foreground: 222.2 84% 4.9%;
-  --sidebar-primary: 38 92% 50%;
+  --sidebar:                  210 40% 98%;
+  --sidebar-foreground:       222 47% 11%;
+  --sidebar-primary:          38 92% 50%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 210 40% 96.1%;
-  --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-  --sidebar-border: 214.3 31.8% 91.4%;
-  --sidebar-ring: 38 92% 50%;
+  --sidebar-accent:           210 40% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border:           214 32% 91%;
+  --sidebar-ring:             38 92% 50%;
 
-  /* ── iOS Bridge ──────────────────────────────────── */
-  --ios-blue: #1E3A8A; /* Explorer Blue */
-  --ios-orange: #F59E0B; /* Solar Amber */
-  --ios-green: #10B981;
-  --ios-red: #EF4444;
-  --ios-gray: #94A3B8;
-  --ios-dark: #1E293B;
-  --ios-darker: #0F172A;
-  --ios-card: rgba(255, 255, 255, 0.8);
+  --airbnb-ink:     #111827;
+  --airbnb-canvas:  #ffffff;
+  --airbnb-surface: #F9FAFB;
+  --ios-card:       rgba(255, 255, 255, 0.85);
 }
 
+/* keep old .dark class working for existing toggle */
 .dark {
-  --background: 222.2 84% 4.9%;      /* Deep Midnight Navy #0F172A */
-  --foreground: 210 40% 98%;         /* Alabaster #F1F5F9 */
-
-  --card: 217 33% 10%;               /* Elevated card #101e35 */
-  --card-foreground: 210 40% 98%;
-
-  --popover: 217 33% 10%;
-  --popover-foreground: 210 40% 98%;
-
-  --primary: 38 92% 50%;             /* Solar Amber */
-  --primary-foreground: 222.2 47.4% 11.2%;
-
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 217.2 32.6% 20%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 38 92% 50%;
-
-  --sidebar: 217 33% 8%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 38 92% 50%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217.2 32.6% 17.5%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 217.2 32.6% 20%;
-  --sidebar-ring: 38 92% 50%;
-
-  --ios-card: rgba(16, 30, 53, 0.9);
+  --background:       24 10% 5%;
+  --foreground:       38 25% 88%;
+  --card:             24 8% 8%;
+  --card-foreground:  38 25% 88%;
+  --popover:          24 8% 10%;
+  --popover-foreground: 38 25% 88%;
+  --primary:          36 90% 48%;
+  --primary-foreground: 0 0% 98%;
+  --secondary:        24 8% 14%;
+  --secondary-foreground: 38 20% 80%;
+  --muted:            24 8% 12%;
+  --muted-foreground: 35 10% 52%;
+  --accent:           24 8% 14%;
+  --accent-foreground: 38 20% 80%;
+  --destructive:      0 72% 45%;
+  --destructive-foreground: 0 0% 98%;
+  --border:           30 8% 16%;
+  --input:            30 8% 14%;
+  --ring:             36 90% 48%;
+  --sidebar:                  24 10% 6%;
+  --sidebar-foreground:       38 25% 88%;
+  --sidebar-primary:          36 90% 48%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent:           24 8% 12%;
+  --sidebar-accent-foreground: 38 20% 80%;
+  --sidebar-border:           30 8% 14%;
+  --sidebar-ring:             36 90% 48%;
+  --airbnb-ink:     hsl(38, 25%, 88%);
+  --airbnb-canvas:  hsl(24, 8%, 8%);
+  --airbnb-surface: hsl(24, 8%, 12%);
+  --airbnb-muted:   hsl(35, 10%, 52%);
+  --airbnb-hairline: hsl(30, 8%, 16%);
+  --airbnb-hairline-soft: hsl(30, 8%, 16%);
+  --airbnb-body:    hsl(38, 25%, 88%);
+  --ios-card:       rgba(20, 18, 16, 0.92);
 }
 
-/* ── Base Styles ──────────────────────────────────── */
+/* ── Base Styles ──────────────────────────────────────── */
 
 @layer base {
   * {
@@ -156,21 +199,23 @@
     font-family: "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
     font-size: 16px;
     font-weight: 400;
-    line-height: 1.5;
+    line-height: 1.55;
     margin: 0;
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%231E3A8A'/><stop offset='100%25' stop-color='%23F59E0B'/></linearGradient></defs><path fill='url(%23g)' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
+    /* film-grain texture overlay */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23E8900A' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
   }
 
-  a, button, [role='button'], input[type='submit'], input[type='button'], select, label[for] {
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%231E3A8A'/><stop offset='100%25' stop-color='%23F59E0B'/></linearGradient></defs><path fill='url(%23g)' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
+  a, button, [role='button'], input[type='submit'], input[type='button'], select {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23E8900A' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif;
-    color: var(--airbnb-ink);
+    font-family: "Playfair Display", Georgia, serif;
+    color: hsl(var(--foreground));
     font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    line-height: 1.18;
+    letter-spacing: -0.01em;
   }
 
   a {
@@ -184,319 +229,130 @@
   }
 }
 
-/* ── Modern Atlas Design Utilities ────────────────── */
+/* ── Design Utilities ─────────────────────────────────── */
 
 @layer utilities {
   /* Gradient text — amber fire */
   .text-gradient {
-    background: linear-gradient(135deg, #F59E0B 0%, #F97316 60%, #EF4444 100%);
+    background: linear-gradient(135deg, #E8900A 0%, #F5A623 50%, #E8900A 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  /* Gradient text — explorer blue */
+  /* Gradient text — cool teal */
   .text-gradient-blue {
-    background: linear-gradient(135deg, #60A5FA 0%, #818CF8 100%);
+    background: linear-gradient(135deg, #3D7A5A 0%, #5BA882 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  /* Display font utility */
+  /* Serif display utility */
   .font-display {
-    font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    font-family: "Playfair Display", Georgia, serif;
+    letter-spacing: -0.01em;
   }
-  /* Staggered animation helpers */
+  /* Sans utility */
+  .font-sans-clean {
+    font-family: "DM Sans", system-ui, sans-serif;
+    letter-spacing: 0;
+  }
+  /* Staggered fade-up animations */
   .animate-fade-up {
-    animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
-  .animate-fade-up-delay-1 { animation-delay: 0.1s; }
-  .animate-fade-up-delay-2 { animation-delay: 0.2s; }
-  .animate-fade-up-delay-3 { animation-delay: 0.3s; }
-  .animate-fade-up-delay-4 { animation-delay: 0.4s; }
-  /* Glow accent */
+  .animate-fade-up-delay-1 { animation-delay: 0.08s; }
+  .animate-fade-up-delay-2 { animation-delay: 0.16s; }
+  .animate-fade-up-delay-3 { animation-delay: 0.24s; }
+  .animate-fade-up-delay-4 { animation-delay: 0.32s; }
+
+  /* Amber glow */
   .glow-amber {
-    box-shadow: 0 0 24px rgba(245, 158, 11, 0.25), 0 0 48px rgba(245, 158, 11, 0.1);
+    box-shadow: 0 0 20px var(--amber-glow), 0 0 48px rgba(232,144,10,0.08);
   }
-  /* Frosted glass card */
+  /* Frosted glass */
   .glass-card {
-    background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  /* Card hover glow */
+  .card-hover-glow {
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-hover-glow:hover {
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(232, 144, 10, 0.25) !important;
+  }
+  /* Amber left border active indicator */
+  .nav-active-bar {
+    position: relative;
+  }
+  .nav-active-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 2px;
+    background: var(--amber);
+    border-radius: 0 2px 2px 0;
+  }
+  /* Uppercase label */
+  .label-xs {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: "DM Sans", system-ui, sans-serif;
+  }
+  /* Big italic serif number/stat */
+  .stat-display {
+    font-family: "Playfair Display", Georgia, serif;
+    font-style: italic;
+    font-weight: 800;
   }
 }
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Airbnb Component Utilities ───────────────────── */
+/* ── Scrollbar ────────────────────────────────────────── */
 
-@layer components {
-  /* Buttons */
-  .btn-primary {
-    background-color: var(--airbnb-primary);
-    color: #fff;
-    border-radius: var(--radius-sm);
-    padding: 14px 24px;
-    height: 48px;
-    font-size: 16px;
-    font-weight: 500;
-    line-height: 1.25;
-    border: none;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: background-color 0.15s ease, transform 0.1s ease;
-  }
-  .btn-primary:hover { background-color: var(--airbnb-primary-active); }
-  .btn-primary:active { transform: scale(0.98); }
-  .btn-primary:disabled { background-color: var(--airbnb-primary-disabled); cursor: not-allowed; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 
-  .btn-secondary {
-    background-color: var(--airbnb-canvas);
-    color: var(--airbnb-ink);
-    border-radius: var(--radius-sm);
-    padding: 13px 23px;
-    height: 48px;
-    font-size: 16px;
-    font-weight: 500;
-    border: 1px solid var(--airbnb-ink);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: background-color 0.15s ease;
-  }
-  .btn-secondary:hover { background-color: var(--airbnb-surface); }
-
-  .btn-ghost {
-    background-color: transparent;
-    color: var(--airbnb-ink);
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 10px 16px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-  }
-  .btn-ghost:hover { background-color: var(--airbnb-surface); }
-
-  .btn-pill {
-    background-color: var(--airbnb-primary);
-    color: #fff;
-    border-radius: var(--radius-full);
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-  }
-  .btn-pill:hover { background-color: var(--airbnb-primary-active); }
-
-  /* Cards */
-  .card-trip {
-    background-color: var(--airbnb-canvas);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-card);
-    overflow: hidden;
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
-  }
-  .card-trip:hover {
-    box-shadow: var(--shadow-card-hover);
-    transform: translateY(-2px);
-  }
-
-  /* Search bar (pill shape) */
-  .search-bar {
-    background-color: var(--airbnb-canvas);
-    border: 1px solid var(--airbnb-hairline);
-    border-radius: var(--radius-full);
-    box-shadow: var(--shadow-search);
-    height: 64px;
-    padding: 0 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    width: 100%;
-  }
-
-  /* Search orb (Rausch pill CTA) */
-  .search-orb {
-    background-color: var(--airbnb-primary);
-    color: #fff;
-    border-radius: var(--radius-full);
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: background-color 0.15s ease;
-  }
-  .search-orb:hover { background-color: var(--airbnb-primary-active); }
-
-  /* Badges */
-  .badge-pill {
-    display: inline-flex;
-    align-items: center;
-    border-radius: var(--radius-full);
-    padding: 4px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.18;
-    background-color: var(--airbnb-canvas);
-    color: var(--airbnb-ink);
-    border: 1px solid var(--airbnb-hairline);
-  }
-
-  .badge-pill-primary {
-    background-color: var(--airbnb-primary);
-    color: #fff;
-    border-color: var(--airbnb-primary);
-  }
-
-  .badge-pill-teal {
-    background-color: var(--airbnb-teal);
-    color: #fff;
-    border-color: var(--airbnb-teal);
-  }
-
-  /* Navigation */
-  .top-nav {
-    background-color: var(--airbnb-canvas);
-    border-bottom: 1px solid var(--airbnb-hairline-soft);
-    height: var(--nav-height);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    padding: 0 24px;
-  }
-
-  /* Sidebar */
-  .app-sidebar {
-    background-color: var(--airbnb-surface);
-    border-right: 1px solid var(--airbnb-hairline-soft);
-    width: var(--sidebar-width);
-    height: 100vh;
-    position: fixed;
-    left: 0;
-    top: 0;
-    overflow-y: auto;
-  }
-
-  /* Inputs */
-  .input-airbnb {
-    background-color: var(--airbnb-canvas);
-    border: 1px solid var(--airbnb-hairline);
-    border-radius: var(--radius-sm);
-    height: 56px;
-    padding: 14px 12px;
-    font-size: 16px;
-    font-weight: 400;
-    color: var(--airbnb-ink);
-    width: 100%;
-    transition: border-color 0.15s ease;
-    outline: none;
-  }
-  .input-airbnb:focus {
-    border-color: var(--airbnb-ink);
-    border-width: 2px;
-  }
-  .input-airbnb::placeholder {
-    color: var(--airbnb-muted);
-  }
-
-  /* Card image photo-first */
-  .card-photo {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-    aspect-ratio: 4/3;
-  }
-  .card-photo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-  }
-  .card-trip:hover .card-photo img {
-    transform: scale(1.03);
-  }
-  .card-photo-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 55%);
-    pointer-events: none;
-  }
-
-  /* Avatar */
-  .avatar {
-    border-radius: var(--radius-full);
-    border: 2px solid var(--airbnb-canvas);
-    overflow: hidden;
-    object-fit: cover;
-  }
-
-  /* Section spacing */
-  .section-gap {
-    padding-top: 64px;
-    padding-bottom: 64px;
-  }
-
-  /* Grid layouts */
-  .card-grid {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-
-  @media (min-width: 768px) {
-    .card-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (min-width: 1024px) {
-    .card-grid { grid-template-columns: repeat(3, 1fr); }
-  }
-  @media (min-width: 1280px) {
-    .card-grid { grid-template-columns: repeat(4, 1fr); }
-  }
-}
-
-/* ── Utility Overrides ────────────────────────────── */
-
-@layer utilities {
-  .text-ink { color: var(--airbnb-ink); }
-  .text-body { color: var(--airbnb-body); }
-  .text-muted-airbnb { color: var(--airbnb-muted); }
-  .text-rausch { color: var(--airbnb-primary); }
-
-  .bg-canvas { background-color: var(--airbnb-canvas); }
-  .bg-surface { background-color: var(--airbnb-surface); }
-  .bg-rausch { background-color: var(--airbnb-primary); }
-
-  .border-airbnb { border-color: var(--airbnb-hairline); }
-  .border-airbnb-soft { border-color: var(--airbnb-hairline-soft); }
-
-  .shadow-card { box-shadow: var(--shadow-card); }
-  .shadow-card-hover { box-shadow: var(--shadow-card-hover); }
-  .shadow-search { box-shadow: var(--shadow-search); }
-}
-
-/* ── Scrollbar ────────────────────────────────────── */
-
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--airbnb-surface); }
-::-webkit-scrollbar-thumb { background: var(--airbnb-hairline); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--airbnb-muted); }
-
-/* ── Root ─────────────────────────────────────────── */
+/* ── Root ─────────────────────────────────────────────── */
 
 #root { min-height: 100vh; }
+
+/* ── Component tweaks ─────────────────────────────────── */
+
+@layer components {
+  /* Quick-action icon containers — dark mode friendly tints */
+  .icon-tint-amber  { background: rgba(232,144,10,0.12); color: #E8900A; }
+  .icon-tint-blue   { background: rgba(96,165,250,0.10); color: #60A5FA; }
+  .icon-tint-green  { background: rgba(52,211,153,0.10); color: #34D399; }
+  .icon-tint-purple { background: rgba(167,139,250,0.10); color: #A78BFA; }
+  .icon-tint-orange { background: rgba(251,146,60,0.10);  color: #FB923C; }
+  .icon-tint-red    { background: rgba(248,113,113,0.10); color: #F87171; }
+
+  /* Status badge base */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .status-planning  { background: rgba(232,144,10,0.12); color: #E8900A;  border: 1px solid rgba(232,144,10,0.2); }
+  .status-active    { background: rgba(96,165,250,0.10); color: #60A5FA;  border: 1px solid rgba(96,165,250,0.2); }
+  .status-completed { background: rgba(52,211,153,0.10); color: #34D399;  border: 1px solid rgba(52,211,153,0.2); }
+}

@@ -38,46 +38,66 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Sidebar ─────────────────────────────────── */}
       <aside
         className={cn(
-          "hidden md:flex flex-col bg-card border-r border transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
-          collapsed ? "w-16" : "w-64"
+          "hidden md:flex flex-col bg-[hsl(var(--sidebar))] border-r border-[hsl(var(--sidebar-border))] transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
+          collapsed ? "w-[60px]" : "w-[240px]"
         )}
       >
-        {/* Logo */}
+        {/* Logo bar */}
         <div className={cn(
-          "h-16 flex items-center border-b border transition-all duration-300 flex-shrink-0",
+          "h-16 flex items-center border-b border-[hsl(var(--sidebar-border))] flex-shrink-0 transition-all duration-300",
           collapsed ? "justify-center px-0" : "px-5"
         )}>
-          <TripMateLogo size="sm" showText={!collapsed} />
+          {collapsed ? (
+            <div className="w-7 h-7 rounded-lg bg-[var(--amber)] flex items-center justify-center flex-shrink-0">
+              <span className="text-black text-[11px] font-bold font-display">T</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[var(--amber)] flex items-center justify-center flex-shrink-0">
+                <span className="text-black text-[11px] font-bold">T</span>
+              </div>
+              <div>
+                <div className="font-display text-[15px] font-bold text-[hsl(var(--sidebar-foreground))] leading-none tracking-tight">
+                  TripMate
+                </div>
+                <div className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.12em] mt-0.5 font-sans-clean">
+                  AI Companion
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Nav items */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {/* Nav */}
+        <nav className="flex-1 px-2 py-5 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
             const isActive = location === item.href || location.startsWith(item.href + "/");
             return (
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(
-                    "flex items-center gap-3 rounded-xl h-11 cursor-pointer relative group transition-all duration-150",
+                    "flex items-center gap-3 h-10 cursor-pointer relative group transition-all duration-150 rounded-lg",
                     collapsed ? "px-0 justify-center" : "px-3",
                     isActive
-                      ? "bg-[#F59E0B]/10 text-[#F59E0B] font-semibold"
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                      ? "text-[var(--amber)] bg-[var(--amber-dim)]"
+                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
                   )}
                   title={collapsed ? item.label : undefined}
                 >
+                  {isActive && !collapsed && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[var(--amber)] rounded-r-full" />
+                  )}
                   <item.icon className={cn(
-                    "h-5 w-5 flex-shrink-0 transition-transform duration-200",
-                    isActive ? "text-amber-500" : "group-hover:scale-105"
+                    "h-[18px] w-[18px] flex-shrink-0 transition-all duration-150",
+                    isActive ? "text-[var(--amber)]" : "group-hover:scale-110"
                   )} />
                   {!collapsed && (
-                    <span className="text-sm whitespace-nowrap">{item.label}</span>
-                  )}
-                  {isActive && !collapsed && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    <span className="text-[13px] font-medium tracking-wide whitespace-nowrap font-sans-clean">
+                      {item.label}
+                    </span>
                   )}
                   {collapsed && (
-                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-card border border-border rounded-lg text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg text-[11px] text-[hsl(var(--foreground))] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
                       {item.label}
                     </div>
                   )}
@@ -87,25 +107,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Profile + collapse */}
-        <div className="border-t border p-3 space-y-1 flex-shrink-0">
+        {/* Bottom: profile + collapse */}
+        <div className="border-t border-[hsl(var(--sidebar-border))] p-2 space-y-1 flex-shrink-0">
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className={cn(
+              "w-full flex items-center gap-2.5 rounded-lg h-9 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-all",
+              collapsed ? "px-0 justify-center" : "px-3"
+            )}
+            title="Toggle theme"
+          >
+            {theme === "dark"
+              ? <Sun className="h-[16px] w-[16px] text-[var(--amber)] flex-shrink-0" />
+              : <Moon className="h-[16px] w-[16px] flex-shrink-0" />
+            }
+            {!collapsed && (
+              <span className="text-[12px] font-sans-clean font-medium">
+                {theme === "dark" ? "Light mode" : "Dark mode"}
+              </span>
+            )}
+          </button>
+
+          {/* Profile */}
           <Link href="/app/profile">
             <div className={cn(
-              "flex items-center gap-3 rounded-xl h-11 cursor-pointer group hover:bg-muted/50 transition-colors",
+              "flex items-center gap-2.5 rounded-lg h-11 cursor-pointer group hover:bg-[hsl(var(--muted))] transition-colors",
               collapsed ? "px-0 justify-center" : "px-3"
             )}>
-              <Avatar className="h-7 w-7 rounded-full border border flex-shrink-0">
+              <Avatar className="h-7 w-7 rounded-full border border-[hsl(var(--border))] flex-shrink-0">
                 <AvatarImage src={user?.profileImageUrl} className="object-cover" />
-                <AvatarFallback className="bg-[#1E3A8A] text-white text-xs font-bold">
+                <AvatarFallback className="bg-[var(--amber)] text-black text-[11px] font-bold">
                   {user?.firstName?.[0] || "U"}
                 </AvatarFallback>
               </Avatar>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-foreground truncate">
+                  <div className="text-[12px] font-semibold text-[hsl(var(--foreground))] truncate font-sans-clean">
                     {user?.firstName} {user?.lastName}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.08em] font-sans-clean">
                     {user?.isGuest ? "Guest" : "Member"}
                   </div>
                 </div>
@@ -113,67 +154,61 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
+          {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "w-full flex items-center gap-2 rounded-xl h-9 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all",
+              "w-full flex items-center gap-2 rounded-lg h-8 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-all",
               collapsed ? "px-0 justify-center" : "px-3"
             )}
             title={collapsed ? "Expand" : "Collapse"}
           >
             {collapsed
-              ? <ChevronRight className="h-4 w-4" />
-              : <><ChevronLeft className="h-4 w-4" /><span className="text-xs">Collapse</span></>
+              ? <ChevronRight className="h-3.5 w-3.5" />
+              : <><ChevronLeft className="h-3.5 w-3.5" /><span className="text-[11px] font-sans-clean">Collapse</span></>
             }
           </button>
         </div>
       </aside>
 
-      {/* ── Main content area ────────────────────────── */}
+      {/* ── Main content ──────────────────────────────── */}
       <div className={cn(
         "flex-1 flex flex-col h-full transition-all duration-300 ease-in-out",
-        "md:ml-64",
-        collapsed && "md:ml-16"
+        "md:ml-[240px]",
+        collapsed && "md:ml-[60px]"
       )}>
 
         {/* Top bar */}
-        <header className="h-16 bg-card border-b border px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
-          <div className="md:hidden">
-            <TripMateLogo size="sm" />
+        <header className="h-14 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
+          {/* Mobile logo */}
+          <div className="md:hidden flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-[var(--amber)] flex items-center justify-center">
+              <span className="text-black text-[10px] font-bold">T</span>
+            </div>
+            <span className="font-display text-sm font-bold text-[hsl(var(--foreground))]">TripMate</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors border border"
-              title="Toggle theme"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-5 w-5 text-amber-500" />
-              ) : (
-                <Moon className="h-5 w-5 text-[#1E3A8A]" />
-              )}
-            </button>
-          </div>
+          <div className="hidden md:block" />
 
+          {/* Right: user */}
           <Link href="/app/profile">
             <div className="flex items-center gap-3 cursor-pointer group">
               <div className="hidden md:flex flex-col items-end">
-                <span className="text-sm font-semibold text-foreground group-hover:text-amber-600 transition-colors flex items-center gap-1.5">
+                <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--amber)] transition-colors flex items-center gap-1.5 font-sans-clean">
                   {user?.isGuest && (
-                    <span className="bg-[#F59E0B]/10 text-[#F59E0B] text-[10px] px-2 py-0.5 rounded-full border border-[#F59E0B]/20 font-bold">
+                    <span className="bg-[var(--amber-dim)] text-[var(--amber)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
                       GUEST
                     </span>
                   )}
                   {user?.firstName} {user?.lastName}
                 </span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
-                  {user?.isGuest ? "Trial Plan" : "Member"}
+                <span className="label-xs text-[hsl(var(--muted-foreground))]">
+                  {user?.isGuest ? "Trial" : "Member"}
                 </span>
               </div>
-              <Avatar className="h-9 w-9 rounded-full border-2 border group-hover:border-amber-400 transition-all duration-200">
+              <Avatar className="h-8 w-8 rounded-full border border-[hsl(var(--border))] group-hover:border-[var(--amber)] transition-all duration-200">
                 <AvatarImage src={user?.profileImageUrl} className="object-cover" />
-                <AvatarFallback className="bg-[#1E3A8A] text-white text-xs font-bold">
+                <AvatarFallback className="bg-[var(--amber)] text-black text-[11px] font-bold">
                   {user?.firstName?.[0] || "U"}
                 </AvatarFallback>
               </Avatar>
@@ -186,11 +221,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <AnimatePresence mode="wait">
             <motion.div
               key={location}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="px-6 py-6 max-w-6xl mx-auto w-full"
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="px-6 py-7 max-w-5xl mx-auto w-full"
             >
               {children}
             </motion.div>
@@ -198,33 +233,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-4 left-4 right-4 z-50">
-          <div className="bg-card border border rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.10)] p-1.5 flex items-center justify-around">
+        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50">
+          <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.35)] px-1 py-1.5 flex items-center justify-around">
             {NAV_ITEMS.map((item) => {
               const isActive = location === item.href || location.startsWith(item.href + "/");
               return (
                 <Link key={item.href} href={item.href} className="flex-1">
                   <div className={cn(
-                    "flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all duration-150",
+                    "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all duration-150",
                     isActive
-                      ? "text-amber-600 bg-amber-50"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "text-[var(--amber)]"
+                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
                   )}>
-                    <item.icon className="h-5 w-5" />
-                    <span className="text-[9px] font-bold uppercase tracking-wider">{item.label}</span>
+                    <item.icon className={cn("h-[18px] w-[18px]", isActive && "drop-shadow-[0_0_6px_rgba(232,144,10,0.6)]")} />
+                    <span className="label-xs">{item.label}</span>
                   </div>
                 </Link>
               );
             })}
             <Link href="/app/profile" className="flex-1">
-              <div className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-muted-foreground hover:text-foreground transition-all">
-                <Avatar className="h-5 w-5 rounded-full border border">
+              <div className="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-all">
+                <Avatar className="h-[18px] w-[18px] rounded-full border border-[hsl(var(--border))]">
                   <AvatarImage src={user?.profileImageUrl} />
-                  <AvatarFallback className="bg-[#1E3A8A] text-white text-[8px] font-bold">
+                  <AvatarFallback className="bg-[var(--amber)] text-black text-[8px] font-bold">
                     {user?.firstName?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-[9px] font-bold uppercase tracking-wider">Me</span>
+                <span className="label-xs">Me</span>
               </div>
             </Link>
           </div>

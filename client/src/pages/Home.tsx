@@ -16,10 +16,10 @@ const STYLE_LABELS: Record<string, string> = {
 };
 
 const quickActions = [
-  { title: "Plan Trip",  icon: Plus,     href: "/app/planner", iconBg: "bg-[#FFFBEB]", iconColor: "text-[#F59E0B]" },
-  { title: "Journal",   icon: BookOpen,  href: "/app/journal", iconBg: "bg-blue-50",   iconColor: "text-blue-500" },
-  { title: "Tools",     icon: Grid,      href: "/app/tools",   iconBg: "bg-purple-50", iconColor: "text-purple-500" },
-  { title: "Maps",      icon: Map,       href: "/app/maps",    iconBg: "bg-orange-50", iconColor: "text-orange-500" },
+  { title: "Plan Trip",  icon: Plus,     href: "/app/planner", tint: "icon-tint-amber" },
+  { title: "Journal",   icon: BookOpen,  href: "/app/journal", tint: "icon-tint-blue" },
+  { title: "Tools",     icon: Grid,      href: "/app/tools",   tint: "icon-tint-purple" },
+  { title: "Maps",      icon: Map,       href: "/app/maps",    tint: "icon-tint-orange" },
 ];
 
 export default function Home() {
@@ -38,119 +38,132 @@ export default function Home() {
   }, [error, toast]);
 
   const currentTrip = trips?.length > 0 ? trips[0] : null;
-  const goalLabel = currentTrip ? (STYLE_LABELS[currentTrip.travelStyle] ?? "Explore & Discover") : "Explore & Discover";
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="space-y-8">
-      {/* Welcome */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">
-          {!trips || trips.length === 0 ? "Welcome" : "Welcome back"},{" "}
-          <span className="text-[#F59E0B]">{user?.firstName || "Explorer"}</span>
+    <div className="space-y-9">
+
+      {/* ── Welcome ──────────────────────────────────── */}
+      <div className="animate-fade-up">
+        <p className="label-xs text-[hsl(var(--muted-foreground))] mb-1">{greeting}</p>
+        <h1 className="font-display text-4xl font-bold text-[hsl(var(--foreground))] leading-tight">
+          {user?.firstName || "Explorer"}
+          {!trips || trips.length === 0
+            ? <span className="block text-[hsl(var(--muted-foreground))] text-2xl font-normal italic mt-0.5">where to next?</span>
+            : <span className="block text-[hsl(var(--muted-foreground))] text-2xl font-normal italic mt-0.5">welcome back.</span>
+          }
         </h1>
-        <p className="text-muted-foreground mt-1">Where shall we go next?</p>
       </div>
 
-      {/* Current trip hero */}
+      {/* ── Active trip hero ─────────────────────────── */}
       {!tripsLoading && currentTrip && (
         <div
-          className="bg-card rounded-3xl border border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
+          className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden cursor-pointer group card-hover-glow animate-fade-up animate-fade-up-delay-1"
           onClick={() => navigate(`/app/trips/${currentTrip.id}`)}
         >
-          <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#D97706]">
+          <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#C97908]">
             {currentTrip.imageUrl && (
               <img
                 src={currentTrip.imageUrl}
                 alt={currentTrip.destination}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
             <div className="absolute top-4 right-4">
-              <span className="bg-card/20 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full border border-white/30 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> Active Journey
+              <span className="flex items-center gap-1.5 bg-black/30 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 tracking-wide">
+                <Sparkles className="w-3 h-3 text-[var(--amber)]" /> ACTIVE
               </span>
             </div>
-            <div className="absolute bottom-4 left-5">
-              <h2 className="text-2xl font-bold text-white tracking-tight">{currentTrip.destination}</h2>
-              <p className="text-white/80 text-sm capitalize">{currentTrip.travelStyle}</p>
+            <div className="absolute bottom-5 left-5">
+              <h2 className="font-display text-3xl font-bold text-white leading-tight tracking-tight">
+                {currentTrip.destination}
+              </h2>
+              <p className="text-white/60 text-xs uppercase tracking-[0.1em] mt-1 font-sans-clean">
+                {STYLE_LABELS[currentTrip.travelStyle] ?? currentTrip.travelStyle}
+              </p>
             </div>
           </div>
 
-          <div className="p-5 flex items-center justify-between">
-            <div className="flex gap-6 text-sm">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span>{currentTrip.days} days</span>
+          <div className="bg-[hsl(var(--card))] px-5 py-3.5 flex items-center justify-between">
+            <div className="flex gap-5 text-sm">
+              <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
+                <Clock className="w-3.5 h-3.5" />
+                <span className="text-xs font-sans-clean">{currentTrip.days}d</span>
               </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Users className="w-4 h-4" />
-                <span>{currentTrip.groupSize} people</span>
+              <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
+                <Users className="w-3.5 h-3.5" />
+                <span className="text-xs font-sans-clean">{currentTrip.groupSize} pax</span>
               </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Wallet className="w-4 h-4" />
-                <span>₹{currentTrip.budget?.toLocaleString()}</span>
+              <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
+                <Wallet className="w-3.5 h-3.5" />
+                <span className="text-xs font-sans-clean">₹{currentTrip.budget?.toLocaleString()}</span>
               </div>
             </div>
-            <Button size="sm" className="bg-[#F59E0B] hover:bg-[#D97706] text-white rounded-xl gap-1">
-              View <ArrowRight className="w-3.5 h-3.5" />
-            </Button>
+            <button className="flex items-center gap-1 text-[var(--amber)] text-xs font-semibold hover:gap-2 transition-all duration-150 font-sans-clean">
+              View trip <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}
 
-      {/* Quick actions */}
-      <div>
-        <h2 className="text-xs font-bold text-[#929292] uppercase tracking-widest mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── Quick actions ─────────────────────────────── */}
+      <div className="animate-fade-up animate-fade-up-delay-2">
+        <p className="label-xs text-[hsl(var(--muted-foreground))] mb-4">Quick actions</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
-              <div className="bg-card rounded-3xl border border p-6 flex flex-col items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${action.iconBg} group-hover:scale-110 transition-transform`}>
-                  <action.icon className={`w-6 h-6 ${action.iconColor}`} />
+              <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] p-5 flex flex-col items-start gap-3 card-hover-glow cursor-pointer group">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${action.tint} group-hover:scale-110 transition-transform duration-200`}>
+                  <action.icon className="w-5 h-5" />
                 </div>
-                <span className="text-sm font-semibold text-foreground">{action.title}</span>
+                <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] font-sans-clean">{action.title}</span>
               </div>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* Recent trips */}
+      {/* ── Recent trips ─────────────────────────────── */}
       {!tripsLoading && trips && trips.length > 1 && (
-        <div>
+        <div className="animate-fade-up animate-fade-up-delay-3">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-bold text-[#929292] uppercase tracking-widest">Recent Trips</h2>
+            <p className="label-xs text-[hsl(var(--muted-foreground))]">Recent trips</p>
             <Link href="/app/trips">
-              <button className="text-xs text-[#F59E0B] font-semibold flex items-center gap-1 hover:opacity-70 transition-opacity">
+              <button className="text-[11px] text-[var(--amber)] font-semibold flex items-center gap-1 hover:opacity-70 transition-opacity font-sans-clean">
                 See all <ArrowRight className="w-3 h-3" />
               </button>
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
             {trips
               .filter((t) => !currentTrip || t.id !== currentTrip.id)
-              .slice(0, 3)
-              .map((t) => (
+              .slice(0, 4)
+              .map((t, idx) => (
                 <Link key={t.id} href={`/app/trips/${t.id}`}>
-                  <div className="bg-card rounded-xl border border p-4 flex items-center gap-3 hover:border-[#F59E0B]/30 hover:shadow-sm transition-all cursor-pointer group">
-                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#D97706] flex-shrink-0">
+                  <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] px-4 py-3 flex items-center gap-3 card-hover-glow cursor-pointer group">
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))] w-5 text-right font-display italic flex-shrink-0">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#C97908] flex-shrink-0">
                       {t.imageUrl ? (
                         <img src={t.imageUrl} alt={t.destination} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Compass className="w-5 h-5 text-white" />
+                          <Compass className="w-4 h-4 text-black" />
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate text-sm">{t.destination}</p>
-                      <p className="text-[#929292] text-xs capitalize">{t.travelStyle}</p>
+                      <p className="font-semibold text-[hsl(var(--foreground))] truncate text-sm font-sans-clean">{t.destination}</p>
+                      <p className="text-[hsl(var(--muted-foreground))] text-xs capitalize font-sans-clean">{t.travelStyle}</p>
                     </div>
-                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
-                      t.status === "completed" ? "bg-green-50 text-green-600 border-green-200" :
-                      t.status === "active" ? "bg-blue-50 text-blue-600 border-blue-200" :
-                      "bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A]"
+                    <span className={`status-badge ${
+                      t.status === "completed" ? "status-completed" :
+                      t.status === "active"    ? "status-active"    :
+                                                 "status-planning"
                     }`}>
                       {t.status}
                     </span>
@@ -161,21 +174,21 @@ export default function Home() {
         </div>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty state ───────────────────────────────── */}
       {!tripsLoading && (!trips || trips.length === 0) && (
-        <div className="bg-card rounded-3xl border border p-16 flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-[#FFFBEB] rounded-3xl flex items-center justify-center mb-5">
-            <Plus className="w-8 h-8 text-[#F59E0B]" />
+        <div className="bg-[hsl(var(--card))] rounded-2xl border border-[hsl(var(--border))] p-16 flex flex-col items-center text-center animate-fade-up animate-fade-up-delay-2">
+          <div className="w-14 h-14 icon-tint-amber rounded-2xl flex items-center justify-center mb-5">
+            <Plus className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-bold text-foreground mb-2">No Adventures Yet</h2>
-          <p className="text-muted-foreground text-sm max-w-xs mb-7">
-            Your future travels await. Let Atlas help you plan your first itinerary.
+          <h2 className="font-display text-2xl font-bold text-[hsl(var(--foreground))] mb-2">No adventures yet</h2>
+          <p className="text-[hsl(var(--muted-foreground))] text-sm max-w-xs mb-7 font-sans-clean">
+            Your first great journey is one plan away. Let Atlas craft your itinerary.
           </p>
           <Button
             onClick={() => navigate("/app/planner")}
-            className="bg-[#1E3A8A] hover:bg-blue-900 text-white px-8 h-11 rounded-xl font-semibold"
+            className="bg-[var(--amber)] hover:bg-[#C97908] text-black px-8 h-10 rounded-xl font-semibold font-sans-clean text-sm"
           >
-            Start Planning
+            Start planning
           </Button>
         </div>
       )}
