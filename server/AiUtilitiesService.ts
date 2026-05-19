@@ -272,9 +272,17 @@ export class AiUtilitiesService {
         }
 
         let forecastJson: any = { list: [] };
+        let uvIndex: number | null = null;
         if (coord) {
-          const forecastRes = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`);
+          const [forecastRes, uvRes] = await Promise.all([
+            fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`),
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coord.lat}&longitude=${coord.lon}&current=uv_index&timezone=auto`),
+          ]);
           forecastJson = await forecastRes.json();
+          if (uvRes.ok) {
+            const uvJson = await uvRes.json();
+            uvIndex = uvJson.current?.uv_index ?? null;
+          }
         }
         const iconMap: Record<string, string> = {
           Clear: 'fas fa-sun',
@@ -288,12 +296,21 @@ export class AiUtilitiesService {
           Wind: 'fas fa-wind',
         };
         const cond = currentJson.weather?.[0]?.main || 'Clear';
+        const fmtTime = (unix: number | undefined) => {
+          if (!unix) return '';
+          return new Date(unix * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        };
         const current = {
           temperature: Math.round(currentJson.main?.temp ?? 22),
           condition: cond,
           humidity: Math.round(currentJson.main?.humidity ?? 60),
           windSpeed: Math.round(currentJson.wind?.speed ?? 10),
+          wind_kph: Math.round((currentJson.wind?.speed ?? 0) * 3.6),
           icon: iconMap[cond] || 'fas fa-cloud',
+          visibility: currentJson.visibility != null ? Math.round(currentJson.visibility / 100) / 10 : null,
+          sunrise: fmtTime(currentJson.sys?.sunrise),
+          sunset: fmtTime(currentJson.sys?.sunset),
+          uv_index: uvIndex,
         };
         const byDate: Record<string, { high: number; low: number; main: string }> = {};
         const list = Array.isArray(forecastJson.list) ? forecastJson.list : [];
@@ -313,7 +330,7 @@ export class AiUtilitiesService {
         const forecast: Array<{ day: string; high: number; low: number; condition: string; icon?: string }> = [];
         for (let i = 0; i < 7; i++) {
           const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i).toISOString().slice(0, 10);
-          const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`;
+          const label = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i).toLocaleDateString('en-US', { weekday: 'short' });
           const entry = byDate[d];
           if (entry) {
             forecast.push({ day: label, high: Math.round(entry.high), low: Math.round(entry.low), condition: entry.main, icon: iconMap[entry.main] || 'fas fa-cloud' });
@@ -387,7 +404,9 @@ export class AiUtilitiesService {
                 const hi = Math.round(daily.temperature_2m_max?.[i] ?? temp);
                 const lo = Math.round(daily.temperature_2m_min?.[i] ?? temp - 5);
                 const dc = condMap(daily.weathercode?.[i] ?? 0);
-                return { day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`, high: hi, low: lo, condition: dc, icon: iconMap[dc] || 'fas fa-cloud' };
+                const now2 = new Date();
+                const dayLabel = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate() + i).toLocaleDateString('en-US', { weekday: 'short' });
+                return { day: dayLabel, high: hi, low: lo, condition: dc, icon: iconMap[dc] || 'fas fa-cloud' };
               });
               const recommendations: string[] = temp < 10 ? ['Dress warmly — cold temperatures expected', 'Check road conditions'] : temp >= 30 ? ['Stay hydrated', 'Use sunscreen'] : ['Comfortable weather — light layers recommended'];
               const result = { current, forecast, recommendations, source: 'fallback-route' as const };
@@ -401,8 +420,9 @@ export class AiUtilitiesService {
       const month = now.getMonth();
       const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
       const current = { temperature: Math.round(baseTemp), humidity: 60, windSpeed: 10, condition: baseTemp >= 30 ? "Sunny" : baseTemp >= 25 ? "Partly Cloudy" : "Cloudy" };
+      const fallbackNow = new Date();
       const forecast = Array.from({ length: 7 }, (_, i) => ({
-        day: i === 0 ? "Today" : i === 1 ? "Tomorrow" : `Day ${i + 1}`,
+        day: new Date(fallbackNow.getFullYear(), fallbackNow.getMonth(), fallbackNow.getDate() + i).toLocaleDateString('en-US', { weekday: 'short' }),
         high: Math.round(baseTemp + (i % 3) - 1),
         low: Math.round(baseTemp - 5 + (i % 2)),
         condition: i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",

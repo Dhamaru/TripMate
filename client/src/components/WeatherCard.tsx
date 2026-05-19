@@ -5,7 +5,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
 
 type BackendWeather = {
-  current?: { temperature?: number; conditions?: string; condition?: string; humidity?: number; wind_kph?: number; windSpeed?: number; icon?: string; feels_like?: number };
+  current?: {
+    temperature?: number; conditions?: string; condition?: string; humidity?: number;
+    wind_kph?: number; windSpeed?: number; icon?: string; feels_like?: number;
+    uv_index?: number | null; visibility?: number | null; sunrise?: string; sunset?: string;
+  };
   forecast?: Array<{ date?: string; day?: string; high?: number; low?: number; conditions?: string; condition?: string; icon?: string }>;
   advice?: string[];
   recommendations?: string[];
@@ -137,18 +141,25 @@ export function WeatherCard({ destination }: { destination?: string }) {
     const c = weather?.current || {};
     const tempC = Number(c.temperature ?? 0);
     const feelsC = Number(c.feels_like ?? tempC);
-    const windKph = Number(c.wind_kph ?? (weather?.current?.windSpeed ?? 0));
+    const windKph = Number(c.wind_kph ?? ((c.windSpeed ?? 0) * 3.6));
     const cond = String(c.conditions ?? (c.condition ?? ''));
     const icon = String(c.icon ?? '');
     const humidity = Number(c.humidity ?? 0);
+    const visKm = c.visibility != null ? Number(c.visibility) : null;
+    const uv = c.uv_index != null ? Number(c.uv_index) : null;
     return {
       temperature: unit === 'C' ? tempC : toF(tempC),
       feelsLike: unit === 'C' ? feelsC : toF(feelsC),
-      wind: unit === 'C' ? windKph : kmhToMph(windKph),
+      wind: unit === 'C' ? Math.round(windKph) : kmhToMph(windKph),
       windUnit: unit === 'C' ? 'km/h' : 'mph',
       conditions: cond,
       icon,
       humidity,
+      visibility: visKm != null && visKm > 0 ? (unit === 'C' ? visKm : Math.round(visKm * 0.621371)) : null,
+      visUnit: unit === 'C' ? 'km' : 'mi',
+      uv,
+      sunrise: c.sunrise || '',
+      sunset: c.sunset || '',
     };
   }, [weather, unit]);
 
@@ -218,51 +229,89 @@ export function WeatherCard({ destination }: { destination?: string }) {
     );
   }
 
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
   return (
-    <Card className="bg-card border-border" role="region" aria-label="Weather" data-testid="weather-card">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-bold text-white">Weather</CardTitle>
-          <div className="flex items-center gap-2">
-            {offline && (
-              <span className="text-xs px-2 py-1 rounded bg-muted border border-border text-muted-foreground" aria-label="offline-badge">offline</span>
+    <Card className="bg-card border-border overflow-hidden" role="region" aria-label="Weather" data-testid="weather-card">
+      <CardContent className="p-4 space-y-4">
+        {/* Top: main temp + stats + label */}
+        <div className="flex items-start justify-between gap-4">
+          {/* Left: icon + temp + stats */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {currentView.icon ? (
+              <i className={`${currentView.icon} text-4xl text-blue-400 flex-shrink-0`} aria-label="weather-icon" />
+            ) : (
+              <div className="w-10 h-10 flex-shrink-0" />
             )}
-            {revalidating && (
-              <span className="text-xs px-2 py-1 rounded bg-muted border border-border text-muted-foreground" aria-label="revalidating-badge">updating…</span>
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-foreground leading-none" aria-label="current-temperature">
+                  {currentView.temperature}°
+                </span>
+                <button
+                  onClick={toggleUnit}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Toggle units"
+                >
+                  {unit === 'C' ? 'C' : 'F'}<span className="text-muted-foreground/40 mx-0.5">/</span>{unit === 'C' ? 'F' : 'C'}
+                </button>
+              </div>
+              <div className="mt-1 space-y-0.5">
+                <div className="text-xs text-muted-foreground">Humidity: {currentView.humidity}%</div>
+                <div className="text-xs text-muted-foreground">Wind: {currentView.wind} {currentView.windUnit}</div>
+                {currentView.visibility != null && (
+                  <div className="text-xs text-muted-foreground">Visibility: {currentView.visibility} {currentView.visUnit}</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: label + day + condition */}
+          <div className="text-right flex-shrink-0">
+            <div className="flex items-center justify-end gap-1.5 mb-1">
+              {offline && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">offline</span>}
+              {revalidating && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">updating…</span>}
+            </div>
+            <div className="text-base font-semibold text-foreground">Weather</div>
+            <div className="text-xs text-muted-foreground">{today}</div>
+            <div className="text-xs text-muted-foreground">{currentView.conditions || '—'}</div>
+            {(currentView.uv != null || currentView.sunrise || currentView.sunset) && (
+              <div className="mt-1 space-y-0.5">
+                {currentView.uv != null && <div className="text-[10px] text-muted-foreground">UV: {Math.round(currentView.uv)}</div>}
+                {currentView.sunrise && <div className="text-[10px] text-muted-foreground">↑ {currentView.sunrise}</div>}
+                {currentView.sunset && <div className="text-[10px] text-muted-foreground">↓ {currentView.sunset}</div>}
+              </div>
             )}
-            <Button variant="outline" className="bg-muted border-border text-white hover:bg-card px-2 py-1 text-xs" onClick={toggleUnit} aria-label="Toggle units">°{unit}</Button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="text-3xl font-bold text-white" aria-label="current-temperature">{currentView.temperature}°{unit}</div>
-            <div className="text-sm text-muted-foreground" aria-label="current-conditions">{currentView.conditions || '—'}</div>
-            <div className="text-xs text-muted-foreground mt-1" aria-label="current-details">feels like {currentView.feelsLike}°{unit} • humidity {currentView.humidity}% • wind {currentView.wind} {currentView.windUnit}</div>
-          </div>
-          {currentView.icon && (
-            <i className={`${currentView.icon} text-[#1E3A8A] dark:text-blue-400 text-3xl`} aria-label="weather-icon"></i>
-          )}
-        </div>
+
+        {/* 7-day forecast */}
         {days.length > 0 && (
-          <div className="grid grid-cols-7 gap-2 text-center">
+          <div className="grid grid-cols-7 gap-1 border-t border-border pt-3">
             {days.map((d, i) => (
-              <div key={i} className="rounded-xl bg-muted p-2" aria-label={`forecast-day-${i}`}>
-                <div className="text-xs text-muted-foreground">{d.label}</div>
-                {d.icon && <i className={`${d.icon} text-[#1E3A8A] dark:text-blue-400 text-base`} aria-label="day-icon"></i>}
-                <div className="text-xs text-white">{d.high} / {d.low}°{unit}</div>
+              <div key={i} className="flex flex-col items-center gap-1 py-1" aria-label={`forecast-day-${i}`}>
+                <div className="text-[10px] font-medium text-muted-foreground">{d.label}</div>
+                {d.icon
+                  ? <i className={`${d.icon} text-sm text-blue-400`} aria-label="day-icon" />
+                  : <div className="h-4" />
+                }
+                <div className="text-[10px] text-foreground font-medium">{d.high}°</div>
+                <div className="text-[10px] text-muted-foreground">{d.low}°</div>
               </div>
             ))}
           </div>
         )}
-        <div className="mt-3">
-          <ul className="list-disc ml-6 text-xs text-muted-foreground" aria-label="advice-list">
-            {(weather?.advice || weather?.recommendations || []).slice(0, 4).map((a, i) => (
-              <li key={i}>{String(a)}</li>
+
+        {/* Tips */}
+        {(weather?.advice || weather?.recommendations || []).length > 0 && (
+          <ul className="border-t border-border pt-2 space-y-0.5" aria-label="advice-list">
+            {(weather?.advice || weather?.recommendations || []).slice(0, 3).map((a, i) => (
+              <li key={i} className="text-[11px] text-muted-foreground flex gap-1.5 items-start">
+                <span className="text-amber-500 mt-0.5">•</span>{String(a)}
+              </li>
             ))}
           </ul>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
