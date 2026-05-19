@@ -145,11 +145,11 @@ export const currencyHistory = async (req: Request, res: Response, next: NextFun
         if (!response.ok) throw new Error("Currency history service failed");
         const data = await response.json();
         const entries = Object.entries((data.rates || {}) as Record<string, Record<string, number>>)
+            .sort(([a], [b]) => a.localeCompare(b))
             .map(([date, rates]) => ({
                 date: new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
                 rate: rates[to] ?? 0,
-            }))
-            .sort((a, b) => a.date.localeCompare(b.date));
+            }));
         res.json(entries);
     } catch (error) {
         next(error);

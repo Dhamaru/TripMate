@@ -79,9 +79,18 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                 const data = await res.json();
 
                 if (Array.isArray(data) && data.length > 0) {
+                    // Filter to results whose display_name contains at least one query word (>2 chars)
+                    // This prevents Nominatim returning San Francisco for non-US cities
+                    const queryWords = destination.toLowerCase().trim().split(/\s+/).filter(w => w.length > 2);
+                    const nameMatched = data.filter((r: any) => {
+                        const dn = (r.display_name || '').toLowerCase();
+                        return queryWords.some(w => dn.includes(w));
+                    });
+                    const candidates = nameMatched.length > 0 ? nameMatched : data;
+
                     // Prefer place/boundary results (cities, countries) over streets/addresses
                     const PLACE_CLASSES = ['place', 'boundary', 'natural', 'tourism'];
-                    const sorted = [...data].sort((a, b) => {
+                    const sorted = [...candidates].sort((a, b) => {
                         const aIsPlace = PLACE_CLASSES.includes(a.class) ? 1 : 0;
                         const bIsPlace = PLACE_CLASSES.includes(b.class) ? 1 : 0;
                         if (aIsPlace !== bIsPlace) return bIsPlace - aIsPlace;
