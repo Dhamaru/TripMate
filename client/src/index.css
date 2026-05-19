@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Fonts loaded via index.html for better LCP */
 
 @tailwind base;
 @tailwind components;
@@ -153,7 +153,7 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: Inter, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", sans-serif;
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
     font-size: 16px;
     font-weight: 400;
     line-height: 1.5;
@@ -166,10 +166,11 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
+    font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif;
     color: var(--airbnb-ink);
-    font-weight: 600;
-    line-height: 1.25;
-    letter-spacing: -0.01em;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
   }
 
   a {
@@ -181,6 +182,53 @@
     display: block;
     max-width: 100%;
   }
+}
+
+/* ── Modern Atlas Design Utilities ────────────────── */
+
+@layer utilities {
+  /* Gradient text — amber fire */
+  .text-gradient {
+    background: linear-gradient(135deg, #F59E0B 0%, #F97316 60%, #EF4444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  /* Gradient text — explorer blue */
+  .text-gradient-blue {
+    background: linear-gradient(135deg, #60A5FA 0%, #818CF8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  /* Display font utility */
+  .font-display {
+    font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  /* Staggered animation helpers */
+  .animate-fade-up {
+    animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-fade-up-delay-1 { animation-delay: 0.1s; }
+  .animate-fade-up-delay-2 { animation-delay: 0.2s; }
+  .animate-fade-up-delay-3 { animation-delay: 0.3s; }
+  .animate-fade-up-delay-4 { animation-delay: 0.4s; }
+  /* Glow accent */
+  .glow-amber {
+    box-shadow: 0 0 24px rgba(245, 158, 11, 0.25), 0 0 48px rgba(245, 158, 11, 0.1);
+  }
+  /* Frosted glass card */
+  .glass-card {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Airbnb Component Utilities ───────────────────── */

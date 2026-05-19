@@ -61,7 +61,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     "flex items-center gap-3 rounded-xl h-11 cursor-pointer relative group transition-all duration-150",
                     collapsed ? "px-0 justify-center" : "px-3",
                     isActive
-                      ? "bg-amber-50 text-amber-600 font-semibold"
+                      ? "bg-[#F59E0B]/10 text-[#F59E0B] font-semibold"
                       : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                   )}
                   title={collapsed ? item.label : undefined}
@@ -161,7 +161,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="hidden md:flex flex-col items-end">
                 <span className="text-sm font-semibold text-foreground group-hover:text-amber-600 transition-colors flex items-center gap-1.5">
                   {user?.isGuest && (
-                    <span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-0.5 rounded-full border border-amber-200 font-bold">
+                    <span className="bg-[#F59E0B]/10 text-[#F59E0B] text-[10px] px-2 py-0.5 rounded-full border border-[#F59E0B]/20 font-bold">
                       GUEST
                     </span>
                   )}

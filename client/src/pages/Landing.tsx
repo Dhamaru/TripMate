@@ -283,18 +283,18 @@ export default function Landing() {
               AI-Powered Travel Planning
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-[#111827] leading-tight tracking-tight mb-6" data-testid="hero-title">
-              Your AI Travel
-              <span className="text-[#F59E0B]"> Companion</span>
+            <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-[#111827] leading-[1.05] tracking-tight mb-6 animate-fade-up animate-fade-up-delay-1" data-testid="hero-title">
+              Your AI Travel<br />
+              <span className="text-gradient">Companion</span>
             </h1>
 
-            <p className="text-lg text-[#6a6a6a] mb-10 max-w-2xl mx-auto leading-relaxed" data-testid="hero-description">
+            <p className="text-lg sm:text-xl text-[#6a6a6a] mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-up animate-fade-up-delay-2" data-testid="hero-description">
               Plan, explore, and experience the world with TripMate's intelligent travel assistant.
               From itinerary generation to real-time guidance — your entire journey, handled.
             </p>
 
             {/* Hero search bar with autocomplete */}
-            <div className="max-w-2xl mx-auto mb-8 relative" ref={searchRef}>
+            <div className="max-w-2xl mx-auto mb-8 relative animate-fade-up animate-fade-up-delay-3" ref={searchRef}>
               <div className="flex items-center bg-white border border-[#dddddd] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] px-6 py-4 gap-4">
                 <MapPin className="w-5 h-5 text-[#F59E0B] flex-shrink-0" />
                 <input
@@ -404,10 +404,10 @@ export default function Landing() {
             {stats.map((stat) => (
               <div key={stat.label}>
                 <div className="flex items-center justify-center gap-1">
-                  <span className="text-2xl font-bold text-[#111827]">{stat.value}</span>
+                  <span className="font-display text-3xl font-bold text-gradient">{stat.value}</span>
                   {stat.icon && <stat.icon className="w-4 h-4 text-[#F59E0B] fill-[#F59E0B]" />}
                 </div>
-                <div className="text-sm text-[#6a6a6a] mt-1">{stat.label}</div>
+                <div className="text-sm font-medium text-[#6a6a6a] mt-1">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -419,8 +419,8 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-[#F59E0B] text-sm font-semibold mb-2 uppercase tracking-wide">Features</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#111827] mb-4" data-testid="features-title">
-              Everything You Need
+            <h2 className="text-3xl md:text-5xl font-bold text-[#111827] mb-4" data-testid="features-title">
+              Everything You <span className="text-gradient">Need</span>
             </h2>
             <p className="text-[#6a6a6a] text-lg max-w-2xl mx-auto" data-testid="features-description">
               Comprehensive travel tools powered by AI to make your journey seamless and memorable.
@@ -459,8 +459,8 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-[#F59E0B] text-sm font-semibold mb-2 uppercase tracking-wide">How It Works</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#111827] mb-4">
-              Plan Your Perfect Trip
+            <h2 className="text-3xl md:text-5xl font-bold text-[#111827] mb-4">
+              Plan Your <span className="text-gradient">Perfect Trip</span>
             </h2>
             <p className="text-[#6a6a6a] text-lg max-w-xl mx-auto" data-testid="planner-description">
               Tell us your preferences and let AI create a personalized itinerary just for you.
