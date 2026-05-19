@@ -50,7 +50,7 @@ function toF(c: number): number { return Math.round(c * 9 / 5 + 32); }
 function kmhToMph(kmh: number): number { return Math.round(kmh * 0.621371); }
 
 export function WeatherCard({ destination }: { destination?: string }) {
-  const [unit, setUnit] = useState<Unit>(() => (localStorage.getItem(UNIT_KEY) === "F" ? "F" : "C"));
+  const [unit, setUnit] = useState<Unit>(() => { try { return localStorage.getItem(UNIT_KEY) === "F" ? "F" : "C"; } catch { return "C"; } });
   const [offline, setOffline] = useState<boolean>(!navigator.onLine);
   const [weather, setWeather] = useState<BackendWeather | null>(null);
   const [loading, setLoading] = useState<boolean>(false);

@@ -3,10 +3,12 @@ import { z } from "zod";
 export class ResearchAgent {
     private placesService: any;
     private weatherService: any;
+    private geminiHelper: any;
 
-    constructor(services: { places?: any, weather?: any }) {
+    constructor(services: { places?: any, weather?: any, geminiHelper?: any }) {
         this.placesService = services.places;
         this.weatherService = services.weather;
+        this.geminiHelper = services.geminiHelper;
     }
 
     /**
@@ -94,6 +96,18 @@ export class ResearchAgent {
             if (normalizedDest.includes(city)) return anchorMap[city];
         }
 
-        return []; // Fallback empty
+        // Gemini fallback: ask AI for real local anchors
+        if (this.geminiHelper) {
+            try {
+                const prompt = `List exactly 10 real, well-known tourist attractions AND 5 popular restaurants in ${dest}. Return ONLY a JSON array of strings with the exact place names. Example: ["Kanaka Durga Temple", "Babai Hotel", "Prakasam Barrage"]. No explanations, just the array.`;
+                const result = await this.geminiHelper(prompt, "application/json");
+                const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {
+                console.warn(`[ResearchAgent] Gemini anchor fallback failed for ${dest}:`, e);
+            }
+        }
+
+        return [];
     }
 }

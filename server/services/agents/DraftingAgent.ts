@@ -17,54 +17,107 @@ export class DraftingAgent {
         const startTime = Date.now();
         console.log(`[DraftingAgent] Formulating draft baseline...`);
 
+        const anchors: string[] = Array.isArray(context.anchors) && context.anchors.length > 0
+            ? context.anchors
+            : [];
+        const anchorsText = anchors.length > 0
+            ? `Real local places to PRIORITISE (use as many as possible): ${JSON.stringify(anchors)}`
+            : `No pre-fetched anchors available. You MUST use your training knowledge to name real, well-known tourist spots, temples, restaurants, cafes, markets, and attractions that actually exist in ${constraints.destination}.`;
+
         const prompt = `
-      Your task is to draft a feasible itinerary baseline for the following goal:
-      ${goalText}
+      You are an expert travel planner. Generate a REAL, SPECIFIC, day-by-day itinerary for ${constraints.destination}.
 
-      CRITICAL CONSTRAINTS - MATHEMATICAL BOUNDS:
-      1. BUDGET: ${constraints.budget} ${constraints.currency} is a STRICT, HARD limit for the ENTIRE TRIP.
-      2. If the user's travel style (e.g., "Luxury") conflicts with the strict numeric budget (e.g., "$50"), YOU MUST PRIORITIZE THE NUMERIC BUDGET. Do not suggest $500 luxury hotels if the budget is $50. Scale back the experience to fit the math.
-      3. Pace: ${constraints.travelStyle}
-      4. UNIQUENESS: Every single activity must be UNIQUE. DO NOT repeat the same park, museum, or landmark on different days unless it's a massive site requiring multiple days. DO NOT repeat restaurant names - travelers want variety!
-      5. LOCALITY: All places MUST be real venues in ${constraints.destination}. No generic placeholders.
+      ABSOLUTE RULES — VIOLATION WILL REJECT YOUR RESPONSE:
+      ❌ NEVER use generic activity titles like "Wake up", "Dinner", "Lunch", "Breakfast", "Return to accommodation", "Check in", "Rest", or any placeholder that is NOT a real named place.
+      ✅ EVERY activity title must be the ACTUAL NAME of a real place (e.g., "Durga Mata Temple", "Under The Wood Restaurant", "Lumbini Park", "Forum Mall").
+      ✅ type "restaurant" or "cafe" must be a real restaurant name with its actual address — not just "Local Restaurant" or "Dinner".
+      ✅ type "sightseeing"/"temple"/"museum"/"park"/"market" must be a real landmark name.
+      ✅ Rotate different restaurants for lunch and dinner each day — no repeats.
+      ✅ Include a mix per day: morning temple/attraction → lunch at named restaurant → afternoon market/monument → evening activity → dinner at named restaurant/street food area.
 
-      GROUNDING CONTEXT (Provided by Research Phase):
-      ${JSON.stringify(context.geo)}
-      High-Priority Anchors MUST be included: ${JSON.stringify(context.anchors)}
-
-      Constraints:
+      TRIP CONSTRAINTS:
       - Destination: ${constraints.destination}
-      - Duration: EXACTLY ${constraints.days} days
+      - Duration: EXACTLY ${constraints.days} days (generate ALL ${constraints.days} days, no exceptions)
       - Persons: ${constraints.persons}
-      - Style: ${constraints.travelStyle}
-      - Budget: ${constraints.budget || 'Calculated'} ${constraints.currency || 'INR'}
+      - Travel style: ${constraints.travelStyle}
+      - Budget: ${constraints.budget || 'flexible'} ${constraints.currency || 'INR'}
 
-      You MUST generate EXACTLY ${constraints.days} unique days of activities. Each day must have at least 3-4 activities (Breakfast, Activity 1, Lunch, Activity 2, Dinner/Evening).
-      Failure to provide unique activities for ALL ${constraints.days} days will result in a plan rejection.
+      ${anchorsText}
 
-      For every activity, you MUST provide:
-      1. Exact real-world "placeName" and "address".
-      2. Geographic coordinates ("lat" and "lon") as NUMERICAL FLOATS.
-      3. Realistic "cost" and "duration_minutes".
+      For every activity you MUST provide:
+      1. "title" and "placeName": the REAL NAME of the venue (e.g. "Kanaka Durga Temple", NOT "Temple Visit")
+      2. "address": real street/area address
+      3. "lat" and "lon": approximate GPS coordinates as floats
+      4. "type": one of sightseeing | restaurant | cafe | market | museum | temple | park
+      5. "duration_minutes" and "cost" as numbers
+      6. "time" in "HH:MM AM/PM" format
 
-      JSON OUTPUT STRUCTURE:
+      JSON OUTPUT (strict, no extra keys):
       {
         "itinerary": [
           {
             "day": 1,
-            "theme": "...",
+            "theme": "Temples & Local Cuisine",
             "activities": [
               {
-                "time": "09:00 AM",
-                "title": "...",
-                "placeName": "...",
-                "address": "...",
-                "lat": 0.0,
-                "lon": 0.0,
+                "time": "08:30 AM",
+                "title": "Kanaka Durga Temple",
+                "placeName": "Kanaka Durga Temple",
+                "address": "Indrakeeladri Hill, Vijayawada, Andhra Pradesh",
+                "lat": 16.5193,
+                "lon": 80.6305,
+                "type": "temple",
+                "entryFee": 0,
+                "cost": 0,
+                "duration_minutes": 90
+              },
+              {
+                "time": "11:00 AM",
+                "title": "Prakasam Barrage",
+                "placeName": "Prakasam Barrage",
+                "address": "Krishna River, Vijayawada",
+                "lat": 16.5124,
+                "lon": 80.6217,
                 "type": "sightseeing",
                 "entryFee": 0,
                 "cost": 0,
                 "duration_minutes": 60
+              },
+              {
+                "time": "01:00 PM",
+                "title": "Babai Hotel",
+                "placeName": "Babai Hotel",
+                "address": "Governorpet, Vijayawada",
+                "lat": 16.5062,
+                "lon": 80.6480,
+                "type": "restaurant",
+                "entryFee": 0,
+                "cost": 200,
+                "duration_minutes": 60
+              },
+              {
+                "time": "03:00 PM",
+                "title": "Victoria Jubilee Museum",
+                "placeName": "Victoria Jubilee Museum",
+                "address": "Bandar Road, Vijayawada",
+                "lat": 16.5088,
+                "lon": 80.6399,
+                "type": "museum",
+                "entryFee": 20,
+                "cost": 20,
+                "duration_minutes": 90
+              },
+              {
+                "time": "07:30 PM",
+                "title": "Under The Wood",
+                "placeName": "Under The Wood Restaurant",
+                "address": "Benz Circle, Vijayawada",
+                "lat": 16.5116,
+                "lon": 80.6390,
+                "type": "restaurant",
+                "entryFee": 0,
+                "cost": 400,
+                "duration_minutes": 75
               }
             ]
           }

@@ -630,7 +630,7 @@ export default function TripDetail() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center space-x-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full"
+                  className="flex items-center space-x-2 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-full"
                 >
                   <div className="flex space-x-1">
                     <motion.div
@@ -997,7 +997,7 @@ export default function TripDetail() {
                     <h4 className="text-sm font-bold text-foreground mb-3">Economical Alternatives</h4>
                     <div className="space-y-2">
                       {hacks.economicalAlternatives.map((alt: string, i: number) => (
-                        <div key={i} className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-700 dark:text-emerald-400">
+                        <div key={i} className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-xs text-emerald-400">
                           <i className="fas fa-wallet mr-2"></i>
                           {alt}
                         </div>
@@ -1041,7 +1041,7 @@ export default function TripDetail() {
                         )}
                       </div>
 
-                      <div className="text-xs text-[#1E3A8A] bg-blue-50 p-2 rounded-lg">
+                      <div className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 p-2 rounded-lg">
                         <i className="fas fa-info-circle mr-2"></i>
                         {spot.reason}
                       </div>

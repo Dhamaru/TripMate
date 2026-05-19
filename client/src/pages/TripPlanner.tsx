@@ -463,7 +463,6 @@ export default function TripPlanner() {
       };
 
       hasSaved.current = true;
-      console.log("[TripPlanner] Effect: Triggering createTripMutation...");
       createTripMutation.mutate(tripData);
     }
   }, [planTripMutation.isSuccess, planTripMutation.data, planTripMutation.status]);

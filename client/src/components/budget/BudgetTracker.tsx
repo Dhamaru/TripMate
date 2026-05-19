@@ -48,7 +48,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
         });
     }
 
-    const manualSpent = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+    const manualSpent = expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     const grandTransit = Number(trip.budgetBreakdown?.grandTransit || 0);
     const totalSpent = manualSpent + itineraryCost + grandTransit;
     const budget = trip.budget || 0;
@@ -57,7 +57,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
     // Prepare Chart Data
     // We add an "AI Itinerary" slice to the pie chart to represent the planned activities
     const chartData = CATEGORIES.map(cat => {
-        let value = expenses.filter(e => e.category === cat).reduce((acc, curr) => acc + Number(curr.amount), 0);
+        let value = expenses.filter(e => e.category === cat).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
         // If the category is Activities, include the AI itinerary cost
         if (cat === "Activities" && itineraryCost > 0) {
@@ -141,11 +141,11 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                         <div className="flex justify-between mb-4 text-white">
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Budget</p>
-                                <p className="text-2xl font-bold">{trip.currency} {budget.toLocaleString()}</p>
+                                <p className="text-2xl font-bold">{trip.currency || 'INR'} {budget.toLocaleString()}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-sm text-muted-foreground">Spent</p>
-                                <p className="text-2xl font-bold text-[#1E3A8A] dark:text-blue-400">{trip.currency} {totalSpent.toLocaleString()}</p>
+                                <p className="text-2xl font-bold text-[#1E3A8A] dark:text-blue-400">{trip.currency || 'INR'} {totalSpent.toLocaleString()}</p>
                             </div>
                         </div>
                         <div className="w-full bg-secondary h-4 rounded-full overflow-hidden">
@@ -224,7 +224,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                 <div className="mt-4 flex items-center justify-between text-xs pt-4 border-t border-border/50">
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <TrendingUp className="w-4 h-4" />
-                                        Est. Final Cost: <span className="text-white font-bold">{trip.currency} {forecast?.estimatedFinalCost?.toLocaleString()}</span>
+                                        Est. Final Cost: <span className="text-white font-bold">{trip.currency || 'INR'} {forecast?.estimatedFinalCost?.toLocaleString()}</span>
                                     </div>
                                     <div className="text-[#1E3A8A] dark:text-blue-400 flex items-center gap-1">
                                         <i className="fas fa-robot"></i> AI Forecast

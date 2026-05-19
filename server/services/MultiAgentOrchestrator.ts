@@ -15,7 +15,7 @@ export class MultiAgentOrchestrator {
         this.modeler = new FeasibilityModeler();
 
         // Initialize the Specialized Agent Team
-        this.researchAgent = new ResearchAgent({ places: services.places, weather: services.weather });
+        this.researchAgent = new ResearchAgent({ places: services.places, weather: services.weather, geminiHelper: services.geminiHelper });
         this.draftingAgent = new DraftingAgent({ openai: services.openai, geminiHelper: services.geminiHelper });
         this.criticAgent = new CriticAgent({ openai: services.openai, modeler: this.modeler });
         this.formattingAgent = new FormattingAgent({ openai: services.openai, geminiHelper: services.geminiHelper });

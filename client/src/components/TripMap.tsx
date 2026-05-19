@@ -1,10 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import L from "leaflet";
-// Leaflet.heat expect L to be global
-if (typeof window !== 'undefined') {
-    (window as any).L = L;
-}
-import "leaflet.heat";
+import { useTheme } from "@/components/layout/ThemeProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,16 +25,27 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
     const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
     const [geocodeError, setGeocodeError] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark');
+    const { theme } = useTheme()
+    const mapTheme = useMemo<'light' | 'dark'>(() => {
+        if (theme === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        return theme
+    }, [theme]);
     const [isAddMode, setIsAddMode] = useState(false);
     const isAddModeRef = useRef(isAddMode);
     const [showHeatMap, setShowHeatMap] = useState(false);
     const [crowdReports, setCrowdReports] = useState<any[]>([]);
     const heatLayerRef = useRef<any>(null);
+    const tileLayerRef = useRef<L.TileLayer | null>(null);
     const pathLayerRef = useRef<L.LayerGroup | null>(null);
     const [showPaths, setShowPaths] = useState(true);
     const { toast } = useToast();
     const [reportDensity, setReportDensity] = useState(5);
+
+    // Load leaflet.heat after mount so window.L is already set
+    useEffect(() => {
+        (window as any).L = L;
+        import('leaflet.heat').catch(() => {});
+    }, []);
 
     // Sync ref with state to avoid stale closures in map handlers
     useEffect(() => {
@@ -118,42 +125,30 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
 
     // Update Heat Map Layer
     useEffect(() => {
-        if (!mapInstanceRef.current || !crowdReports) return;
+        if (!mapInstanceRef.current) return;
 
-        if (showHeatMap) {
-            if (heatLayerRef.current) {
-                mapInstanceRef.current.removeLayer(heatLayerRef.current);
-            }
-
-            const points = crowdReports.map(r => [r.latitude, r.longitude, r.density / 10]);
-            console.log(`[HeatMap] Rendering ${points.length} points`, points);
-
-            if (!(L as any).heatLayer) {
-                console.error("[HeatMap] L.heatLayer is not defined! Check plugin loading.");
-                return;
-            }
-            if (!(L as any).heatLayer) {
-                console.error("[HeatMap] L.heatLayer IS STILL NOT DEFINED! This plugin is not loading correctly.");
-                toast({ title: "Heat Map Error", description: "Heat map plugin failed to load.", variant: "destructive" });
-                return;
-            }
-
-            try {
-                // @ts-ignore
-                heatLayerRef.current = (L as any).heatLayer(points, {
-                    radius: 35,
-                    blur: 20,
-                    maxZoom: 17,
-                    gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
-                }).addTo(mapInstanceRef.current);
-                console.log("[HeatMap] Layer added to map successfully.");
-            } catch (err) {
-                console.error("[HeatMap] Error creating heat layer:", err);
-            }
-        } else if (heatLayerRef.current) {
-            console.log("[HeatMap] Removing heat layer");
+        if (heatLayerRef.current) {
             mapInstanceRef.current.removeLayer(heatLayerRef.current);
             heatLayerRef.current = null;
+        }
+
+        if (!showHeatMap) return;
+
+        if (!(L as any).heatLayer) {
+            toast({ title: "Heat Map Unavailable", description: "Plugin still loading — try again in a moment.", variant: "destructive" });
+            setShowHeatMap(false);
+            return;
+        }
+
+        const points = crowdReports.map(r => [r.latitude, r.longitude, r.density / 10]);
+        try {
+            // @ts-ignore
+            heatLayerRef.current = (L as any).heatLayer(points, {
+                radius: 35, blur: 20, maxZoom: 17,
+                gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
+            }).addTo(mapInstanceRef.current);
+        } catch (err) {
+            console.error("[HeatMap] Error creating heat layer:", err);
         }
     }, [showHeatMap, crowdReports]);
 
@@ -186,6 +181,16 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
         }
     };
 
+    // Swap tile layer when theme changes on existing map
+    useEffect(() => {
+        if (!mapInstanceRef.current || !tileLayerRef.current) return;
+        const tileUrl = mapTheme === 'dark'
+            ? "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png"
+            : "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
+        mapInstanceRef.current.removeLayer(tileLayerRef.current);
+        tileLayerRef.current = L.tileLayer(tileUrl, { attribution: '&copy; CARTO', maxZoom: 18 }).addTo(mapInstanceRef.current);
+    }, [mapTheme]);
+
     // Initialize or Update Map
     useEffect(() => {
         if (!coords || !mapContainerRef.current) return;
@@ -206,7 +211,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                 ? "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png"
                 : "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
 
-            L.tileLayer(tileUrl, {
+            tileLayerRef.current = L.tileLayer(tileUrl, {
                 attribution: '&copy; CARTO',
                 maxZoom: 18,
             }).addTo(map);
@@ -328,41 +333,29 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
             }
         }
 
-        // Handle Paths (Navigation)
-        if (pathLayerRef.current) {
-            pathLayerRef.current.clearLayers();
-            if (showPaths && itinerary) {
-                itinerary.forEach((day: any) => {
-                    if (day.activities && Array.isArray(day.activities)) {
-                        const dayPoints: L.LatLngExpression[] = [];
-                        
-                        day.activities.forEach((act: any) => {
-                            let lat = act.lat || act.latitude || (act.coords && act.coords.lat);
-                            let lon = act.lon || act.lng || act.longitude || (act.coords && act.coords.lon);
-                            
-                            // Filter out (0,0) or obviously invalid coords
-                            const nLat = Number(lat);
-                            const nLon = Number(lon);
-                            if (nLat !== 0 && nLon !== 0 && !isNaN(nLat) && !isNaN(nLon)) {
-                                dayPoints.push([nLat, nLon]);
-                            }
-                        });
+    }, [coords, mapTheme, itinerary]);
 
-                        if (dayPoints.length > 1) {
-                            L.polyline(dayPoints, {
-                                color: '#3b82f6',
-                                weight: 3,
-                                opacity: 0.6,
-                                dashArray: '10, 10',
-                                lineJoin: 'round'
-                            }).addTo(pathLayerRef.current!);
-                        }
-                    }
-                });
+    // Route paths — own effect so toggling doesn't re-render markers
+    useEffect(() => {
+        if (!pathLayerRef.current) return;
+        pathLayerRef.current.clearLayers();
+        if (!showPaths || !itinerary) return;
+        itinerary.forEach((day: any) => {
+            if (!Array.isArray(day.activities)) return;
+            const dayPoints: L.LatLngExpression[] = [];
+            day.activities.forEach((act: any) => {
+                const nLat = Number(act.lat ?? act.latitude ?? act.coords?.lat);
+                const nLon = Number(act.lon ?? act.lng ?? act.longitude ?? act.coords?.lon);
+                if (nLat !== 0 && nLon !== 0 && Number.isFinite(nLat) && Number.isFinite(nLon)) {
+                    dayPoints.push([nLat, nLon]);
+                }
+            });
+            if (dayPoints.length > 1) {
+                L.polyline(dayPoints, { color: '#3b82f6', weight: 3, opacity: 0.6, dashArray: '10, 10', lineJoin: 'round' })
+                    .addTo(pathLayerRef.current!);
             }
-        }
-
-    }, [coords, mapTheme, itinerary, showPaths]);
+        });
+    }, [showPaths, itinerary]);
 
     if (!destination) return null;
 
@@ -530,15 +523,6 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                             </Popover>
                         </div>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setMapTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-                        className="text-white hover:bg-white/10"
-                    >
-                        <i className={`fas fa-${mapTheme === 'dark' ? 'moon' : 'sun'} mr-2`}></i>
-                        {mapTheme === 'dark' ? 'Dark' : 'Light'}
-                    </Button>
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
