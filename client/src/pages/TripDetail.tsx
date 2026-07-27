@@ -55,7 +55,7 @@ export default function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { user, isLoading: authLoading, isAuthenticated } = useAuthStore();
-  const { currentTrip: trip, fetchTrip, isLoading: tripLoading, error, deleteTrip } = useTripStore();
+  const { currentTrip: trip, fetchTrip, setCurrentTrip, isLoading: tripLoading, error, deleteTrip } = useTripStore();
   const { toast, dismiss } = useToast();
   const activeToastId = useRef<string | null>(null);
   const queryClient = useQueryClient();
@@ -86,7 +86,7 @@ export default function TripDetail() {
       } else if (mutation.type === 'collaborators-updated') {
         queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
       } else if (mutation.type === 'trip-updated') {
-        queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+        fetchTrip(id);
       }
       
       toast({
@@ -103,7 +103,7 @@ export default function TripDetail() {
       socket.off('trip-mutation');
       socket.off('atlas-thinking');
     };
-  }, [id, queryClient, socketRef, toast]);
+  }, [id, queryClient, socketRef, toast, fetchTrip]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [heroImgError, setHeroImgError] = useState(false);
@@ -275,12 +275,12 @@ export default function TripDetail() {
         .then(res => res.json())
         .then(data => {
           if (data.imageUrl) {
-            queryClient.setQueryData(['/api/v1/trips', id], (old: Trip | undefined) => old ? { ...old, imageUrl: data.imageUrl } : old);
+            setCurrentTrip({ ...trip, imageUrl: data.imageUrl, imageCaption: data.imageCaption });
           }
         })
         .catch(() => { });
     }
-  }, [trip, id, isAuthenticated, queryClient]);
+  }, [trip, id, isAuthenticated, setCurrentTrip]);
 
   const { data: journalEntries } = useQuery<JournalEntry[]>({
     queryKey: ['/api/v1/journal'],
@@ -727,13 +727,10 @@ export default function TripDetail() {
                     try {
                       const res = await apiRequest('POST', `/api/v1/trips/${id}/image?force=true`);
                       const data = await res.json();
-                      if (data?.imageUrl) {
-                        queryClient.setQueryData(['/api/v1/trips', id], (old: any) =>
-                          old ? { ...old, imageUrl: data.imageUrl, imageCaption: data.imageCaption } : old
-                        );
+                      if (data?.imageUrl && trip) {
+                        setCurrentTrip({ ...trip, imageUrl: data.imageUrl, imageCaption: data.imageCaption });
                         toast({ title: "Image updated!", description: "Found a new photo." });
                       } else {
-                        queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
                         toast({ title: "No better photo found", description: "Couldn't find a new photo for this destination.", variant: "destructive" });
                       }
                     } catch (err) {

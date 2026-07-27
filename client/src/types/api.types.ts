@@ -76,6 +76,7 @@ export interface Trip {
     status: 'planning' | 'active' | 'completed'
     notes?: string
     imageUrl?: string
+    imageCaption?: string
     destinationPhotoUrl?: string
     currency?: string
     days: number
