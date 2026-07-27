@@ -13,7 +13,8 @@ const envSchema = z.object({
     JWT_SECRET: z.string().default("your-jwt-secret-key"),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
-    NVIDIA_API_KEY: z.string().optional(),
+    NVIDIA_API_KEY_1: z.string().optional(),
+    NVIDIA_API_KEY_2: z.string().optional(),
     FRONTEND_URL: z.string().optional(),
     BACKEND_URL: z.string().optional(),
     OPENWEATHER_API_KEY: z.string().optional(),
@@ -53,6 +54,8 @@ const _config = envSchema.parse(processEnv);
 
 const derivedConfig = {
     CSRF_ENABLED: _config.CSRF_ENABLED ?? _config.NODE_ENV === "production",
+    // NVIDIA_API_KEY_2 (Llama) is the primary model; NVIDIA_API_KEY_1 (Qwen) is the fallback model.
+    NVIDIA_API_KEY: _config.NVIDIA_API_KEY_2 || _config.NVIDIA_API_KEY_1,
 };
 
 // Transition placeholders to mandatory for production

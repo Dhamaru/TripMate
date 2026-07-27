@@ -11,7 +11,13 @@ import { config } from '../config';
 
 const MAX_ITERATIONS = 10;
 const MODELS = [
-    'meta/llama-3.3-70b-instruct'
+    'meta/llama-3.3-70b-instruct',
+    'deepseek-ai/deepseek-v4-flash'
+];
+// Each model has its own NVIDIA NIM key (free-tier keys are per-model scoped).
+const MODEL_KEYS = [
+    config.NVIDIA_API_KEY_2,
+    config.NVIDIA_API_KEY_1,
 ];
 
 /** Summarizes conversation history when estimated tokens exceed 4000 to prevent context overflow. */
@@ -66,16 +72,16 @@ export async function runAgentLoop(
     },
     deps: ExecutorDeps
 ): Promise<AgentResponse> {
-    const apiKey = config.NVIDIA_API_KEY;
-    if (!apiKey) {
-        console.warn("[Agent] NVIDIA_API_KEY not set in env vars. Add it to Render environment variables.");
+    if (!MODEL_KEYS[0] && !config.NVIDIA_API_KEY) {
+        console.warn("[Agent] NVIDIA_API_KEY_1/NVIDIA_API_KEY_2 not set in env vars. Add them to Render environment variables.");
         throw new Error("AI service not configured. Please contact support.");
     }
-    const openai = new OpenAI({
-        apiKey,
+    const clientsByModel = MODELS.map((_, i) => new OpenAI({
+        apiKey: MODEL_KEYS[i] || config.NVIDIA_API_KEY || '',
         baseURL: 'https://integrate.api.nvidia.com/v1'
-    });
-    
+    }));
+    const openai = clientsByModel[0];
+
     // FETCH PROACTIVE CONTEXT
     let proactiveBuffer = '';
     if (input.context.tripId) {
@@ -115,10 +121,6 @@ export async function runAgentLoop(
     // Add current user message
     messages.push({ role: 'user', content: input.message })
 
-    // Summarize old messages if context window is getting too long
-    const summarized = await summarizeIfNeeded([...messages], deps.openai ?? openai)
-    messages.splice(0, messages.length, ...summarized)
-
     const toolsUsed: string[] = [];
     let totalToolCalls = 0;
     let successfulToolCalls = 0;
@@ -132,12 +134,15 @@ export async function runAgentLoop(
     let currentModelIndex = 0;
 
     try {
+        // Summarize old messages if context window is getting too long
+        const summarized = await summarizeIfNeeded([...messages], deps.openai ?? openai)
+        messages.splice(0, messages.length, ...summarized)
         for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
             lastIteration = iteration;
 
             let stream;
             try {
-                stream = await (deps.openai ?? openai).chat.completions.create({
+                stream = await (deps.openai ?? clientsByModel[currentModelIndex]).chat.completions.create({
                     model: MODELS[currentModelIndex],
                     messages: messages,
                     tools: TRIPMATE_TOOLS as any,

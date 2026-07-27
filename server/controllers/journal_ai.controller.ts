@@ -12,7 +12,7 @@ import logger from "../logger";
 import { socketService } from "../services/SocketService";
 
 const openai = new OpenAI({
-    apiKey: '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',
+    apiKey: config.NVIDIA_API_KEY_2 || config.NVIDIA_API_KEY || '',
     baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 const aiService = new AiUtilitiesService();

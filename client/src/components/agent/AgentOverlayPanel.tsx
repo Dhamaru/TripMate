@@ -39,7 +39,7 @@ export function AgentOverlayPanel() {
             />
             <div
                 ref={panelRef}
-                className="fixed inset-0 z-50 flex flex-col md:inset-auto md:right-0 md:top-0 md:h-full md:w-[420px] lg:w-[460px] md:shadow-2xl bg-background border-l border-border"
+                className="fixed inset-0 z-50 flex flex-col md:inset-auto md:right-0 md:top-0 md:h-full md:w-[420px] lg:w-[460px] md:shadow-2xl border-l border-border bg-card"
                 role="dialog"
                 aria-label="Atlas AI travel assistant"
                 aria-modal="true"

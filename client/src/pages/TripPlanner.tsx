@@ -18,31 +18,27 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 
 const travelStyles = [
-  {
-    id: 'adventure',
-    image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800',
-    name: 'Adventure',
-    color: 'text-[#F59E0B]'
-  },
-  {
-    id: 'relaxed',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800',
-    name: 'Relaxed',
-    color: 'text-orange-500'
-  },
-  {
-    id: 'cultural',
-    image: 'https://images.unsplash.com/photo-1528181304800-259b08848526?auto=format&fit=crop&q=80&w=800',
-    name: 'Cultural',
-    color: 'text-[#F59E0B]'
-  },
-  {
-    id: 'culinary',
-    image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800',
-    name: 'Culinary',
-    color: 'text-green-500'
-  }
+  { id: 'adventure', name: 'Adventure',  Icon: Mountain,  gradient: 'from-[var(--amber)] to-[var(--airbnb-primary-active)]',   iconColor: 'text-amber-300' },
+  { id: 'relaxed',   name: 'Relaxed',    Icon: Armchair,  gradient: 'from-[var(--explorer-blue)] to-[var(--explorer-blue-deep)]', iconColor: 'text-sky-300' },
+  { id: 'cultural',  name: 'Cultural',   Icon: Landmark,  gradient: 'from-violet-800 to-purple-950',                           iconColor: 'text-violet-300' },
+  { id: 'culinary',  name: 'Culinary',   Icon: Utensils,  gradient: 'from-[var(--forest)] to-[var(--emerald-horizon)]',        iconColor: 'text-emerald-300' },
 ];
+
+const CURRENCY_FORMAT: Record<string, { symbol: string; locale: string }> = {
+  INR: { symbol: '₹', locale: 'en-IN' },
+  USD: { symbol: '$', locale: 'en-US' },
+  EUR: { symbol: '€', locale: 'de-DE' },
+  GBP: { symbol: '£', locale: 'en-GB' },
+  AUD: { symbol: 'A$', locale: 'en-AU' },
+  CAD: { symbol: 'C$', locale: 'en-CA' },
+  JPY: { symbol: '¥', locale: 'ja-JP' },
+  CNY: { symbol: '¥', locale: 'zh-CN' },
+};
+
+function formatMoney(amount: number, currency: string | undefined) {
+  const fmt = CURRENCY_FORMAT[currency || 'INR'] || CURRENCY_FORMAT.INR;
+  return `${fmt.symbol}${Number(amount || 0).toLocaleString(fmt.locale)}`;
+}
 
 export default function TripPlanner() {
   const [, setLocation] = useLocation();
@@ -405,7 +401,7 @@ export default function TripPlanner() {
 
       // Initialize selected items with all items when plan is generated
       setSelectedPackingItems(packingList);
-      return { destination: dest, days, persons, totalEstimatedCost: totalINR, currency: 'INR', costBreakdown, itinerary: daysOut, packingList, safetyTips: ['Keep copies of documents', 'Use registered taxis', 'Stay aware in crowded areas'] } as any;
+      return { destination: dest, days, persons, totalEstimatedCost: totalINR, currency, costBreakdown, itinerary: daysOut, packingList, safetyTips: ['Keep copies of documents', 'Use registered taxis', 'Stay aware in crowded areas'] } as any;
     },
     onSuccess: (planData) => {
       // Automatic trip creation will be handled by useEffect to ensure stability
@@ -434,7 +430,7 @@ export default function TripPlanner() {
 
   // Stabilize trip creation in an effect
   useEffect(() => {
-    if (planTripMutation.isSuccess && planTripMutation.data && !hasSaved.current) {
+    if (planTripMutation.isSuccess && planTripMutation.data && !(planTripMutation.data as any).error && !hasSaved.current) {
       const planData = planTripMutation.data;
       const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
 
@@ -467,13 +463,6 @@ export default function TripPlanner() {
     }
   }, [planTripMutation.isSuccess, planTripMutation.data, planTripMutation.status]);
 
-  // Reset save flag when starting new plan
-  useEffect(() => {
-    if (planTripMutation.isPending) {
-      hasSaved.current = false;
-    }
-  }, [planTripMutation.isPending]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tripForm.origin || !tripForm.destination || !tripForm.days || !tripForm.groupSize || !selectedStyle) {
@@ -481,7 +470,8 @@ export default function TripPlanner() {
       return;
     }
 
-    // Trigger plan generation first
+    // New plan generation — allow auto-save again (Regenerate deliberately skips this).
+    hasSaved.current = false;
     planTripMutation.mutate();
   };
 
@@ -493,7 +483,7 @@ export default function TripPlanner() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F59E0B] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--amber)] mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -521,14 +511,14 @@ export default function TripPlanner() {
           <button
             type="button"
             onClick={() => setPlanMode('ai')}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'ai' ? 'bg-[#F59E0B] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'ai' ? 'bg-[var(--amber)] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <i className="fas fa-magic mr-2"></i>Let AI Plan
           </button>
           <button
             type="button"
             onClick={() => setPlanMode('import')}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'import' ? 'bg-[#F59E0B] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === 'import' ? 'bg-[var(--amber)] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <i className="fas fa-paste mr-2"></i>Import My Plan
           </button>
@@ -563,7 +553,7 @@ export default function TripPlanner() {
                       type="date"
                       value={importForm.startDate}
                       onChange={(e) => setImportForm(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="bg-muted border text-white h-11"
+                      className="bg-muted border text-foreground placeholder:text-muted-foreground h-11"
                     />
                   </div>
                   <div>
@@ -574,16 +564,16 @@ export default function TripPlanner() {
                       value={importForm.groupSize}
                       onValueChange={(value) => setImportForm(prev => ({ ...prev, groupSize: value }))}
                     >
-                      <SelectTrigger className="bg-muted border text-white h-11">
+                      <SelectTrigger className="bg-muted border text-foreground placeholder:text-muted-foreground h-11">
                         <SelectValue placeholder="Select group size" />
                       </SelectTrigger>
                       <SelectContent position="popper" className="bg-muted border z-50">
-                        <SelectItem value="1" className="text-white">Solo traveler</SelectItem>
-                        <SelectItem value="2" className="text-white">Couple (2 people)</SelectItem>
-                        <SelectItem value="4" className="text-white">Small group (3–5 people)</SelectItem>
-                        <SelectItem value="8" className="text-white">Large group (6+ people)</SelectItem>
-                        <SelectItem value="15" className="text-white">Big group (10–20 people)</SelectItem>
-                        <SelectItem value="30" className="text-white">Group tour (20+ people)</SelectItem>
+                        <SelectItem value="1" className="text-foreground">Solo traveler</SelectItem>
+                        <SelectItem value="2" className="text-foreground">Couple (2 people)</SelectItem>
+                        <SelectItem value="4" className="text-foreground">Small group (3–5 people)</SelectItem>
+                        <SelectItem value="8" className="text-foreground">Large group (6+ people)</SelectItem>
+                        <SelectItem value="15" className="text-foreground">Big group (10–20 people)</SelectItem>
+                        <SelectItem value="30" className="text-foreground">Group tour (20+ people)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -594,14 +584,14 @@ export default function TripPlanner() {
                         value={importForm.currency}
                         onValueChange={(value) => setImportForm(prev => ({ ...prev, currency: value }))}
                       >
-                        <SelectTrigger className="w-[90px] bg-muted border text-white h-11">
+                        <SelectTrigger className="w-[90px] bg-muted border text-foreground placeholder:text-muted-foreground h-11">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent position="popper" className="bg-muted border z-50">
-                          <SelectItem value="INR" className="text-white">₹ INR</SelectItem>
-                          <SelectItem value="USD" className="text-white">$ USD</SelectItem>
-                          <SelectItem value="EUR" className="text-white">€ EUR</SelectItem>
-                          <SelectItem value="GBP" className="text-white">£ GBP</SelectItem>
+                          <SelectItem value="INR" className="text-foreground">₹ INR</SelectItem>
+                          <SelectItem value="USD" className="text-foreground">$ USD</SelectItem>
+                          <SelectItem value="EUR" className="text-foreground">€ EUR</SelectItem>
+                          <SelectItem value="GBP" className="text-foreground">£ GBP</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input
@@ -609,7 +599,7 @@ export default function TripPlanner() {
                         placeholder="e.g. 50000"
                         value={importForm.budget}
                         onChange={(e) => setImportForm(prev => ({ ...prev, budget: e.target.value }))}
-                        className="flex-1 bg-muted border text-white h-11"
+                        className="flex-1 bg-muted border text-foreground placeholder:text-muted-foreground h-11"
                         min="0"
                       />
                     </div>
@@ -619,7 +609,7 @@ export default function TripPlanner() {
                 <Button
                   type="submit"
                   disabled={isParsing || createTripMutation.isPending}
-                  className="w-full bg-[#F59E0B] text-white py-4 text-base font-semibold rounded-xl disabled:opacity-50"
+                  className="w-full bg-[var(--amber)] text-white py-4 text-base font-semibold rounded-xl disabled:opacity-50"
                 >
                   {isParsing ? (
                     <><i className="fas fa-brain fa-spin mr-2"></i>Parsing Your Schedule...</>
@@ -677,18 +667,18 @@ export default function TripPlanner() {
                       value={tripForm.currency}
                       onValueChange={(value) => setTripForm(prev => ({ ...prev, currency: value }))}
                     >
-                      <SelectTrigger className="w-[100px] bg-muted border text-white">
+                      <SelectTrigger className="w-[100px] bg-muted border text-foreground">
                         <SelectValue placeholder="INR" />
                       </SelectTrigger>
                       <SelectContent position="popper" className="bg-muted border z-50">
-                        <SelectItem value="INR" className="text-white hover:bg-card">₹ INR</SelectItem>
-                        <SelectItem value="USD" className="text-white hover:bg-card">$ USD</SelectItem>
-                        <SelectItem value="GBP" className="text-white hover:bg-card">£ GBP</SelectItem>
-                        <SelectItem value="EUR" className="text-white hover:bg-card">€ EUR</SelectItem>
-                        <SelectItem value="AUD" className="text-white hover:bg-card">A$ AUD</SelectItem>
-                        <SelectItem value="CAD" className="text-white hover:bg-card">C$ CAD</SelectItem>
-                        <SelectItem value="JPY" className="text-white hover:bg-card">¥ JPY</SelectItem>
-                        <SelectItem value="CNY" className="text-white hover:bg-card">¥ CNY</SelectItem>
+                        <SelectItem value="INR" className="text-foreground">₹ INR</SelectItem>
+                        <SelectItem value="USD" className="text-foreground">$ USD</SelectItem>
+                        <SelectItem value="GBP" className="text-foreground">£ GBP</SelectItem>
+                        <SelectItem value="EUR" className="text-foreground">€ EUR</SelectItem>
+                        <SelectItem value="AUD" className="text-foreground">A$ AUD</SelectItem>
+                        <SelectItem value="CAD" className="text-foreground">C$ CAD</SelectItem>
+                        <SelectItem value="JPY" className="text-foreground">¥ JPY</SelectItem>
+                        <SelectItem value="CNY" className="text-foreground">¥ CNY</SelectItem>
                       </SelectContent>
                     </Select>
                     <Input
@@ -727,16 +717,16 @@ export default function TripPlanner() {
                     required
                   >
                     <SelectTrigger
-                      className="bg-muted border text-white"
+                      className="bg-muted border text-foreground"
                       data-testid="select-group-size"
                     >
                       <SelectValue placeholder="Select group size" />
                     </SelectTrigger>
                     <SelectContent position="popper" className="bg-muted border z-50">
-                      <SelectItem value="1" className="text-white hover:bg-card">Solo traveler</SelectItem>
-                      <SelectItem value="2" className="text-white hover:bg-card">Couple (2 people)</SelectItem>
-                      <SelectItem value="4" className="text-white hover:bg-card">Small group (3-5 people)</SelectItem>
-                      <SelectItem value="8" className="text-white hover:bg-card">Large group (6+ people)</SelectItem>
+                      <SelectItem value="1" className="text-foreground">Solo traveler</SelectItem>
+                      <SelectItem value="2" className="text-foreground">Couple (2 people)</SelectItem>
+                      <SelectItem value="4" className="text-foreground">Small group (3-5 people)</SelectItem>
+                      <SelectItem value="8" className="text-foreground">Large group (6+ people)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -752,29 +742,20 @@ export default function TripPlanner() {
                       key={style.id}
                       type="button"
                       onClick={() => handleStyleSelect(style.id)}
-                      className={`relative overflow-hidden group radius-md h-32 md:h-40 text-center smooth-transition flex flex-col items-center justify-center border-2 ${selectedStyle === style.id
-                        ? 'border-[#F59E0B] ring-2 ring-[#F59E0B]/20'
-                        : 'border hover:border-[#F59E0B]/50 shadow-lg'
-                        }`}
+                      className={`relative overflow-hidden rounded-xl h-28 md:h-36 flex flex-col items-center justify-center gap-2 transition-all duration-200 border-2 ${
+                        selectedStyle === style.id
+                          ? 'border-[var(--amber)] ring-2 ring-[var(--amber-glow)] scale-[1.02]'
+                          : 'border-[hsl(var(--border))] hover:border-[var(--amber-hover-border)]'
+                      } bg-gradient-to-br ${style.gradient}`}
                       data-testid={`travel-style-${style.id}`}
                     >
-                      {/* Realistic Image Background */}
-                      <div
-                        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                        style={{ backgroundImage: `url(${style.image})` }}
-                      />
-                      {/* Overlay for better text readability */}
-                      <div className={`absolute inset-0 bg-black/40 transition-opacity ${selectedStyle === style.id ? 'bg-black/20' : 'group-hover:bg-black/30'}`} />
-
-                      {/* Content */}
-                      <div className="relative z-10">
-                        <div className="text-lg font-bold text-white drop-shadow-md">{style.name}</div>
-                        {selectedStyle === style.id && (
-                          <div className="mt-1 bg-[#F59E0B] text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            Selected
-                          </div>
-                        )}
-                      </div>
+                      <style.Icon className={`w-7 h-7 ${style.iconColor}`} />
+                      <span className="text-sm font-bold text-white tracking-wide">{style.name}</span>
+                      {selectedStyle === style.id && (
+                        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[var(--amber)] flex items-center justify-center">
+                          <svg className="w-2.5 h-2.5 text-black" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -794,7 +775,7 @@ export default function TripPlanner() {
               <Button
                 type="submit"
                 disabled={createTripMutation.isPending || planTripMutation.isPending}
-                className="w-full bg-[#F59E0B] text-white py-4 radius-md text-lg font-semibold smooth-transition interactive-tap disabled:opacity-50"
+                className="w-full bg-[var(--amber)] text-white py-4 radius-md text-lg font-semibold smooth-transition interactive-tap disabled:opacity-50"
                 data-testid="button-create-trip"
               >
                 {createTripMutation.isPending ? (
@@ -857,23 +838,23 @@ export default function TripPlanner() {
               <CardContent>
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-                    <div><div className="text-white">Days</div><div>{Number(planTripMutation.data.days) || ''}</div></div>
-                    <div><div className="text-white">Persons</div><div>{Number(planTripMutation.data.persons) || ''}</div></div>
-                    <div><div className="text-white">Budget</div><div>{tripForm.budget ? `₹${Number(tripForm.budget).toLocaleString('en-IN')}` : '—'}</div></div>
-                    <div><div className="text-white">Estimated Total</div><div>₹{Number(planTripMutation.data.totalEstimatedCost || 0).toLocaleString('en-IN')}</div></div>
-                    <div><div className="text-white">Currency</div><div>{String(planTripMutation.data.currency || 'INR')}</div></div>
+                    <div><div className="text-foreground">Days</div><div>{Number(planTripMutation.data.days) || ''}</div></div>
+                    <div><div className="text-foreground">Persons</div><div>{Number(planTripMutation.data.persons) || ''}</div></div>
+                    <div><div className="text-foreground">Budget</div><div>{tripForm.budget ? formatMoney(Number(tripForm.budget), planTripMutation.data.currency) : '—'}</div></div>
+                    <div><div className="text-foreground">Estimated Total</div><div>{formatMoney(planTripMutation.data.totalEstimatedCost, planTripMutation.data.currency)}</div></div>
+                    <div><div className="text-foreground">Currency</div><div>{String(planTripMutation.data.currency || 'INR')}</div></div>
                   </div>
 
                   {planTripMutation.data.costBreakdown && (
                     <div>
-                      <div className="font-bold text-white mb-2">Cost Breakdown</div>
+                      <div className="font-bold text-foreground mb-2">Cost Breakdown</div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
                         {['grandTransit', 'accommodationINR', 'foodINR', 'transportINR', 'activitiesINR', 'miscINR', 'totalINR'].map((k) => (
                           <div key={k}>
-                            <span className="text-white capitalize">
+                            <span className="text-foreground capitalize">
                               {k === 'grandTransit' ? 'Travel to Destination' : k.replace('INR', '').replace(/([A-Z])/g, ' $1')}
                             </span>
-                            <div>₹{Number(planTripMutation.data.costBreakdown[k] || 0).toLocaleString('en-IN')}</div>
+                            <div>{formatMoney(planTripMutation.data.costBreakdown[k], planTripMutation.data.currency)}</div>
                           </div>
                         ))}
                       </div>
@@ -893,19 +874,19 @@ export default function TripPlanner() {
                                 <div>
                                   <div className="text-sm text-muted-foreground">{String(a.time)} • {String(a.placeName || a.title || '')}</div>
                                   {a.address && (
-                                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-[#F59E0B] underline">
+                                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`} target="_blank" rel="noreferrer" className="text-xs text-[var(--amber)] underline">
                                       {String(a.address)}
                                     </a>
                                   )}
                                 </div>
                                 <div className="text-sm text-green-500">
-                                  {typeof a.entryFeeINR === 'number' ? `₹${Number(a.entryFeeINR).toLocaleString('en-IN')}` : ''}
+                                  {typeof a.entryFeeINR === 'number' && a.entryFeeINR > 0 ? formatMoney(a.entryFeeINR, planTripMutation.data.currency) : ''}
                                 </div>
                               </div>
                               {Array.isArray(a.localFoodRecommendations) && a.localFoodRecommendations.length > 0 && (
                                 <div className="flex flex-wrap gap-2">
                                   {a.localFoodRecommendations.map((f: any, i: number) => (
-                                    <span key={`food-${i}`} className="text-xs bg-card text-white px-2 py-1 rounded-full">{String(f)}</span>
+                                    <span key={`food-${i}`} className="text-xs bg-card text-foreground px-2 py-1 rounded-full">{String(f)}</span>
                                   ))}
                                 </div>
                               )}
@@ -919,14 +900,14 @@ export default function TripPlanner() {
                   {Array.isArray(planTripMutation.data.packingList) && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <div className="font-bold text-white">Packing List - Select Items to Save</div>
+                        <div className="font-bold text-foreground">Packing List - Select Items to Save</div>
                         <div className="flex gap-2">
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedPackingItems(planTripMutation.data.packingList)}
-                            className="text-xs bg-muted border text-white hover:bg-card"
+                            className="text-xs bg-muted border text-foreground hover:bg-card"
                             data-testid="button-select-all-packing"
                           >
                             Select All
@@ -936,7 +917,7 @@ export default function TripPlanner() {
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedPackingItems([])}
-                            className="text-xs bg-muted border text-white hover:bg-card"
+                            className="text-xs bg-muted border text-foreground hover:bg-card"
                             data-testid="button-deselect-all-packing"
                           >
                             Deselect All
@@ -963,7 +944,7 @@ export default function TripPlanner() {
                                 className="cursor-pointer"
                                 data-testid={`checkbox-pack-${i}`}
                               />
-                              <span className={isSelected ? 'text-white' : 'text-muted-foreground line-through'}>{itemName}</span>
+                              <span className={isSelected ? 'text-foreground' : 'text-muted-foreground line-through'}>{itemName}</span>
                             </li>
                           );
                         })}
@@ -977,7 +958,7 @@ export default function TripPlanner() {
 
                   {Array.isArray(planTripMutation.data.safetyTips) && (
                     <div>
-                      <div className="font-bold text-white mb-2">Safety Tips</div>
+                      <div className="font-bold text-foreground mb-2">Safety Tips</div>
                       <ul className="list-disc ml-6 text-sm text-muted-foreground">
                         {planTripMutation.data.safetyTips.map((s: any, i: number) => (
                           <li key={`safe-${i}`}>{String(s)}</li>
@@ -989,7 +970,9 @@ export default function TripPlanner() {
                   <div className="flex gap-3 pt-2">
                     <Button onClick={() => {
                       const styleMap: Record<string, string> = { adventure: 'adventure', relaxed: 'relaxed', cultural: 'cultural', culinary: 'culinary' };
+                      const planData = planTripMutation.data as any;
                       createTripMutation.mutate({
+                        origin: tripForm.origin,
                         destination: tripForm.destination,
                         budget: tripForm.budget ? Number(tripForm.budget) : 0,
                         days: Number(tripForm.days || 1),
@@ -998,15 +981,26 @@ export default function TripPlanner() {
                         transportMode: tripForm.transportMode || undefined,
                         isInternational: !!tripForm.isInternational,
                         status: 'planning' as const,
-                        notes: tripForm.notes
+                        notes: tripForm.notes,
+                        itinerary: Array.isArray(planData?.itinerary) ? planData.itinerary.map((day: any, idx: number) => ({
+                          ...day,
+                          dayIndex: typeof day.dayIndex === 'number' ? day.dayIndex : idx,
+                          day: day.day || (idx + 1),
+                          activities: Array.isArray(day.activities) ? day.activities.map((act: any) => ({
+                            ...act,
+                            title: act.placeName || act.title || 'Activity',
+                            address: act.address || (act.type === 'restaurant' ? 'Nearby Restaurant' : 'Near City Center')
+                          })) : []
+                        })) : [],
+                        costBreakdown: planData?.costBreakdown,
                       });
-                    }} className="bg-[#F59E0B]">Save Trip</Button>
+                    }} className="bg-[var(--amber)]">Save Trip</Button>
                     <Button variant="outline" onClick={() => window.print()}>Export as PDF</Button>
                     <Button variant="outline" onClick={() => {
                       const shareData = { title: 'Trip Plan', text: `Plan for ${planTripMutation.data.destination}`, url: window.location.href };
                       if (navigator.share) navigator.share(shareData as any); else navigator.clipboard?.writeText(shareData.url);
                     }}>Share</Button>
-                    <Button variant="secondary" onClick={() => { if (!planTripMutation.isPending) planTripMutation.mutate(); }} disabled={planTripMutation.isPending}>Regenerate Plan</Button>
+                    <Button variant="secondary" onClick={() => { if (!planTripMutation.isPending) { hasSaved.current = false; planTripMutation.mutate(); } }} disabled={planTripMutation.isPending}>Regenerate Plan</Button>
                   </div>
 
                   <details className="mt-4">
@@ -1041,10 +1035,10 @@ export default function TripPlanner() {
         <Card className="bg-card border elev-1 mt-8">
           <CardContent className="p-6">
             <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-[#F59E0B] rounded-xl flex items-center justify-center mr-3">
-                <i className="fas fa-lightbulb text-white"></i>
+              <div className="w-10 h-10 bg-[var(--amber)] rounded-xl flex items-center justify-center mr-3">
+                <i className="fas fa-lightbulb text-foreground"></i>
               </div>
-              <h3 className="text-lg font-bold text-white">AI Planning Tips</h3>
+              <h3 className="text-lg font-bold text-foreground">AI Planning Tips</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
               <div>

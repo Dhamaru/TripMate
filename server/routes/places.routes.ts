@@ -24,7 +24,11 @@ router.get("/search", async (req, res) => {
             `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}&key=${key}`
         );
         const data = await response.json();
-        
+
+        if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+            console.error(`[Places] Google API returned ${data.status}: ${data.error_message || "no message"}`);
+        }
+
         // Transform for frontend consumption if needed
         const results = (data.results || []).slice(0, Number(pageSize)).map((p: any) => ({
             id: p.place_id,
@@ -78,6 +82,11 @@ router.get("/tourist-attractions", async (req, res) => {
             `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent('tourist attractions in ' + String(location))}&key=${key}`
         );
         const data = await response.json();
+
+        if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+            console.error(`[Places] Google API returned ${data.status}: ${data.error_message || "no message"}`);
+        }
+
         const results = (data.results || []).slice(0, Number(pageSize));
 
         res.json({ items: results });

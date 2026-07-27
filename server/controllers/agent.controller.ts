@@ -95,6 +95,8 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         // 1. Fetch conversation history
         const history = tripIdStr ? await AtlasMemoryService.getHistory(tripIdStr, userId) : [];
 
+        let tokensSent = false;
+
         // 2. Run Agent Loop with callbacks
         const result = await runAgentLoop(
             {
@@ -107,6 +109,7 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
                 },
                 conversationHistory: history,
                 onToken: (token) => {
+                    tokensSent = true;
                     res.write(`data: ${JSON.stringify({ type: 'token', content: token })}\n\n`);
                 },
                 onTool: (toolName) => {
@@ -132,8 +135,11 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         }
 
         // 4. Send final combined event
-        res.write(`data: ${JSON.stringify({ 
-            type: 'done', 
+        if (!tokensSent && result.message) {
+            res.write(`data: ${JSON.stringify({ type: 'token', content: result.message })}\n\n`);
+        }
+        res.write(`data: ${JSON.stringify({
+            type: 'done',
             toolsUsed: result.toolsUsed,
             confidence: result.confidence,
             feasibilityScore: result.feasibilityScore,

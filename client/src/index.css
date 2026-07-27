@@ -14,6 +14,7 @@
   --amber:        #E8900A;
   --amber-dim:    rgba(232, 144, 10, 0.12);
   --amber-glow:   rgba(232, 144, 10, 0.22);
+  --amber-hover-border: rgba(232, 144, 10, 0.5);
   --forest:       #3D7A5A;
   --cream:        #EDE6D6;
   --ink:          #0C0A08;
@@ -84,6 +85,7 @@
   --airbnb-teal:    var(--forest);
   --solar-amber:    var(--amber);
   --explorer-blue:  #1E3A8A;
+  --explorer-blue-deep: #172554;
   --emerald-horizon: #10B981;
   --ios-blue:       #1E3A8A;
   --ios-orange:     var(--amber);
