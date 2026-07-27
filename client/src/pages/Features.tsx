@@ -35,7 +35,7 @@ export default function Features() {
       title: "Travel Journal",
       description: "Capture and organize your travel memories",
       icon: BookOpen,
-      color: "from-[#B3261E] to-[#B3261E]",
+      color: "from-[#163F73] to-[#163F73]",
       href: "/app/journal",
       component: null
     },
@@ -53,7 +53,7 @@ export default function Features() {
       title: "Weather Insights",
       description: "7-day forecasts and travel weather recommendations",
       icon: CloudSun,
-      color: "from-[#B3261E] to-[#B3261E]",
+      color: "from-[#163F73] to-[#163F73]",
       href: "/app/weather",
       component: null
     },
@@ -71,7 +71,7 @@ export default function Features() {
       title: "Language Translator",
       description: "Offline translation for 10+ languages",
       icon: Languages,
-      color: "from-[#1D4E89] to-[#B3261E]",
+      color: "from-[#1D4E89] to-[#163F73]",
       href: "/app/translate",
       component: null
     },
@@ -143,7 +143,7 @@ export default function Features() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link href="/app/planner">
-                <Button className="w-full bg-gradient-to-r from-[#1D4E89] to-[#B3261E] smooth-transition interactive-tap radius-md">
+                <Button className="w-full bg-gradient-to-r from-[#1D4E89] to-[#163F73] smooth-transition interactive-tap radius-md">
                   <Plane className="w-4 h-4 mr-2" />
                   Plan New Trip
                 </Button>

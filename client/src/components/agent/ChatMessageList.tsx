@@ -35,7 +35,7 @@ export function ChatMessageList() {
                     <div
                         className={
                             msg.role === 'user'
-                                ? "max-w-[78%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-[#B3261E] text-white text-sm leading-relaxed shadow-sm"
+                                ? "max-w-[78%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-[#163F73] text-white text-sm leading-relaxed shadow-sm"
                                 : "max-w-[78%] px-4 py-3 rounded-2xl rounded-bl-sm bg-muted/80 border border-border/50 text-foreground text-sm leading-relaxed"
                         }
                         aria-label={`${msg.role === 'user' ? 'You' : 'Atlas'}: ${msg.content}`}

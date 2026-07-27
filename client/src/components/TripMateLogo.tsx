@@ -22,9 +22,9 @@ export function TripMateLogo({ size = 'md', showText = true, className = '' }: T
       <div className={`${sizeClasses[size]} relative flex items-center justify-center`}>
         <svg viewBox="0 0 100 100" className="w-full h-full">
           <rect width="100" height="100" rx="20" fill="#0D1B2E" />
-          <circle cx="50" cy="50" r="30" fill="none" stroke="#B3261E" strokeWidth="4" />
-          <path d="M50 26 L50 74 M26 50 L74 50" stroke="#B3261E" strokeWidth="2.5" />
-          <path d="M50 34 L58 50 L50 66 L42 50 Z" fill="#B3261E" />
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#163F73" strokeWidth="4" />
+          <path d="M50 26 L50 74 M26 50 L74 50" stroke="#163F73" strokeWidth="2.5" />
+          <path d="M50 34 L58 50 L50 66 L42 50 Z" fill="#163F73" />
         </svg>
       </div>
       {showText && (

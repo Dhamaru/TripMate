@@ -385,7 +385,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                             <div className="relative w-44 md:w-56">
                                 <Input
                                     placeholder="Search to pin..."
-                                    className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#B3261E]/50 focus-visible:border-[#B3261E]/50 rounded-lg"
+                                    className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#163F73]/50 focus-visible:border-[#163F73]/50 rounded-lg"
                                     onKeyDown={async (e) => {
                                         if (e.key === 'Enter') {
                                             const q = (e.currentTarget as HTMLInputElement).value;

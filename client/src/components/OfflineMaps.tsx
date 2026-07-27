@@ -663,7 +663,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                           } catch { toast({ title: "Search failed", variant: "destructive" }); }
                         }
                       }}
-                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-[#B3261E]"
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-[#163F73]"
                     />
                     {showNavDestSuggestions && (navDestLoading || navDestSuggestions.length > 0) && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
@@ -683,7 +683,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                         ))}
                       </div>
                     )}
-                    {selectedPlace && <p className="text-[10px] text-[#B3261E] truncate">→ {selectedPlace.name}</p>}
+                    {selectedPlace && <p className="text-[10px] text-[#163F73] truncate">→ {selectedPlace.name}</p>}
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={handleCalculateRoute}>
                         Get Route

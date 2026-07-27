@@ -92,8 +92,8 @@ export default function ForgotPasswordPage() {
                         animate={{ opacity: 1, scale: 1 }}
                         className="text-center py-6 space-y-6"
                     >
-                        <div className="mx-auto w-16 h-16 bg-[#B3261E]/20 rounded-2xl flex items-center justify-center">
-                            <Mail className="w-8 h-8 text-[#B3261E]" />
+                        <div className="mx-auto w-16 h-16 bg-[#163F73]/20 rounded-2xl flex items-center justify-center">
+                            <Mail className="w-8 h-8 text-[#163F73]" />
                         </div>
                         <div className="space-y-2">
                             <h3 className="text-xl font-bold text-white">Check your email</h3>
@@ -136,7 +136,7 @@ export default function ForgotPasswordPage() {
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full h-14 bg-[#B3261E] hover:bg-[#8C1D17] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+                                className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
                             >
                                 {isLoading ? (
                                     <>

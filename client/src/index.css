@@ -9,17 +9,17 @@
    THESIS: your passport, stamped at every stage of a trip.
    Kraft/parchment (light) · ink-navy under a customs lamp (dark)
    IBM Plex Serif (headers) / IBM Plex Sans (body) / IBM Plex Mono (data)
-   Ink roles: customs-blue (planning) · transit-green (active) ·
-              seal-black (completed/system) · stamp-red (primary/CTA)
+   Ink roles: ink-blue (primary/CTA) · customs-blue (planning) ·
+              transit-green (active) · stamp-red (completed/alert)
    ───────────────────────────────────────────────────────── */
 
 :root {
   /* ── Brand constants (var names kept stable; values remapped to the
      ink-stamp palette so every existing consumer inherits the new world) ── */
-  --amber:        #B3261E;   /* stamp-red — primary action ink */
-  --amber-dim:    rgba(179, 38, 30, 0.12);
-  --amber-glow:   rgba(179, 38, 30, 0.22);
-  --amber-hover-border: rgba(179, 38, 30, 0.5);
+  --amber:        #163F73;   /* deep ink-blue — primary action ink */
+  --amber-dim:    rgba(22, 63, 115, 0.12);
+  --amber-glow:   rgba(22, 63, 115, 0.22);
+  --amber-hover-border: rgba(22, 63, 115, 0.5);
   --forest:       #2F6F4E;   /* transit-green */
   --cream:        #EDE3CC;   /* kraft/parchment paper */
   --ink:          #0D1B2E;   /* ink-navy dark ground */
@@ -48,7 +48,7 @@
   --popover:          211 40% 13%;
   --popover-foreground: 38 25% 88%;
 
-  --primary:          4 71% 41%;       /* #B3261E stamp-red        */
+  --primary:          211 68% 27%;       /* #163F73 ink-blue         */
   --primary-foreground: 0 0% 98%;
 
   --secondary:        211 30% 18%;
@@ -65,22 +65,22 @@
 
   --border:           211 24% 22%;     /* subtle cool-ink border   */
   --input:            211 24% 19%;
-  --ring:             4 71% 41%;
+  --ring:             211 68% 27%;
 
   /* ── Sidebar ─────────────────────────────────────────── */
   --sidebar:                  211 48% 9%;
   --sidebar-foreground:       38 25% 88%;
-  --sidebar-primary:          4 71% 41%;
+  --sidebar-primary:          211 68% 27%;
   --sidebar-primary-foreground: 0 0% 98%;
   --sidebar-accent:           211 30% 16%;
   --sidebar-accent-foreground: 38 20% 80%;
   --sidebar-border:           211 24% 19%;
-  --sidebar-ring:             4 71% 41%;
+  --sidebar-ring:             211 68% 27%;
 
   /* ── Legacy bridge (used by older components) ─────────── */
   --airbnb-ink:     hsl(var(--foreground));
   --airbnb-primary: var(--amber);
-  --airbnb-primary-active: #8C1D17;
+  --airbnb-primary-active: #0F2C52;
   --airbnb-canvas:  hsl(var(--card));
   --airbnb-surface: hsl(var(--muted));
   --airbnb-muted:   hsl(var(--muted-foreground));
@@ -113,7 +113,7 @@
   --popover:          40 35% 97%;
   --popover-foreground: 211 40% 14%;
 
-  --primary:          4 65% 42%;       /* stamp-red                */
+  --primary:          211 60% 32%;       /* ink-blue                 */
   --primary-foreground: 42 38% 96%;
 
   --secondary:        40 25% 88%;
@@ -130,16 +130,16 @@
 
   --border:           40 20% 78%;
   --input:            40 20% 78%;
-  --ring:             4 65% 42%;
+  --ring:             211 60% 32%;
 
   --sidebar:                  42 38% 92%;
   --sidebar-foreground:       211 40% 14%;
-  --sidebar-primary:          4 65% 42%;
+  --sidebar-primary:          211 60% 32%;
   --sidebar-primary-foreground: 42 38% 96%;
   --sidebar-accent:           40 25% 88%;
   --sidebar-accent-foreground: 211 40% 14%;
   --sidebar-border:           40 20% 78%;
-  --sidebar-ring:             4 65% 42%;
+  --sidebar-ring:             211 60% 32%;
 
   --airbnb-ink:     #16283F;
   --airbnb-canvas:  #F7F0DD;
@@ -155,7 +155,7 @@
   --card-foreground:  38 25% 88%;
   --popover:          211 40% 13%;
   --popover-foreground: 38 25% 88%;
-  --primary:          4 71% 41%;
+  --primary:          211 68% 27%;
   --primary-foreground: 0 0% 98%;
   --secondary:        211 30% 18%;
   --secondary-foreground: 38 20% 80%;
@@ -167,15 +167,15 @@
   --destructive-foreground: 0 0% 98%;
   --border:           211 24% 22%;
   --input:            211 24% 19%;
-  --ring:             4 71% 41%;
+  --ring:             211 68% 27%;
   --sidebar:                  211 48% 9%;
   --sidebar-foreground:       38 25% 88%;
-  --sidebar-primary:          4 71% 41%;
+  --sidebar-primary:          211 68% 27%;
   --sidebar-primary-foreground: 0 0% 98%;
   --sidebar-accent:           211 30% 16%;
   --sidebar-accent-foreground: 38 20% 80%;
   --sidebar-border:           211 24% 19%;
-  --sidebar-ring:             4 71% 41%;
+  --sidebar-ring:             211 68% 27%;
   --airbnb-ink:     hsl(38, 25%, 88%);
   --airbnb-canvas:  hsl(211, 40%, 15%);
   --airbnb-surface: hsl(211, 30%, 16%);
@@ -210,11 +210,11 @@
     margin: 0;
     /* paper-grain texture overlay */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23B3261E' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23163F73' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
   }
 
   a, button, [role='button'], input[type='submit'], input[type='button'], select {
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23B3261E' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23163F73' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -241,7 +241,7 @@
 @layer utilities {
   /* Gradient text — stamp-red ink */
   .text-gradient {
-    background: linear-gradient(135deg, #B3261E 0%, #D8453B 50%, #8C1D17 100%);
+    background: linear-gradient(135deg, #163F73 0%, #2C6CB0 50%, #0F2C52 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -372,7 +372,7 @@
 
 @layer components {
   /* Quick-action icon containers — ink-stamp tints */
-  .icon-tint-amber  { background: rgba(179,38,30,0.12);   color: #B3261E; }
+  .icon-tint-amber  { background: rgba(22,63,115,0.12);    color: #163F73; }
   .icon-tint-blue   { background: rgba(29,78,137,0.12);   color: #4F82C4; }
   .icon-tint-green  { background: rgba(61,148,103,0.12);  color: #3D9467; }
   .icon-tint-purple { background: rgba(167,139,250,0.10); color: #A78BFA; }

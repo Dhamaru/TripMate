@@ -116,7 +116,7 @@ export function EmergencyServices({ location = "Current Location", coords: propC
   const serviceIcons: Record<EmergencyService['type'], { icon: string; color: string }> = {
     hospital: { icon: 'fas fa-hospital', color: 'text-red-500' },
     police: { icon: 'fas fa-shield-alt', color: 'text-[#1D4E89] dark:text-blue-400' },
-    embassy: { icon: 'fas fa-building', color: 'text-[#B3261E]' },
+    embassy: { icon: 'fas fa-building', color: 'text-[#163F73]' },
     fire: { icon: 'fas fa-fire-extinguisher', color: 'text-red-500' },
     pharmacy: { icon: 'fas fa-pills', color: 'text-emerald-500' },
   };

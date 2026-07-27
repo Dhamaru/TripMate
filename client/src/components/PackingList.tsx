@@ -283,7 +283,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
             data-testid="button-smart-suggestions"
             disabled={suggesting}
           >
-            <i className="fas fa-lightbulb text-[#B3261E] mr-1"></i>
+            <i className="fas fa-lightbulb text-[#163F73] mr-1"></i>
             Suggest
           </Button>
         </div>
@@ -358,7 +358,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
 
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            <i className="fas fa-lightbulb text-[#B3261E] mr-1"></i>
+            <i className="fas fa-lightbulb text-[#163F73] mr-1"></i>
             AI suggests items based on weather & destination
           </p>
         </div>

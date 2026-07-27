@@ -117,8 +117,8 @@ export default function ResetPasswordPage() {
         <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
             <CardContent className="p-8">
                 <div className="flex flex-col items-center text-center mt-2 mb-8">
-                    <div className="w-16 h-16 bg-[#B3261E]/20 rounded-2xl flex items-center justify-center mb-6">
-                        <Lock className="w-8 h-8 text-[#B3261E]" />
+                    <div className="w-16 h-16 bg-[#163F73]/20 rounded-2xl flex items-center justify-center mb-6">
+                        <Lock className="w-8 h-8 text-[#163F73]" />
                     </div>
                     <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
                     <p className="text-white/60 font-medium">
@@ -197,7 +197,7 @@ export default function ResetPasswordPage() {
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full h-14 bg-[#B3261E] hover:bg-[#8C1D17] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+                            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
                         >
                             {isLoading ? (
                                 <>

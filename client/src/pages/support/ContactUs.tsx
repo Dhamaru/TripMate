@@ -77,8 +77,8 @@ export default function ContactUs() {
 
                         <Card className="bg-card border-border">
                             <CardContent className="p-6 flex items-start space-x-4">
-                                <div className="w-12 h-12 bg-[#B3261E]/10 rounded-full flex items-center justify-center shrink-0">
-                                    <MapPin className="text-[#B3261E] w-6 h-6" />
+                                <div className="w-12 h-12 bg-[#163F73]/10 rounded-full flex items-center justify-center shrink-0">
+                                    <MapPin className="text-[#163F73] w-6 h-6" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-bold text-white mb-1">Visit Us</h3>

@@ -52,7 +52,7 @@ function SortableActivity({
     const isTravelLeg = activity.type === 'travel';
 
     const typeColors: Record<string, string> = {
-        travel: 'bg-[#B3261E]/20 text-[#B3261E]',
+        travel: 'bg-[#163F73]/20 text-[#163F73]',
         food: 'bg-emerald-500/20 text-emerald-400',
         sightseeing: 'bg-blue-500/20 text-blue-400',
         accommodation: 'bg-purple-500/20 text-purple-400',
@@ -64,7 +64,7 @@ function SortableActivity({
     const typeClass = typeColors[activity.type || 'activity'] || typeColors.activity;
 
     return (
-        <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2.5 border-b border-white/5 last:border-0 transition-colors group ${isTravelLeg ? 'bg-[#B3261E]/5' : 'hover:bg-white/3'}`}>
+        <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2.5 border-b border-white/5 last:border-0 transition-colors group ${isTravelLeg ? 'bg-[#163F73]/5' : 'hover:bg-white/3'}`}>
             {/* Drag handle */}
             <div {...attributes} {...listeners} className="shrink-0 text-white/20 cursor-grab active:cursor-grabbing hover:text-white/50 transition-colors">
                 <GripVertical className="w-4 h-4" />
@@ -83,7 +83,7 @@ function SortableActivity({
                     {isTravelLeg && (activity.from || activity.to) ? (
                         <>
                             {activity.from && <span className="text-sm font-medium text-white">{activity.from}</span>}
-                            {activity.from && activity.to && <span className="text-[#B3261E] text-xs">→</span>}
+                            {activity.from && activity.to && <span className="text-[#163F73] text-xs">→</span>}
                             {activity.to && <span className="text-sm font-medium text-white">{activity.to}</span>}
                         </>
                     ) : (
@@ -408,7 +408,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                         <div className="flex items-center gap-2">
                             <h3 className="font-bold text-white tracking-tight">Day {day.day || dayIdx + 1}</h3>
                             {dateLabel && (
-                                <span className="text-xs text-[#B3261E] bg-[#B3261E]/10 px-2 py-0.5 rounded-full font-medium">{dateLabel}</span>
+                                <span className="text-xs text-[#163F73] bg-[#163F73]/10 px-2 py-0.5 rounded-full font-medium">{dateLabel}</span>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -416,7 +416,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                             <Button
                                 onClick={() => handleAddActivity(dayIdx)}
                                 size="sm"
-                                className="bg-[#B3261E] hover:bg-[#8C1D17] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
+                                className="bg-[#163F73] hover:bg-[#0F2C52] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
                             >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">Add Activity</span>

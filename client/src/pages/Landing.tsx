@@ -18,9 +18,9 @@ const features = [
     description: "AI-powered itinerary generation based on your preferences, budget, and travel style.",
     tag: "AI-Powered",
     iconBg: "bg-[#F7F0DD]",
-    iconColor: "text-[#B3261E]",
-    tagColor: "text-[#B3261E] bg-[#F7F0DD]",
-    accentColor: "group-hover:border-[#B3261E]/30",
+    iconColor: "text-[#163F73]",
+    tagColor: "text-[#163F73] bg-[#F7F0DD]",
+    accentColor: "group-hover:border-[#163F73]/30",
   },
   {
     icon: BookOpen,
@@ -188,7 +188,7 @@ export default function Landing() {
               </button>
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#B3261E] hover:bg-[#8C1D17] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+                className="bg-[#163F73] hover:bg-[#0F2C52] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
               >
                 Get Started Free
               </button>
@@ -219,7 +219,7 @@ export default function Landing() {
                     key={link.name}
                     href={link.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="block text-base font-medium text-[#16283F] hover:text-[#B3261E] transition-colors"
+                    className="block text-base font-medium text-[#16283F] hover:text-[#163F73] transition-colors"
                   >
                     {link.name}
                   </a>
@@ -233,7 +233,7 @@ export default function Landing() {
                   </button>
                   <button
                     onClick={() => navigate("/signup")}
-                    className="w-full bg-[#B3261E] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#8C1D17] transition-colors"
+                    className="w-full bg-[#163F73] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#0F2C52] transition-colors"
                   >
                     Get Started Free
                   </button>
@@ -249,7 +249,7 @@ export default function Landing() {
         {/* Decorative background */}
         <div className="absolute inset-0 -z-10 pointer-events-none" aria-hidden="true">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-70" style={{ background: 'radial-gradient(ellipse at center, #F7F0DD 0%, rgba(254,243,199,0.4) 50%, transparent 100%)' }} />
-          <div className="absolute top-20 left-[10%] w-48 h-48 bg-[#B3261E]/5 rounded-full blur-3xl" />
+          <div className="absolute top-20 left-[10%] w-48 h-48 bg-[#163F73]/5 rounded-full blur-3xl" />
           <div className="absolute top-40 right-[12%] w-64 h-64 bg-[#1D4E89]/5 rounded-full blur-3xl" />
           {/* Floating destination chips */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.6 }}
@@ -278,8 +278,8 @@ export default function Landing() {
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 bg-[#F7F0DD] text-[#B3261E] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-[#D8453B]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#B3261E]" />
+            <div className="inline-flex items-center gap-2 bg-[#F7F0DD] text-[#163F73] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-[#D8453B]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#163F73]" />
               AI-Powered Travel Planning
             </div>
 
@@ -296,7 +296,7 @@ export default function Landing() {
             {/* Hero search bar with autocomplete */}
             <div className="max-w-2xl mx-auto mb-8 relative animate-fade-up animate-fade-up-delay-3" ref={searchRef}>
               <div className="flex items-center bg-white border border-[#dddddd] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] px-6 py-4 gap-4">
-                <MapPin className="w-5 h-5 text-[#B3261E] flex-shrink-0" />
+                <MapPin className="w-5 h-5 text-[#163F73] flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="Where do you want to go?"
@@ -322,7 +322,7 @@ export default function Landing() {
                 />
                 <button
                   onClick={() => navigate("/signup")}
-                  className="bg-[#B3261E] hover:bg-[#8C1D17] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
+                  className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
                   data-testid="button-get-started"
                 >
                   Plan Trip
@@ -348,7 +348,7 @@ export default function Landing() {
                         onMouseEnter={() => setActiveIndex(idx)}
                         onClick={() => { setDestination(s.name); setShowSuggestions(false); }}
                       >
-                        <MapPin className="w-4 h-4 text-[#B3261E] flex-shrink-0" />
+                        <MapPin className="w-4 h-4 text-[#163F73] flex-shrink-0" />
                         <div>
                           <span className="text-sm font-medium text-[#16283F]">{s.name}</span>
                           {s.country && <span className="text-xs text-[#929292] ml-2">{s.country}</span>}
@@ -368,7 +368,7 @@ export default function Landing() {
                   onClick={() => setSelectedStyle(style.name === selectedStyle ? null : style.name)}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
                     selectedStyle === style.name
-                      ? "bg-[#B3261E] border-[#B3261E] text-white"
+                      ? "bg-[#163F73] border-[#163F73] text-white"
                       : "bg-white border-[#dddddd] text-[#16283F] hover:border-[#16283F]"
                   }`}
                 >
@@ -382,7 +382,7 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#B3261E] hover:bg-[#8C1D17] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>
@@ -405,7 +405,7 @@ export default function Landing() {
               <div key={stat.label}>
                 <div className="flex items-center justify-center gap-1">
                   <span className="font-display text-3xl font-bold text-gradient">{stat.value}</span>
-                  {stat.icon && <stat.icon className="w-4 h-4 text-[#B3261E] fill-[#B3261E]" />}
+                  {stat.icon && <stat.icon className="w-4 h-4 text-[#163F73] fill-[#163F73]" />}
                 </div>
                 <div className="text-sm font-medium text-[#6a6a6a] mt-1">{stat.label}</div>
               </div>
@@ -418,7 +418,7 @@ export default function Landing() {
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[#B3261E] text-sm font-semibold mb-2 uppercase tracking-wide">Features</p>
+            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">Features</p>
             <h2 className="text-3xl md:text-5xl font-bold text-[#16283F] mb-4" data-testid="features-title">
               Everything You <span className="text-gradient">Need</span>
             </h2>
@@ -458,7 +458,7 @@ export default function Landing() {
       <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 bg-[#f7f7f7]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[#B3261E] text-sm font-semibold mb-2 uppercase tracking-wide">How It Works</p>
+            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">How It Works</p>
             <h2 className="text-3xl md:text-5xl font-bold text-[#16283F] mb-4">
               Plan Your <span className="text-gradient">Perfect Trip</span>
             </h2>
@@ -474,7 +474,7 @@ export default function Landing() {
               { step: "03", title: "Travel & Adjust", desc: "Track expenses, write journal entries, and let Atlas AI answer questions on the go." },
             ].map((item) => (
               <div key={item.step} className="bg-white border border-[#ebebeb] rounded-3xl p-6">
-                <div className="text-3xl font-bold text-[#B3261E] mb-3 font-mono">{item.step}</div>
+                <div className="text-3xl font-bold text-[#163F73] mb-3 font-mono">{item.step}</div>
                 <h3 className="font-semibold text-[#16283F] mb-2">{item.title}</h3>
                 <p className="text-sm text-[#6a6a6a] leading-relaxed">{item.desc}</p>
               </div>
@@ -507,7 +507,7 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#B3261E] hover:bg-[#8C1D17] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>
@@ -572,7 +572,7 @@ export default function Landing() {
                   role: "Product Visionary & UX Designer",
                   bio: "Conceptualized the core features and user experience that make TripMate intuitive and powerful.",
                   color: "bg-[#F7F0DD]",
-                  iconColor: "text-[#B3261E]",
+                  iconColor: "text-[#163F73]",
                 },
                 {
                   icon: Code,
@@ -589,7 +589,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <div className="font-semibold text-[#16283F] text-sm">{member.name}</div>
-                    <div className="text-[#B3261E] text-xs font-medium mb-1">{member.role}</div>
+                    <div className="text-[#163F73] text-xs font-medium mb-1">{member.role}</div>
                     <p className="text-xs text-[#6a6a6a] leading-relaxed">{member.bio}</p>
                   </div>
                 </div>

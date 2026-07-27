@@ -8,10 +8,10 @@ export function ChatHeader({ onClose }: Props) {
     return (
         <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
             <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-full bg-[#B3261E]/20 flex items-center justify-center text-sm" aria-hidden="true">🌍</span>
+                <span className="w-8 h-8 rounded-full bg-[#163F73]/20 flex items-center justify-center text-sm" aria-hidden="true">🌍</span>
                 <div>
                     <h2 className="text-foreground text-sm font-semibold leading-tight">Atlas AI</h2>
-                    <span className="text-xs text-[#B3261E]">Your AI travel expert</span>
+                    <span className="text-xs text-[#163F73]">Your AI travel expert</span>
                 </div>
             </div>
             <div className="flex items-center gap-2">

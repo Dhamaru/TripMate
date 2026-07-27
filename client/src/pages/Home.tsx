@@ -63,7 +63,7 @@ export default function Home() {
           className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden cursor-pointer group card-hover-glow animate-fade-up animate-fade-up-delay-1"
           onClick={() => navigate(`/app/trips/${currentTrip.id}`)}
         >
-          <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#8C1D17]">
+          <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#0F2C52]">
             {currentTrip.imageUrl && (
               <img
                 src={currentTrip.imageUrl}
@@ -147,7 +147,7 @@ export default function Home() {
                     <span className="text-[11px] text-[hsl(var(--muted-foreground))] w-5 text-right font-display italic flex-shrink-0">
                       {String(idx + 1).padStart(2, '0')}
                     </span>
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#8C1D17] flex-shrink-0">
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#0F2C52] flex-shrink-0">
                       {t.imageUrl ? (
                         <img src={t.imageUrl} alt={t.destination} className="w-full h-full object-cover" />
                       ) : (
@@ -186,7 +186,7 @@ export default function Home() {
           </p>
           <Button
             onClick={() => navigate("/app/planner")}
-            className="bg-[var(--amber)] hover:bg-[#8C1D17] text-white px-8 h-10 rounded-xl font-semibold font-sans-clean text-sm"
+            className="bg-[var(--amber)] hover:bg-[#0F2C52] text-white px-8 h-10 rounded-xl font-semibold font-sans-clean text-sm"
           >
             Start planning
           </Button>

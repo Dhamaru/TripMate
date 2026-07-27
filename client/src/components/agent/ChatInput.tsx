@@ -51,7 +51,7 @@ export function ChatInput() {
                 </span>
             )}
             <button
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#B3261E] text-white hover:bg-[#8C1D17] disabled:opacity-50 disabled:cursor-not-allowed shrink-0 mb-1 transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#163F73] text-white hover:bg-[#0F2C52] disabled:opacity-50 disabled:cursor-not-allowed shrink-0 mb-1 transition-colors"
                 onClick={() => void handleSubmit()}
                 disabled={isLoading || !text.trim()}
                 aria-label="Send message"

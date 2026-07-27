@@ -70,10 +70,10 @@ export default function HelpCenter() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-card border-border hover:border-[#B3261E] transition-colors cursor-pointer group">
+                    <Card className="bg-card border-border hover:border-[#163F73] transition-colors cursor-pointer group">
                         <CardContent className="p-6 text-center">
-                            <div className="w-12 h-12 bg-[#B3261E]/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#B3261E]/20 transition-colors">
-                                <FileText className="text-[#B3261E] w-6 h-6" />
+                            <div className="w-12 h-12 bg-[#163F73]/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#163F73]/20 transition-colors">
+                                <FileText className="text-[#163F73] w-6 h-6" />
                             </div>
                             <h3 className="font-semibold text-lg mb-2 text-foreground">Billing & Plans</h3>
                             <p className="text-muted-foreground text-sm">Subscription management, payment methods, and refunds.</p>

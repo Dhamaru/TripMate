@@ -124,14 +124,14 @@ export default function SignInPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#B3261E] transition-colors font-medium"
+              className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between ml-1">
               <Label htmlFor="password" className="text-sm font-medium text-white">Password</Label>
-              <Link href="/forgot-password" className="text-xs font-semibold text-[#B3261E] hover:text-amber-300 smooth-transition">
+              <Link href="/forgot-password" className="text-xs font-semibold text-[#163F73] hover:text-amber-300 smooth-transition">
                 Forgot Password?
               </Link>
             </div>
@@ -143,7 +143,7 @@ export default function SignInPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#B3261E] transition-colors font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
               />
               <Button
                 type="button"
@@ -168,7 +168,7 @@ export default function SignInPage() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 bg-[#B3261E] hover:bg-[#8C1D17] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
           >
             {isLoading ? "Signing In..." : "Sign In"}
           </Button>

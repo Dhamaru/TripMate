@@ -33,7 +33,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
               className="text-5xl font-bold leading-tight"
             >
               Your Intelligent <br />
-              <span className="text-[#B3261E]">Travel Companion</span>
+              <span className="text-[#163F73]">Travel Companion</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -46,14 +46,14 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
             <div className="pt-8 grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[#1D4E89]/30 flex items-center justify-center text-[#B3261E]">
+                <div className="w-10 h-10 rounded-full bg-[#1D4E89]/30 flex items-center justify-center text-[#163F73]">
                   <i className="fa-solid fa-wand-magic-sparkles" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-wider text-white/50">AI Powered</p>
                 <p className="text-sm text-white/80">Smart suggestions tailored to you.</p>
               </div>
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[#B3261E]/10 flex items-center justify-center text-[#B3261E]">
+                <div className="w-10 h-10 rounded-full bg-[#163F73]/10 flex items-center justify-center text-[#163F73]">
                   <i className="fa-solid fa-map-location-dot" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-wider text-white/50">Seamless</p>
