@@ -188,7 +188,7 @@ export default function Landing() {
               </button>
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#163F73] hover:bg-[#0F2C52] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+                className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
               >
                 Get Started Free
               </button>
@@ -233,7 +233,7 @@ export default function Landing() {
                   </button>
                   <button
                     onClick={() => navigate("/signup")}
-                    className="w-full bg-[#163F73] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#0F2C52] transition-colors"
+                    className="stamp-press w-full bg-[#163F73] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#0F2C52] transition-colors"
                   >
                     Get Started Free
                   </button>
@@ -322,7 +322,7 @@ export default function Landing() {
                 />
                 <button
                   onClick={() => navigate("/signup")}
-                  className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
+                  className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
                   data-testid="button-get-started"
                 >
                   Plan Trip
@@ -382,7 +382,7 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>
@@ -507,7 +507,7 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
               <button
                 onClick={() => navigate("/signup")}
-                className="bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>

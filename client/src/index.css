@@ -340,6 +340,14 @@
     box-shadow: 0 0 0 1px currentColor inset;
     opacity: 0.92;
   }
+  /* Ink-stamp press — primary CTAs compress + flash on click, like a stamp hitting paper */
+  .stamp-press {
+    transition: transform 0.12s ease, filter 0.12s ease;
+  }
+  .stamp-press:active {
+    transform: scale(0.96);
+    filter: brightness(0.85);
+  }
   /* Perforated ticket-stub edge (dashed, like a boarding-pass tear line) */
   .perforated-edge {
     border-top: 2px dashed hsl(var(--border));
