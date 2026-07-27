@@ -55,17 +55,44 @@ export const geocode = async (req: Request, res: Response, next: NextFunction) =
         const query = req.query.q as string;
         if (!query) throw new BadRequestError("Missing query parameter 'q'");
 
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
-        const response = await fetch(url, {
-            headers: {
-                "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)"
-            }
-        });
-        
-        if (!response.ok) throw new Error("External geocoding service failed");
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)"
+                }
+            });
 
-        const data = await response.json();
-        res.status(200).json(data);
+            if (!response.ok) throw new Error(`Nominatim returned ${response.status}`);
+
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+                return res.status(200).json(data);
+            }
+            throw new Error("Nominatim returned no results");
+        } catch (nominatimError: any) {
+            console.warn(`[Geocode] Nominatim failed for "${query}", falling back to Google: ${nominatimError.message}`);
+
+            const key = config.GOOGLE_API_KEY;
+            if (!key) throw new Error("No geocoding fallback available");
+
+            const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${key}`;
+            const gRes = await fetch(gUrl);
+            const gData = await gRes.json();
+
+            if (gData.status !== "OK" || !Array.isArray(gData.results) || gData.results.length === 0) {
+                console.warn(`[Geocode] Google fallback also failed for "${query}": ${gData.status} ${gData.error_message || ""}`);
+                return res.status(200).json([]);
+            }
+
+            const mapped = gData.results.map((r: any) => ({
+                lat: String(r.geometry.location.lat),
+                lon: String(r.geometry.location.lng),
+                display_name: r.formatted_address,
+                name: r.address_components?.[0]?.long_name,
+            }));
+            return res.status(200).json(mapped);
+        }
     } catch (error) {
         next(error);
     }
@@ -291,15 +318,41 @@ export const reverseGeocode = async (req: Request, res: Response, next: NextFunc
         const { lat, lon } = req.query;
         if (!lat || !lon) throw new BadRequestError("Missing lat or lon");
 
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-        const response = await fetch(url, {
-            headers: { "User-Agent": "TripMate/2.0.0" }
-        });
-        
-        if (!response.ok) throw new Error("Reverse geocoding failed");
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+            const response = await fetch(url, {
+                headers: { "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)" }
+            });
 
-        const data = await response.json();
-        res.json(data);
+            if (!response.ok) throw new Error(`Nominatim returned ${response.status}`);
+
+            const data = await response.json();
+            if (data && (data.display_name || data.address)) {
+                return res.json(data);
+            }
+            throw new Error("Nominatim returned no result");
+        } catch (nominatimError: any) {
+            console.warn(`[ReverseGeocode] Nominatim failed for ${lat},${lon}, falling back to Google: ${nominatimError.message}`);
+
+            const key = config.GOOGLE_API_KEY;
+            if (!key) throw new Error("No reverse-geocoding fallback available");
+
+            const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${key}`;
+            const gRes = await fetch(gUrl);
+            const gData = await gRes.json();
+
+            if (gData.status !== "OK" || !Array.isArray(gData.results) || gData.results.length === 0) {
+                console.warn(`[ReverseGeocode] Google fallback also failed for ${lat},${lon}: ${gData.status} ${gData.error_message || ""}`);
+                return res.json({ display_name: "", lat, lon });
+            }
+
+            const top = gData.results[0];
+            return res.json({
+                lat: String(lat),
+                lon: String(lon),
+                display_name: top.formatted_address,
+            });
+        }
     } catch (error) {
         next(error);
     }
