@@ -63,7 +63,7 @@ export default function Home() {
           className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden cursor-pointer group card-hover-glow animate-fade-up animate-fade-up-delay-1"
           onClick={() => navigate(`/app/trips/${currentTrip.id}`)}
         >
-          <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#C97908]">
+          <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#8C1D17]">
             {currentTrip.imageUrl && (
               <img
                 src={currentTrip.imageUrl}
@@ -73,8 +73,8 @@ export default function Home() {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
             <div className="absolute top-4 right-4">
-              <span className="flex items-center gap-1.5 bg-black/30 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 tracking-wide">
-                <Sparkles className="w-3 h-3 text-[var(--amber)]" /> ACTIVE
+              <span className="stamp bg-[hsl(var(--card))]/90 text-[var(--forest)] text-[10px]">
+                <Sparkles className="w-3 h-3" /> Active
               </span>
             </div>
             <div className="absolute bottom-5 left-5">
@@ -87,19 +87,19 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-[hsl(var(--card))] px-5 py-3.5 flex items-center justify-between">
+          <div className="bg-[hsl(var(--card))] px-5 py-3.5 flex items-center justify-between perforated-edge">
             <div className="flex gap-5 text-sm">
               <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
                 <Clock className="w-3.5 h-3.5" />
-                <span className="text-xs font-sans-clean">{currentTrip.days}d</span>
+                <span className="text-xs font-mono-data">{currentTrip.days}d</span>
               </div>
               <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
                 <Users className="w-3.5 h-3.5" />
-                <span className="text-xs font-sans-clean">{currentTrip.groupSize} pax</span>
+                <span className="text-xs font-mono-data">{currentTrip.groupSize} pax</span>
               </div>
               <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
                 <Wallet className="w-3.5 h-3.5" />
-                <span className="text-xs font-sans-clean">₹{currentTrip.budget?.toLocaleString()}</span>
+                <span className="text-xs font-mono-data">₹{currentTrip.budget?.toLocaleString()}</span>
               </div>
             </div>
             <button className="flex items-center gap-1 text-[var(--amber)] text-xs font-semibold hover:gap-2 transition-all duration-150 font-sans-clean">
@@ -147,12 +147,12 @@ export default function Home() {
                     <span className="text-[11px] text-[hsl(var(--muted-foreground))] w-5 text-right font-display italic flex-shrink-0">
                       {String(idx + 1).padStart(2, '0')}
                     </span>
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#C97908] flex-shrink-0">
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#8C1D17] flex-shrink-0">
                       {t.imageUrl ? (
                         <img src={t.imageUrl} alt={t.destination} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Compass className="w-4 h-4 text-black" />
+                          <Compass className="w-4 h-4 text-white" />
                         </div>
                       )}
                     </div>
@@ -186,7 +186,7 @@ export default function Home() {
           </p>
           <Button
             onClick={() => navigate("/app/planner")}
-            className="bg-[var(--amber)] hover:bg-[#C97908] text-black px-8 h-10 rounded-xl font-semibold font-sans-clean text-sm"
+            className="bg-[var(--amber)] hover:bg-[#8C1D17] text-white px-8 h-10 rounded-xl font-semibold font-sans-clean text-sm"
           >
             Start planning
           </Button>

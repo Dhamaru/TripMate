@@ -46,7 +46,7 @@ export function SortablePackingItem({ item, handleToggle, handleDelete, handleQu
     return (
         <Reorder.Item value={item} dragListener={false} dragControls={controls} className="relative" style={{ touchAction: "pan-y" }}>
             <div
-                className={`group flex items-center p-4 bg-card border rounded-2xl transition-all cursor-pointer ${isPressing ? "border-[#F59E0B] scale-[0.98]" : "border-border hover:border-[#F59E0B]/40"}`}
+                className={`group flex items-center p-4 bg-card border rounded-2xl transition-all cursor-pointer ${isPressing ? "border-[#B3261E] scale-[0.98]" : "border-border hover:border-[#B3261E]/40"}`}
                 onPointerDown={handlePointerDown}
                 onPointerUp={cancelPress}
                 onPointerLeave={cancelPress}
@@ -54,10 +54,10 @@ export function SortablePackingItem({ item, handleToggle, handleDelete, handleQu
                 onClick={() => { if (!isPressing) handleToggle(); }}
             >
                 <div className="mr-3 text-muted-foreground">
-                    <GripVertical className={`w-5 h-5 ${isPressing ? "text-[#F59E0B]" : ""}`} />
+                    <GripVertical className={`w-5 h-5 ${isPressing ? "text-[#B3261E]" : ""}`} />
                 </div>
 
-                <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${item.packed ? "bg-[#1E3A8A] border-[#1E3A8A]" : "border-border group-hover:border-[#F59E0B]/60"}`}>
+                <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${item.packed ? "bg-[#1D4E89] border-[#1D4E89]" : "border-border group-hover:border-[#B3261E]/60"}`}>
                     {item.packed && <CheckCircle2 className="w-4 h-4 text-white" />}
                 </div>
 

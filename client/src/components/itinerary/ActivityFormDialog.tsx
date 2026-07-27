@@ -145,7 +145,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="relative">
                         <Label htmlFor="placeSearch" className="text-white font-medium mb-1.5 flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-[#1E3A8A] dark:text-blue-400" />
+                            <MapPin className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
                             Find Location
                         </Label>
                         <div className="relative">
@@ -154,7 +154,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                 value={searchTerm}
                                 onChange={(e) => handleSearch(e.target.value)}
                                 placeholder="Search for a place, restaurant, park..."
-                                className="bg-muted border-border text-white pl-10 h-11 focus:border-[#1E3A8A] transition-all"
+                                className="bg-muted border-border text-white pl-10 h-11 focus:border-[#1D4E89] transition-all"
                             />
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                                 {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
@@ -168,9 +168,9 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                         key={i}
                                         type="button"
                                         onClick={() => selectPlace(p)}
-                                        className="w-full text-left px-4 py-3 hover:bg-[#1E3A8A]/10 border-b border-border last:border-0 transition-colors group"
+                                        className="w-full text-left px-4 py-3 hover:bg-[#1D4E89]/10 border-b border-border last:border-0 transition-colors group"
                                     >
-                                        <div className="font-medium text-white group-hover:text-[#1E3A8A] dark:text-blue-400 transition-colors">
+                                        <div className="font-medium text-white group-hover:text-[#1D4E89] dark:text-blue-400 transition-colors">
                                             {p.name || p.display_name?.split(',')[0]}
                                         </div>
                                         <div className="text-xs text-muted-foreground truncate mt-0.5">
@@ -237,8 +237,8 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                             rows={2}
                         />
                         {formData.lat && (
-                            <div className="text-[10px] text-[#1E3A8A] dark:text-blue-400 mt-1 flex items-center gap-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#1E3A8A] animate-pulse" />
+                            <div className="text-[10px] text-[#1D4E89] dark:text-blue-400 mt-1 flex items-center gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#1D4E89] animate-pulse" />
                                 Coordinates captured: {formData.lat.toFixed(4)}, {formData.lon?.toFixed(4)}
                             </div>
                         )}
@@ -264,7 +264,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
 
                     {/* From / To fields for travel legs */}
                     {formData.type === 'travel' && (
-                        <div className="grid grid-cols-2 gap-4 p-3 bg-[#1E3A8A]/5 border border-[#1E3A8A]/20 rounded-lg">
+                        <div className="grid grid-cols-2 gap-4 p-3 bg-[#1D4E89]/5 border border-[#1D4E89]/20 rounded-lg">
                             <div>
                                 <Label className="text-white font-medium mb-1.5 block">From</Label>
                                 <Input
@@ -332,7 +332,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                         </Button>
                         <Button
                             type="submit"
-                            className="flex-1 bg-gradient-to-r from-[#1E3A8A] to-blue-600 hover:opacity-90 h-12 font-bold shadow-lg shadow-blue-800/20"
+                            className="flex-1 bg-gradient-to-r from-[#1D4E89] to-blue-600 hover:opacity-90 h-12 font-bold shadow-lg shadow-blue-800/20"
                         >
                             {activity ? 'Update' : 'Add'} Activity
                         </Button>

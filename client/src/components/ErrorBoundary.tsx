@@ -31,7 +31,7 @@ export default class ErrorBoundary extends React.Component<React.PropsWithChildr
               <summary>Error Details</summary>
               <pre>{this.state.error?.stack}</pre>
             </details>
-            <a href="/" className="inline-flex items-center px-4 py-2 rounded-md bg-[#1E3A8A] text-white">Go Home</a>
+            <a href="/" className="inline-flex items-center px-4 py-2 rounded-md bg-[#1D4E89] text-white">Go Home</a>
           </div>
         </div>
       );

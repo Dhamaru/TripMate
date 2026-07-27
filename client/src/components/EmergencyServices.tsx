@@ -115,8 +115,8 @@ export function EmergencyServices({ location = "Current Location", coords: propC
 
   const serviceIcons: Record<EmergencyService['type'], { icon: string; color: string }> = {
     hospital: { icon: 'fas fa-hospital', color: 'text-red-500' },
-    police: { icon: 'fas fa-shield-alt', color: 'text-[#1E3A8A] dark:text-blue-400' },
-    embassy: { icon: 'fas fa-building', color: 'text-[#F59E0B]' },
+    police: { icon: 'fas fa-shield-alt', color: 'text-[#1D4E89] dark:text-blue-400' },
+    embassy: { icon: 'fas fa-building', color: 'text-[#B3261E]' },
     fire: { icon: 'fas fa-fire-extinguisher', color: 'text-red-500' },
     pharmacy: { icon: 'fas fa-pills', color: 'text-emerald-500' },
   };
@@ -180,7 +180,7 @@ export function EmergencyServices({ location = "Current Location", coords: propC
             Emergency Services
             <span className="ml-2 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">{countryCode === 'Unknown' ? 'Searching...' : countryCode} Mode</span>
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={handleShareLocation} className="text-[#1E3A8A] dark:text-blue-400 hover:text-blue-600">
+          <Button variant="ghost" size="sm" onClick={handleShareLocation} className="text-[#1D4E89] dark:text-blue-400 hover:text-blue-600">
             <i className="fas fa-share-alt mr-1"></i> Share
           </Button>
         </div>
@@ -235,7 +235,7 @@ export function EmergencyServices({ location = "Current Location", coords: propC
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-[#1E3A8A] dark:text-blue-400 bg-[#1E3A8A]/10 px-2 py-1 rounded">
+                <span className="text-xs text-[#1D4E89] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
                   {service.type.charAt(0).toUpperCase() + service.type.slice(1)}
                 </span>
               </div>
@@ -262,8 +262,8 @@ export function EmergencyServices({ location = "Current Location", coords: propC
         </div>
 
         {/* Local Numbers Reference */}
-        <div className="bg-[#1E3A8A]/10 rounded-xl p-4 border border-[#1E3A8A]/20">
-          <h4 className="font-medium text-[#1E3A8A] dark:text-blue-400 mb-2 flex items-center text-sm">
+        <div className="bg-[#1D4E89]/10 rounded-xl p-4 border border-[#1D4E89]/20">
+          <h4 className="font-medium text-[#1D4E89] dark:text-blue-400 mb-2 flex items-center text-sm">
             <i className="fas fa-info-circle mr-2"></i>
             Local Emergency Stats ({countryCode})
           </h4>

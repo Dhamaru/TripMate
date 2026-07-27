@@ -193,7 +193,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                             <TabsTrigger
                                 key={cat.id}
                                 value={cat.id}
-                                className="data-[state=active]:bg-[#1E3A8A] data-[state=active]:text-white h-12 flex items-center gap-2 overflow-hidden px-1 sm:px-3"
+                                className="data-[state=active]:bg-[#1D4E89] data-[state=active]:text-white h-12 flex items-center gap-2 overflow-hidden px-1 sm:px-3"
                             >
                                 <div
                                     className="w-8 h-8 rounded-md bg-cover bg-center shrink-0 border border-white/10"
@@ -220,7 +220,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                 <Button
                                     onClick={handleSearch}
                                     disabled={searchMutation.isPending}
-                                    className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/80"
+                                    className="bg-[#1D4E89] hover:bg-[#1D4E89]/80"
                                 >
                                     {searchMutation.isPending ? (
                                         <i className="fas fa-spinner fa-spin" />
@@ -234,7 +234,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                             <Button
                                 onClick={handleAISuggestions}
                                 disabled={aiRecommendationsMutation.isPending}
-                                className="w-full bg-gradient-to-r from-purple-600 to-[#1E3A8A] hover:from-purple-700 hover:to-[#1E3A8A]/90"
+                                className="w-full bg-gradient-to-r from-purple-600 to-[#1D4E89] hover:from-purple-700 hover:to-[#1D4E89]/90"
                             >
                                 {aiRecommendationsMutation.isPending ? (
                                     <>
@@ -264,7 +264,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                 initial={{ opacity: 0, y: 20 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: index * 0.1 }}
-                                                className="bg-muted rounded-lg p-4 border border-border hover:border-[#1E3A8A]/30 transition-all"
+                                                className="bg-muted rounded-lg p-4 border border-border hover:border-[#1D4E89]/30 transition-all"
                                             >
                                                 <div className="flex gap-3">
                                                     {/* Photo */}
@@ -302,7 +302,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                             {place.address}
                                                         </p>
                                                         {place.reason && (
-                                                            <p className="text-xs text-[#1E3A8A] dark:text-blue-400 mt-2 italic">
+                                                            <p className="text-xs text-[#1D4E89] dark:text-blue-400 mt-2 italic">
                                                                 💡 {place.reason}
                                                             </p>
                                                         )}
@@ -321,7 +321,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                                         <Button
                                                             onClick={() => handleNavigate(place)}
                                                             size="sm"
-                                                            className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/80"
+                                                            className="bg-[#1D4E89] hover:bg-[#1D4E89]/80"
                                                         >
                                                             <Navigation className="w-4 h-4" />
                                                         </Button>

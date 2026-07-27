@@ -14,7 +14,7 @@ import { logError } from "@/lib/logger";
 
 const STATUS_STYLE: Record<string, string> = {
   active:    "bg-blue-50 text-blue-600 border-blue-200",
-  planning:  "bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A]",
+  planning:  "bg-[#FFFBEB] text-[#B3261E] border-[#FDE68A]",
   completed: "bg-green-50 text-green-600 border-green-200",
 };
 
@@ -60,7 +60,7 @@ export default function TripsHistory() {
           </p>
         </div>
         <Link href="/app/planner">
-          <Button className="bg-[#F59E0B] hover:bg-[#D97706] text-white rounded-xl gap-2">
+          <Button className="bg-[#B3261E] hover:bg-[#8C1D17] text-white rounded-xl gap-2">
             <Plus className="h-4 w-4" /> New Trip
           </Button>
         </Link>
@@ -75,7 +75,7 @@ export default function TripsHistory() {
               placeholder="Search destinations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#F59E0B]/30"
+              className="pl-9 bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#B3261E]/30"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -96,7 +96,7 @@ export default function TripsHistory() {
       {/* Content */}
       {tripsLoading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#F59E0B]" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#B3261E]" />
         </div>
       ) : filteredTrips.length === 0 ? (
         <div className="bg-card rounded-3xl border border p-16 text-center">
@@ -111,7 +111,7 @@ export default function TripsHistory() {
           </p>
           {!searchQuery && statusFilter === "all" && (
             <Link href="/app/planner">
-              <Button className="bg-[#F59E0B] hover:bg-[#D97706] text-white rounded-xl gap-2">
+              <Button className="bg-[#B3261E] hover:bg-[#8C1D17] text-white rounded-xl gap-2">
                 <Plus className="h-4 w-4" /> Plan Your First Trip
               </Button>
             </Link>
@@ -127,9 +127,9 @@ export default function TripsHistory() {
               transition={{ delay: index * 0.06, duration: 0.3 }}
             >
               <Link href={`/app/trips/${trip.id}`}>
-                <div className="bg-card rounded-3xl border border hover:border-[#F59E0B]/30 hover:shadow-md transition-all cursor-pointer group overflow-hidden flex h-36">
+                <div className="bg-card rounded-3xl border border hover:border-[#B3261E]/30 hover:shadow-md transition-all cursor-pointer group overflow-hidden flex h-36">
                   {/* Image */}
-                  <div className="w-1/3 min-w-[120px] relative bg-gradient-to-br from-[#F59E0B] to-[#D97706] overflow-hidden flex-shrink-0">
+                  <div className="w-1/3 min-w-[120px] relative bg-gradient-to-br from-[#B3261E] to-[#8C1D17] overflow-hidden flex-shrink-0">
                     {trip.imageUrl ? (
                       <img
                         src={trip.imageUrl}

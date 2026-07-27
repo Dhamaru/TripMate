@@ -71,7 +71,7 @@ function getBackgroundGradient(condition: string, temp: number): string {
   if (cond.includes('clear') || cond.includes('sun')) return temp > 25 ? 'bg-gradient-to-br from-orange-500 via-amber-600 to-red-600' : 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-700';
   if (cond.includes('snow')) return 'bg-gradient-to-br from-blue-100 via-blue-200 to-white text-slate-800'; // Light theme for snow? Maybe keep dark for consistency but frosty.
   if (cond.includes('storm') || cond.includes('thunder')) return 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900';
-  return 'bg-gradient-to-br from-[#1E3A8A] to-blue-700'; // Default
+  return 'bg-gradient-to-br from-[#1D4E89] to-blue-700'; // Default
 }
 
 export function WeatherWidget({ location, coords = null, className = '' }: WeatherWidgetProps) {
@@ -159,7 +159,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           <div className="mt-3">
             <button
               onClick={() => refetch()}
-              className="px-3 py-1 rounded bg-[#1E3A8A] hover:bg-blue-800 text-white text-sm"
+              className="px-3 py-1 rounded bg-[#1D4E89] hover:bg-blue-800 text-white text-sm"
               data-testid="button-weather-retry"
             >
               Retry

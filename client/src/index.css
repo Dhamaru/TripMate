@@ -5,19 +5,24 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────
-   TripMate — Night Atlas Design System
-   Warm dark editorial — Playfair Display + DM Sans
+   TripMate — Passport & Visa Stamp Design System
+   THESIS: your passport, stamped at every stage of a trip.
+   Kraft/parchment (light) · ink-navy under a customs lamp (dark)
+   IBM Plex Serif (headers) / IBM Plex Sans (body) / IBM Plex Mono (data)
+   Ink roles: customs-blue (planning) · transit-green (active) ·
+              seal-black (completed/system) · stamp-red (primary/CTA)
    ───────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Brand constants ───────────────────────────────── */
-  --amber:        #E8900A;
-  --amber-dim:    rgba(232, 144, 10, 0.12);
-  --amber-glow:   rgba(232, 144, 10, 0.22);
-  --amber-hover-border: rgba(232, 144, 10, 0.5);
-  --forest:       #3D7A5A;
-  --cream:        #EDE6D6;
-  --ink:          #0C0A08;
+  /* ── Brand constants (var names kept stable; values remapped to the
+     ink-stamp palette so every existing consumer inherits the new world) ── */
+  --amber:        #B3261E;   /* stamp-red — primary action ink */
+  --amber-dim:    rgba(179, 38, 30, 0.12);
+  --amber-glow:   rgba(179, 38, 30, 0.22);
+  --amber-hover-border: rgba(179, 38, 30, 0.5);
+  --forest:       #2F6F4E;   /* transit-green */
+  --cream:        #EDE3CC;   /* kraft/parchment paper */
+  --ink:          #0D1B2E;   /* ink-navy dark ground */
 
   /* ── Radius ─────────────────────────────────────────── */
   --radius:       0.75rem;
@@ -33,49 +38,49 @@
   --shadow-card:  0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
   --shadow-hover: 0 0 0 1px var(--amber-dim), 0 4px 24px rgba(0,0,0,0.35);
 
-  /* ── Dark (default) tokens ───────────────────────────── */
-  --background:       24 10% 5%;       /* #0C0A08 warm ink-black  */
-  --foreground:       38 25% 88%;      /* #EDE6D6 warm cream      */
+  /* ── Dark (default) tokens — ink-navy under a customs-desk lamp ──── */
+  --background:       211 46% 11%;     /* #0D1B2E ink-navy ground  */
+  --foreground:       38 25% 88%;      /* #EDE6D6 warm parchment text */
 
-  --card:             24 8% 8%;        /* #141210 elevated surface */
+  --card:             211 40% 15%;     /* elevated ink-navy surface */
   --card-foreground:  38 25% 88%;
 
-  --popover:          24 8% 10%;
+  --popover:          211 40% 13%;
   --popover-foreground: 38 25% 88%;
 
-  --primary:          36 90% 48%;      /* #E6890A rich amber      */
+  --primary:          4 71% 41%;       /* #B3261E stamp-red        */
   --primary-foreground: 0 0% 98%;
 
-  --secondary:        24 8% 14%;
+  --secondary:        211 30% 18%;
   --secondary-foreground: 38 20% 80%;
 
-  --muted:            24 8% 12%;       /* #1E1B18 muted surface   */
-  --muted-foreground: 35 10% 52%;      /* #857E74 warm mid-gray   */
+  --muted:            211 30% 16%;
+  --muted-foreground: 210 14% 58%;
 
-  --accent:           24 8% 14%;
+  --accent:           211 30% 18%;
   --accent-foreground: 38 20% 80%;
 
   --destructive:      0 72% 45%;
   --destructive-foreground: 0 0% 98%;
 
-  --border:           30 8% 16%;       /* subtle warm border      */
-  --input:            30 8% 14%;
-  --ring:             36 90% 48%;
+  --border:           211 24% 22%;     /* subtle cool-ink border   */
+  --input:            211 24% 19%;
+  --ring:             4 71% 41%;
 
   /* ── Sidebar ─────────────────────────────────────────── */
-  --sidebar:                  24 10% 6%;
+  --sidebar:                  211 48% 9%;
   --sidebar-foreground:       38 25% 88%;
-  --sidebar-primary:          36 90% 48%;
+  --sidebar-primary:          4 71% 41%;
   --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent:           24 8% 12%;
+  --sidebar-accent:           211 30% 16%;
   --sidebar-accent-foreground: 38 20% 80%;
-  --sidebar-border:           30 8% 14%;
-  --sidebar-ring:             36 90% 48%;
+  --sidebar-border:           211 24% 19%;
+  --sidebar-ring:             4 71% 41%;
 
   /* ── Legacy bridge (used by older components) ─────────── */
   --airbnb-ink:     hsl(var(--foreground));
   --airbnb-primary: var(--amber);
-  --airbnb-primary-active: #C97908;
+  --airbnb-primary-active: #8C1D17;
   --airbnb-canvas:  hsl(var(--card));
   --airbnb-surface: hsl(var(--muted));
   --airbnb-muted:   hsl(var(--muted-foreground));
@@ -84,101 +89,101 @@
   --airbnb-body:    hsl(var(--foreground));
   --airbnb-teal:    var(--forest);
   --solar-amber:    var(--amber);
-  --explorer-blue:  #1E3A8A;
-  --explorer-blue-deep: #172554;
-  --emerald-horizon: #10B981;
-  --ios-blue:       #1E3A8A;
+  --explorer-blue:  #1D4E89;   /* customs-blue — planning status ink */
+  --explorer-blue-deep: #122A47;
+  --emerald-horizon: #3D9467;  /* transit-green — active status ink */
+  --ios-blue:       #1D4E89;
   --ios-orange:     var(--amber);
-  --ios-green:      #10B981;
-  --ios-red:        #EF4444;
+  --ios-green:      #3D9467;
+  --ios-red:        #B3261E;
   --ios-gray:       #94A3B8;
-  --ios-dark:       #1E293B;
-  --ios-darker:     #0F172A;
-  --ios-card:       rgba(20, 18, 16, 0.92);
+  --ios-dark:       #16283F;
+  --ios-darker:     #0D1B2E;
+  --ios-card:       rgba(19, 33, 53, 0.92);
 }
 
-/* ── Light mode overrides ──────────────────────────────── */
+/* ── Light mode overrides — kraft/parchment passport page ─────────── */
 .light {
-  --background:       0 0% 98%;
-  --foreground:       222 47% 11%;
+  --background:       42 38% 90%;      /* kraft/parchment paper    */
+  --foreground:       211 40% 14%;     /* ink-navy text            */
 
-  --card:             0 0% 100%;
-  --card-foreground:  222 47% 11%;
+  --card:             40 35% 96%;      /* fresh visa-stamp page    */
+  --card-foreground:  211 40% 14%;
 
-  --popover:          0 0% 100%;
-  --popover-foreground: 222 47% 11%;
+  --popover:          40 35% 97%;
+  --popover-foreground: 211 40% 14%;
 
-  --primary:          38 92% 50%;
-  --primary-foreground: 210 40% 98%;
+  --primary:          4 65% 42%;       /* stamp-red                */
+  --primary-foreground: 42 38% 96%;
 
-  --secondary:        210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
+  --secondary:        40 25% 88%;
+  --secondary-foreground: 211 40% 14%;
 
-  --muted:            210 40% 96%;
-  --muted-foreground: 215 16% 47%;
+  --muted:            40 25% 88%;
+  --muted-foreground: 211 14% 40%;
 
-  --accent:           210 40% 96%;
-  --accent-foreground: 222 47% 11%;
+  --accent:           40 25% 88%;
+  --accent-foreground: 211 40% 14%;
 
   --destructive:      0 84% 60%;
   --destructive-foreground: 210 40% 98%;
 
-  --border:           214 32% 91%;
-  --input:            214 32% 91%;
-  --ring:             38 92% 50%;
+  --border:           40 20% 78%;
+  --input:            40 20% 78%;
+  --ring:             4 65% 42%;
 
-  --sidebar:                  210 40% 98%;
-  --sidebar-foreground:       222 47% 11%;
-  --sidebar-primary:          38 92% 50%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent:           210 40% 96%;
-  --sidebar-accent-foreground: 222 47% 11%;
-  --sidebar-border:           214 32% 91%;
-  --sidebar-ring:             38 92% 50%;
+  --sidebar:                  42 38% 92%;
+  --sidebar-foreground:       211 40% 14%;
+  --sidebar-primary:          4 65% 42%;
+  --sidebar-primary-foreground: 42 38% 96%;
+  --sidebar-accent:           40 25% 88%;
+  --sidebar-accent-foreground: 211 40% 14%;
+  --sidebar-border:           40 20% 78%;
+  --sidebar-ring:             4 65% 42%;
 
-  --airbnb-ink:     #111827;
-  --airbnb-canvas:  #ffffff;
-  --airbnb-surface: #F9FAFB;
-  --ios-card:       rgba(255, 255, 255, 0.85);
+  --airbnb-ink:     #16283F;
+  --airbnb-canvas:  #F7F0DD;
+  --airbnb-surface: #FBF6EA;
+  --ios-card:       rgba(247, 240, 221, 0.85);
 }
 
 /* keep old .dark class working for existing toggle */
 .dark {
-  --background:       24 10% 5%;
+  --background:       211 46% 11%;
   --foreground:       38 25% 88%;
-  --card:             24 8% 8%;
+  --card:             211 40% 15%;
   --card-foreground:  38 25% 88%;
-  --popover:          24 8% 10%;
+  --popover:          211 40% 13%;
   --popover-foreground: 38 25% 88%;
-  --primary:          36 90% 48%;
+  --primary:          4 71% 41%;
   --primary-foreground: 0 0% 98%;
-  --secondary:        24 8% 14%;
+  --secondary:        211 30% 18%;
   --secondary-foreground: 38 20% 80%;
-  --muted:            24 8% 12%;
-  --muted-foreground: 35 10% 52%;
-  --accent:           24 8% 14%;
+  --muted:            211 30% 16%;
+  --muted-foreground: 210 14% 58%;
+  --accent:           211 30% 18%;
   --accent-foreground: 38 20% 80%;
   --destructive:      0 72% 45%;
   --destructive-foreground: 0 0% 98%;
-  --border:           30 8% 16%;
-  --input:            30 8% 14%;
-  --ring:             36 90% 48%;
-  --sidebar:                  24 10% 6%;
+  --border:           211 24% 22%;
+  --input:            211 24% 19%;
+  --ring:             4 71% 41%;
+  --sidebar:                  211 48% 9%;
   --sidebar-foreground:       38 25% 88%;
-  --sidebar-primary:          36 90% 48%;
+  --sidebar-primary:          4 71% 41%;
   --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent:           24 8% 12%;
+  --sidebar-accent:           211 30% 16%;
   --sidebar-accent-foreground: 38 20% 80%;
-  --sidebar-border:           30 8% 14%;
-  --sidebar-ring:             36 90% 48%;
+  --sidebar-border:           211 24% 19%;
+  --sidebar-ring:             4 71% 41%;
   --airbnb-ink:     hsl(38, 25%, 88%);
-  --airbnb-canvas:  hsl(24, 8%, 8%);
-  --airbnb-surface: hsl(24, 8%, 12%);
-  --airbnb-muted:   hsl(35, 10%, 52%);
-  --airbnb-hairline: hsl(30, 8%, 16%);
-  --airbnb-hairline-soft: hsl(30, 8%, 16%);
+  --airbnb-canvas:  hsl(211, 40%, 15%);
+  --airbnb-surface: hsl(211, 30%, 16%);
+  --airbnb-muted:   hsl(210, 14%, 58%);
+  --airbnb-hairline: hsl(211, 24%, 22%);
+  --airbnb-hairline-soft: hsl(211, 24%, 22%);
   --airbnb-body:    hsl(38, 25%, 88%);
-  --ios-card:       rgba(20, 18, 16, 0.92);
+  --ios-card:       rgba(19, 33, 53, 0.92);
 }
 
 /* ── Base Styles ──────────────────────────────────────── */
@@ -198,22 +203,22 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
     font-size: 16px;
     font-weight: 400;
     line-height: 1.55;
     margin: 0;
-    /* film-grain texture overlay */
+    /* paper-grain texture overlay */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23E8900A' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23B3261E' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, auto;
   }
 
   a, button, [role='button'], input[type='submit'], input[type='button'], select {
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23E8900A' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23B3261E' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>") 1 1, pointer;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: "IBM Plex Serif", Georgia, serif;
     color: hsl(var(--foreground));
     font-weight: 700;
     line-height: 1.18;
@@ -234,29 +239,35 @@
 /* ── Design Utilities ─────────────────────────────────── */
 
 @layer utilities {
-  /* Gradient text — amber fire */
+  /* Gradient text — stamp-red ink */
   .text-gradient {
-    background: linear-gradient(135deg, #E8900A 0%, #F5A623 50%, #E8900A 100%);
+    background: linear-gradient(135deg, #B3261E 0%, #D8453B 50%, #8C1D17 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  /* Gradient text — cool teal */
+  /* Gradient text — customs-blue ink */
   .text-gradient-blue {
-    background: linear-gradient(135deg, #3D7A5A 0%, #5BA882 100%);
+    background: linear-gradient(135deg, #1D4E89 0%, #3D7AB8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   /* Serif display utility */
   .font-display {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: "IBM Plex Serif", Georgia, serif;
     letter-spacing: -0.01em;
   }
   /* Sans utility */
   .font-sans-clean {
-    font-family: "DM Sans", system-ui, sans-serif;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
     letter-spacing: 0;
+  }
+  /* Mono data utility — dates, prices, flight-style codes */
+  .font-mono-data {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
   }
   /* Staggered fade-up animations */
   .animate-fade-up {
@@ -300,19 +311,44 @@
     background: var(--amber);
     border-radius: 0 2px 2px 0;
   }
-  /* Uppercase label */
+  /* Uppercase label — tracked mono, like an official form field label */
   .label-xs {
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    font-family: "DM Sans", system-ui, sans-serif;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
   }
-  /* Big italic serif number/stat */
+  /* Big serif number/stat — stamped numeral */
   .stat-display {
-    font-family: "Playfair Display", Georgia, serif;
-    font-style: italic;
-    font-weight: 800;
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-weight: 700;
+  }
+  /* Rotated ink-stamp badge */
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    transform: rotate(-3deg);
+    border: 2px solid currentColor;
+    border-radius: 3px;
+    padding: 2px 10px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 0 0 1px currentColor inset;
+    opacity: 0.92;
+  }
+  /* Perforated ticket-stub edge (dashed, like a boarding-pass tear line) */
+  .perforated-edge {
+    border-top: 2px dashed hsl(var(--border));
+  }
+  /* Official document double hairline rule */
+  .rule-double {
+    border-top: 1px solid hsl(var(--border));
+    border-bottom: 1px solid hsl(var(--border));
+    padding-block: 2px;
   }
 }
 
@@ -335,26 +371,28 @@
 /* ── Component tweaks ─────────────────────────────────── */
 
 @layer components {
-  /* Quick-action icon containers — dark mode friendly tints */
-  .icon-tint-amber  { background: rgba(232,144,10,0.12); color: #E8900A; }
-  .icon-tint-blue   { background: rgba(96,165,250,0.10); color: #60A5FA; }
-  .icon-tint-green  { background: rgba(52,211,153,0.10); color: #34D399; }
+  /* Quick-action icon containers — ink-stamp tints */
+  .icon-tint-amber  { background: rgba(179,38,30,0.12);   color: #B3261E; }
+  .icon-tint-blue   { background: rgba(29,78,137,0.12);   color: #4F82C4; }
+  .icon-tint-green  { background: rgba(61,148,103,0.12);  color: #3D9467; }
   .icon-tint-purple { background: rgba(167,139,250,0.10); color: #A78BFA; }
   .icon-tint-orange { background: rgba(251,146,60,0.10);  color: #FB923C; }
-  .icon-tint-red    { background: rgba(248,113,113,0.10); color: #F87171; }
+  .icon-tint-red    { background: rgba(179,38,30,0.10);   color: #D8453B; }
 
-  /* Status badge base */
+  /* Status badge — an ink stamp, not a SaaS pill */
   .status-badge {
     display: inline-flex;
     align-items: center;
-    border-radius: 9999px;
+    border-radius: 3px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    transform: rotate(-2deg);
   }
-  .status-planning  { background: rgba(232,144,10,0.12); color: #E8900A;  border: 1px solid rgba(232,144,10,0.2); }
-  .status-active    { background: rgba(96,165,250,0.10); color: #60A5FA;  border: 1px solid rgba(96,165,250,0.2); }
-  .status-completed { background: rgba(52,211,153,0.10); color: #34D399;  border: 1px solid rgba(52,211,153,0.2); }
+  .status-planning  { background: rgba(29,78,137,0.10);  color: #4F82C4;  border: 2px solid rgba(29,78,137,0.55); }
+  .status-active    { background: rgba(61,148,103,0.10); color: #3D9467;  border: 2px solid rgba(61,148,103,0.55); }
+  .status-completed { background: rgba(179,38,30,0.10);  color: #B3261E;  border: 2px solid rgba(179,38,30,0.55); }
 }

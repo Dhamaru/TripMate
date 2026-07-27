@@ -385,7 +385,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                             <div className="relative w-44 md:w-56">
                                 <Input
                                     placeholder="Search to pin..."
-                                    className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#F59E0B]/50 focus-visible:border-[#F59E0B]/50 rounded-lg"
+                                    className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#B3261E]/50 focus-visible:border-[#B3261E]/50 rounded-lg"
                                     onKeyDown={async (e) => {
                                         if (e.key === 'Enter') {
                                             const q = (e.currentTarget as HTMLInputElement).value;
@@ -488,7 +488,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setShowPaths(!showPaths)}
-                                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? 'bg-[#1E3A8A]/15 text-[#1E3A8A] dark:text-blue-400 dark:bg-blue-400/15 hover:bg-[#1E3A8A]/25' : 'text-muted-foreground hover:text-[#1E3A8A] dark:hover:text-blue-400 hover:bg-[#1E3A8A]/10'}`}
+                                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? 'bg-[#1D4E89]/15 text-[#1D4E89] dark:text-blue-400 dark:bg-blue-400/15 hover:bg-[#1D4E89]/25' : 'text-muted-foreground hover:text-[#1D4E89] dark:hover:text-blue-400 hover:bg-[#1D4E89]/10'}`}
                             >
                                 <i className="fas fa-route text-[11px]"></i>
                                 {showPaths ? 'Hide Route' : 'Show Route'}
@@ -538,7 +538,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                 <div className="relative w-full h-[300px] md:h-[400px]">
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 z-10">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E3A8A]"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1D4E89]"></div>
                         </div>
                     )}
                     {!coords && !loading && (

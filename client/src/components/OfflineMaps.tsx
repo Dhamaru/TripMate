@@ -414,7 +414,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       if (!coords.length) throw new Error("No route found");
 
       if (routePolylineRef.current) routePolylineRef.current.remove();
-      routePolylineRef.current = L.polyline(coords, { color: '#1E3A8A', weight: 4 }).addTo(map);
+      routePolylineRef.current = L.polyline(coords, { color: '#1D4E89', weight: 4 }).addTo(map);
       map.fitBounds(L.latLngBounds(coords));
       setRoutePoints(coords);
 
@@ -561,19 +561,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       <div className="flex space-x-2 bg-muted p-1 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('explore')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1E3A8A] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Explore
         </button>
         <button
           onClick={() => setActiveTab('navigation')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1E3A8A] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Navigation
         </button>
         <button
           onClick={() => setActiveTab('saved')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1E3A8A] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
         >
           Saved Pins
         </button>
@@ -663,7 +663,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                           } catch { toast({ title: "Search failed", variant: "destructive" }); }
                         }
                       }}
-                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-[#F59E0B]"
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-[#B3261E]"
                     />
                     {showNavDestSuggestions && (navDestLoading || navDestSuggestions.length > 0) && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
@@ -683,7 +683,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                         ))}
                       </div>
                     )}
-                    {selectedPlace && <p className="text-[10px] text-[#F59E0B] truncate">→ {selectedPlace.name}</p>}
+                    {selectedPlace && <p className="text-[10px] text-[#B3261E] truncate">→ {selectedPlace.name}</p>}
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={handleCalculateRoute}>
                         Get Route
@@ -733,7 +733,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       }
                     }
                   }}
-                  className="bg-[#1E3A8A] text-white shadow-lg text-xs sm:text-sm"
+                  className="bg-[#1D4E89] text-white shadow-lg text-xs sm:text-sm"
                 >
                   <i className="fas fa-plus mr-1 sm:mr-2"></i>
                   <span className="hidden xs:inline">Add Pin</span>
@@ -789,7 +789,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 }}
                 className="bg-muted border-border text-white flex-1"
               />
-              <Button onClick={() => fetchPlaces(searchQuery)} className="bg-[#1E3A8A] w-full sm:w-auto">Search</Button>
+              <Button onClick={() => fetchPlaces(searchQuery)} className="bg-[#1D4E89] w-full sm:w-auto">Search</Button>
             </div>
 
             {/* Category Filters */}
@@ -828,7 +828,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       <div className="text-xs text-muted-foreground truncate">{p.displayName}</div>
                       {p.category && (
                         <div className="mt-1">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#1E3A8A]/10 text-[#1E3A8A] dark:text-blue-400 capitalize">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#1D4E89]/10 text-[#1D4E89] dark:text-blue-400 capitalize">
                             {p.category.replace(/_/g, ' ')}
                           </span>
                         </div>
@@ -905,7 +905,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                         <Progress value={r.progress} className="h-1.5" />
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" className="w-full border-[#1E3A8A] text-[#1E3A8A] dark:text-blue-400 hover:bg-[#1E3A8A] hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
+                      <Button size="sm" variant="outline" className="w-full border-[#1D4E89] text-[#1D4E89] dark:text-blue-400 hover:bg-[#1D4E89] hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
                         <i className="fas fa-download mr-1"></i> Download
                       </Button>
                     )}

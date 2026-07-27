@@ -10,6 +10,12 @@ export async function connectDB() {
   if (!mongod) {
     mongod = await MongoMemoryServer.create()
     const uri = mongod.getUri()
+    // The app's own startup (server/db.ts) may have already opened mongoose's
+    // default connection (e.g. against the placeholder test MONGODB_URI) —
+    // mongoose only allows one open default connection at a time.
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect()
+    }
     await mongoose.connect(uri)
   }
 }

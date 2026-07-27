@@ -51,13 +51,13 @@ export default function ContactUs() {
                     <div className="space-y-8">
                         <Card className="bg-card border-border">
                             <CardContent className="p-6 flex items-start space-x-4">
-                                <div className="w-12 h-12 bg-[#1E3A8A]/10 rounded-full flex items-center justify-center shrink-0">
-                                    <Mail className="text-[#1E3A8A] dark:text-blue-400 w-6 h-6" />
+                                <div className="w-12 h-12 bg-[#1D4E89]/10 rounded-full flex items-center justify-center shrink-0">
+                                    <Mail className="text-[#1D4E89] dark:text-blue-400 w-6 h-6" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-bold text-white mb-1">Email Us</h3>
                                     <p className="text-muted-foreground text-sm mb-2">For general inquiries and support</p>
-                                    <a href="mailto:support@tripmate.com" className="text-[#1E3A8A] dark:text-blue-400 hover:underline">support@tripmate.com</a>
+                                    <a href="mailto:support@tripmate.com" className="text-[#1D4E89] dark:text-blue-400 hover:underline">support@tripmate.com</a>
                                 </div>
                             </CardContent>
                         </Card>
@@ -77,8 +77,8 @@ export default function ContactUs() {
 
                         <Card className="bg-card border-border">
                             <CardContent className="p-6 flex items-start space-x-4">
-                                <div className="w-12 h-12 bg-[#F59E0B]/10 rounded-full flex items-center justify-center shrink-0">
-                                    <MapPin className="text-[#F59E0B] w-6 h-6" />
+                                <div className="w-12 h-12 bg-[#B3261E]/10 rounded-full flex items-center justify-center shrink-0">
+                                    <MapPin className="text-[#B3261E] w-6 h-6" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-bold text-white mb-1">Visit Us</h3>
@@ -128,7 +128,7 @@ export default function ContactUs() {
                                     <Textarea placeholder="How can we help you?" className="bg-muted border-border text-white min-h-[150px]" required />
                                 </div>
 
-                                <Button type="submit" className="w-full bg-[#1E3A8A] hover:bg-blue-600">
+                                <Button type="submit" className="w-full bg-[#1D4E89] hover:bg-blue-600">
                                     Send Message
                                 </Button>
                             </form>

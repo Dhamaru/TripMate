@@ -317,7 +317,7 @@ export default function Journal() {
                       <Sparkles className="w-3 h-3" />
                       {isAugmenting ? 'Enhancing…' : 'AI Enhance'}
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={startListening} className={`h-7 text-xs gap-1 ${isListening ? 'text-red-500 animate-pulse' : 'text-[#1E3A8A] hover:bg-blue-50'}`}>
+                    <Button type="button" variant="ghost" size="sm" onClick={startListening} className={`h-7 text-xs gap-1 ${isListening ? 'text-red-500 animate-pulse' : 'text-[#1D4E89] hover:bg-blue-50'}`}>
                       <Mic className="w-3 h-3" />
                       {isListening ? 'Listening…' : 'Dictate'}
                     </Button>

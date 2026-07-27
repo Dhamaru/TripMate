@@ -117,8 +117,8 @@ export default function ResetPasswordPage() {
         <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
             <CardContent className="p-8">
                 <div className="flex flex-col items-center text-center mt-2 mb-8">
-                    <div className="w-16 h-16 bg-[#F59E0B]/20 rounded-2xl flex items-center justify-center mb-6">
-                        <Lock className="w-8 h-8 text-[#F59E0B]" />
+                    <div className="w-16 h-16 bg-[#B3261E]/20 rounded-2xl flex items-center justify-center mb-6">
+                        <Lock className="w-8 h-8 text-[#B3261E]" />
                     </div>
                     <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
                     <p className="text-white/60 font-medium">
@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1E3A8A] smooth-transition"
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1D4E89] smooth-transition"
                                                 {...field}
                                             />
                                             <Button
@@ -172,7 +172,7 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showConfirmPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1E3A8A] smooth-transition"
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1D4E89] smooth-transition"
                                                 {...field}
                                             />
                                             <Button
@@ -197,7 +197,7 @@ export default function ResetPasswordPage() {
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full h-14 bg-[#F59E0B] hover:bg-[#D97706] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+                            className="w-full h-14 bg-[#B3261E] hover:bg-[#8C1D17] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
                         >
                             {isLoading ? (
                                 <>

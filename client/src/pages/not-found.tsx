@@ -17,7 +17,7 @@ export default function NotFound() {
         </p>
         <Button
           onClick={() => navigate(isAuthenticated ? "/app/home" : "/")}
-          className="bg-[#1E3A8A] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold"
+          className="bg-[#1D4E89] hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold"
         >
           Back to TripMate
         </Button>

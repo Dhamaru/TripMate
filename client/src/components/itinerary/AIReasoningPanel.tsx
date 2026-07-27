@@ -28,7 +28,7 @@ export function AIReasoningPanel({ reasoning, dayIndex }: Props) {
             </button>
             {isExpanded && (
                 <div id={`reasoning-${dayIndex}`} className="px-4 pb-4 pt-1 animate-in slide-in-from-top-2 duration-300" role="region" aria-label={`AI reasoning for day ${dayIndex + 1}`}>
-                    <p className="text-sm text-muted-foreground leading-relaxed italic border-l-2 border-[#F59E0B]/40 pl-3">{reasoning}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed italic border-l-2 border-[#B3261E]/40 pl-3">{reasoning}</p>
                 </div>
             )}
         </div>

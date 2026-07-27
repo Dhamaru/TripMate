@@ -23,12 +23,12 @@ interface PlannerForm {
     interests: string[]
 }
 
-const inputCls = "w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:border-[#F59E0B] focus:ring-1 focus:ring-[#F59E0B]/40 transition-colors text-sm"
-const primaryBtn = "py-3 px-6 rounded-xl font-semibold text-sm bg-[#F59E0B] hover:bg-[#D97706] text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+const inputCls = "w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:border-[#B3261E] focus:ring-1 focus:ring-[#B3261E]/40 transition-colors text-sm"
+const primaryBtn = "py-3 px-6 rounded-xl font-semibold text-sm bg-[#B3261E] hover:bg-[#8C1D17] text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
 const secondaryBtn = "px-6 py-3 rounded-xl font-medium text-sm bg-muted text-muted-foreground hover:bg-muted/80 transition-colors border border-border"
 const chipBase = "px-4 py-2 rounded-full text-sm font-medium transition-colors border"
-const chipActive = `${chipBase} bg-[#F59E0B] text-white border-[#F59E0B]`
-const chipInactive = `${chipBase} bg-muted text-muted-foreground border-border hover:border-[#F59E0B]/50`
+const chipActive = `${chipBase} bg-[#B3261E] text-white border-[#B3261E]`
+const chipInactive = `${chipBase} bg-muted text-muted-foreground border-border hover:border-[#B3261E]/50`
 
 export function PlannerWizard() {
     const [, navigate] = useLocation()
@@ -115,7 +115,7 @@ export function PlannerWizard() {
                             {/* connecting line */}
                             <div className="absolute left-0 right-0 top-4 h-0.5 bg-border -z-0" aria-hidden="true" />
                             <div
-                                className="absolute left-0 top-4 h-0.5 bg-[#F59E0B] transition-all duration-500 -z-0"
+                                className="absolute left-0 top-4 h-0.5 bg-[#B3261E] transition-all duration-500 -z-0"
                                 style={{ width: `${((step - 1) / 3) * 100}%` }}
                                 aria-hidden="true"
                             />
@@ -125,13 +125,13 @@ export function PlannerWizard() {
                                 return (
                                     <div key={s.n} className="flex flex-col items-center gap-1.5 z-10">
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 ${
-                                            done ? 'bg-[#F59E0B] border-[#F59E0B] text-white' :
-                                            active ? 'bg-card border-[#F59E0B] text-[#F59E0B]' :
+                                            done ? 'bg-[#B3261E] border-[#B3261E] text-white' :
+                                            active ? 'bg-card border-[#B3261E] text-[#B3261E]' :
                                             'bg-card border-border text-muted-foreground'
                                         }`}>
                                             {done ? '✓' : s.n}
                                         </div>
-                                        <span className={`text-[10px] font-medium hidden sm:block ${active ? 'text-[#F59E0B]' : done ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                        <span className={`text-[10px] font-medium hidden sm:block ${active ? 'text-[#B3261E]' : done ? 'text-foreground' : 'text-muted-foreground'}`}>
                                             {s.label}
                                         </span>
                                     </div>
@@ -157,7 +157,7 @@ export function PlannerWizard() {
                 {step === 2 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {form.destination && (
-                            <div className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#F59E0B]/10 text-[#F59E0B] px-3 py-1 rounded-full border border-[#F59E0B]/20">
+                            <div className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#B3261E]/10 text-[#B3261E] px-3 py-1 rounded-full border border-[#B3261E]/20">
                                 📍 {form.destination}
                             </div>
                         )}
@@ -188,7 +188,7 @@ export function PlannerWizard() {
                                 Total budget
                                 <div className="flex gap-2 mt-2">
                                     <input className={`flex-1 ${inputCls}`} type="number" min={1} value={form.totalBudget} onChange={e => update('totalBudget', Number(e.target.value))} aria-label="Total budget" />
-                                    <select className="w-24 bg-muted border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-[#F59E0B] transition-colors text-sm" value={form.currency} onChange={e => update('currency', e.target.value)} aria-label="Currency">
+                                    <select className="w-24 bg-muted border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-[#B3261E] transition-colors text-sm" value={form.currency} onChange={e => update('currency', e.target.value)} aria-label="Currency">
                                         {['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AUD', 'CAD'].map(c => (<option key={c} value={c}>{c}</option>))}
                                     </select>
                                 </div>
@@ -240,7 +240,7 @@ export function PlannerWizard() {
                     <div className="space-y-6 text-center animate-in fade-in zoom-in-95 duration-500 py-6">
                         <div className="relative w-20 h-20 mx-auto">
                             <div className="w-20 h-20 rounded-full border-4 border-border" />
-                            <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-[#F59E0B] border-t-transparent animate-spin" aria-hidden="true" />
+                            <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-[#B3261E] border-t-transparent animate-spin" aria-hidden="true" />
                             <span className="absolute inset-0 flex items-center justify-center text-2xl">✈️</span>
                         </div>
                         <div>
@@ -250,7 +250,7 @@ export function PlannerWizard() {
                         <div className="text-left bg-muted rounded-xl p-4 space-y-2 border border-border" aria-live="polite" aria-label="Generation progress">
                             {liveSteps.length === 0 && (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse py-1">
-                                    <span className="w-4 h-4 rounded-full border-2 border-[#F59E0B] border-t-transparent animate-spin shrink-0" />
+                                    <span className="w-4 h-4 rounded-full border-2 border-[#B3261E] border-t-transparent animate-spin shrink-0" />
                                     Starting up...
                                 </div>
                             )}
@@ -259,7 +259,7 @@ export function PlannerWizard() {
                                 return (
                                     <div key={i} className={`flex items-center gap-2 text-sm py-1 ${isLast ? 'text-foreground' : 'text-muted-foreground'}`}>
                                         {isLast
-                                            ? <span className="w-4 h-4 rounded-full border-2 border-[#F59E0B] border-t-transparent animate-spin shrink-0" />
+                                            ? <span className="w-4 h-4 rounded-full border-2 border-[#B3261E] border-t-transparent animate-spin shrink-0" />
                                             : <span className="w-4 h-4 flex-shrink-0 text-center text-emerald-500 font-bold text-xs leading-4">✓</span>
                                         }
                                         {s}

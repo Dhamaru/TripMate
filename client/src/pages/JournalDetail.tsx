@@ -151,7 +151,7 @@ export default function JournalDetail() {
         return (
             <div className=" flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E3A8A] mx-auto mb-4"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1D4E89] mx-auto mb-4"></div>
                     <p className="text-muted-foreground">Loading memory...</p>
                 </div>
             </div>
@@ -168,7 +168,7 @@ export default function JournalDetail() {
                         </div>
                         <h2 className="text-xl font-bold text-foreground mb-2">Memory Not Found</h2>
                         <p className="text-muted-foreground mb-6">The journal entry you're looking for doesn't exist or has been removed.</p>
-                        <Button onClick={() => navigate("/app/journal")} className="bg-[#1E3A8A] w-full">
+                        <Button onClick={() => navigate("/app/journal")} className="bg-[#1D4E89] w-full">
                             Back to Journal
                         </Button>
                     </CardContent>
@@ -261,7 +261,7 @@ export default function JournalDetail() {
                                             type="text"
                                             value={entryForm.title}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
-                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1D4E89]"
                                             required
                                         />
                                     </div>
@@ -271,7 +271,7 @@ export default function JournalDetail() {
                                             type="text"
                                             value={entryForm.location}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, location: e.target.value }))}
-                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1D4E89]"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -279,7 +279,7 @@ export default function JournalDetail() {
                                         <textarea
                                             value={entryForm.content}
                                             onChange={(e) => setEntryForm(prev => ({ ...prev, content: e.target.value }))}
-                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] min-h-[200px]"
+                                            className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1D4E89] min-h-[200px]"
                                             required
                                         />
                                     </div>
@@ -290,7 +290,7 @@ export default function JournalDetail() {
                                             multiple
                                             accept="image/*"
                                             onChange={(e) => setPhotos(e.target.files)}
-                                            className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#1E3A8A] file:text-white hover:file:bg-blue-600"
+                                            className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#1D4E89] file:text-white hover:file:bg-blue-600"
                                         />
                                     </div>
                                     {keptPhotos.length > 0 && (
@@ -368,7 +368,7 @@ export default function JournalDetail() {
                         ) : (
                             <motion.div
                                 variants={itemVariants}
-                                className="h-48 md:h-64 rounded-3xl bg-gradient-to-br from-[#1E3A8A] to-blue-700 flex items-center justify-center mb-8 shadow-xl"
+                                className="h-48 md:h-64 rounded-3xl bg-gradient-to-br from-[#1D4E89] to-blue-700 flex items-center justify-center mb-8 shadow-xl"
                             >
                                 <MapPin className="w-16 h-16 text-white/50" />
                             </motion.div>
@@ -381,7 +381,7 @@ export default function JournalDetail() {
                             <div className="flex flex-wrap gap-4 text-muted-foreground">
                                 {entry.location && (
                                     <motion.div variants={itemVariants} className="flex items-center bg-card px-3 py-1.5 rounded-full border border">
-                                        <MapPin className="w-4 h-4 mr-2 text-[#1E3A8A]" />
+                                        <MapPin className="w-4 h-4 mr-2 text-[#1D4E89]" />
                                         <span className="text-sm font-medium text-foreground">{entry.location}</span>
                                     </motion.div>
                                 )}

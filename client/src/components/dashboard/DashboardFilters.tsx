@@ -38,7 +38,7 @@ export function DashboardFilters({ filters, onChange, tripCount }: Props) {
                         value={filters.search}
                         onChange={e => set({ search: e.target.value })}
                         placeholder="Search destinations..."
-                        className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-[#F59E0B] transition-colors"
+                        className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-[#B3261E] transition-colors"
                         aria-label="Search trips by destination"
                     />
                     {filters.search && (
@@ -70,7 +70,7 @@ export function DashboardFilters({ filters, onChange, tripCount }: Props) {
                         <div className="flex flex-wrap gap-2">
                             {STATUSES.map(s => (
                                 <button key={s}
-                                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors capitalize ${filters.status === s ? 'bg-[#F59E0B] border-[#F59E0B] text-white' : 'bg-transparent border-border text-muted-foreground hover:text-foreground'}`}
+                                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors capitalize ${filters.status === s ? 'bg-[#B3261E] border-[#B3261E] text-white' : 'bg-transparent border-border text-muted-foreground hover:text-foreground'}`}
                                     onClick={() => set({ status: s as FilterState['status'] })}
                                     aria-pressed={filters.status === s}
                                     aria-label={`Filter status: ${s}`}>
@@ -84,7 +84,7 @@ export function DashboardFilters({ filters, onChange, tripCount }: Props) {
                         <div className="flex flex-wrap gap-2">
                             {STYLES.map(s => (
                                 <button key={s}
-                                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${filters.travelStyle === s ? 'bg-[#F59E0B] border-[#F59E0B] text-white' : 'bg-transparent border-border text-muted-foreground hover:text-foreground'}`}
+                                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${filters.travelStyle === s ? 'bg-[#B3261E] border-[#B3261E] text-white' : 'bg-transparent border-border text-muted-foreground hover:text-foreground'}`}
                                     onClick={() => set({ travelStyle: s })}
                                     aria-pressed={filters.travelStyle === s}
                                     aria-label={`Filter style: ${s}`}>

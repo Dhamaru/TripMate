@@ -21,14 +21,10 @@ export function TripMateLogo({ size = 'md', showText = true, className = '' }: T
     <div className={`flex items-center space-x-2 ${className}`}>
       <div className={`${sizeClasses[size]} relative flex items-center justify-center`}>
         <svg viewBox="0 0 100 100" className="w-full h-full">
-          <defs>
-            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style={{ stopColor: '#007AFF', stopOpacity: 1 }} />
-              <stop offset="100%" style={{ stopColor: '#FF9500', stopOpacity: 1 }} />
-            </linearGradient>
-          </defs>
-          <rect width="100" height="100" rx="20" fill="url(#logo-grad)" />
-          <path d="M30 35 L70 50 L30 65 L35 50 Z" fill="white" />
+          <rect width="100" height="100" rx="20" fill="#0D1B2E" />
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#B3261E" strokeWidth="4" />
+          <path d="M50 26 L50 74 M26 50 L74 50" stroke="#B3261E" strokeWidth="2.5" />
+          <path d="M50 34 L58 50 L50 66 L42 50 Z" fill="#B3261E" />
         </svg>
       </div>
       {showText && (

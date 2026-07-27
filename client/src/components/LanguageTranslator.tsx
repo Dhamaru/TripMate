@@ -115,12 +115,12 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
             </Select>
           </div>
         </div>
-        <Button onClick={handleTranslate} className="w-full bg-[#1E3A8A] hover:bg-blue-800" disabled={isLoading || !text.trim()}>Translate</Button>
+        <Button onClick={handleTranslate} className="w-full bg-[#1D4E89] hover:bg-blue-800" disabled={isLoading || !text.trim()}>Translate</Button>
         {isLoading ? (
           <Skeleton className="w-full h-20" />
         ) : translation?.translatedText ? (
           <div className="p-3 border rounded bg-muted">
-            <strong className="text-[#1E3A8A] dark:text-blue-400">Result:</strong>
+            <strong className="text-[#1D4E89] dark:text-blue-400">Result:</strong>
             <p className="text-emerald-600 dark:text-emerald-400 mt-1 text-lg">{translation.translatedText}</p>
             {translation.pronunciation && (
               <p className="text-muted-foreground mt-2 text-sm italic border-t pt-1">

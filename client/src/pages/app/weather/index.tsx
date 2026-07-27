@@ -235,10 +235,10 @@ export default function WeatherPage() {
               if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, -1)); }
             }}
             placeholder="Search location (e.g., Goa, Tokyo)"
-            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#F59E0B]/30"
+            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#B3261E]/30"
             data-testid="input-weather-location"
           />
-          <Button type="button" onClick={() => handleSearch()} className="bg-[#F59E0B] hover:bg-[#D97706] text-white" data-testid="button-weather-search" disabled={loading}>
+          <Button type="button" onClick={() => handleSearch()} className="bg-[#B3261E] hover:bg-[#8C1D17] text-white" data-testid="button-weather-search" disabled={loading}>
             {loading ? <span className="flex items-center gap-1"><i className="fas fa-spinner animate-spin" />Searching</span> : "Search"}
           </Button>
           <Button type="button" variant="outline" onClick={() => useMyLocation()} className="border text-foreground hover:bg-muted">

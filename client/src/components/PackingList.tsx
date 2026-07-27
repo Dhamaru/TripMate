@@ -283,7 +283,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
             data-testid="button-smart-suggestions"
             disabled={suggesting}
           >
-            <i className="fas fa-lightbulb text-[#F59E0B] mr-1"></i>
+            <i className="fas fa-lightbulb text-[#B3261E] mr-1"></i>
             Suggest
           </Button>
         </div>
@@ -303,7 +303,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
             <Checkbox
               checked={item.packed}
               onCheckedChange={() => toggleItem(item.id)}
-              className="border-border data-[state=checked]:bg-[#1E3A8A]"
+              className="border-border data-[state=checked]:bg-[#1D4E89]"
               data-testid={`checkbox-item-${item.id}`}
             />
             <span
@@ -336,7 +336,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
           />
           <Button
             onClick={addItem}
-            className="bg-[#1E3A8A] hover:bg-blue-600"
+            className="bg-[#1D4E89] hover:bg-blue-600"
             disabled={!newItemName.trim() || createListMutation.isPending || updateListMutation.isPending}
             data-testid="button-add-item"
           >
@@ -358,7 +358,7 @@ export function PackingList({ tripId, city, isInternational, className = '' }: P
 
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            <i className="fas fa-lightbulb text-[#F59E0B] mr-1"></i>
+            <i className="fas fa-lightbulb text-[#B3261E] mr-1"></i>
             AI suggests items based on weather & destination
           </p>
         </div>

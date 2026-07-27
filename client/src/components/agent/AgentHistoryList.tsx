@@ -48,7 +48,7 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
     return (
       <Card className="bg-muted/50 border-white/5">
         <CardContent className="p-8 flex flex-col items-center justify-center space-y-4">
-          <Brain className="w-8 h-8 text-[#1E3A8A] dark:text-blue-400 animate-pulse" />
+          <Brain className="w-8 h-8 text-[#1D4E89] dark:text-blue-400 animate-pulse" />
           <p className="text-muted-foreground text-sm">Consulting our archives...</p>
         </CardContent>
       </Card>
@@ -59,7 +59,7 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
     <Card className={`bg-muted/50 border-white/5 backdrop-blur-xl ${className}`}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold text-white flex items-center gap-2">
-          <Brain className="w-4 h-4 text-[#1E3A8A] dark:text-blue-400" />
+          <Brain className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
           Intelligence Logs
         </CardTitle>
       </CardHeader>
@@ -88,7 +88,7 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
                       className={`${
                         job.status === 'completed' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                         job.status === 'failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                        'bg-[#1E3A8A]/10 text-[#1E3A8A] dark:text-blue-400 border-[#1E3A8A]/20'
+                        'bg-[#1D4E89]/10 text-[#1D4E89] dark:text-blue-400 border-[#1D4E89]/20'
                       } text-[10px] px-2 py-0`}
                     >
                       {job.status}
@@ -117,11 +117,11 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
 
                   <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-[#1E3A8A] dark:text-blue-400" />
+                      <Clock className="w-3 h-3 text-[#1D4E89] dark:text-blue-400" />
                       {job.totalDurationMs}ms
                     </span>
                     <span className="flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-[#1E3A8A] dark:text-blue-400" />
+                      <Zap className="w-3 h-3 text-[#1D4E89] dark:text-blue-400" />
                       {job.totalTokensUsed} tokens
                     </span>
                   </div>

@@ -86,7 +86,7 @@ export default function Feedback() {
                                         <SelectItem value="feedback" className="text-foreground hover:bg-muted cursor-pointer">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                                    <Lightbulb className="w-4 h-4 text-[#1E3A8A]" />
+                                                    <Lightbulb className="w-4 h-4 text-[#1D4E89]" />
                                                 </div>
                                                 Feedback / Suggestion
                                             </div>
@@ -218,7 +218,7 @@ export default function Feedback() {
                             <Button
                                 type="submit"
                                 disabled={loading || !form.category || !form.subject || !form.description}
-                                className="w-full bg-[#1E3A8A] hover:bg-blue-600 text-white py-3 text-lg font-semibold "
+                                className="w-full bg-[#1D4E89] hover:bg-blue-600 text-white py-3 text-lg font-semibold "
                             >
                                 {loading ? (
                                     <>
@@ -241,7 +241,7 @@ export default function Feedback() {
                     <Card className="bg-card border">
                         <CardContent className="p-4">
                             <div className="flex items-start space-x-3">
-                                <i className="fas fa-clock text-[#1E3A8A] text-xl mt-1"></i>
+                                <i className="fas fa-clock text-[#1D4E89] text-xl mt-1"></i>
                                 <div>
                                     <h3 className="text-foreground font-semibold mb-1">Response Time</h3>
                                     <p className="text-muted-foreground text-sm">

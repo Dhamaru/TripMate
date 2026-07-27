@@ -26,7 +26,7 @@ export default function Features() {
       title: "Trip Planner",
       description: "AI-powered trip planning with personalized itineraries",
       icon: Plane,
-      color: "from-[#1E3A8A] to-[#1E3A8A]",
+      color: "from-[#1D4E89] to-[#1D4E89]",
       href: "/app/planner",
       component: null // Will be implemented later
     },
@@ -35,7 +35,7 @@ export default function Features() {
       title: "Travel Journal",
       description: "Capture and organize your travel memories",
       icon: BookOpen,
-      color: "from-[#F59E0B] to-[#F59E0B]",
+      color: "from-[#B3261E] to-[#B3261E]",
       href: "/app/journal",
       component: null
     },
@@ -53,7 +53,7 @@ export default function Features() {
       title: "Weather Insights",
       description: "7-day forecasts and travel weather recommendations",
       icon: CloudSun,
-      color: "from-[#F59E0B] to-[#F59E0B]",
+      color: "from-[#B3261E] to-[#B3261E]",
       href: "/app/weather",
       component: null
     },
@@ -71,7 +71,7 @@ export default function Features() {
       title: "Language Translator",
       description: "Offline translation for 10+ languages",
       icon: Languages,
-      color: "from-[#1E3A8A] to-[#F59E0B]",
+      color: "from-[#1D4E89] to-[#B3261E]",
       href: "/app/translate",
       component: null
     },
@@ -123,7 +123,7 @@ export default function Features() {
               </Card>
               <Button
                 size="sm"
-                className="w-full bg-[#1E3A8A] hover:bg-[#1E3A8A] mt-2 smooth-transition interactive-tap radius-md"
+                className="w-full bg-[#1D4E89] hover:bg-[#1D4E89] mt-2 smooth-transition interactive-tap radius-md"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(feature.href);
@@ -143,7 +143,7 @@ export default function Features() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link href="/app/planner">
-                <Button className="w-full bg-gradient-to-r from-[#1E3A8A] to-[#F59E0B] smooth-transition interactive-tap radius-md">
+                <Button className="w-full bg-gradient-to-r from-[#1D4E89] to-[#B3261E] smooth-transition interactive-tap radius-md">
                   <Plane className="w-4 h-4 mr-2" />
                   Plan New Trip
                 </Button>
@@ -198,7 +198,7 @@ export default function Features() {
                 <p className="text-muted-foreground mb-6">{selectedFeatureData.description}</p>
                 <div className="space-y-3">
                   <Button
-                    className="w-full bg-[#1E3A8A] hover:bg-[#1E3A8A] smooth-transition interactive-tap radius-md"
+                    className="w-full bg-[#1D4E89] hover:bg-[#1D4E89] smooth-transition interactive-tap radius-md"
                     onClick={() => {
                       navigate(selectedFeatureData.href);
                       setSelectedFeature(null);

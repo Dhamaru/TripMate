@@ -115,13 +115,13 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
           <div className="flex bg-muted rounded-lg p-1 space-x-1">
             <button
               onClick={() => setActiveTab('convert')}
-              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'convert' ? 'bg-[#1E3A8A] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'convert' ? 'bg-[#1D4E89] text-white' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Convert
             </button>
             <button
               onClick={() => setActiveTab('budget')}
-              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'budget' ? 'bg-[#1E3A8A] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'budget' ? 'bg-[#1D4E89] text-white' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Budget
             </button>
@@ -192,7 +192,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
               </div>
               <Button
                 onClick={handleConvert}
-                className="w-full bg-[#1E3A8A] hover:bg-blue-800"
+                className="w-full bg-[#1D4E89] hover:bg-blue-800"
                 disabled={isLoading}
                 data-testid="button-convert"
               >
@@ -235,7 +235,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
           <div className="space-y-4">
             <div className="bg-muted rounded-xl p-4" data-testid="conversion-result">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl font-bold text-[#1E3A8A] dark:text-blue-400">
+                <span className="text-2xl font-bold text-[#1D4E89] dark:text-blue-400">
                   {(conversion.convertedAmount ?? 0).toLocaleString()} {CURRENCIES.find(c => c.code === toCurrency)?.symbol}
                 </span>
               </div>
@@ -260,7 +260,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
                   <YAxis hide domain={['auto', 'auto']} />
                   <Tooltip
                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
-                    itemStyle={{ color: '#1E3A8A' }}
+                    itemStyle={{ color: '#1D4E89' }}
                     formatter={(value: number) => [value, 'Rate']}
                     labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
                   />

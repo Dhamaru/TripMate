@@ -43,10 +43,10 @@ export function TripCard({ trip }: { trip: Trip }) {
                     src={trip.imageUrl}
                     alt={trip.destination}
                     className="absolute inset-0"
-                    fallback={<div className="absolute inset-0 bg-gradient-to-br from-[#1E3A8A] to-blue-900" />}
+                    fallback={<div className="absolute inset-0 bg-gradient-to-br from-[#1D4E89] to-blue-900" />}
                 />
             ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-[#1E3A8A] to-blue-900 flex items-center justify-center text-5xl opacity-20" aria-hidden="true">🌍</div>
+                <div className="absolute inset-0 bg-gradient-to-br from-[#1D4E89] to-blue-900 flex items-center justify-center text-5xl opacity-20" aria-hidden="true">🌍</div>
             )}
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />

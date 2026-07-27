@@ -145,7 +145,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                             </div>
                             <div className="text-right">
                                 <p className="text-sm text-muted-foreground">Spent</p>
-                                <p className="text-2xl font-bold text-[#1E3A8A] dark:text-blue-400">{trip.currency || 'INR'} {totalSpent.toLocaleString()}</p>
+                                <p className="text-2xl font-bold text-[#1D4E89] dark:text-blue-400">{trip.currency || 'INR'} {totalSpent.toLocaleString()}</p>
                             </div>
                         </div>
                         <div className="w-full bg-secondary h-4 rounded-full overflow-hidden">
@@ -205,10 +205,10 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                     >
-                        <Card className="bg-[#1E3A8A]/5 border-[#1E3A8A]/20">
+                        <Card className="bg-[#1D4E89]/5 border-[#1D4E89]/20">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-                                    <Lightbulb className="w-4 h-4 text-[#1E3A8A] dark:text-blue-400" />
+                                    <Lightbulb className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
                                     AI Smart Pivots
                                 </CardTitle>
                             </CardHeader>
@@ -216,7 +216,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {forecast.pivots.map((pivot: string, i: number) => (
                                         <div key={i} className="flex gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border/50">
-                                            <div className="text-[#1E3A8A] dark:text-blue-400 font-bold">#{(i + 1)}</div>
+                                            <div className="text-[#1D4E89] dark:text-blue-400 font-bold">#{(i + 1)}</div>
                                             <div>{pivot}</div>
                                         </div>
                                     ))}
@@ -226,7 +226,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                         <TrendingUp className="w-4 h-4" />
                                         Est. Final Cost: <span className="text-white font-bold">{trip.currency || 'INR'} {forecast?.estimatedFinalCost?.toLocaleString()}</span>
                                     </div>
-                                    <div className="text-[#1E3A8A] dark:text-blue-400 flex items-center gap-1">
+                                    <div className="text-[#1D4E89] dark:text-blue-400 flex items-center gap-1">
                                         <i className="fas fa-robot"></i> AI Forecast
                                     </div>
                                 </div>
@@ -279,7 +279,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button onClick={handleAdd} className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/90">Save</Button>
+                            <Button onClick={handleAdd} className="bg-[#1D4E89] hover:bg-[#1D4E89]/90">Save</Button>
                         </div>
                     )}
 
@@ -290,7 +290,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                         {expenses.map((expense) => (
                             <div key={expense.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#1E3A8A]/10 flex items-center justify-center text-[#1E3A8A] dark:text-blue-400">
+                                    <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[#1D4E89] dark:text-blue-400">
                                         <i className={`fas fa-${expense.category === 'Food' ? 'utensils' : expense.category === 'Transport' ? 'car' : 'tag'}`}></i>
                                     </div>
                                     <div className="min-w-0 flex-1">

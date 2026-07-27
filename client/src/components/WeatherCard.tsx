@@ -180,7 +180,7 @@ export function WeatherCard({ destination }: { destination?: string }) {
         <CardContent>
           <p className="text-sm text-muted-foreground">No destination set — add a destination to view weather</p>
           <div className="mt-2">
-            <Button className="bg-[#1E3A8A] hover:bg-blue-600">Edit Trip</Button>
+            <Button className="bg-[#1D4E89] hover:bg-blue-600">Edit Trip</Button>
           </div>
         </CardContent>
       </Card>
@@ -223,7 +223,7 @@ export function WeatherCard({ destination }: { destination?: string }) {
         <CardContent>
           <p className="text-sm text-muted-foreground">Unable to load weather data</p>
           <p className="text-xs text-muted-foreground mt-1">{error}</p>
-          <div className="mt-3"><Button onClick={() => revalidate()} className="bg-[#1E3A8A] hover:bg-blue-600">Retry</Button></div>
+          <div className="mt-3"><Button onClick={() => revalidate()} className="bg-[#1D4E89] hover:bg-blue-600">Retry</Button></div>
         </CardContent>
       </Card>
     );

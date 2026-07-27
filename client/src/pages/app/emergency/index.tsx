@@ -154,14 +154,14 @@ export default function EmergencyPage() {
             onChange={(e) => { setSearchLocation(e.target.value); setCoords(null); }}
             onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
             placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
-            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#F59E0B]/30"
+            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#B3261E]/30"
             data-testid="input-emergency-location"
           />
-          <Button onClick={() => handleSearch()} className="bg-[#F59E0B] hover:bg-[#D97706] text-white" data-testid="button-emergency-search" disabled={loading}>
+          <Button onClick={() => handleSearch()} className="bg-[#B3261E] hover:bg-[#8C1D17] text-white" data-testid="button-emergency-search" disabled={loading}>
             {loading ? <span className="flex items-center gap-1"><i className="fas fa-spinner animate-spin" />Searching</span> : "Search"}
           </Button>
           <Button onClick={() => useMyLocation()} variant="outline" className="border text-foreground hover:bg-muted" title="Use my location" disabled={loading}>
-            <i className="fas fa-location-arrow text-[#F59E0B]" />
+            <i className="fas fa-location-arrow text-[#B3261E]" />
           </Button>
         </div>
         {message && <p className="text-red-500 mt-2 text-sm">{message}</p>}

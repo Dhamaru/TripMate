@@ -30,9 +30,9 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 
 const travelStyles = [
-  { id: 'adventure', icon: Mountain, name: 'Adventure', color: 'text-[#1E3A8A]' },
+  { id: 'adventure', icon: Mountain, name: 'Adventure', color: 'text-[#1D4E89]' },
   { id: 'relaxed', icon: Armchair, name: 'Relaxed', color: 'text-amber-500' },
-  { id: 'cultural', icon: Landmark, name: 'Cultural', color: 'text-[#1E3A8A]' },
+  { id: 'cultural', icon: Landmark, name: 'Cultural', color: 'text-[#1D4E89]' },
   { id: 'culinary', icon: Utensils, name: 'Culinary', color: 'text-emerald-500' }
 ];
 
@@ -46,7 +46,7 @@ export default function TripDetail() {
   const getWeatherIcon = (condition: string) => {
     const c = (condition || '').toLowerCase();
     if (c.includes('clear') || c.includes('sun')) return 'fas fa-sun text-amber-500';
-    if (c.includes('rain') || c.includes('drizzle')) return 'fas fa-cloud-rain text-[#1E3A8A]';
+    if (c.includes('rain') || c.includes('drizzle')) return 'fas fa-cloud-rain text-[#1D4E89]';
     if (c.includes('snow')) return 'fas fa-snowflake text-blue-200';
     if (c.includes('storm') || c.includes('thunder')) return 'fas fa-bolt text-purple-400';
     return 'fas fa-cloud text-muted-foreground';
@@ -565,7 +565,7 @@ export default function TripDetail() {
             <h2 className="text-xl font-bold text-foreground mb-2">Trip Not Found</h2>
             <p className="text-muted-foreground mb-4">The trip you're looking for doesn't exist or you don't have access to it.</p>
             <Link href="/">
-              <Button className="bg-[#1E3A8A] hover:bg-[#1E3A8A] ">
+              <Button className="bg-[#1D4E89] hover:bg-[#1D4E89] ">
                 Go Back Home
               </Button>
             </Link>
@@ -581,7 +581,7 @@ export default function TripDetail() {
 
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E3A8A] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1D4E89] mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading trip details...</p>
           </div>
         </div>
@@ -636,20 +636,20 @@ export default function TripDetail() {
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                      className="w-1.5 h-1.5 bg-[#1E3A8A] rounded-full"
+                      className="w-1.5 h-1.5 bg-[#1D4E89] rounded-full"
                     />
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                      className="w-1.5 h-1.5 bg-[#1E3A8A] rounded-full"
+                      className="w-1.5 h-1.5 bg-[#1D4E89] rounded-full"
                     />
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                      className="w-1.5 h-1.5 bg-[#1E3A8A] rounded-full"
+                      className="w-1.5 h-1.5 bg-[#1D4E89] rounded-full"
                     />
                   </div>
-                  <span className="text-xs font-medium text-[#1E3A8A]">Atlas is thinking...</span>
+                  <span className="text-xs font-medium text-[#1D4E89]">Atlas is thinking...</span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -704,7 +704,7 @@ export default function TripDetail() {
                 {(trip as any).imageCaption && (
                   <div className="absolute bottom-4 left-4 z-10">
                     <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                       <i className="fas fa-camera text-[#1E3A8A] text-xs"></i>
+                       <i className="fas fa-camera text-[#1D4E89] text-xs"></i>
                        <span className="text-white text-xs font-medium tracking-wide drop-shadow-sm">{(trip as any).imageCaption}</span>
                     </div>
                   </div>
@@ -740,7 +740,7 @@ export default function TripDetail() {
                 </Button>
               </>
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#1E3A8A] to-purple-600 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-[#1D4E89] to-purple-600 transition-opacity"></div>
             )}
 
             {/* Text overlay removed to prevent duplication with the main header */}
@@ -856,7 +856,7 @@ export default function TripDetail() {
                     type="button"
                     onClick={handleSave}
                     disabled={updateTripMutation.isPending}
-                    className="flex-1 bg-[#1E3A8A] hover:bg-[#1E3A8A] "
+                    className="flex-1 bg-[#1D4E89] hover:bg-[#1D4E89] "
                     data-testid="button-save-trip"
                   >
                     {updateTripMutation.isPending ? (
@@ -906,7 +906,7 @@ export default function TripDetail() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-muted/50 rounded-xl">
-                  <i className="fas fa-calendar text-[#1E3A8A] text-xl mb-2"></i>
+                  <i className="fas fa-calendar text-[#1D4E89] text-xl mb-2"></i>
                   <p className="text-sm text-muted-foreground">Duration</p>
                   <p className="font-bold text-foreground">{trip.days} days</p>
                 </div>
@@ -942,7 +942,7 @@ export default function TripDetail() {
                     </>
                   ) : weatherLoading ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1E3A8A] mx-auto mb-2"></div>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1D4E89] mx-auto mb-2"></div>
                       <p className="text-sm text-muted-foreground">Weather</p>
                       <p className="font-bold text-foreground text-xs">Loading...</p>
                     </>
@@ -956,7 +956,7 @@ export default function TripDetail() {
                 </div>
                 {trip.transportMode && (
                   <div className="text-center p-4 bg-muted/50 rounded-xl">
-                    <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-[#1E3A8A] text-xl mb-2`}></i>
+                    <i className={`${trip.transportMode === 'flight' ? 'fas fa-plane' : trip.transportMode === 'train' ? 'fas fa-train' : trip.transportMode === 'bus' ? 'fas fa-bus' : trip.transportMode === 'car' ? 'fas fa-car-side' : 'fas fa-ship'} text-[#1D4E89] text-xl mb-2`}></i>
                     <p className="text-sm text-muted-foreground">Transport</p>
                     <p className="font-bold text-foreground capitalize">{trip.transportMode}</p>
                   </div>
@@ -1085,14 +1085,14 @@ export default function TripDetail() {
           <div id="suggested-places-section" className="space-y-6">
             <div className="flex flex-col items-center gap-4">
               <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-                <i className="fas fa-map-marked-alt text-[#1E3A8A]"></i>
+                <i className="fas fa-map-marked-alt text-[#1D4E89]"></i>
                 What are you looking for at your destination?
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg mx-auto">
                 <Button
                   onClick={() => setShowHotels(!showHotels)}
                   variant={showHotels ? "default" : "outline"}
-                  className={` h-12 ${showHotels ? 'bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
+                  className={` h-12 ${showHotels ? 'bg-[#1D4E89] text-white hover:bg-[#1D4E89]/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
                 >
                   <i className="fas fa-bed mr-2"></i>
                   Hotels
@@ -1129,7 +1129,7 @@ export default function TripDetail() {
                   <CardContent>
                     {(hotelsLoading || foodLoading || sightsLoading) && !(hotelResults || foodResults || sightsResults) ? (
                       <div className="flex justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E3A8A]"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1D4E89]"></div>
                       </div>
                     ) : (
                       <div className={`grid gap-6 ${[showHotels, showRestaurants, showSpots].filter(Boolean).length === 1
@@ -1142,7 +1142,7 @@ export default function TripDetail() {
                         {showHotels && (
                           <div>
                             <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
-                              <i className="fas fa-bed text-[#1E3A8A]"></i> Hotels
+                              <i className="fas fa-bed text-[#1D4E89]"></i> Hotels
                             </div>
                             <div className="space-y-3">
                               {hotelsLoading ? (
@@ -1153,7 +1153,7 @@ export default function TripDetail() {
                                     <div key={`h-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
                                       <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
-                                      <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1E3A8A] hover:underline mt-2 inline-flex items-center">
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
@@ -1180,7 +1180,7 @@ export default function TripDetail() {
                                     <div key={`f-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
                                       <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
-                                      <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1E3A8A] hover:underline mt-2 inline-flex items-center">
+                                      <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center">
                                         Open Map <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
                                       </a>
                                     </div>
@@ -1211,7 +1211,7 @@ export default function TripDetail() {
                                         href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="text-xs text-[#1E3A8A] hover:underline mt-2 inline-flex items-center"
+                                        className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center"
                                         onClick={() => {
                                           try { logInfo('place_open_map', { id: String(i.id), type: 'tourist_spot', lat: Number(i.lat), lon: Number(i.lon), name: String(i.name_en || i.name_local || i.display_name || '') }); } catch { }
                                         }}

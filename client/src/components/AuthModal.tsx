@@ -34,7 +34,7 @@ export function AuthModal({ open, onClose, onSignIn }: AuthModalProps) {
                     </Button>
                     <Button
                         onClick={onSignIn}
-                        className="bg-[#1E3A8A] hover:bg-blue-600 text-white"
+                        className="bg-[#1D4E89] hover:bg-blue-600 text-white"
                     >
                         Sign In
                     </Button>

@@ -22,7 +22,7 @@ export function AtlasDayButton({ dayIndex, destination, activities, tripId }: Pr
 
     return (
         <button
-            className="w-[calc(100%-2rem)] mx-4 mb-4 py-2 px-4 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:border-[#F59E0B]/50 hover:text-[#F59E0B] transition-colors flex items-center justify-center gap-2"
+            className="w-[calc(100%-2rem)] mx-4 mb-4 py-2 px-4 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:border-[#B3261E]/50 hover:text-[#B3261E] transition-colors flex items-center justify-center gap-2"
             onClick={handleClick}
             aria-label={`Ask Atlas to help optimize day ${dayIndex + 1}`}
         >
