@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/components/layout/ThemeProvider";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -62,9 +63,17 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [activeTab, setActiveTab] = useState<'explore' | 'navigation' | 'saved'>('explore');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
-  const [darkMode, setDarkMode] = useState(true);
+  const { theme } = useTheme();
+  const resolvedTheme = theme === "system"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : theme;
+  const [darkMode, setDarkMode] = useState(resolvedTheme === "dark");
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [offlineModeRegion, setOfflineModeRegion] = useState<MapRegion | null>(null);
+
+  useEffect(() => {
+    setDarkMode(resolvedTheme === "dark");
+  }, [resolvedTheme]);
 
   function openOfflineMap(region: MapRegion) {
     const map = mapInstanceRef.current;
@@ -584,7 +593,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       <Card className="bg-card border-border" data-testid="offline-map-display">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg font-bold text-white flex gap-2 items-center">
+            <CardTitle className="text-lg font-bold text-foreground flex gap-2 items-center">
               {offlineModeRegion ? (
                 <>
                   <span className="text-green-400">Offline View:</span> {offlineModeRegion.name}
@@ -603,7 +612,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               variant="ghost"
               size="sm"
               onClick={() => setDarkMode(!darkMode)}
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               {darkMode ? <i className="fas fa-sun mr-2"></i> : <i className="fas fa-moon mr-2"></i>}
               {darkMode ? "Light Mode" : "Dark Mode"}
@@ -618,7 +627,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             {activeTab === 'navigation' && (
               <div className="absolute top-2 left-2 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 sm:w-64">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-white font-semibold text-sm">Live Navigation</h4>
+                  <h4 className="text-foreground font-semibold text-sm">Live Navigation</h4>
                   <div className="sm:hidden flex items-center gap-2">
                     {isNavigating && <span className="text-green-400 text-[10px] animate-pulse">Live</span>}
                   </div>
@@ -634,7 +643,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 </div>
 
                 <div className="border-t border-gray-700 pt-3">
-                  <h4 className="text-white font-semibold text-sm mb-2">Route</h4>
+                  <h4 className="text-foreground font-semibold text-sm mb-2">Route</h4>
                   <div className="space-y-2 relative">
                     <input
                       type="text"
@@ -663,7 +672,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                           } catch { toast({ title: "Search failed", variant: "destructive" }); }
                         }
                       }}
-                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-[#163F73]"
+                      className="w-full bg-muted border border-border rounded px-2 py-1 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-[#163F73]"
                     />
                     {showNavDestSuggestions && (navDestLoading || navDestSuggestions.length > 0) && (
                       <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
@@ -773,7 +782,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       {activeTab === 'explore' && (
         <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white text-base">Search Places</CardTitle>
+            <CardTitle className="text-foreground text-base">Search Places</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-2">
@@ -787,22 +796,22 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     fetchPlaces(searchQuery);
                   }
                 }}
-                className="bg-muted border-border text-white flex-1"
+                className="bg-muted border-border text-foreground flex-1"
               />
               <Button onClick={() => fetchPlaces(searchQuery)} className="bg-[#1D4E89] w-full sm:w-auto">Search</Button>
             </div>
 
             {/* Category Filters */}
             <div className="flex flex-wrap gap-4">
-              <label className="flex items-center space-x-2 text-white text-sm cursor-pointer">
+              <label className="flex items-center space-x-2 text-foreground text-sm cursor-pointer">
                 <Checkbox checked={filters.food} onCheckedChange={(c) => setFilters(f => ({ ...f, food: !!c }))} />
                 <span>Food</span>
               </label>
-              <label className="flex items-center space-x-2 text-white text-sm cursor-pointer">
+              <label className="flex items-center space-x-2 text-foreground text-sm cursor-pointer">
                 <Checkbox checked={filters.hotel} onCheckedChange={(c) => setFilters(f => ({ ...f, hotel: !!c }))} />
                 <span>Hotels</span>
               </label>
-              <label className="flex items-center space-x-2 text-white text-sm cursor-pointer">
+              <label className="flex items-center space-x-2 text-foreground text-sm cursor-pointer">
                 <Checkbox checked={filters.sights} onCheckedChange={(c) => setFilters(f => ({ ...f, sights: !!c }))} />
                 <span>Sights</span>
               </label>
@@ -850,7 +859,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       <Card className="bg-card border-border">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-white text-base">Storage Usage</CardTitle>
+            <CardTitle className="text-foreground text-base">Storage Usage</CardTitle>
             <span className="text-xs text-muted-foreground">{totalSize} MB / 2 GB</span>
           </div>
         </CardHeader>
@@ -862,7 +871,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
       {/* Region Grid */}
       <Card className="bg-card border-border">
-        <CardHeader><CardTitle className="text-white">Saved Regions</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-foreground">Saved Regions</CardTitle></CardHeader>
         <CardContent>
           {mapRegions.length === 0 ? (
             <div className="text-gray-500 text-sm py-8 text-center border-2 border-dashed border-gray-700 rounded-lg">
@@ -878,7 +887,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                   <div className="h-24 bg-gradient-to-br from-gray-800 to-gray-900 relative">
                     <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#9ca3af 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
                     <div className="absolute bottom-2 left-3">
-                      <h3 className="font-bold text-lg text-white leading-tight">{r.name}</h3>
+                      <h3 className="font-bold text-lg text-foreground leading-tight">{r.name}</h3>
                       <p className="text-xs text-gray-300">{r.country}</p>
                     </div>
                     {r.downloaded && <div className="absolute top-2 right-2 bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full border border-green-500/50">SAVED</div>}

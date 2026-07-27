@@ -1,12 +1,50 @@
 import { Request, Response, NextFunction } from "express";
-import { PackingListModel, TripModel } from "@shared/schema";
-import { NotFoundError, InternalServerError, ForbiddenError } from "../errors";
+import { PackingListModel, PackingListTemplateModel, TripModel } from "@shared/schema";
+import { NotFoundError, InternalServerError, ForbiddenError, BadRequestError } from "../errors";
 import logger from "../logger";
 import { MasterOrchestrator } from "../agent/multiAgent/MasterOrchestrator";
 import { OrchestratorInput } from "../agent/multiAgent/types";
 import { socketService } from "../services/SocketService";
 
 const orchestrator = new MasterOrchestrator();
+
+export const getPackingListTemplates = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?._id || req.user?.id;
+        const templates = await PackingListTemplateModel.find({ userId }).sort({ createdAt: -1 });
+        res.json(templates);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const createPackingListTemplate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?._id || req.user?.id;
+        const { name, items } = req.body;
+        if (!name) throw new BadRequestError("Template name is required");
+
+        const template = await PackingListTemplateModel.create({
+            userId,
+            name,
+            items: Array.isArray(items) ? items : [],
+        });
+        res.status(201).json(template);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deletePackingListTemplate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?._id || req.user?.id;
+        const result = await PackingListTemplateModel.deleteOne({ _id: req.params.id, userId });
+        if (result.deletedCount === 0) throw new NotFoundError("Template not found");
+        res.status(204).send();
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const generatePackingList = async (req: Request, res: Response, next: NextFunction) => {
     try {

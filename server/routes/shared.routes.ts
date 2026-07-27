@@ -12,6 +12,12 @@ const router = Router();
 // Secure all shared routes (Packing/Journal)
 router.use(requireAuth);
 
+// Packing templates — must be registered before the /packing-lists/:id
+// routes below, or Express would match "templates" as the :id param.
+router.get("/packing-lists/templates", packingController.getPackingListTemplates);
+router.post("/packing-lists/templates", packingController.createPackingListTemplate);
+router.delete("/packing-lists/templates/:id", packingController.deletePackingListTemplate);
+
 // Packing Routes
 router.get("/packing", packingController.getPackingLists);
 router.get("/packing-lists", packingController.getPackingLists);

@@ -118,7 +118,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
     },
   });
 
-  if (isLoading) {
+  if (isLoading || (!location && !coords)) {
     return (
       <Card className={`bg-card border ${className}`} data-testid="weather-widget-loading">
         <CardHeader>
