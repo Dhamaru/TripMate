@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import type { Trip } from "@shared/schema";
 import { Compass, Plus, Search, Filter, Clock, Users, Wallet } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { logError } from "@/lib/logger";
@@ -131,10 +132,15 @@ export default function TripsHistory() {
                   {/* Image */}
                   <div className="w-1/3 min-w-[120px] relative bg-gradient-to-br from-[#163F73] to-[#0F2C52] overflow-hidden flex-shrink-0">
                     {trip.imageUrl ? (
-                      <img
+                      <OptimizedImage
                         src={trip.imageUrl}
                         alt={trip.destination}
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
+                        fallback={
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Compass className="w-8 h-8 text-white/70" />
+                          </div>
+                        }
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">

@@ -5,6 +5,7 @@ import { Link, useLocation } from "wouter";
 import { Compass, Plus, Map, BookOpen, Grid, ArrowRight, Sparkles, Clock, Users, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { logError } from "@/lib/logger";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 const STYLE_LABELS: Record<string, string> = {
   adventure: "Adventure", Adventure: "Adventure",
@@ -65,10 +66,11 @@ export default function Home() {
         >
           <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#0F2C52]">
             {currentTrip.imageUrl && (
-              <img
+              <OptimizedImage
                 src={currentTrip.imageUrl}
                 alt={currentTrip.destination}
-                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
+                className="w-full h-full group-hover:scale-[1.03] transition-transform duration-700"
+                fallback={<div className="w-full h-full" />}
               />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
@@ -149,7 +151,16 @@ export default function Home() {
                     </span>
                     <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#0F2C52] flex-shrink-0">
                       {t.imageUrl ? (
-                        <img src={t.imageUrl} alt={t.destination} className="w-full h-full object-cover" />
+                        <OptimizedImage
+                          src={t.imageUrl}
+                          alt={t.destination}
+                          className="w-full h-full"
+                          fallback={
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Compass className="w-4 h-4 text-white" />
+                            </div>
+                          }
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Compass className="w-4 h-4 text-white" />
