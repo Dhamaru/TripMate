@@ -28,16 +28,12 @@ describe('Journal API', () => {
   })
 
   it('should create a journey entry', async () => {
-    const entryData = {
-      title: 'First Day in Tokyo',
-      content: 'Beautiful sunset.',
-      mood: 'happy'
-    }
-
+    // journal.routes.ts defines /journal (not /trips/:id/journal) —
+    // tripId travels in the body.
     const res = await request(app)
-      .post(`/api/v1/trips/${tripId}/journal`)
+      .post('/api/v1/journal')
       .set('Authorization', `Bearer ${token}`)
-      .send(entryData)
+      .send({ tripId, title: 'First Day in Tokyo', content: 'Beautiful sunset.' })
 
     expect(res.status).toBe(201)
     expect(res.body.title).toBe('First Day in Tokyo')
@@ -45,12 +41,12 @@ describe('Journal API', () => {
 
   it('should list all entries for a trip', async () => {
     await request(app)
-      .post(`/api/v1/trips/${tripId}/journal`)
+      .post('/api/v1/journal')
       .set('Authorization', `Bearer ${token}`)
       .send(createJournalEntry(tripId, { title: 'Day 1' }))
 
     const res = await request(app)
-      .get(`/api/v1/trips/${tripId}/journal`)
+      .get(`/api/v1/journal?tripId=${tripId}`)
       .set('Authorization', `Bearer ${token}`)
 
     expect(res.status).toBe(200)

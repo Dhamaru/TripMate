@@ -14,7 +14,10 @@ describe('Security & Middleware', () => {
     // Note: This might be hard to test without many requests, 
     // but we can check if the headers exist.
     const res = await request(app).post('/api/v1/auth/signin').send({})
-    expect(res.header['x-ratelimit-limit']).toBeDefined()
+    // express-rate-limit v7 with standardHeaders:true emits the draft-6
+    // "RateLimit-*" headers (lowercased by node to "ratelimit-*"), not the
+    // legacy "X-RateLimit-*" family (explicitly disabled via legacyHeaders:false).
+    expect(res.header['ratelimit-limit']).toBeDefined()
   })
 
   it('should handle large payloads with 413 error (via express limit)', async () => {

@@ -89,6 +89,12 @@ app.use("/api/v1/itinerary", itineraryRoutes);
 app.use("/api/v1/agent", agentRoutes);
 app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/crowd", crowdRoutes);
+// packingRoutes/journalRoutes define their own full sub-paths
+// (/trips/:id/packing, /packing, /journal) — mount at the bare /api/v1
+// prefix. These were imported but never mounted, silently 404ing the
+// entire packing and journal APIs.
+app.use("/api/v1", packingRoutes);
+app.use("/api/v1", journalRoutes);
 
 // Generic/Shared routes (Last, as they match widely)
 app.use("/api/v1", sharedRoutes);
@@ -168,15 +174,26 @@ async function startServer() {
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-startServer().catch((err) => {
-  console.error("Critical server startup error:", err);
-  process.exit(1);
-});
+// In tests, this module is imported directly (`import { app } from '../../server/index'`)
+// into the SAME process the test runner uses. process.exit() here would kill the whole
+// test worker on any single uncaught exception, aborting every other test mid-run.
+const isTestEnv = config.NODE_ENV === "test";
+
+if (!isTestEnv) {
+  startServer().catch((err) => {
+    console.error("Critical server startup error:", err);
+    process.exit(1);
+  });
+} else {
+  startServer().catch((err) => {
+    console.error("Critical server startup error (test env, not exiting):", err);
+  });
+}
 
 process.on('uncaughtException', (e) => {
   console.error('[CRITICAL] Uncaught Exception:', e.name, e.message);
   console.error(e.stack);
-  process.exit(1);
+  if (!isTestEnv) process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {

@@ -7,6 +7,12 @@ const baseToJSON = {
   transform: (_: any, ret: any) => {
     ret.id = ret._id;
     delete ret._id;
+    // Shared across all models; only User documents carry these, but
+    // deleting a missing key is a harmless no-op — never let a password
+    // hash or reset token leave the server in a JSON response.
+    delete ret.password;
+    delete ret.resetPasswordToken;
+    delete ret.resetPasswordExpires;
     return ret;
   },
 } as const;

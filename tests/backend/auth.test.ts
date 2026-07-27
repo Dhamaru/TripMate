@@ -31,7 +31,8 @@ describe('Authentication API', () => {
       .send(userData)
 
     expect(res.status).toBe(400)
-    expect(res.body.message).toMatch(/already exists/i)
+    // errorHandler puts the message on `error`, not `message`
+    expect(res.body.error).toMatch(/already exists/i)
   })
 
   it('should sign in an existing user', async () => {
@@ -62,7 +63,7 @@ describe('Authentication API', () => {
       .send({ email: userData.email, password: 'WrongPassword' })
 
     expect(res.status).toBe(401)
-    expect(res.body.message).toMatch(/invalid credentials/i)
+    expect(res.body.error).toMatch(/invalid credentials/i)
   })
 
   it('should return 401 for unauthorized profile access', async () => {

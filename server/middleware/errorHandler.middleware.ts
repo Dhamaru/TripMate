@@ -35,6 +35,19 @@ export const errorHandler = (
         })
     }
 
+    // Errors from body-parser/express itself (e.g. PayloadTooLargeError,
+    // entity.parse.failed) carry their own status/statusCode — honor it
+    // instead of always collapsing to a generic 500.
+    const nativeStatus = (err as any).status ?? (err as any).statusCode;
+    if (typeof nativeStatus === 'number' && nativeStatus >= 400 && nativeStatus < 500) {
+        return res.status(nativeStatus).json({
+            success: false,
+            error: err.message || 'Request error',
+            code: (err as any).type || 'REQUEST_ERROR',
+            requestId: req.requestId,
+        })
+    }
+
     // Default 500
     return res.status(500).json({
         success: false,

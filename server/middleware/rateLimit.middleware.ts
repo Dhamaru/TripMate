@@ -33,9 +33,12 @@ export const apiProxyLimiter = rateLimit({
 })
 
 // Strict limiter for auth endpoints — prevents brute-force and credential stuffing
+// (test env gets a much higher ceiling so a single test file's sequential
+// signup/signin calls don't trip the same brute-force guard real users hit —
+// the header/shape behavior itself is still exercised, just not the low cap)
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: config.NODE_ENV === "test" ? 1000 : 5,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => res.status(429).json(rateLimitResponse(15 * 60)),

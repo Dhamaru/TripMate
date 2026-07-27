@@ -20,32 +20,32 @@ describe('User Profile API', () => {
     userId = signupRes.body.user.id
   })
 
-  it('should fetch modern user profile with preferences', async () => {
+  it('should fetch user profile', async () => {
     const res = await request(app)
       .get('/api/v1/auth/profile')
       .set('Authorization', `Bearer ${token}`)
 
     expect(res.status).toBe(200)
     expect(res.body.email).toBeDefined()
-    expect(res.body.preferences).toBeDefined()
   })
 
-  it('should update user preferences', async () => {
+  it('should update user profile fields', async () => {
+    // updateProfile only accepts a fixed allow-list of flat fields
+    // (firstName, lastName, phoneNumber, homeCity, dietaryPreferences,
+    // interests, preferredTransport, travelStyle) — there is no nested
+    // "preferences" object on the User model.
     const updates = {
-      preferences: {
-        travelStyles: ['adventure', 'luxury'],
-        currency: 'EUR',
-        theme: 'dark'
-      }
+      homeCity: 'Berlin',
+      interests: ['hiking', 'food'],
     }
 
     const res = await request(app)
-      .patch('/api/v1/auth/profile')
+      .put('/api/v1/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .send(updates)
 
     expect(res.status).toBe(200)
-    expect(res.body.preferences.currency).toBe('EUR')
-    expect(res.body.preferences.travelStyles).toContain('luxury')
+    expect(res.body.homeCity).toBe('Berlin')
+    expect(res.body.interests).toContain('hiking')
   })
 })

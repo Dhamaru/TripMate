@@ -935,7 +935,7 @@ export default function TripDetail() {
                 <div className="text-center p-4 bg-muted/50 rounded-xl">
                   {selectedStyle && <selectedStyle.icon className={`${selectedStyle.color} w-6 h-6 mb-2 mx-auto`} />}
                   <p className="text-sm text-muted-foreground">Style</p>
-                  <p className="font-bold text-foreground capitalize">{trip.travelStyle.replace('-', ' ')}</p>
+                  <p className="font-bold text-foreground capitalize">{(trip.travelStyle || 'standard').replace('-', ' ')}</p>
                 </div>
                 <div className="text-center p-4 bg-muted/50 rounded-xl">
                   {weather?.current ? (

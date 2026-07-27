@@ -25,10 +25,14 @@ describe('Trips API', () => {
   it('should create a new trip', async () => {
     const tripData = {
       destination: 'Kyoto',
+      origin: 'Delhi',
       startDate: '2025-07-01',
       endDate: '2025-07-05',
-      travelStyles: ['cultural'],
-      budgetRange: { min: 1000, max: 2000, currency: 'USD' }
+      days: 4,
+      groupSize: 2,
+      travelStyle: 'cultural',
+      budget: 2000,
+      currency: 'USD',
     }
 
     const res = await request(app)
@@ -59,22 +63,18 @@ describe('Trips API', () => {
   })
 
   it('should generate itinerary for a trip', async () => {
-    // Note: This relies on TravelOrchestrator which we mock partially via MSW (external APIs)
-    // and Groq SDK if we were using it directly. 
-    // For this test, we assume the route works and returns the itinerary format.
-    const trip = await request(app)
-      .post('/api/v1/trips')
-      .set('Authorization', `Bearer ${token}`)
-      .send(createTrip(userId, { destination: 'Osaka' }))
-
+    // Note: /generate-itinerary is a standalone endpoint (not tied to an
+    // existing trip id) that plans a trip from raw params before it's saved.
+    // This hits real AI/geocoding providers, so give it more than the 5s default.
     const res = await request(app)
-      .post(`/api/v1/trips/${trip.body.id}/generate-itinerary`)
+      .post('/api/v1/trips/generate-itinerary')
       .set('Authorization', `Bearer ${token}`)
+      .send({ destination: 'Osaka', days: 3, persons: 2, budget: 1000, currency: 'USD' })
 
     expect(res.status).toBe(200)
     expect(res.body.itinerary).toBeDefined()
     expect(Array.isArray(res.body.itinerary)).toBe(true)
-  })
+  }, 30000)
 
   it('should delete a trip', async () => {
     const trip = await request(app)
@@ -86,7 +86,7 @@ describe('Trips API', () => {
       .delete(`/api/v1/trips/${trip.body.id}`)
       .set('Authorization', `Bearer ${token}`)
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(204)
     
     const getRes = await request(app)
       .get('/api/v1/trips')

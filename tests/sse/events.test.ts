@@ -20,12 +20,14 @@ describe('SSE & Real-time Updates', () => {
   })
 
   it('should establish an SSE connection for trip generation', async () => {
-    // Note: Testing SSE with Supertest is tricky as it's a long-lived connection.
-    // We check for correct headers first.
+    // The real SSE trigger endpoint is POST /api/v1/orchestrator/stream
+    // (there is no GET /trips/events — that path fell through to the
+    // /trips/:id route and 500'd on an invalid ObjectId cast).
     const res = await request(app)
-      .get('/api/v1/trips/events')
+      .post('/api/v1/orchestrator/stream')
       .set('Authorization', `Bearer ${token}`)
-    
+      .send({ trigger: 'manual', context: {} })
+
     expect(res.status).toBe(200)
     expect(res.header['content-type']).toBe('text/event-stream')
     expect(res.header['cache-control']).toBe('no-cache')
