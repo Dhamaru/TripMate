@@ -2,7 +2,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import { JournalEntryModel, TripModel } from "@shared/schema";
-import { NotFoundError, InternalServerError, ForbiddenError } from "../errors";
+import { NotFoundError, InternalServerError, ForbiddenError, BadRequestError } from "../errors";
 import OpenAI from 'openai';
 import { runAgentLoop } from "../agent/agentLoop";
 import { buildContextualizationPrompt, buildEnhancementPrompt, buildRecapPrompt } from "../agent/prompts/journalPrompts";
@@ -24,6 +24,18 @@ async function runJournalAgent(prompt: string, userId: string): Promise<string> 
     );
     return result.message;
 }
+
+export const augmentEntry = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { content, destination } = req.body as { content?: string; destination?: string };
+        if (!content || !content.trim()) throw new BadRequestError("Content is required");
+
+        const result = await aiService.augmentJournalEntry(content, destination);
+        res.json(result);
+    } catch (err) {
+        next(err);
+    }
+};
 
 export const contextualizeEntry = async (req: Request, res: Response, next: NextFunction) => {
     try {

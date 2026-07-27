@@ -4,7 +4,7 @@ import * as journalController from "../controllers/journal.controller";
 import * as journalAiController from "../controllers/journal_ai.controller";
 import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
-import { createPackingListSchema, updatePackingItemSchema } from "../schemas/packing.schemas";
+import { createPackingListSchema, createPackingListTemplateSchema, updatePackingItemSchema } from "../schemas/packing.schemas";
 import { createJournalEntrySchema, updateJournalEntrySchema } from "../schemas/journal.schemas";
 
 const router = Router();
@@ -15,7 +15,7 @@ router.use(requireAuth);
 // Packing templates — must be registered before the /packing-lists/:id
 // routes below, or Express would match "templates" as the :id param.
 router.get("/packing-lists/templates", packingController.getPackingListTemplates);
-router.post("/packing-lists/templates", packingController.createPackingListTemplate);
+router.post("/packing-lists/templates", validate(createPackingListTemplateSchema), packingController.createPackingListTemplate);
 router.delete("/packing-lists/templates/:id", packingController.deletePackingListTemplate);
 
 // Packing Routes
@@ -36,6 +36,8 @@ router.post("/packing-lists/generate/:id", packingController.generatePackingList
 // Journal Routes
 router.get("/journal", journalController.getEntries);
 router.post("/journal", validate(createJournalEntrySchema), journalController.createEntry);
+// Must be registered before /journal/:id or Express would match "augment" as the :id param.
+router.post("/journal/augment", journalAiController.augmentEntry);
 router.put("/journal/:id", validate(updateJournalEntrySchema), journalController.updateEntry);
 router.delete("/journal/:id", journalController.deleteEntry);
 // Journal AI endpoints

@@ -75,6 +75,14 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     setDarkMode(resolvedTheme === "dark");
   }, [resolvedTheme]);
 
+  useEffect(() => {
+    if (theme !== "system") return;
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setDarkMode(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [theme]);
+
   function openOfflineMap(region: MapRegion) {
     const map = mapInstanceRef.current;
     if (!map) return;

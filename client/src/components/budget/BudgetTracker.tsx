@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
+import { useTripStore } from "@/store";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Trash2, Plus, AlertTriangle, TrendingUp, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +33,8 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
     const expenses = trip.expenses || [];
 
     const { data: forecast, isLoading: forecasting } = useQuery<any>({
-        queryKey: [`/api/v1/trips/${trip._id}/budget-forecast`],
-        enabled: !!trip._id,
+        queryKey: [`/api/v1/trips/${trip.id}/budget-forecast`],
+        enabled: !!trip.id,
     });
 
     // Calculate AI-generated itinerary costs
@@ -75,12 +76,11 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
         if (!newExpense.amount || !newExpense.description) return;
 
         try {
-            await apiRequest('POST', `/api/v1/trips/${trip._id}/expenses`, {
+            await apiRequest('POST', `/api/v1/trips/${trip.id}/expenses`, {
                 ...newExpense,
                 date: new Date(),
             });
-            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip._id}`] }); // Invalidate specific trip
-            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] }); // Invalidate list just in case
+            useTripStore.getState().fetchTrip(trip.id!);
             setIsAdding(false);
             setNewExpense({ amount: 0, currency: trip.currency || "INR", category: "Food", description: "" });
         } catch (error) {
@@ -90,9 +90,8 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
 
     const handleDelete = async (id: string) => {
         try {
-            await apiRequest('DELETE', `/api/v1/trips/${trip._id}/expenses/${id}`);
-            queryClient.invalidateQueries({ queryKey: [`/api/v1/trips/${trip._id}`] });
-            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
+            await apiRequest('DELETE', `/api/v1/trips/${trip.id}/expenses/${id}`);
+            useTripStore.getState().fetchTrip(trip.id!);
         } catch (error) {
             console.error("Failed to delete expense", error);
         }

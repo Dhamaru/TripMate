@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { GripVertical, Clock, MapPin, Edit2, ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { ActivityFormDialog } from "./ActivityFormDialog";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useTripStore } from "@/store";
 import { ModelConfidenceBadge } from "./ModelConfidenceBadge";
 import { AIReasoningPanel } from "./AIReasoningPanel";
 import { AtlasDayButton } from "./AtlasDayButton";
@@ -170,8 +171,6 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     };
     const { toast } = useToast();
 
-    const queryClient = useQueryClient();
-
     // Sync state with props ONLY when trip ID changes or local state is empty
     // This prevents refetches from overwriting active UI transitions/mutations
     useEffect(() => {
@@ -229,6 +228,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
             }
             newItinerary[dayIndex] = { ...newItinerary[dayIndex], activities: moved };
             setItinerary(newItinerary);
+            saveItinerary(newItinerary);
         }
     };
 
@@ -255,7 +255,9 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
             }
             setConflictError(null);
 
-            setItinerary(itinerary.map((d, idx) => idx === dayIndex ? { ...d, activities: newActivities } : d) as any);
+            const updated = itinerary.map((d, idx) => idx === dayIndex ? { ...d, activities: newActivities } : d) as IItineraryDay[];
+            setItinerary(updated);
+            saveItinerary(updated);
         }
     };
 
@@ -278,7 +280,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     // Add Activity Mutation
     const addActivityMutation = useMutation({
         mutationFn: async ({ dayIndex, activity }: { dayIndex: number; activity: any }) => {
-            const response = await apiRequest('POST', `/api/v1/trips/${trip.id}/itinerary/activities`, {
+            const response = await apiRequest('POST', `/api/v1/trips/${trip.id}/itinerary/activity`, {
                 dayIndex,
                 activity
             });
@@ -286,9 +288,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
-            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', trip.id] });
-            // Also update the query data immediately for faster UI
-            queryClient.setQueryData(['/api/v1/trips', trip.id], (old: any) => old ? { ...old, itinerary: data.itinerary } : old);
+            useTripStore.getState().fetchTrip(trip.id!);
             toast({ title: "Activity added", description: "Activity has been added to your itinerary." });
         },
         onError: () => {
@@ -299,7 +299,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     // Update Activity Mutation
     const updateActivityMutation = useMutation({
         mutationFn: async ({ dayIndex, activityId, updates }: { dayIndex: number; activityId: string; updates: any }) => {
-            const response = await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary/activities/${activityId}`, {
+            const response = await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary/activity/${activityId}`, {
                 dayIndex,
                 data: updates
             });
@@ -307,8 +307,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
-            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', trip.id] });
-            queryClient.setQueryData(['/api/v1/trips', trip.id], (old: any) => old ? { ...old, itinerary: data.itinerary } : old);
+            useTripStore.getState().fetchTrip(trip.id!);
             toast({ title: "Activity updated", description: "Activity has been updated." });
         },
         onError: () => {
@@ -319,12 +318,12 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     // Delete Activity Mutation
     const deleteActivityMutation = useMutation({
         mutationFn: async ({ dayIndex, activityId }: { dayIndex: number; activityId: string }) => {
-            const response = await apiRequest('DELETE', `/api/v1/trips/${trip.id}/itinerary/activities/${activityId}?dayIndex=${dayIndex}`);
+            const response = await apiRequest('DELETE', `/api/v1/trips/${trip.id}/itinerary/activity/${activityId}`, { dayIndex });
             return response.json();
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
-            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', trip.id] });
+            useTripStore.getState().fetchTrip(trip.id!);
             toast({ title: "Activity deleted", description: "Activity has been removed from your itinerary." });
         },
         onError: () => {
@@ -351,15 +350,14 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         }
     };
 
-    const saveItinerary = async () => {
+    const saveItinerary = async (updated: IItineraryDay[]) => {
         setIsSaving(true);
         try {
-            await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary`, { itinerary });
-            // Correct the mismatched string key to match the array key
-            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', trip.id] });
-            queryClient.setQueryData(['/api/v1/trips', trip.id], (old: any) => old ? { ...old, itinerary } : old);
+            await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary/reorder`, { itinerary: updated });
+            useTripStore.getState().fetchTrip(trip.id!);
         } catch (e) {
             console.error("Failed to save itinerary", e);
+            toast({ title: "Error", description: "Failed to save the reordered itinerary.", variant: "destructive" });
         } finally {
             setIsSaving(false);
         }

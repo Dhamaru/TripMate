@@ -76,15 +76,15 @@ export default function TripDetail() {
     socket.on('trip-mutation', (mutation: { type: string; data?: any }) => {
       // Invalidate relevant queries based on mutation type
       if (mutation.type === 'itinerary-updated') {
-        queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+        fetchTrip(id);
       } else if (mutation.type === 'expenses-updated') {
-        queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
+        fetchTrip(id);
       } else if (mutation.type === 'packing-updated' || mutation.type === 'packing-deleted') {
         queryClient.invalidateQueries({ queryKey: ['packing_lists', id] });
       } else if (mutation.type === 'journal-updated' || mutation.type === 'journal-deleted') {
         queryClient.invalidateQueries({ queryKey: ['/api/v1/journal'] });
       } else if (mutation.type === 'collaborators-updated') {
-        queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+        fetchTrip(id);
       } else if (mutation.type === 'trip-updated') {
         fetchTrip(id);
       }
@@ -292,7 +292,7 @@ export default function TripDetail() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
+      fetchTrip(id);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
       toast({
         title: "Trip Updated",
@@ -336,14 +336,14 @@ export default function TripDetail() {
 
   const addActivityMutation = useMutation({
     mutationFn: async ({ dayIndex, activity }: { dayIndex: number; activity: any }) => {
-      const response = await apiRequest('POST', `/api/v1/trips/${id}/itinerary/activities`, {
+      const response = await apiRequest('POST', `/api/v1/trips/${id}/itinerary/activity`, {
         dayIndex,
         activity
       });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+      fetchTrip(id);
       toast({ title: "Activity added", description: "Activity has been added to your itinerary." });
     },
     onError: () => {
@@ -353,11 +353,11 @@ export default function TripDetail() {
 
   const deleteActivityMutation = useMutation({
     mutationFn: async ({ dayIndex, activityId }: { dayIndex: number; activityId: string }) => {
-      const response = await apiRequest('DELETE', `/api/v1/trips/${id}/itinerary/activities/${activityId}?dayIndex=${dayIndex}`);
+      const response = await apiRequest('DELETE', `/api/v1/trips/${id}/itinerary/activity/${activityId}`, { dayIndex });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/trips`, id] });
+      fetchTrip(id);
       toast({ title: "Activity deleted", description: "Activity has been removed from your itinerary." });
     },
     onError: () => {
@@ -519,7 +519,7 @@ export default function TripDetail() {
       setPlanStage('done');
       const already = !!(data && (data as any).__alreadyGenerated);
       if (!already) {
-        queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
+        fetchTrip(id);
       }
       try { dismiss(); activeToastId.current = null; } catch { }
       toast({ title: already ? 'Plan Already Generated' : 'AI Plan Generated', description: already ? 'Your existing plan is shown below.' : 'Your plan has been added below.' });

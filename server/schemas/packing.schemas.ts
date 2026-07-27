@@ -15,6 +15,18 @@ export const createPackingListSchema = z.object({
     }),
 });
 
+export const createPackingListTemplateSchema = z.object({
+    body: z.object({
+        name: z.string().min(1, "Template name is required"),
+        items: z.array(z.object({
+            name: z.string().min(1),
+            quantity: z.number().int().min(1).default(1),
+            category: z.string().optional(),
+            is_mandatory: z.boolean().optional(),
+        })).optional(),
+    }),
+});
+
 export const updatePackingItemSchema = z.object({
     params: z.object({
         id: z.string().min(1, "Packing List ID is required"),
