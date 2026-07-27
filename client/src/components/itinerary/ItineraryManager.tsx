@@ -52,11 +52,11 @@ function SortableActivity({
     const isTravelLeg = activity.type === 'travel';
 
     const typeColors: Record<string, string> = {
-        travel: 'bg-[#163F73]/20 text-[#163F73]',
-        food: 'bg-emerald-500/20 text-emerald-400',
-        sightseeing: 'bg-blue-500/20 text-blue-400',
-        accommodation: 'bg-purple-500/20 text-purple-400',
-        activity: 'bg-cyan-500/20 text-cyan-400',
+        travel: 'border-[var(--amber)]/50 text-[var(--amber)]',
+        food: 'border-[var(--forest)]/50 text-[var(--forest)]',
+        sightseeing: 'border-[var(--explorer-blue)]/50 text-[var(--explorer-blue)]',
+        accommodation: 'border-purple-500/50 text-purple-400',
+        activity: 'border-[hsl(var(--muted-foreground))]/50 text-[hsl(var(--muted-foreground))]',
     };
     const typeLabel: Record<string, string> = {
         travel: 'Travel', food: 'Food', sightseeing: 'Sight', accommodation: 'Stay', activity: 'Activity',
@@ -64,15 +64,15 @@ function SortableActivity({
     const typeClass = typeColors[activity.type || 'activity'] || typeColors.activity;
 
     return (
-        <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2.5 border-b border-white/5 last:border-0 transition-colors group ${isTravelLeg ? 'bg-[#163F73]/5' : 'hover:bg-white/3'}`}>
+        <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isTravelLeg ? 'bg-[var(--amber)]/5' : 'hover:bg-[hsl(var(--muted))]/50'}`}>
             {/* Drag handle */}
-            <div {...attributes} {...listeners} className="shrink-0 text-white/20 cursor-grab active:cursor-grabbing hover:text-white/50 transition-colors">
+            <div {...attributes} {...listeners} className="shrink-0 text-[hsl(var(--muted-foreground))]/40 cursor-grab active:cursor-grabbing hover:text-[hsl(var(--muted-foreground))] transition-colors">
                 <GripVertical className="w-4 h-4" />
             </div>
 
             {/* Time badge */}
             {activity.time && (
-                <div className="shrink-0 text-[10px] font-mono bg-white/10 px-2 py-0.5 rounded text-gray-400 w-12 text-center">
+                <div className="shrink-0 text-[10px] font-mono-data bg-[hsl(var(--muted))] px-2 py-0.5 rounded text-[hsl(var(--muted-foreground))] w-14 text-center">
                     {activity.time}
                 </div>
             )}
@@ -82,24 +82,24 @@ function SortableActivity({
                 <div className="flex items-center gap-1.5 flex-wrap">
                     {isTravelLeg && (activity.from || activity.to) ? (
                         <>
-                            {activity.from && <span className="text-sm font-medium text-white">{activity.from}</span>}
-                            {activity.from && activity.to && <span className="text-[#163F73] text-xs">→</span>}
-                            {activity.to && <span className="text-sm font-medium text-white">{activity.to}</span>}
+                            {activity.from && <span className="text-sm font-medium text-foreground">{activity.from}</span>}
+                            {activity.from && activity.to && <span className="text-[var(--amber)] text-xs">→</span>}
+                            {activity.to && <span className="text-sm font-medium text-foreground">{activity.to}</span>}
                         </>
                     ) : (
-                        <span className="text-sm font-medium text-white truncate">{activity.title || activity.placeName}</span>
+                        <span className="text-sm font-medium text-foreground truncate">{activity.title || activity.placeName}</span>
                     )}
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${typeClass}`}>
+                    <span className={`stamp text-[9px] px-1.5 py-0 shrink-0 ${typeClass}`}>
                         {typeLabel[activity.type || 'activity'] || 'Activity'}
                     </span>
                     {activity.duration_minutes && (
-                        <span className="text-[10px] text-white/30 shrink-0">
+                        <span className="text-[10px] font-mono-data text-[hsl(var(--muted-foreground))] shrink-0">
                             <Clock className="inline w-2.5 h-2.5 mr-0.5" />{activity.duration_minutes}m
                         </span>
                     )}
                 </div>
                 {activity.location && (
-                    <div className="flex items-center gap-1 text-[10px] text-white/40 mt-0.5 truncate">
+                    <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">
                         <MapPin className="w-2.5 h-2.5 shrink-0" />{activity.location}
                     </div>
                 )}
@@ -110,10 +110,10 @@ function SortableActivity({
 
             {/* Action buttons — always visible, small */}
             <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
-                <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white" title="Edit">
+                <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-foreground" title="Edit">
                     <Edit2 className="w-3.5 h-3.5" />
                 </Button>
-                <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-red-400" title="Delete">
+                <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-red-400" title="Delete">
                     <Trash2 className="w-3.5 h-3.5" />
                 </Button>
             </div>
@@ -403,20 +403,20 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
             {itinerary.map((day, dayIdx) => {
                 const dateLabel = getDayLabel(dayIdx, day);
             return (
-                <div key={dayIdx} className="bg-[#1E1E1E] rounded-xl border border-white/5 mb-4 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/5">
+                <div key={dayIdx} className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] mb-4 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 bg-[hsl(var(--muted))]/50 perforated-edge">
                         <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-white tracking-tight">Day {day.day || dayIdx + 1}</h3>
+                            <h3 className="font-display font-bold text-foreground tracking-tight">Day {day.day || dayIdx + 1}</h3>
                             {dateLabel && (
-                                <span className="text-xs text-[#163F73] bg-[#163F73]/10 px-2 py-0.5 rounded-full font-medium">{dateLabel}</span>
+                                <span className="stamp text-[10px] text-[var(--amber)]">{dateLabel}</span>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400 bg-white/5 px-2 py-1 rounded-full">{day.activities.length} Activities</span>
+                            <span className="text-xs font-mono-data text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-2 py-1 rounded-full">{day.activities.length} Activities</span>
                             <Button
                                 onClick={() => handleAddActivity(dayIdx)}
                                 size="sm"
-                                className="bg-[#163F73] hover:bg-[#0F2C52] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
+                                className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
                             >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">Add Activity</span>

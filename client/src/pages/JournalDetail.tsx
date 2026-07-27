@@ -199,7 +199,7 @@ export default function JournalDetail() {
                     <Button
                         variant="ghost"
                         onClick={() => navigate("/app/journal")}
-                        className="text-muted-foreground hover:text-white p-0 h-auto hover:bg-transparent"
+                        className="text-muted-foreground hover:text-foreground p-0 h-auto hover:bg-transparent"
                     >
                         <ChevronLeft className="w-5 h-5 mr-1" />
                         Back to Journal

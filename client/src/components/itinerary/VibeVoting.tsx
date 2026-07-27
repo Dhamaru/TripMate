@@ -57,7 +57,7 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
       <Button
         variant="ghost"
         size="icon"
-        className={`h-7 w-7 transition-colors ${userVote === 1 ? 'text-green-400 bg-green-500/10' : 'text-white/25 hover:text-green-400 hover:bg-green-500/10'}`}
+        className={`h-7 w-7 transition-colors ${userVote === 1 ? 'text-green-400 bg-green-500/10' : 'text-[hsl(var(--muted-foreground))]/50 hover:text-green-400 hover:bg-green-500/10'}`}
         onClick={() => void handleVote(1)}
         title="Boost this vibe"
       >
@@ -66,7 +66,7 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
       <Button
         variant="ghost"
         size="icon"
-        className={`h-7 w-7 transition-colors ${userVote === -1 ? 'text-orange-400 bg-orange-500/10' : 'text-white/25 hover:text-orange-400 hover:bg-orange-500/10'}`}
+        className={`h-7 w-7 transition-colors ${userVote === -1 ? 'text-orange-400 bg-orange-500/10' : 'text-[hsl(var(--muted-foreground))]/50 hover:text-orange-400 hover:bg-orange-500/10'}`}
         onClick={() => void handleVote(-1)}
         title="Vibe check"
       >

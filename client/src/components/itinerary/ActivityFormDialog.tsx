@@ -136,15 +136,15 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-card border-border text-white max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl backdrop-blur-xl">
+            <DialogContent className="bg-card border-border text-foreground max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl backdrop-blur-xl">
                 <DialogHeader>
-                    <DialogTitle className="text-white text-xl font-bold">
+                    <DialogTitle className="text-foreground text-xl font-bold">
                         {activity ? 'Edit Activity' : 'Add Activity'}
                     </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="relative">
-                        <Label htmlFor="placeSearch" className="text-white font-medium mb-1.5 flex items-center gap-2">
+                        <Label htmlFor="placeSearch" className="text-foreground font-medium mb-1.5 flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
                             Find Location
                         </Label>
@@ -154,7 +154,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                 value={searchTerm}
                                 onChange={(e) => handleSearch(e.target.value)}
                                 placeholder="Search for a place, restaurant, park..."
-                                className="bg-muted border-border text-white pl-10 h-11 focus:border-[#1D4E89] transition-all"
+                                className="bg-muted border-border text-foreground pl-10 h-11 focus:border-[#1D4E89] transition-all"
                             />
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                                 {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
@@ -170,7 +170,7 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                                         onClick={() => selectPlace(p)}
                                         className="w-full text-left px-4 py-3 hover:bg-[#1D4E89]/10 border-b border-border last:border-0 transition-colors group"
                                     >
-                                        <div className="font-medium text-white group-hover:text-[#1D4E89] dark:text-blue-400 transition-colors">
+                                        <div className="font-medium text-foreground group-hover:text-[#1D4E89] dark:text-blue-400 transition-colors">
                                             {p.name || p.display_name?.split(',')[0]}
                                         </div>
                                         <div className="text-xs text-muted-foreground truncate mt-0.5">
@@ -183,42 +183,42 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                     </div>
 
                     <div className="pt-2 border-t border-border">
-                        <Label htmlFor="title" className="text-white font-medium mb-1.5 block">Activity Title *</Label>
+                        <Label htmlFor="title" className="text-foreground font-medium mb-1.5 block">Activity Title *</Label>
                         <Input
                             id="title"
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             placeholder="e.g., Visit Taj Mahal"
-                            className="bg-muted border-border text-white h-11"
+                            className="bg-muted border-border text-foreground h-11"
                             required
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="time" className="text-white font-medium mb-1.5 block">Time</Label>
+                            <Label htmlFor="time" className="text-foreground font-medium mb-1.5 block">Time</Label>
                             <Input
                                 id="time"
                                 type="time"
                                 value={formData.time}
                                 onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                                className="bg-muted border-border text-white h-11"
+                                className="bg-muted border-border text-foreground h-11"
                             />
                         </div>
                         <div>
-                            <Label htmlFor="duration" className="text-white font-medium mb-1.5 block">Duration (min)</Label>
+                            <Label htmlFor="duration" className="text-foreground font-medium mb-1.5 block">Duration (min)</Label>
                             <Input
                                 id="duration"
                                 type="number"
                                 value={formData.duration_minutes}
                                 onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) || 60 })}
-                                className="bg-muted border-border text-white h-11"
+                                className="bg-muted border-border text-foreground h-11"
                             />
                         </div>
                     </div>
 
                     <div className="hidden">
-                        <Label htmlFor="placeName" className="text-white">Place Name</Label>
+                        <Label htmlFor="placeName" className="text-foreground">Place Name</Label>
                         <Input
                             id="placeName"
                             value={formData.placeName}
@@ -227,13 +227,13 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                     </div>
 
                     <div>
-                        <Label htmlFor="address" className="text-white font-medium mb-1.5 block">Address</Label>
+                        <Label htmlFor="address" className="text-foreground font-medium mb-1.5 block">Address</Label>
                         <Textarea
                             id="address"
                             value={formData.address}
                             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                             placeholder="Full address (auto-filled if location selected)"
-                            className="bg-muted border-border text-white min-h-[80px]"
+                            className="bg-muted border-border text-foreground min-h-[80px]"
                             rows={2}
                         />
                         {formData.lat && (
@@ -245,19 +245,19 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                     </div>
 
                     <div>
-                        <Label htmlFor="type" className="text-white font-medium mb-1.5 block">Type</Label>
+                        <Label htmlFor="type" className="text-foreground font-medium mb-1.5 block">Type</Label>
                         <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                            <SelectTrigger className="bg-muted border-border text-white h-11">
+                            <SelectTrigger className="bg-muted border-border text-foreground h-11">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-card border-border shadow-2xl">
-                                <SelectItem value="sightseeing" className="text-white">Sightseeing</SelectItem>
-                                <SelectItem value="restaurant" className="text-white">Restaurant</SelectItem>
-                                <SelectItem value="hotel" className="text-white">Hotel / Stay</SelectItem>
-                                <SelectItem value="travel" className="text-white">Travel Leg (Flight / Drive / Trek)</SelectItem>
-                                <SelectItem value="transport" className="text-white">Local Transport</SelectItem>
-                                <SelectItem value="shopping" className="text-white">Shopping</SelectItem>
-                                <SelectItem value="other" className="text-white">Other</SelectItem>
+                                <SelectItem value="sightseeing" className="text-foreground">Sightseeing</SelectItem>
+                                <SelectItem value="restaurant" className="text-foreground">Restaurant</SelectItem>
+                                <SelectItem value="hotel" className="text-foreground">Hotel / Stay</SelectItem>
+                                <SelectItem value="travel" className="text-foreground">Travel Leg (Flight / Drive / Trek)</SelectItem>
+                                <SelectItem value="transport" className="text-foreground">Local Transport</SelectItem>
+                                <SelectItem value="shopping" className="text-foreground">Shopping</SelectItem>
+                                <SelectItem value="other" className="text-foreground">Other</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -266,21 +266,21 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
                     {formData.type === 'travel' && (
                         <div className="grid grid-cols-2 gap-4 p-3 bg-[#1D4E89]/5 border border-[#1D4E89]/20 rounded-lg">
                             <div>
-                                <Label className="text-white font-medium mb-1.5 block">From</Label>
+                                <Label className="text-foreground font-medium mb-1.5 block">From</Label>
                                 <Input
                                     value={formData.from}
                                     onChange={(e) => setFormData({ ...formData, from: e.target.value })}
                                     placeholder="e.g. Hyderabad"
-                                    className="bg-muted border-border text-white h-10"
+                                    className="bg-muted border-border text-foreground h-10"
                                 />
                             </div>
                             <div>
-                                <Label className="text-white font-medium mb-1.5 block">To</Label>
+                                <Label className="text-foreground font-medium mb-1.5 block">To</Label>
                                 <Input
                                     value={formData.to}
                                     onChange={(e) => setFormData({ ...formData, to: e.target.value })}
                                     placeholder="e.g. Delhi"
-                                    className="bg-muted border-border text-white h-10"
+                                    className="bg-muted border-border text-foreground h-10"
                                 />
                             </div>
                         </div>
@@ -288,35 +288,35 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
 
                     {/* Notes */}
                     <div>
-                        <Label className="text-white font-medium mb-1.5 block">Notes</Label>
+                        <Label className="text-foreground font-medium mb-1.5 block">Notes</Label>
                         <Textarea
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                             placeholder="Any additional details..."
-                            className="bg-muted border-border text-white min-h-[60px]"
+                            className="bg-muted border-border text-foreground min-h-[60px]"
                             rows={2}
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="cost" className="text-white font-medium mb-1.5 block">Est. Cost</Label>
+                            <Label htmlFor="cost" className="text-foreground font-medium mb-1.5 block">Est. Cost</Label>
                             <Input
                                 id="cost"
                                 type="number"
                                 value={formData.cost}
                                 onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })}
-                                className="bg-muted border-border text-white h-11"
+                                className="bg-muted border-border text-foreground h-11"
                             />
                         </div>
                         <div>
-                            <Label htmlFor="entryFee" className="text-white font-medium mb-1.5 block">Entry Fee ($)</Label>
+                            <Label htmlFor="entryFee" className="text-foreground font-medium mb-1.5 block">Entry Fee ($)</Label>
                             <Input
                                 id="entryFee"
                                 type="number"
                                 value={formData.entryFee}
                                 onChange={(e) => setFormData({ ...formData, entryFee: parseFloat(e.target.value) || 0 })}
-                                className="bg-muted border-border text-white h-11"
+                                className="bg-muted border-border text-foreground h-11"
                             />
                         </div>
                     </div>
