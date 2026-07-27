@@ -13,10 +13,10 @@ import { useAgentStore } from '../../store'
 
 const mockSendMessage = vi.fn()
 
-function setupStore(overrides: Partial<{ isLoading: boolean; sendMessage: typeof mockSendMessage }> = {}) {
+function setupStore(overrides: Partial<{ isLoading: boolean; streamMessage: typeof mockSendMessage }> = {}) {
     vi.mocked(useAgentStore).mockReturnValue({
         isLoading: false,
-        sendMessage: mockSendMessage,
+        streamMessage: mockSendMessage,
         context: {},
         ...overrides,
     } as ReturnType<typeof useAgentStore>)

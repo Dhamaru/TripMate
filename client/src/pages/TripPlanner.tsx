@@ -230,7 +230,7 @@ export default function TripPlanner() {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
       };
-      const travelTime = (km: number) => Math.max(10, Math.round((km / speedKmH) * 60));
+      const travelTime = (km: number) => Math.min(180, Math.max(10, Math.round((km / speedKmH) * 60)));
       const pad = (n: number) => String(Math.floor(n)).padStart(2, '0');
       const fmt = (h: number, m: number) => `${pad(h)}:${pad(m)}`;
       const addMinutes = (h: number, m: number, add: number) => {
@@ -272,6 +272,12 @@ export default function TripPlanner() {
       };
       const attractions = await fetchItems(`${dest} tourist attractions`);
       const restaurants = await fetchItems(`${dest} restaurants`);
+      // Geocoding for `dest` can fail while place search still returns real coordinates —
+      // without this, distances are computed from (0,0), producing multi-day travel times.
+      if (center.lat === 0 && center.lon === 0) {
+        const anyPlace = attractions[0] || restaurants[0];
+        if (anyPlace) center = { lat: anyPlace.lat, lon: anyPlace.lon, display: dest };
+      }
       const pickNearest = (from: { lat: number; lon: number }, pool: any[]) => {
         if (!pool.length) return null;
         let best = pool[0];
@@ -538,7 +544,7 @@ export default function TripPlanner() {
                     Your Schedule <span className="text-red-500">*</span>
                   </label>
                   <Textarea
-                    placeholder={`Paste your travel plan here. For example:\n\n22nd evening - Hyderabad to Delhi ✈️\n23rd morning - Delhi to Haridwar 🚗, then Haridwar to Joshi Math\n24th - Joshi Math to Badrinath\n25th - Badrinath darshan\n...`}
+                    placeholder={`Paste your travel plan here. For example:\n\nDay 1 - Hyderabad to Delhi ✈️ (evening flight)\nDay 2 - Delhi to Haridwar 🚗, then Haridwar to Joshi Math\nDay 3 - Joshi Math to Badrinath\nDay 4 - Badrinath darshan\nDay 5 - Return to Delhi\n...`}
                     value={importForm.scheduleText}
                     onChange={(e) => setImportForm(prev => ({ ...prev, scheduleText: e.target.value }))}
                     className="bg-muted border text-foreground placeholder:text-muted-foreground min-h-[200px] font-mono text-sm"

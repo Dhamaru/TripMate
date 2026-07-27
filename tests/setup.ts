@@ -1,3 +1,5 @@
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tripmate-test'
+
 import '@testing-library/jest-dom'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { server } from './mocks/server'
