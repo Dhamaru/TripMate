@@ -126,6 +126,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<{ lat: number; lon: number; name: string } | null>(null);
   const [navDestInput, setNavDestInput] = useState("");
+  const [navDestSuggestions, setNavDestSuggestions] = useState<Array<{ lat: number; lon: number; display_name: string }>>([]);
+  const [navDestLoading, setNavDestLoading] = useState(false);
+  const [showNavDestSuggestions, setShowNavDestSuggestions] = useState(false);
+  const navDestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -340,9 +344,47 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
+      // Revert the nav-arrow marker back to a normal pin at the last known position.
+      const map = mapInstanceRef.current;
+      if (userMarkerRef.current) {
+        const { lat, lng } = userMarkerRef.current.getLatLng();
+        userMarkerRef.current.remove();
+        userMarkerRef.current = map ? L.marker([lat, lng]).addTo(map).bindPopup("You are here") : null;
+      }
     }
   }, [isNavigating]);
 
+
+  const fetchNavDestSuggestions = (query: string) => {
+    if (navDestDebounceRef.current) clearTimeout(navDestDebounceRef.current);
+    if (query.trim().length < 3) {
+      setNavDestSuggestions([]);
+      setShowNavDestSuggestions(false);
+      return;
+    }
+    navDestDebounceRef.current = setTimeout(async () => {
+      try {
+        setNavDestLoading(true);
+        const r = await fetch(`/api/v1/geocode?q=${encodeURIComponent(query.trim())}`);
+        const data = await r.json();
+        setNavDestSuggestions(Array.isArray(data) ? data : []);
+        setShowNavDestSuggestions(true);
+      } catch {
+        setNavDestSuggestions([]);
+      } finally {
+        setNavDestLoading(false);
+      }
+    }, 350);
+  };
+
+  const selectNavDestSuggestion = (place: { lat: number; lon: number; display_name: string }) => {
+    const name = place.display_name?.split(',')[0] || place.display_name;
+    setSelectedPlace({ lat: Number(place.lat), lon: Number(place.lon), name });
+    setNavDestInput(name);
+    setShowNavDestSuggestions(false);
+    setNavDestSuggestions([]);
+    toast({ title: "Destination set", description: name });
+  };
 
   // Routing via OSRM (open-source, no API key needed)
   const handleCalculateRoute = async () => {
@@ -593,20 +635,28 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
                 <div className="border-t border-gray-700 pt-3">
                   <h4 className="text-white font-semibold text-sm mb-2">Route</h4>
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <input
                       type="text"
                       placeholder="Destination (city or place)"
                       value={navDestInput}
-                      onChange={(e) => setNavDestInput(e.target.value)}
+                      onChange={(e) => {
+                        setNavDestInput(e.target.value);
+                        fetchNavDestSuggestions(e.target.value);
+                      }}
+                      onFocus={() => { if (navDestSuggestions.length > 0) setShowNavDestSuggestions(true); }}
+                      onBlur={() => setTimeout(() => setShowNavDestSuggestions(false), 150)}
                       onKeyDown={async (e) => {
                         if (e.key === 'Enter' && navDestInput.trim()) {
+                          if (navDestSuggestions.length > 0) {
+                            selectNavDestSuggestion(navDestSuggestions[0]);
+                            return;
+                          }
                           try {
                             const r = await fetch(`/api/v1/geocode?q=${encodeURIComponent(navDestInput.trim())}`);
                             const data = await r.json();
                             if (Array.isArray(data) && data.length > 0) {
-                              setSelectedPlace({ lat: Number(data[0].lat), lon: Number(data[0].lon), name: data[0].display_name?.split(',')[0] || navDestInput });
-                              toast({ title: "Destination set", description: data[0].display_name?.split(',')[0] || navDestInput });
+                              selectNavDestSuggestion(data[0]);
                             } else {
                               toast({ title: "Not found", description: "Try a different name.", variant: "destructive" });
                             }
@@ -615,6 +665,24 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       }}
                       className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-[#F59E0B]"
                     />
+                    {showNavDestSuggestions && (navDestLoading || navDestSuggestions.length > 0) && (
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
+                        {navDestLoading && (
+                          <div className="px-2 py-1.5 text-[11px] text-gray-400">Searching...</div>
+                        )}
+                        {!navDestLoading && navDestSuggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => selectNavDestSuggestion(s)}
+                            className="w-full text-left px-2 py-1.5 text-[11px] text-gray-200 hover:bg-gray-700 truncate border-b border-gray-700 last:border-b-0"
+                          >
+                            {s.display_name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {selectedPlace && <p className="text-[10px] text-[#F59E0B] truncate">→ {selectedPlace.name}</p>}
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={handleCalculateRoute}>

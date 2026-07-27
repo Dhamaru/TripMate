@@ -176,11 +176,11 @@ export const convertCurrency = async (req: Request, res: Response, next: NextFun
 
 export const translateText = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { text, from, to } = req.body;
-        if (!text || !to) throw new BadRequestError("Missing text or target language");
-        
+        const { text, sourceLang, targetLang } = req.body;
+        if (!text || !targetLang) throw new BadRequestError("Missing text or target language");
+
         const aiUtils = new AiUtilitiesService();
-        const result = await aiUtils.translate(text, from || "auto", to);
+        const result = await aiUtils.translate(text, sourceLang || "auto", targetLang);
         res.json(result);
     } catch (error) {
         next(error);
