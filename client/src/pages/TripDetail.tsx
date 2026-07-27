@@ -106,6 +106,7 @@ export default function TripDetail() {
   }, [id, queryClient, socketRef, toast]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [heroImgError, setHeroImgError] = useState(false);
   const [isAtlasThinking, setIsAtlasThinking] = useState(false);
   const [tripForm, setTripForm] = useState({
     origin: '',
@@ -133,6 +134,10 @@ export default function TripDetail() {
       try { dismiss(); activeToastId.current = null; } catch { }
     }
   }, [planStage]);
+
+  useEffect(() => {
+    setHeroImgError(false);
+  }, [trip?.imageUrl]);
 
   const { data: hotelResults, isLoading: hotelsLoading } = useQuery<any>({
     queryKey: ['places_hotels', id, tripForm.destination],
@@ -692,11 +697,12 @@ export default function TripDetail() {
 
           {/* Hero Image */}
           <div className="relative rounded-xl overflow-hidden w-full aspect-video md:aspect-auto md:h-80 bg-muted/50 flex items-center justify-center group">
-            {trip.imageUrl ? (
+            {trip.imageUrl && !heroImgError ? (
               <>
                 <img
                   src={trip.imageUrl}
                   alt={trip.destination}
+                  onError={() => setHeroImgError(true)}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
@@ -728,7 +734,7 @@ export default function TripDetail() {
                         toast({ title: "Image updated!", description: "Found a new photo." });
                       } else {
                         queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', id] });
-                        toast({ title: "Image refreshed." });
+                        toast({ title: "No better photo found", description: "Couldn't find a new photo for this destination.", variant: "destructive" });
                       }
                     } catch (err) {
                       toast({ title: "Failed to refresh", variant: "destructive" });

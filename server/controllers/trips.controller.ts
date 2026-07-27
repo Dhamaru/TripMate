@@ -253,8 +253,10 @@ export const forceUpdateImage = async (req: Request, res: Response, next: NextFu
         const trip = await TripModel.findOne({ _id: req.params.id, userId });
         if (!trip) throw new NotFoundError("Trip not found");
 
-        await TripModel.findByIdAndUpdate(trip.id, { $unset: { imageUrl: 1, imageCaption: 1 } });
-
+        // Don't clear the existing image up front — fetchImageForTrip only
+        // overwrites imageUrl/imageCaption if it actually finds a new one, so
+        // a failed search (network blip, no results) no longer leaves the
+        // trip with no image at all.
         const randomOffset = Math.floor(Math.random() * 5);
         await fetchImageForTrip(trip.id, trip.destination, randomOffset);
 

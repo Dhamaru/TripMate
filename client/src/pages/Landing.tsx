@@ -278,7 +278,7 @@ export default function Landing() {
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 bg-[#F7F0DD] text-[#163F73] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-[#D8453B]">
+            <div className="inline-flex items-center gap-2 bg-[#F7F0DD] text-[#163F73] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-[#163F73]/30">
               <span className="w-1.5 h-1.5 rounded-full bg-[#163F73]" />
               AI-Powered Travel Planning
             </div>

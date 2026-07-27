@@ -118,9 +118,9 @@ export default function EmergencyPage() {
     try {
       const parsed = await geocodeQuery(query);
       if (!parsed || Number.isNaN(parsed.lat) || Number.isNaN(parsed.lon)) {
-        setCoords(null);
-        setDisplayName("");
-        setShortName("");
+        // Keep any already-known-good location intact — don't wipe a working
+        // result just because a re-search of the same (often overly specific)
+        // address failed to forward-geocode.
         setMessage("Location not found");
         return;
       }
@@ -131,9 +131,6 @@ export default function EmergencyPage() {
       setMessage("");
     } catch {
       setMessage("Location not found");
-      setCoords(null);
-      setDisplayName("");
-      setShortName("");
     } finally {
       setLoading(false);
     }
