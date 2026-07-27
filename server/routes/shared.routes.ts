@@ -36,7 +36,6 @@ router.post("/packing-lists/generate/:id", packingController.generatePackingList
 // Journal Routes
 router.get("/journal", journalController.getEntries);
 router.post("/journal", validate(createJournalEntrySchema), journalController.createEntry);
-// Must be registered before /journal/:id or Express would match "augment" as the :id param.
 router.post("/journal/augment", journalAiController.augmentEntry);
 router.put("/journal/:id", validate(updateJournalEntrySchema), journalController.updateEntry);
 router.delete("/journal/:id", journalController.deleteEntry);

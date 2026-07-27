@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useTripStore } from '@/store';
 import { Search, Sparkles, MapPin, Star, Navigation, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,7 +33,6 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
     const [places, setPlaces] = useState<Place[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const { toast } = useToast();
-    const queryClient = useQueryClient();
 
     const categories = [
         {
@@ -117,9 +117,15 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
     // Add to itinerary mutation
     const addToItineraryMutation = useMutation({
         mutationFn: async (place: Place) => {
-            const response = await apiRequest('POST', `/api/v1/trips/${tripId}/add-to-itinerary`, {
-                place,
-                category: activeCategory,
+            const response = await apiRequest('POST', `/api/v1/trips/${tripId}/itinerary/activity`, {
+                dayIndex: 0,
+                activity: {
+                    title: place.name,
+                    location: place.address,
+                    notes: place.reason,
+                    latitude: place.location?.lat,
+                    longitude: place.location?.lng,
+                },
             });
             return response.json();
         },
@@ -129,8 +135,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                 description: `${place.name} has been added to your trip plan.`,
             });
 
-            // Invalidate and refetch trip data - using correct query key
-            queryClient.invalidateQueries({ queryKey: ['/api/v1/trips', tripId] });
+            useTripStore.getState().fetchTrip(tripId);
 
             // Auto-scroll to itinerary section after a short delay (to let the query refresh)
             setTimeout(() => {

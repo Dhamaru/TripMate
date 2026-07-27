@@ -12,17 +12,31 @@ const logsLimiter = rateLimit({
 });
 router.use(logsLimiter);
 
-function sanitizeEvent(event: unknown): string {
-    return String(event ?? "").replace(/[\r\n\t]/g, " ").slice(0, 200);
+function sanitizeString(value: unknown): string {
+    return String(value ?? "").replace(/[\r\n\t]/g, " ").slice(0, 200);
+}
+
+function sanitizePayload(payload: unknown, depth = 0): unknown {
+    if (depth > 3) return undefined;
+    if (typeof payload === "string") return sanitizeString(payload);
+    if (Array.isArray(payload)) return payload.slice(0, 20).map((v) => sanitizePayload(v, depth + 1));
+    if (payload && typeof payload === "object") {
+        const out: Record<string, unknown> = {};
+        for (const key of Object.keys(payload as object).slice(0, 20)) {
+            out[sanitizeString(key)] = sanitizePayload((payload as Record<string, unknown>)[key], depth + 1);
+        }
+        return out;
+    }
+    return payload;
 }
 
 router.post("/logs/info", (req, res) => {
-    logger.info(`[client] ${sanitizeEvent(req.body?.event)}`, req.body?.payload);
+    logger.info(`[client] ${sanitizeString(req.body?.event)}`, sanitizePayload(req.body?.payload));
     res.status(204).send();
 });
 
 router.post("/logs/error", (req, res) => {
-    logger.error(`[client] ${sanitizeEvent(req.body?.event)}`, req.body?.payload);
+    logger.error(`[client] ${sanitizeString(req.body?.event)}`, sanitizePayload(req.body?.payload));
     res.status(204).send();
 });
 

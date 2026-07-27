@@ -376,6 +376,77 @@ async function fetchImageForTrip(tripId: string, destination: string, skipCount:
     }
 }
 
+const CATEGORY_QUERY_TERMS: Record<string, string> = {
+    hotels: "hotels",
+    restaurants: "restaurants",
+    "tourist-spots": "tourist attractions",
+};
+
+function mapGooglePlace(p: any, key: string, category?: string) {
+    return {
+        id: p.place_id,
+        name: p.name,
+        address: p.formatted_address,
+        rating: p.rating,
+        photos: (p.photos || []).slice(0, 3).map((photo: any) =>
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photo.photo_reference}&key=${key}`
+        ),
+        location: p.geometry?.location ? { lat: p.geometry.location.lat, lng: p.geometry.location.lng } : undefined,
+        priceLevel: p.price_level,
+        category,
+    };
+}
+
+async function searchGooglePlaces(query: string, key: string) {
+    const res = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`);
+    const data = await res.json();
+    return Array.isArray(data.results) ? data.results : [];
+}
+
+export const discoverPlaces = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id: tripId } = req.params;
+        const userId = req.user?._id || req.user?.id;
+        const { category, query } = req.body as { category?: string; query?: string };
+
+        const trip = await TripModel.findOne({ _id: tripId, $or: [{ userId }, { "collaborators.userId": userId }] });
+        if (!trip) throw new NotFoundError("Trip not found or access denied");
+
+        const key = config.GOOGLE_API_KEY;
+        if (!key) return res.json({ places: [] });
+
+        const term = CATEGORY_QUERY_TERMS[category || ""] || "places to visit";
+        const searchQuery = query ? `${query} in ${trip.destination}` : `${term} in ${trip.destination}`;
+        const results = await searchGooglePlaces(searchQuery, key);
+
+        res.json({ places: results.slice(0, 20).map((p: any) => mapGooglePlace(p, key, category)) });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getAiRecommendations = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id: tripId } = req.params;
+        const userId = req.user?._id || req.user?.id;
+        const { category } = req.body as { category?: string };
+
+        const trip = await TripModel.findOne({ _id: tripId, $or: [{ userId }, { "collaborators.userId": userId }] });
+        if (!trip) throw new NotFoundError("Trip not found or access denied");
+
+        const key = config.GOOGLE_API_KEY;
+        if (!key) return res.json({ recommendations: [] });
+
+        const term = CATEGORY_QUERY_TERMS[category || ""] || "places to visit";
+        const searchQuery = `best ${term} in ${trip.destination} for a ${trip.travelStyle || "standard"} trip`;
+        const results = await searchGooglePlaces(searchQuery, key);
+
+        res.json({ recommendations: results.slice(0, 10).map((p: any) => mapGooglePlace(p, key, category)) });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getPublicTrip = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { shareId } = req.params;

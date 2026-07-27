@@ -124,7 +124,6 @@ function SortableActivity({
 
 export function ItineraryManager({ trip }: ItineraryManagerProps) {
     const [itinerary, setItinerary] = useState<IItineraryDay[]>((trip.itinerary as any) || []);
-    const [isSaving, setIsSaving] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingActivity, setEditingActivity] = useState<{ dayIndex: number; activity: IItineraryActivity | null } | null>(null);
     const [conflictError, setConflictError] = useState<string | null>(null);
@@ -351,15 +350,12 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     };
 
     const saveItinerary = async (updated: IItineraryDay[]) => {
-        setIsSaving(true);
         try {
             await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary/reorder`, { itinerary: updated });
             useTripStore.getState().fetchTrip(trip.id!);
         } catch (e) {
             console.error("Failed to save itinerary", e);
             toast({ title: "Error", description: "Failed to save the reordered itinerary.", variant: "destructive" });
-        } finally {
-            setIsSaving(false);
         }
     };
 

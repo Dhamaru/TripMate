@@ -94,7 +94,7 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
             socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary });
         }
 
-        res.status(204).send();
+        res.json(trip);
     } catch (error) {
         next(error);
     }

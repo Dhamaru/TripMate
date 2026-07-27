@@ -80,7 +80,7 @@ export default function TripDetail() {
       } else if (mutation.type === 'expenses-updated') {
         fetchTrip(id);
       } else if (mutation.type === 'packing-updated' || mutation.type === 'packing-deleted') {
-        queryClient.invalidateQueries({ queryKey: ['packing_lists', id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/packing-lists'] });
       } else if (mutation.type === 'journal-updated' || mutation.type === 'journal-deleted') {
         queryClient.invalidateQueries({ queryKey: ['/api/v1/journal'] });
       } else if (mutation.type === 'collaborators-updated') {

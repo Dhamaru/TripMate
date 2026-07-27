@@ -57,6 +57,8 @@ router.delete("/:id/collaborators/:collaboratorId", collaboratorController.remov
 router.get("/:id/hacks", tripsController.getHacks);
 router.get("/:id/quiet-places", tripsController.getQuietPlaces);
 router.get("/:id/budget-forecast", tripsController.getBudgetForecast);
+router.post("/:id/discover", tripsController.discoverPlaces);
+router.post("/:id/ai-recommendations", tripsController.getAiRecommendations);
 router.post("/:id/image", tripsController.forceUpdateImage);
 
 export default router;
