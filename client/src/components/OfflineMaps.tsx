@@ -8,20 +8,28 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/layout/ThemeProvider";
+import { computeTileUrls, downloadTiles, deleteTiles, formatBytes } from "@/lib/offlineTiles";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+const REGION_RADIUS_DEG = 0.05; // ~5.5km — matches the padding used in openOfflineMap's bounds
+const REGION_ZOOM_MIN = 12;
+const REGION_ZOOM_MAX = 15;
+const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "auto-expire" copy
 
 interface MapRegion {
   id: string;
   name: string;
   country: string;
-  size: string;
+  bytes: number;
+  tileUrls: string[];
   downloaded: boolean;
   downloading: boolean;
   progress: number;
   lat: number;
   lng: number;
   zoom: number;
+  downloadedAt?: number;
 }
 
 interface PlaceResult {
@@ -127,7 +135,31 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [mapRegions, setMapRegions] = useState<MapRegion[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw) as MapRegion[];
+      if (raw) {
+        const parsed = JSON.parse(raw) as Array<Partial<MapRegion> & { size?: string }>;
+        const now = Date.now();
+        return parsed.map((r) => {
+          // Regions saved before real tile caching (or downloaded >30 days
+          // ago) have no actual cached tiles — don't claim they're offline.
+          const hasRealTiles = Array.isArray(r.tileUrls) && r.tileUrls.length > 0;
+          const isStale = !r.downloadedAt || now - r.downloadedAt > STALE_AFTER_MS;
+          const stillDownloaded = !!r.downloaded && hasRealTiles && !isStale;
+          return {
+            id: r.id!,
+            name: r.name!,
+            country: r.country || "Unknown",
+            bytes: typeof r.bytes === "number" ? r.bytes : 0,
+            tileUrls: hasRealTiles ? r.tileUrls! : [],
+            downloaded: stillDownloaded,
+            downloading: false,
+            progress: stillDownloaded ? 100 : 0,
+            lat: r.lat!,
+            lng: r.lng!,
+            zoom: r.zoom ?? 12,
+            downloadedAt: stillDownloaded ? r.downloadedAt : undefined,
+          };
+        });
+      }
     } catch { }
     return DEFAULT_REGIONS;
   });
@@ -166,7 +198,6 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const userMarkerRef = useRef<L.Marker | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
   const pinMarkersRef = useRef<L.Marker[]>([]);
-  const intervalsRef = useRef<Record<string, number>>({});
   const placesAbortRef = useRef<AbortController | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
@@ -282,7 +313,6 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     refreshPinMarkers();
 
     return () => {
-      Object.values(intervalsRef.current).forEach((id) => clearInterval(id));
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -530,7 +560,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       id: `place-${p.id}`,
       name: p.name,
       country: p.country || "Unknown",
-      size: "20 MB",
+      bytes: 0,
+      tileUrls: [],
       downloaded: false,
       downloading: false,
       progress: 0,
@@ -555,65 +586,59 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     markerRef.current = mk;
   }
 
-  function downloadMap(regionId: string) {
-    if (intervalsRef.current[regionId]) return; // Prevent double clicks
+  const downloadingRef = useRef<Set<string>>(new Set());
 
+  async function downloadMap(regionId: string) {
+    if (downloadingRef.current.has(regionId)) return; // Prevent double clicks
+    const region = mapRegions.find((r) => r.id === regionId);
+    if (!region) return;
+
+    downloadingRef.current.add(regionId);
     setMapRegions((prev) => prev.map((r) => (r.id === regionId ? { ...r, downloading: true, progress: 0 } : r)));
-    toast({ title: "Download Started", description: "Downloading map for offline use..." });
 
-    const id = window.setInterval(() => {
-      setMapRegions((prev) => {
-        const idx = prev.findIndex((p) => p.id === regionId);
-        if (idx === -1) {
-          // Region deleted while downloading
-          clearInterval(intervalsRef.current[regionId]);
-          delete intervalsRef.current[regionId];
-          return prev;
-        }
+    const urls = computeTileUrls(region.lat, region.lng, REGION_RADIUS_DEG, REGION_ZOOM_MIN, REGION_ZOOM_MAX, darkMode);
+    toast({ title: "Download Started", description: `Fetching ${urls.length} map tiles for offline use...` });
 
-        const region = prev[idx];
-        // Simulate speed variation
-        const inc = Math.max(5, Math.random() * 15);
-        const nextProg = Math.min(100, region.progress + inc);
-
-        if (nextProg >= 100) {
-          clearInterval(intervalsRef.current[regionId]);
-          delete intervalsRef.current[regionId];
-
-          // Use setTimeout to avoid render-cycle conflict for toast, but ensure it only runs once per completion
-          setTimeout(() => {
-            toast({ title: "Download Complete", description: `${region.name} map is now available offline` });
-          }, 0);
-
-          const updated = [...prev];
-          updated[idx] = { ...region, progress: 100, downloading: false, downloaded: true };
-          return updated;
-        }
-
-        const updated = [...prev];
-        updated[idx] = { ...region, progress: nextProg, downloading: true };
-        return updated;
+    try {
+      const bytes = await downloadTiles(urls, (done, total) => {
+        setMapRegions((prev) => prev.map((r) => (r.id === regionId ? { ...r, progress: Math.round((done / total) * 100) } : r)));
       });
-    }, 500);
 
-    intervalsRef.current[regionId] = id;
+      setMapRegions((prev) => prev.map((r) => (
+        r.id === regionId
+          ? { ...r, downloading: false, downloaded: true, progress: 100, bytes, tileUrls: urls, downloadedAt: Date.now() }
+          : r
+      )));
+      toast({ title: "Download Complete", description: `${region.name} (${formatBytes(bytes)}) is now available offline` });
+    } catch (e) {
+      setMapRegions((prev) => prev.map((r) => (r.id === regionId ? { ...r, downloading: false, progress: 0 } : r)));
+      toast({ title: "Download Failed", description: e instanceof Error ? e.message : "Could not cache map tiles.", variant: "destructive" });
+    } finally {
+      downloadingRef.current.delete(regionId);
+    }
   }
 
-  function deleteMap(regionId: string) {
-    // Clear any active download interval
-    if (intervalsRef.current[regionId]) {
-      clearInterval(intervalsRef.current[regionId]);
-      delete intervalsRef.current[regionId];
+  async function deleteMap(regionId: string) {
+    const region = mapRegions.find((r) => r.id === regionId);
+    downloadingRef.current.delete(regionId);
+
+    if (region?.tileUrls?.length) {
+      await deleteTiles(region.tileUrls);
     }
 
-    // Remove from state (and thus from localStorage via useEffect)
-    setMapRegions((prev) => prev.filter((region) => region.id !== regionId));
+    setMapRegions((prev) => prev.filter((r) => r.id !== regionId));
     toast({ title: "Map Deleted", description: "Offline map removed." });
   }
 
   // Stats
   const downloadedCount = mapRegions.filter((r) => r.downloaded).length;
-  const totalSize = mapRegions.filter((r) => r.downloaded).reduce((s, r) => s + parseInt(r.size), 0); // simplified int parse
+  const totalSize = mapRegions.filter((r) => r.downloaded).reduce((s, r) => s + r.bytes, 0);
+
+  // Estimated size of a not-yet-downloaded region, before we know its real byte count.
+  function estimateRegionBytes(): number {
+    const tileCount = computeTileUrls(0, 0, REGION_RADIUS_DEG, REGION_ZOOM_MIN, REGION_ZOOM_MAX, darkMode).length;
+    return tileCount * 15_000;
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -937,7 +962,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
                   <div className="p-3">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="text-xs text-muted-foreground font-mono-data">{r.size}</span>
+                      <span className="text-xs text-muted-foreground font-mono-data">{r.downloaded ? formatBytes(r.bytes) : `~${formatBytes(estimateRegionBytes())}`}</span>
                       <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-400/10" onClick={() => deleteMap(r.id)}>
                         <i className="fas fa-trash text-xs"></i>
                       </Button>

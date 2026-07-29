@@ -55,6 +55,26 @@ export default defineConfig({
               },
             },
           },
+          {
+            // CARTO basemap tiles. CacheFirst so any tile already fetched
+            // (either opportunistically while browsing, or via the explicit
+            // "Download for offline" flow in OfflineMaps.tsx, which writes
+            // into this exact cache name) is served offline without a
+            // network round-trip. cacheName must match TILE_CACHE_NAME in
+            // client/src/lib/offlineTiles.ts.
+            urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "map-tiles-cache",
+              expiration: {
+                maxEntries: 6000,
+                maxAgeSeconds: 60 * 60 * 24 * 60, // 60 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
         ],
       },
     }),
