@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
 import { Search } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
@@ -31,6 +32,8 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
         return theme
     }, [theme]);
     const [isAddMode, setIsAddMode] = useState(false);
+    const [addSpotDialogOpen, setAddSpotDialogOpen] = useState(false);
+    const [pendingAddSpot, setPendingAddSpot] = useState<{ lat: number; lon: number; address: string; marker: L.Marker } | null>(null);
     const isAddModeRef = useRef(isAddMode);
     const [showHeatMap, setShowHeatMap] = useState(false);
     const [crowdReports, setCrowdReports] = useState<any[]>([]);
@@ -432,21 +435,9 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                                         setTimeout(() => {
                                                             const btn = document.getElementById('add-search-spot');
                                                             if (btn) {
-                                                                btn.onclick = async () => {
-                                                                    const name = prompt("Enter location name:", q);
-                                                                    if (name && onAddActivity) {
-                                                                        await onAddActivity({
-                                                                            title: name,
-                                                                            placeName: name,
-                                                                            type: 'sightseeing',
-                                                                            time: '10:00 AM',
-                                                                            lat,
-                                                                            lon,
-                                                                            address: q,
-                                                                            duration_minutes: 60
-                                                                        }, 1);
-                                                                        marker.remove();
-                                                                    }
+                                                                btn.onclick = () => {
+                                                                    setPendingAddSpot({ lat, lon, address: q, marker });
+                                                                    setAddSpotDialogOpen(true);
                                                                 };
                                                             }
                                                         }, 100);
@@ -507,7 +498,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                                 </PopoverTrigger>
                                 <PopoverContent className="bg-card border-border p-4 w-60 z-[1100]">
                                     <div className="space-y-4">
-                                        <div className="text-sm font-bold text-white">Report Crowd Density</div>
+                                        <div className="text-sm font-bold text-foreground">Report Crowd Density</div>
                                         <div className="text-xs text-muted-foreground">How crowded is it here right now?</div>
                                         <Slider
                                             value={[reportDensity]}
@@ -549,6 +540,33 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                     <div ref={mapContainerRef} className="w-full h-full" />
                 </div>
             </CardContent>
+
+            <NamePromptDialog
+                open={addSpotDialogOpen}
+                title="Location name"
+                defaultValue={pendingAddSpot?.address ?? ""}
+                confirmLabel="Add to Trip"
+                onOpenChange={(open) => {
+                    setAddSpotDialogOpen(open);
+                    if (!open) { pendingAddSpot?.marker.remove(); setPendingAddSpot(null); }
+                }}
+                onConfirm={async (name) => {
+                    if (!pendingAddSpot || !onAddActivity) return;
+                    const { lat, lon, address } = pendingAddSpot;
+                    await onAddActivity({
+                        title: name,
+                        placeName: name,
+                        type: 'sightseeing',
+                        time: '10:00 AM',
+                        lat,
+                        lon,
+                        address,
+                        duration_minutes: 60
+                    }, 1);
+                    // marker cleanup happens in onOpenChange, which NamePromptDialog
+                    // calls with open=false right after this resolves.
+                }}
+            />
         </Card >
     );
 }

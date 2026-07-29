@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import L from "leaflet";
@@ -68,6 +69,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
     : theme;
   const [darkMode, setDarkMode] = useState(resolvedTheme === "dark");
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pendingPinCenter, setPendingPinCenter] = useState<{ lat: number; lng: number } | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [offlineModeRegion, setOfflineModeRegion] = useState<MapRegion | null>(null);
 
@@ -458,7 +461,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       category: it.type,
       city: it.address?.city,
       country: it.address?.country,
-      photoUrl: it.photoUrl, // Added photoUrl
+      photoUrl: it.imageUrl,
     };
   }
 
@@ -466,20 +469,60 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     if (!query || query.length < 2) return;
     setPlacesLoading(true);
     try {
-      const url = `/api/v1/places/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`;
-      const res = await fetch(url);
-      const j = await res.json();
-      const arr = Array.isArray(j?.items) ? j.items : [];
-      let parsed = arr.map(parsePlaceItem).filter(Boolean) as PlaceResult[];
+      // The backend's place search has no category filter — it's a raw text
+      // search passthrough. The only way the Food/Hotels/Sights checkboxes can
+      // actually affect results is by shaping the search text itself. When
+      // every category (or none) is checked, search the plain query; when a
+      // subset is checked, run one search per selected category and merge.
+      const categoryTerms: Record<'food' | 'hotel' | 'sights', string> = {
+        food: 'restaurants',
+        hotel: 'hotels',
+        sights: 'tourist attractions',
+      };
+      const activeCategories = (Object.keys(filters) as Array<keyof typeof filters>).filter((k) => filters[k]);
+      const queries = activeCategories.length > 0 && activeCategories.length < 3
+        ? activeCategories.map((c) => `${categoryTerms[c]} in ${query}`)
+        : [query];
 
-      setPlacesResults(parsed);
-      setTotal(j?.total || 0);
+      const perQueryPageSize = Math.ceil(pageSize / queries.length);
+      const results = await Promise.all(
+        queries.map(async (q) => {
+          const res = await fetch(`/api/v1/places/search?q=${encodeURIComponent(q)}&page=${page}&pageSize=${perQueryPageSize}`);
+          const j = await res.json();
+          return { items: Array.isArray(j?.items) ? j.items : [], total: j?.total || 0 };
+        })
+      );
+
+      const seen = new Set<string>();
+      const merged: PlaceResult[] = [];
+      let totalCount = 0;
+      for (const { items, total: t } of results) {
+        totalCount += t;
+        for (const it of items) {
+          const parsedItem = parsePlaceItem(it);
+          if (!parsedItem) continue;
+          const key = `${parsedItem.lat.toFixed(4)},${parsedItem.lon.toFixed(4)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(parsedItem);
+        }
+      }
+
+      setPlacesResults(merged);
+      setTotal(totalCount);
     } catch {
       // Silent fail
     } finally {
       setPlacesLoading(false);
     }
   }
+
+  // Re-run the active search when the category filters change, so toggling a
+  // checkbox after a search actually updates the results instead of doing nothing.
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) fetchPlaces(searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.food, filters.hotel, filters.sights]);
 
   // Generate MapRegion from a place
   function addPlaceAsRegion(p: PlaceResult) {
@@ -737,17 +780,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     const map = mapInstanceRef.current;
                     if (map) {
                       const center = map.getCenter();
-                      const name = prompt("Pin Name:", "New Location");
-                      if (name) {
-                        const newPin: CustomPin = {
-                          id: Date.now().toString(),
-                          lat: center.lat,
-                          lng: center.lng,
-                          name,
-                          color: '#ef4444'
-                        };
-                        setCustomPins(prev => [...prev, newPin]);
-                      }
+                      setPendingPinCenter({ lat: center.lat, lng: center.lng });
+                      setPinDialogOpen(true);
                     }
                   }}
                   className="bg-[#1D4E89] text-white shadow-lg text-xs sm:text-sm"
@@ -933,6 +967,25 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           )}
         </CardContent>
       </Card>
+
+      <NamePromptDialog
+        open={pinDialogOpen}
+        title="Pin name"
+        defaultValue="New Location"
+        confirmLabel="Add Pin"
+        onOpenChange={setPinDialogOpen}
+        onConfirm={(name) => {
+          if (!pendingPinCenter) return;
+          const newPin: CustomPin = {
+            id: Date.now().toString(),
+            lat: pendingPinCenter.lat,
+            lng: pendingPinCenter.lng,
+            name,
+            color: '#ef4444'
+          };
+          setCustomPins(prev => [...prev, newPin]);
+        }}
+      />
     </div>
   );
 }
