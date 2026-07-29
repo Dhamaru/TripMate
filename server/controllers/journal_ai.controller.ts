@@ -14,6 +14,8 @@ import { socketService } from "../services/SocketService";
 const openai = new OpenAI({
     apiKey: config.NVIDIA_API_KEY_2 || config.NVIDIA_API_KEY || '',
     baseURL: 'https://integrate.api.nvidia.com/v1',
+    timeout: 25_000,
+    maxRetries: 0,
 });
 const aiService = new AiUtilitiesService();
 

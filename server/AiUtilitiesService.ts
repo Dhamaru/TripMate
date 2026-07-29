@@ -1614,6 +1614,39 @@ export class AiUtilitiesService {
     }
   }
 
+  async getQuietPlaceSuggestions(destination: string): Promise<Array<{ name: string; address: string; crowdLevel: string; type: string; bestTime: string; reason: string }>> {
+    const prompt = `Suggest 3 real, specific, lesser-known or low-crowd places to visit in ${destination} for someone who wants to avoid tourist crowds. Return JSON with a 'spots' array, each item having: 'name' (real place name in ${destination}), 'address' (real neighborhood/area in ${destination}), 'crowdLevel' ('Low' or 'Minimal'), 'type' (e.g. Nature, Heritage, Park, Cafe), 'bestTime' (time range), and 'reason' (one sentence, under 20 words).`;
+    const system = "You are a local travel expert who knows real, specific places. Return only valid JSON, no markdown.";
+
+    try {
+      const rawContent = this.openai
+        ? (await this.openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            temperature: 0.6,
+            messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
+          })).choices?.[0]?.message?.content?.trim() || "{}"
+        : await this.generateWithGemini(prompt, system);
+
+      const json = this.parseJson(rawContent);
+      const spots = Array.isArray(json.spots) ? json.spots : [];
+      if (!spots.length) throw new Error("empty spots");
+      return spots.slice(0, 5).map((s: any) => ({
+        name: String(s.name || "Quiet Spot"),
+        address: String(s.address || destination),
+        crowdLevel: String(s.crowdLevel || "Low"),
+        type: String(s.type || "Outdoors"),
+        bestTime: String(s.bestTime || "Morning"),
+        reason: String(s.reason || "A calmer alternative away from the main tourist areas."),
+      }));
+    } catch (e) {
+      console.error("[AiUtilities] Failed to generate quiet place suggestions:", e);
+      return [
+        { name: "Local Public Library", address: `${destination} — City Center`, crowdLevel: "Minimal", type: "Education", bestTime: "Morning", reason: "Ideal for remote work or reading in silence." },
+        { name: "Botanical Garden", address: `${destination} — Suburb Area`, crowdLevel: "Low", type: "Nature", bestTime: "Afternoon", reason: "Expansive green space with very few visitors during weekdays." },
+      ];
+    }
+  }
+
   private async resolveCoordinates(name: string, destination: string): Promise<{ lat: number; lon: number } | null> {
     const key = `resolveCoordinates:${name}:${destination}`;
     const cached = this.getCached<any>(key);

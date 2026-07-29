@@ -78,7 +78,9 @@ export async function runAgentLoop(
     }
     const clientsByModel = MODELS.map((_, i) => new OpenAI({
         apiKey: MODEL_KEYS[i] || config.NVIDIA_API_KEY || '',
-        baseURL: 'https://integrate.api.nvidia.com/v1'
+        baseURL: 'https://integrate.api.nvidia.com/v1',
+        timeout: 25_000, // fail fast instead of hanging when the provider stalls under quota exhaustion
+        maxRetries: 0, // we handle model fallback ourselves; the SDK's own retries would just multiply the hang
     }));
     const openai = clientsByModel[0];
 

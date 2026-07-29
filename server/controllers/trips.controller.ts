@@ -169,19 +169,10 @@ export const getHacks = async (req: Request, res: Response, next: NextFunction) 
         const userId = req.user?._id || req.user?.id;
         const trip = await TripModel.findOne({ _id: req.params.id, userId });
         if (!trip) throw new NotFoundError("Trip not found");
-        
-        // Simulating AI result for now - properly implemented in AiUtilities
-        res.json({
-            hacks: [
-                "Pack light to save on domestic transit",
-                "Use local e-SIMs for cheaper connectivity",
-                "Carry a portable power bank for long explorations"
-            ],
-            economicalAlternatives: [
-                "Try local street food for authentic and cheap meals",
-                "Use public transport (buses/trains) instead of taxis"
-            ]
-        });
+
+        const aiService = new AiUtilitiesService();
+        const result = await aiService.getTravelHacks(trip.destination, trip.travelStyle);
+        res.json(result);
     } catch (error) {
         next(error);
     }
@@ -230,18 +221,10 @@ export const getQuietPlaces = async (req: Request, res: Response, next: NextFunc
             return res.json({ spots });
         }
 
-        // Fallback to destination-specific suggestions if no real-time data
-        const isVadodara = trip.destination.toLowerCase().includes('vadodara');
-        const fallbackSpots = isVadodara ? [
-            { name: "Sursagar Lake (Early Morning)", address: "Mandvi, Vadodara", crowdLevel: "Minimal", type: "Nature", bestTime: "6:00 AM - 8:00 AM", reason: "Peaceful atmosphere with cool breeze before city traffic starts." },
-            { name: "Ajwa Garden (Weekday)", address: "Ajwa, Gujarat", crowdLevel: "Low", type: "Park", bestTime: "11:00 AM - 3:00 PM", reason: "Quiet and expansive gardens away from the city center." },
-            { name: "EME Temple Gardens", address: "Fatehgunj, Vadodara", crowdLevel: "Minimal", type: "Heritage", bestTime: "Afternoon", reason: "Well-maintained army area with lush greenery and calm surroundings." }
-        ] : [
-            { name: "Local Public Library", address: "City Center", crowdLevel: "Minimal", type: "Education", bestTime: "Morning", reason: "Ideal for remote work or reading in silence." },
-            { name: "Botanical Garden", address: "Suburb Area", crowdLevel: "Low", type: "Nature", bestTime: "Afternoon", reason: "Expansive green space with very few visitors during weekdays." }
-        ];
-
-        res.json({ spots: fallbackSpots });
+        // No real-time crowd sensor data for this area — generate destination-specific suggestions
+        const aiService = new AiUtilitiesService();
+        const spots = await aiService.getQuietPlaceSuggestions(trip.destination);
+        res.json({ spots });
     } catch (error) {
         next(error);
     }
