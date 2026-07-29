@@ -480,8 +480,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   // --- Existing Fetch/Utility Logic (Briefly retained/adapted) --- //
   function parsePlaceItem(it: any): PlaceResult | null {
     if (!it) return null;
-    const lat = Number(it.lat ?? it.latitude);
-    const lon = Number(it.lon ?? it.longitude);
+    const lat = Number(it.lat ?? it.latitude ?? it.location?.lat);
+    const lon = Number(it.lon ?? it.longitude ?? it.location?.lng);
     if (Number.isNaN(lat)) return null;
     return {
       id: `${lat}-${lon}-${Math.random()}`,

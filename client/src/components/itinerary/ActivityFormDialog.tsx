@@ -115,8 +115,8 @@ export function ActivityFormDialog({ open, onOpenChange, activity, dayIndex, onS
             ...prev,
             placeName: name,
             address: addr,
-            lat: Number(place.lat),
-            lon: Number(place.lon),
+            lat: Number(place.lat ?? place.location?.lat),
+            lon: Number(place.lon ?? place.location?.lng),
             title: prev.title || `Visit ${name}`
         }));
 
