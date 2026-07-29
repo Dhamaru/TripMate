@@ -553,7 +553,7 @@ export default function Landing() {
               <h3 className="text-[#16283F] font-semibold text-sm mb-4">Features</h3>
               <ul className="space-y-2.5 text-sm text-[#6a6a6a]">
                 {["Trip Planner", "Travel Journal", "Weather Forecast", "Language Translator", "Emergency Services"].map((f) => (
-                  <li key={f}><a href="#" className="hover:text-[#16283F] transition-colors">{f}</a></li>
+                  <li key={f}><a href="#features" className="hover:text-[#16283F] transition-colors">{f}</a></li>
                 ))}
               </ul>
             </div>
