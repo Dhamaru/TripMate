@@ -830,6 +830,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                             routePolylineRef.current.remove();
                             routePolylineRef.current = null;
                           }
+                          if (markerRef.current) {
+                            markerRef.current.remove();
+                            markerRef.current = null;
+                          }
                           setRoutePoints([]);
                           setSelectedPlace(null);
                           setNavDestInput("");
