@@ -4,7 +4,7 @@ import { useAgentStore } from '../../store'
 import type { SuggestedAction } from '../../types/api.types'
 
 export function SuggestedActions() {
-    const { suggestedActions, sendMessage, toggleChat } = useAgentStore()
+    const { suggestedActions, streamMessage, toggleChat } = useAgentStore()
     const [, navigate] = useLocation()
 
     if (suggestedActions.length === 0) return null
@@ -14,7 +14,7 @@ export function SuggestedActions() {
             navigate(action.payload)
             toggleChat()
         } else {
-            void sendMessage(action.label)
+            void streamMessage(action.label)
         }
         useAgentStore.setState({ suggestedActions: [] })
     }

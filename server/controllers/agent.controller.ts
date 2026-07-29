@@ -71,10 +71,17 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
             return res.status(400).json({ message: "Message is required" });
         }
 
-        // Set SSE headers
+        // Set SSE headers. X-Accel-Buffering / X-Sourcemap-esque proxy hints matter
+        // here — hosted platforms commonly front the app with an nginx-style proxy
+        // that buffers responses by default, which would defeat token-by-token
+        // streaming entirely (the client would see nothing until the whole
+        // response completes, then get it all at once).
         res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        req.socket.setNoDelay(true);
+        res.flushHeaders();
 
         const tripIdStr = (tripId || req.query.currentTripId) as string;
         const messageStr = message as string;

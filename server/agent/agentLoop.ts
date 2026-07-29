@@ -90,7 +90,15 @@ export async function runAgentLoop(
         try {
             const trip = await TripModel.findById(input.context.tripId);
             if (trip) {
-                const insights = await deps.aiService.getProactiveInsights(trip.destination, trip.itinerary || []);
+                // Cap this at 3s — it's a nice-to-have context enrichment, not worth
+                // stalling the entire chat response (and time-to-first-token) on a
+                // slow weather API call.
+                const insights = await Promise.race([
+                    deps.aiService.getProactiveInsights(trip.destination, trip.itinerary || []),
+                    new Promise<{ insights: string[]; suggestedPackingItems: string[] }>((resolve) =>
+                        setTimeout(() => resolve({ insights: [], suggestedPackingItems: [] }), 3000)
+                    ),
+                ]);
                 if (insights.insights.length > 0) {
                     proactiveBuffer = `\n\nPROACTIVE INTELLIGENCE:\n- Destination: ${trip.destination}\n- Insights: ${insights.insights.join(' | ')}\n- Suggested Packing: ${insights.suggestedPackingItems.join(', ')}`;
                 }
