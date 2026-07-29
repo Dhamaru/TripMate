@@ -38,11 +38,34 @@ export const agentApi = {
         const url = `${env.VITE_API_URL}/api/v1/agent/chat/stream?${params.toString()}`
         const es = new EventSource(url, { withCredentials: true })
 
+        // A stalled connection (accepted but never sends a byte) doesn't
+        // trigger EventSource's onerror — that only fires on a hard close.
+        // Without a watchdog, a hung backend request leaves the UI's
+        // isLoading stuck true forever. Reset this on every event received;
+        // fire once if the gap since the last event (or connection open)
+        // exceeds STALL_TIMEOUT_MS.
+        const STALL_TIMEOUT_MS = 35_000
+        let stallTimer: ReturnType<typeof setTimeout>
+        let settled = false
+        const resetStallTimer = () => {
+            clearTimeout(stallTimer)
+            stallTimer = setTimeout(() => {
+                if (settled) return
+                settled = true
+                onError('Response timed out')
+                es.close()
+            }, STALL_TIMEOUT_MS)
+        }
+        resetStallTimer()
+
         es.onmessage = (e: MessageEvent<string>) => {
+            resetStallTimer()
             const parsed = JSON.parse(e.data) as SSEMessage
             if (parsed.type === 'token' && parsed.content) onToken(parsed.content)
             if (parsed.type === 'tool' && parsed.tool) onTool(parsed.tool)
             if (parsed.type === 'done') {
+                settled = true
+                clearTimeout(stallTimer)
                 onDone({
                     conversationId: parsed.conversationId ?? '',
                     toolsUsed: parsed.toolsUsed ?? [],
@@ -51,15 +74,23 @@ export const agentApi = {
                 es.close()
             }
             if (parsed.type === 'error') {
+                settled = true
+                clearTimeout(stallTimer)
                 onError(parsed.error ?? 'Stream error')
                 es.close()
             }
         }
         es.onerror = () => {
+            if (settled) return
+            settled = true
+            clearTimeout(stallTimer)
             onError('Connection lost')
             es.close()
         }
-        return () => es.close()
+        return () => {
+            clearTimeout(stallTimer)
+            es.close()
+        }
     },
 
     getConversation: (conversationId: string) =>

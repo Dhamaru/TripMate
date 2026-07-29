@@ -132,6 +132,12 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     } catch { return []; }
   });
 
+  // Tile URLs belonging to regions that just aged past STALE_AFTER_MS on this
+  // load — stashed here so a mount-time effect can actually evict them from
+  // Cache Storage. Cache eviction is async and can't happen inside the
+  // synchronous useState initializer below.
+  const staleTileUrlsToPurgeRef = useRef<string[]>([]);
+
   const [mapRegions, setMapRegions] = useState<MapRegion[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -144,12 +150,15 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           const hasRealTiles = Array.isArray(r.tileUrls) && r.tileUrls.length > 0;
           const isStale = !r.downloadedAt || now - r.downloadedAt > STALE_AFTER_MS;
           const stillDownloaded = !!r.downloaded && hasRealTiles && !isStale;
+          if (hasRealTiles && isStale) {
+            staleTileUrlsToPurgeRef.current.push(...r.tileUrls!);
+          }
           return {
             id: r.id!,
             name: r.name!,
             country: r.country || "Unknown",
             bytes: typeof r.bytes === "number" ? r.bytes : 0,
-            tileUrls: hasRealTiles ? r.tileUrls! : [],
+            tileUrls: stillDownloaded ? r.tileUrls! : [],
             downloaded: stillDownloaded,
             downloading: false,
             progress: stillDownloaded ? 100 : 0,
@@ -163,6 +172,16 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     } catch { }
     return DEFAULT_REGIONS;
   });
+
+  // Actually evict cache entries for regions that aged out on this load —
+  // previously the UI marked them "not downloaded" but left the tiles in
+  // Cache Storage forever, contradicting the "auto-expire" copy below.
+  useEffect(() => {
+    if (staleTileUrlsToPurgeRef.current.length > 0) {
+      deleteTiles(staleTileUrlsToPurgeRef.current);
+      staleTileUrlsToPurgeRef.current = [];
+    }
+  }, []);
 
   const [placesResults, setPlacesResults] = useState<PlaceResult[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
@@ -279,10 +298,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     });
 
     // Event listener for pin deletion (via popup)
-    window.addEventListener('delete-pin', ((e: CustomEvent) => {
+    const handleDeletePin = ((e: CustomEvent) => {
       setCustomPins(prev => prev.filter(p => p.id !== e.detail));
       toast({ title: "Pin Deleted" });
-    }) as EventListener);
+    }) as EventListener;
+    window.addEventListener('delete-pin', handleDeletePin);
 
 
     // Initial state: Prioritize Geolocation
@@ -313,6 +333,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     refreshPinMarkers();
 
     return () => {
+      window.removeEventListener('delete-pin', handleDeletePin);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -986,11 +1007,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <CardTitle className="text-foreground text-base">Storage Usage</CardTitle>
-            <span className="text-xs text-muted-foreground">{totalSize} MB / 2 GB</span>
+            <span className="text-xs text-muted-foreground">{formatBytes(totalSize)} / 2 GB</span>
           </div>
         </CardHeader>
         <CardContent>
-          <Progress value={(totalSize / 2048) * 100} className="h-2 bg-muted [&>div]:bg-[#163F73]" />
+          <Progress value={(totalSize / (2 * 1024 * 1024 * 1024)) * 100} className="h-2 bg-muted [&>div]:bg-[#163F73]" />
           <p className="text-[10px] text-muted-foreground mt-2 text-right">Offline maps auto-expire after 30 days of inactivity</p>
         </CardContent>
       </Card>

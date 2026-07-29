@@ -22,6 +22,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [guestError, setGuestError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { signIn, isAuthenticated, guestSignIn } = useAuthStore();
@@ -77,11 +78,12 @@ export default function SignInPage() {
 
   const handleGuestLogin = async () => {
     setIsLoading(true);
+    setGuestError("");
     try {
       await guestSignIn();
       setTimeout(() => navigate("/app/home"), 100);
     } catch (err: any) {
-      setError(err.message || "Failed to continue as guest");
+      setGuestError(err.message || "Failed to continue as guest");
       setIsLoading(false);
     }
   };
@@ -180,6 +182,14 @@ export default function SignInPage() {
           >
             Continue as Guest
           </Button>
+
+          {guestError && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+              <Alert className="bg-red-900/10 border-red-500/50 py-3 rounded-xl">
+                <AlertDescription className="text-red-400 text-sm font-medium">{guestError}</AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
         </form>
 
         <div className="relative my-8">
