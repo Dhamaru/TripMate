@@ -24,7 +24,7 @@ export default function SignInPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn, isAuthenticated, signOut, guestSignIn } = useAuthStore();
+  const { signIn, isAuthenticated, guestSignIn } = useAuthStore();
   const [, navigate] = useLocation();
   
   const { data: providers } = useQuery({
@@ -49,26 +49,6 @@ export default function SignInPage() {
       navigate("/app/home");
     }
   }, [isAuthenticated, navigate]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const isTextInput = (el: Element | null) => {
-        if (!el) return false;
-        const tag = (el as HTMLElement).tagName.toLowerCase();
-        return tag === 'input' || tag === 'textarea' || (el as HTMLElement).isContentEditable;
-      };
-      if (e.key === 'Backspace' && !isTextInput(document.activeElement)) {
-        setEmail("");
-        setPassword("");
-        setError("");
-        setIsLoading(false);
-        signOut?.();
-        navigate("/");
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [signOut, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +111,7 @@ export default function SignInPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between ml-1">
               <Label htmlFor="password" className="text-sm font-medium text-white">Password</Label>
-              <Link href="/forgot-password" className="text-xs font-semibold text-[#163F73] hover:text-amber-300 smooth-transition">
+              <Link href="/forgot-password" className="text-xs font-semibold text-[#163F73] hover:text-[#4F82C4] smooth-transition">
                 Forgot Password?
               </Link>
             </div>
@@ -168,7 +148,7 @@ export default function SignInPage() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-[#163F73]/30"
           >
             {isLoading ? "Signing In..." : "Sign In"}
           </Button>

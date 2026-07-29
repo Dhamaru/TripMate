@@ -68,7 +68,7 @@ export default function SignUpPage() {
 
     try {
       await signUp(formData.email, formData.password, formData.firstName, formData.lastName);
-      navigate("/signin");
+      navigate("/app/home");
     } catch (err: any) {
       setError(err.message || "Sign up failed");
     } finally {
@@ -191,7 +191,7 @@ export default function SignUpPage() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-[#163F73]/30"
           >
             {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
