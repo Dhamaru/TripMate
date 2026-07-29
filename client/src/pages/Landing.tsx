@@ -112,6 +112,14 @@ export default function Landing() {
     if (!isLoading && isAuthenticated) navigate("/app/home");
   }, [isAuthenticated, isLoading, navigate]);
 
+  const goToSignup = () => {
+    const params = new URLSearchParams();
+    if (destination.trim()) params.set("destination", destination.trim());
+    if (selectedStyle) params.set("style", selectedStyle.toLowerCase());
+    const qs = params.toString();
+    navigate(qs ? `/signup?${qs}` : "/signup");
+  };
+
   // Close suggestions on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -156,7 +164,7 @@ export default function Landing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-[#16283F] font-sans">
+    <div className="min-h-screen bg-white text-[#16283F] font-sans-clean">
 
       {/* ── Navigation ─────────────────────────────────── */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
@@ -311,7 +319,7 @@ export default function Landing() {
                         setDestination(suggestions[activeIndex].name);
                         setShowSuggestions(false);
                       } else {
-                        navigate("/signup");
+                        goToSignup();
                       }
                     }
                     if (e.key === "Escape") setShowSuggestions(false);
@@ -321,7 +329,7 @@ export default function Landing() {
                   autoComplete="off"
                 />
                 <button
-                  onClick={() => navigate("/signup")}
+                  onClick={goToSignup}
                   className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
                   data-testid="button-get-started"
                 >
@@ -381,7 +389,7 @@ export default function Landing() {
             {/* CTA buttons */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => navigate("/signup")}
+                onClick={goToSignup}
                 className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
@@ -484,7 +492,7 @@ export default function Landing() {
           <div className="mt-10 text-center">
             <button
               onClick={() => navigate("/signup")}
-              className="inline-flex items-center gap-2 bg-[#1D4E89] hover:bg-blue-800 text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+              className="inline-flex items-center gap-2 bg-[#1D4E89] hover:bg-[#163F73] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               data-testid="button-generate-itinerary"
             >
               Start Planning
@@ -598,7 +606,7 @@ export default function Landing() {
           </div>
 
           <div className="border-t border-[#ebebeb] pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[#6a6a6a]">
-            <p>© 2025 TripMate. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} TripMate. All rights reserved.</p>
             <p>Made with ❤️ for travelers worldwide.</p>
           </div>
         </div>
