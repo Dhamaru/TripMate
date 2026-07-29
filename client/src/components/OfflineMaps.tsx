@@ -344,6 +344,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       }
 
       toast({ title: "Navigation Started", description: "Tracking your movement..." });
+      let hasWarnedThisSession = false;
 
       watchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => {
@@ -351,7 +352,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           const map = mapInstanceRef.current;
 
           setUserLocation({ lat: latitude, lon: longitude });
-          if (heading) setCurrentHeading(heading);
+          if (heading != null) setCurrentHeading(heading);
 
           if (map) {
             // Update User Marker
@@ -385,7 +386,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         },
         (err) => {
           console.error(err);
-          // Don't spam toasts on recurring errors
+          // Show the user one toast per tracking session (permission denied,
+          // GPS unavailable, etc) instead of either spamming on every retry
+          // or — the previous behavior — never surfacing the error at all.
+          if (!hasWarnedThisSession) {
+            hasWarnedThisSession = true;
+            toast({
+              title: "Location unavailable",
+              description: err.code === err.PERMISSION_DENIED
+                ? "Location permission denied. Enable it in your browser to track your position."
+                : "Couldn't get your location. Retrying...",
+              variant: "destructive",
+            });
+          }
         },
         { enableHighAccuracy: true, maximumAge: 1000 }
       );
@@ -429,30 +442,59 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
   const selectNavDestSuggestion = (place: { lat: number; lon: number; display_name: string }) => {
     const name = place.display_name?.split(',')[0] || place.display_name;
-    setSelectedPlace({ lat: Number(place.lat), lon: Number(place.lon), name });
+    const lat = Number(place.lat);
+    const lon = Number(place.lon);
+    setSelectedPlace({ lat, lon, name });
     setNavDestInput(name);
     setShowNavDestSuggestions(false);
     setNavDestSuggestions([]);
     toast({ title: "Destination set", description: name });
+
+    const map = mapInstanceRef.current;
+    if (map) {
+      if (markerRef.current) markerRef.current.remove();
+      markerRef.current = L.marker([lat, lon]).addTo(map).bindPopup(name).openPopup();
+      map.flyTo([lat, lon], 14, { duration: 1 });
+    }
   };
+
+  // One-shot location fetch for "Get Route" when live tracking isn't already
+  // on — users shouldn't have to enable continuous tracking just to see a
+  // single route.
+  function getCurrentLocationOnce(): Promise<{ lat: number; lon: number }> {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  }
 
   // Routing via OSRM (open-source, no API key needed)
   const handleCalculateRoute = async () => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (!userLocation) {
-      toast({ title: "Location needed", description: "Enable location to calculate a route.", variant: "destructive" });
+    if (!selectedPlace) {
+      toast({ title: "No destination", description: "Search for and select a destination first.", variant: "destructive" });
       return;
     }
 
-    if (!selectedPlace) {
-      toast({ title: "No destination", description: "Select a place on the map first.", variant: "destructive" });
-      return;
+    let location = userLocation;
+    if (!location) {
+      try {
+        location = await getCurrentLocationOnce();
+        setUserLocation(location);
+      } catch {
+        toast({ title: "Location needed", description: "Enable location access to calculate a route.", variant: "destructive" });
+        return;
+      }
     }
 
     try {
-      const { lat: sLat, lon: sLon } = userLocation;
+      const { lat: sLat, lon: sLon } = location;
       const { lat: dLat, lon: dLon } = selectedPlace;
       const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${dLon},${dLat}?overview=full&geometries=geojson`;
       const res = await fetch(url);
