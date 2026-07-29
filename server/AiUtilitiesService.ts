@@ -1614,6 +1614,35 @@ export class AiUtilitiesService {
     }
   }
 
+  /** Plain-text last-resort reply when the primary chat model(s) are unavailable — no tool-calling, no JSON parsing, just the best available provider's raw answer. */
+  async generateFallbackReply(userMessage: string, systemPrompt: string): Promise<string | null> {
+    try {
+      if (this.openai) {
+        const completion = await this.openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          temperature: 0.4,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+        });
+        const text = completion.choices?.[0]?.message?.content?.trim();
+        if (text) return text;
+      }
+    } catch (e) {
+      console.error("[AiUtilities] Fallback reply via OpenAI failed:", e);
+    }
+
+    try {
+      const text = await this.generateWithGemini(userMessage, systemPrompt);
+      if (text && text.trim()) return text.trim();
+    } catch (e) {
+      console.error("[AiUtilities] Fallback reply via Gemini failed:", e);
+    }
+
+    return null;
+  }
+
   async getQuietPlaceSuggestions(destination: string): Promise<Array<{ name: string; address: string; crowdLevel: string; type: string; bestTime: string; reason: string }>> {
     const prompt = `Suggest 3 real, specific, lesser-known or low-crowd places to visit in ${destination} for someone who wants to avoid tourist crowds. Return JSON with a 'spots' array, each item having: 'name' (real place name in ${destination}), 'address' (real neighborhood/area in ${destination}), 'crowdLevel' ('Low' or 'Minimal'), 'type' (e.g. Nature, Heritage, Park, Cafe), 'bestTime' (time range), and 'reason' (one sentence, under 20 words).`;
     const system = "You are a local travel expert who knows real, specific places. Return only valid JSON, no markdown.";

@@ -52,6 +52,7 @@ export interface ExecutorDeps {
             itinerary: any[]
         ) => Promise<{ insights: string[]; suggestedPackingItems: string[] }>;
         resolveCoordinates: (address: string) => Promise<{ lat: number; lon: number } | null>;
+        generateFallbackReply: (userMessage: string, systemPrompt: string) => Promise<string | null>;
     };
 }
 
