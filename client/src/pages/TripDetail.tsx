@@ -27,6 +27,16 @@ import { Link, useParams, useLocation } from "wouter";
 import { useAuthStore, useTripStore, useAgentStore } from "@/store";
 import type { Trip, JournalEntry } from "@/types/api.types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import ReactMarkdown from "react-markdown";
 
 const travelStyles = [
@@ -55,7 +65,8 @@ export default function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { user, isLoading: authLoading, isAuthenticated } = useAuthStore();
-  const { currentTrip: trip, fetchTrip, setCurrentTrip, isLoading: tripLoading, error, deleteTrip } = useTripStore();
+  const { currentTrip: trip, fetchTrip, setCurrentTrip, isLoading: tripLoading, error } = useTripStore();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { toast, dismiss } = useToast();
   const activeToastId = useRef<string | null>(null);
   const queryClient = useQueryClient();
@@ -420,11 +431,8 @@ export default function TripDetail() {
     updateTripMutation.mutate(updates);
   };
 
-  const handleDelete = async () => {
-    if (id) {
-      await deleteTrip(id);
-      setLocation('/app/home');
-    }
+  const handleDelete = () => {
+    deleteTripMutation.mutate();
   };
 
   const handleCancel = () => {
@@ -681,7 +689,7 @@ export default function TripDetail() {
                     <span className="hidden md:inline">Edit</span>
                   </Button>
                   <Button
-                    onClick={handleDelete}
+                    onClick={() => setDeleteConfirmOpen(true)}
                     variant="outline"
                     size="sm"
                     className="bg-muted/50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
@@ -1279,6 +1287,27 @@ export default function TripDetail() {
           </Card>
         )}
       </div>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this trip?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes "{trip.destination}" and its itinerary, budget, and packing data. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteTripMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteTripMutation.isPending ? "Deleting..." : "Delete Trip"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div >
   );
 }
