@@ -291,10 +291,12 @@ async function fetchImageForTrip(tripId: string, destination: string, skipCount:
                 const pages = wikiData?.query?.pages || {};
                 const page = Object.values(pages)[0] as any;
                 if (page && page.pageid !== -1 && page.thumbnail?.source) {
-                    // Upgrade thumbnail to full-res by removing size constraint
-                    const src: string = page.thumbnail.source;
-                    const fullRes = src.replace(/\/\d+px-/, '/1200px-');
-                    imageUrl = fullRes;
+                    // Use the thumbnail URL MediaWiki returns as-is — it already honors
+                    // pithumbsize=1200 (capped to the source image's real size). Forcing
+                    // the width in the URL to a fixed "1200px-" via regex produces an
+                    // invalid thumbnail request that Wikimedia rejects with a 400 for
+                    // any image whose native/allowed size is smaller.
+                    imageUrl = page.thumbnail.source;
                     imageCaption = page.title || firstWord;
                     break;
                 }
@@ -317,8 +319,7 @@ async function fetchImageForTrip(tripId: string, destination: string, skipCount:
                     const pages2 = imgData?.query?.pages || {};
                     const page2 = Object.values(pages2)[0] as any;
                     if (page2 && page2.pageid !== -1 && page2.thumbnail?.source) {
-                        const src: string = page2.thumbnail.source;
-                        imageUrl = src.replace(/\/\d+px-/, '/1200px-');
+                        imageUrl = page2.thumbnail.source;
                         imageCaption = page2.title || firstWord;
                     }
                 }

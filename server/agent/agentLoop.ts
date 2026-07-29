@@ -153,8 +153,11 @@ export async function runAgentLoop(
                     stream_options: { include_usage: true }
                 });
             } catch (apiErr: any) {
-                if (apiErr.status === 429 && currentModelIndex < MODELS.length - 1) {
-                    console.warn(`[Atlas:Loop] Rate limit for ${MODELS[currentModelIndex]}. Falling back to ${MODELS[currentModelIndex + 1]}`);
+                const msg = String(apiErr?.message || '');
+                const isQuotaOrRateLimit = apiErr.status === 429
+                    || /resourceexhausted|rate.?limit|quota|too many requests/i.test(msg);
+                if (isQuotaOrRateLimit && currentModelIndex < MODELS.length - 1) {
+                    console.warn(`[Atlas:Loop] Quota/rate-limit hit for ${MODELS[currentModelIndex]} (${msg}). Falling back to ${MODELS[currentModelIndex + 1]}`);
                     currentModelIndex++;
                     iteration--; // Retry this iteration
                     continue;

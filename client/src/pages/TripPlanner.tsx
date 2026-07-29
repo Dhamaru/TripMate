@@ -77,6 +77,15 @@ export default function TripPlanner() {
   const importSaved = useRef(false);
 
 
+  // Prefill from ?destination=&style= query params (e.g. landing page hero search)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const destination = params.get("destination");
+    const style = params.get("style");
+    if (destination) setTripForm(prev => ({ ...prev, destination }));
+    if (style && travelStyles.some(s => s.id === style)) setSelectedStyle(style);
+  }, []);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -290,6 +299,18 @@ export default function TripPlanner() {
       };
       const daysOut: any[] = [];
       let remaining = attractions.slice(0);
+      let remainingRestaurants = restaurants.slice(0);
+      const nextRestaurant = (from: { lat: number; lon: number }) => {
+        if (!remainingRestaurants.length) {
+          // Reuse the full pool once exhausted rather than repeating the same
+          // pick forever, but never re-include a restaurant on the immediate
+          // next meal by excluding whichever restaurant closes out cursor.
+          remainingRestaurants = restaurants.slice(0);
+        }
+        const pick = pickNearest(from, remainingRestaurants);
+        if (pick) remainingRestaurants = remainingRestaurants.filter((x: any) => x.id !== pick.id);
+        return pick;
+      };
       for (let d = 0; d < days; d++) {
         let cursor = { lat: center.lat, lon: center.lon };
         let h = Math.floor(startHour);
@@ -312,7 +333,7 @@ export default function TripPlanner() {
           remaining = remaining.filter((x: any) => x.id !== next.id);
           count++;
           if (h >= lunchHour && h < lunchHour + 2) {
-            const lunchPick = pickNearest(cursor, restaurants) || null;
+            const lunchPick = nextRestaurant(cursor) || null;
             const ldist = lunchPick ? toKm(cursor.lat, cursor.lon, lunchPick.lat, lunchPick.lon) : 0;
             const ltt = travelTime(ldist);
             const ldep = addMinutes(h, m, Math.max(0, lunchHour * 60 - (h * 60 + m)) + ltt);
@@ -325,7 +346,7 @@ export default function TripPlanner() {
           }
         }
         if (h < dinnerHour) {
-          const dinnerPick = pickNearest(cursor, restaurants) || null;
+          const dinnerPick = nextRestaurant(cursor) || null;
           const ddist = dinnerPick ? toKm(cursor.lat, cursor.lon, dinnerPick.lat, dinnerPick.lon) : 0;
           const dtt = travelTime(ddist);
           const ddep = addMinutes(h, m, Math.max(0, dinnerHour * 60 - (h * 60 + m)) + dtt);
@@ -821,10 +842,10 @@ export default function TripPlanner() {
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="bg-muted border border rounded-lg p-4 space-y-3">
-                    <div className="h-6 w-24 bg-gray-800/50 rounded animate-pulse"></div>
+                    <div className="h-6 w-24 bg-foreground/10 rounded animate-pulse"></div>
                     <div className="space-y-2">
-                      <div className="h-4 w-full bg-gray-800/50 rounded animate-pulse"></div>
-                      <div className="h-4 w-5/6 bg-gray-800/50 rounded animate-pulse"></div>
+                      <div className="h-4 w-full bg-foreground/10 rounded animate-pulse"></div>
+                      <div className="h-4 w-5/6 bg-foreground/10 rounded animate-pulse"></div>
                     </div>
                   </div>
                 ))}
