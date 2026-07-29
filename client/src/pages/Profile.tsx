@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogOut, Link as LinkIcon, AlertTriangle } from "lucide-react";
 import { authApi } from "@/lib/api/auth.api";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -416,7 +417,7 @@ export default function Profile() {
                 size="sm"
                 onClick={async () => {
                   try {
-                    const res = await fetch('/api/v1/auth/google/disconnect', { method: 'POST', credentials: 'include' });
+                    const res = await apiRequest('POST', '/api/v1/auth/google/disconnect');
                     if (res.ok) {
                       queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/user'] });
                       toast({ title: 'Google disconnected' });

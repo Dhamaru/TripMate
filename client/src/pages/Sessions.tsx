@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 interface SessionItem {
   id: string;
@@ -33,7 +34,7 @@ export default function Sessions() {
   }
 
   async function revokeSession(id: string) {
-    const res = await fetch(`/api/v1/auth/sessions/${id}/revoke`, { method: 'POST', credentials: 'include' });
+    const res = await apiRequest('POST', `/api/v1/auth/sessions/${id}/revoke`);
     if (res.ok) loadSessions();
   }
 

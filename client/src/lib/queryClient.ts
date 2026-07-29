@@ -13,6 +13,19 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+const CSRF_COOKIE = "XSRF-TOKEN";
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function readCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** The CSRF token the server expects echoed back as X-CSRF-Token on mutating requests. */
+export function getCsrfToken(): string | null {
+  return readCookie(CSRF_COOKIE);
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -26,6 +39,18 @@ export async function apiRequest(
   } else if (data) {
     headers['Content-Type'] = 'application/json';
     body = JSON.stringify(data);
+  }
+
+  // The server's CSRF middleware uses the double-submit-cookie pattern: it
+  // sets an XSRF-TOKEN cookie and requires that same value echoed back in an
+  // X-CSRF-Token header on every mutating request. Axios does this
+  // automatically for cookie-based auth; plain fetch (this function) does
+  // not, so every non-GET call through apiRequest was silently 403ing with
+  // "Invalid CSRF token" whenever CSRF protection is enabled (production by
+  // default) — this was never caught locally because CSRF is off in dev.
+  if (!SAFE_METHODS.has(method.toUpperCase())) {
+    const csrfToken = readCookie(CSRF_COOKIE);
+    if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
   }
 
   const res = await fetch(url, {
