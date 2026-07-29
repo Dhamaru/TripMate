@@ -279,6 +279,37 @@ export async function runAgentLoop(
         }
     } catch (err: any) {
         console.error('[Atlas:Loop] OpenAI API error:', err.message);
+
+        // Last resort: both NVIDIA keys/models are down or exhausted. Rather than
+        // hard-failing the whole conversation, try a single plain-text completion
+        // on real OpenAI (a separate provider/quota from NVIDIA) so the user still
+        // gets an answer — no tool-calling on this path, just a direct response.
+        if (config.OPENAI_API_KEY) {
+            try {
+                const fallbackClient = new OpenAI({ apiKey: config.OPENAI_API_KEY, timeout: 20_000, maxRetries: 0 });
+                const completion = await fallbackClient.chat.completions.create({
+                    model: 'gpt-4o-mini',
+                    temperature: 0.4,
+                    messages: [
+                        { role: 'system', content: systemPrompt + '\n\nNote: live trip data/tools are temporarily unavailable — answer from general travel knowledge and say so if the question needs live data.' },
+                        { role: 'user', content: input.message },
+                    ],
+                });
+                const fallbackText = completion.choices?.[0]?.message?.content?.trim();
+                if (fallbackText) {
+                    input.onToken?.(fallbackText);
+                    return {
+                        message: fallbackText,
+                        toolsUsed,
+                        confidence: { score: 0.4, level: 'low' },
+                        tokensUsed: totalTokens + (completion.usage?.total_tokens ?? 0),
+                    };
+                }
+            } catch (fallbackErr: any) {
+                console.error('[Atlas:Loop] Fallback OpenAI call also failed:', fallbackErr.message);
+            }
+        }
+
         return {
             message: `I ran into an issue communicating with the AI service: ${err.message}. Please try again.`,
             toolsUsed,
