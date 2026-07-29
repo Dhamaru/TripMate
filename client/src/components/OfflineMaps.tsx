@@ -462,14 +462,20 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   // on — users shouldn't have to enable continuous tracking just to see a
   // single route.
   function getCurrentLocationOnce(): Promise<{ lat: number; lon: number }> {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
+    if (!navigator.geolocation) return Promise.reject(new Error("Geolocation not supported"));
+    const attempt = (opts: PositionOptions) => new Promise<{ lat: number; lon: number }>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
         (err) => reject(err),
-        { enableHighAccuracy: true, timeout: 10000 }
+        opts
       );
     });
+    // High-accuracy GPS can time out or report unavailable on devices
+    // without a GPS chip (most desktops); fall back to coarser
+    // network/IP-based positioning, which is slower to appear but far
+    // more reliable, rather than surfacing "Location needed" outright.
+    return attempt({ enableHighAccuracy: true, timeout: 8000 })
+      .catch(() => attempt({ enableHighAccuracy: false, timeout: 15000 }));
   }
 
   // Routing via OSRM (open-source, no API key needed)
@@ -874,6 +880,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     .addTo(map)
                     .bindPopup("You are here")
                     .openPopup();
+
+                  // Feed the same location into Get Route so users who've
+                  // already located themselves here don't have to trigger a
+                  // second, separate geolocation request from the Navigation tab.
+                  setUserLocation({ lat: latitude, lon: longitude });
+                }, () => {
+                  toast({ title: "Location unavailable", description: "Couldn't get your position.", variant: "destructive" });
                 });
               }}
               variant="secondary"
