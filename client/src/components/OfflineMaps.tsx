@@ -628,7 +628,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6">
-          <div className="relative w-full h-[350px] md:h-[500px] sm:rounded-xl overflow-hidden group">
+          <div className="relative isolate w-full h-[350px] md:h-[500px] sm:rounded-xl overflow-hidden group">
             <div ref={mapContainerRef} className="w-full h-full bg-muted" style={{ zIndex: 0 }} />
 
             {/* Navigation Overlay Controls */}

@@ -535,7 +535,7 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-                <div className="relative w-full h-[300px] md:h-[400px]">
+                <div className="relative isolate w-full h-[300px] md:h-[400px] overflow-hidden">
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 z-10">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1D4E89]"></div>
