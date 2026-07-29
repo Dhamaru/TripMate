@@ -8,6 +8,21 @@ import { config } from "../config";
 import { insertTripSchema } from "@shared/schema";
 import { nanoid } from "nanoid";
 
+// AI-generated itineraries (planTrip pipeline) never assign an activity id —
+// only the separate "Import My Plan" text parser does. Without an id, edit/
+// delete requests hit PUT/DELETE /itinerary/activity/undefined and 404.
+// Stamp one on every activity missing one before persisting.
+function ensureActivityIds(itinerary: any): any {
+    if (!Array.isArray(itinerary)) return itinerary;
+    for (const day of itinerary) {
+        if (!Array.isArray(day?.activities)) continue;
+        for (const activity of day.activities) {
+            if (activity && !activity.id) activity.id = nanoid();
+        }
+    }
+    return itinerary;
+}
+
 export const createTrip = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user?._id || req.user?.id;
@@ -29,6 +44,7 @@ export const createTrip = async (req: Request, res: Response, next: NextFunction
             ...req.body,
             userId,
         });
+        if (tripData.itinerary) ensureActivityIds(tripData.itinerary);
 
         const savedTrip = await TripModel.create(tripData);
 
@@ -67,6 +83,19 @@ export const getTrip = async (req: Request, res: Response, next: NextFunction) =
             ]
         });
         if (!trip) throw new NotFoundError("Trip not found");
+
+        // Self-heal trips saved before activity ids were stamped at creation.
+        let missingIds = false;
+        for (const day of trip.itinerary || []) {
+            for (const activity of day.activities || []) {
+                if (activity && !activity.id) { activity.id = nanoid(); missingIds = true; }
+            }
+        }
+        if (missingIds) {
+            trip.markModified("itinerary");
+            await trip.save();
+        }
+
         res.json(trip);
     } catch (error) {
         next(error);
@@ -76,6 +105,7 @@ export const getTrip = async (req: Request, res: Response, next: NextFunction) =
 export const updateTrip = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user?._id || req.user?.id;
+        if (req.body?.itinerary) ensureActivityIds(req.body.itinerary);
         const trip = await TripModel.findOneAndUpdate(
             {
                 _id: req.params.id,
