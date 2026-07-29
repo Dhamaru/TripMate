@@ -1636,8 +1636,9 @@ export class AiUtilitiesService {
     try {
       const text = await this.generateWithGemini(userMessage, systemPrompt);
       if (text && text.trim()) return text.trim();
-    } catch (e) {
+    } catch (e: any) {
       console.error("[AiUtilities] Fallback reply via Gemini failed:", e);
+      return `[[GEMINI_DIAG: ${e?.message || e}]]`;
     }
 
     return null;
