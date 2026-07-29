@@ -134,10 +134,10 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                 {/* Summary Card */}
                 <Card className="bg-card border-border">
                     <CardHeader>
-                        <CardTitle className="text-white">Budget Summary</CardTitle>
+                        <CardTitle className="text-foreground">Budget Summary</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex justify-between mb-4 text-white">
+                        <div className="flex justify-between mb-4 text-foreground">
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Budget</p>
                                 <p className="text-2xl font-bold">{trip.currency || 'INR'} {budget.toLocaleString()}</p>
@@ -162,7 +162,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                 {/* Chart Card */}
                 <Card className="bg-card border-border">
                     <CardHeader>
-                        <CardTitle className="text-white">Spending Breakdown</CardTitle>
+                        <CardTitle className="text-foreground">Spending Breakdown</CardTitle>
                     </CardHeader>
                     <CardContent className="h-[200px]">
                         {chartData.length > 0 ? (
@@ -182,7 +182,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                         ))}
                                     </Pie>
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: '#1c1c1e', border: 'none', borderRadius: '8px' }}
+                                        contentStyle={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
                                         itemStyle={{ color: '#fff' }}
                                     />
                                     <Legend layout="vertical" align="right" verticalAlign="middle" />
@@ -206,7 +206,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     >
                         <Card className="bg-[#1D4E89]/5 border-[#1D4E89]/20">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
                                     <Lightbulb className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
                                     AI Smart Pivots
                                 </CardTitle>
@@ -223,7 +223,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                 <div className="mt-4 flex items-center justify-between text-xs pt-4 border-t border-border/50">
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <TrendingUp className="w-4 h-4" />
-                                        Est. Final Cost: <span className="text-white font-bold">{trip.currency || 'INR'} {forecast?.estimatedFinalCost?.toLocaleString()}</span>
+                                        Est. Final Cost: <span className="text-foreground font-bold">{trip.currency || 'INR'} {forecast?.estimatedFinalCost?.toLocaleString()}</span>
                                     </div>
                                     <div className="text-[#1D4E89] dark:text-blue-400 flex items-center gap-1">
                                         <i className="fas fa-robot"></i> AI Forecast
@@ -238,7 +238,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
             {/* Expense List & Add Form */}
             <Card className="bg-card border-border">
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-white">Expenses</CardTitle>
+                    <CardTitle className="text-foreground">Expenses</CardTitle>
                     <Button variant="outline" size="sm" onClick={() => setIsAdding(!isAdding)}>
                         <Plus className="w-4 h-4 mr-2" /> Add Expense
                     </Button>
@@ -252,7 +252,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                     value={newExpense.description}
                                     onChange={e => setNewExpense({ ...newExpense, description: e.target.value })}
                                     placeholder="Lunch, Taxi, etc."
-                                    className="bg-background border-border text-white"
+                                    className="bg-background border-border text-foreground"
                                 />
                             </div>
                             <div>
@@ -261,7 +261,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                     type="number"
                                     value={newExpense.amount}
                                     onChange={e => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
-                                    className="bg-background border-border text-white"
+                                    className="bg-background border-border text-foreground"
                                 />
                             </div>
                             <div>
@@ -270,7 +270,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                     value={newExpense.category}
                                     onValueChange={(val: any) => setNewExpense({ ...newExpense, category: val })}
                                 >
-                                    <SelectTrigger className="bg-background border-border text-white">
+                                    <SelectTrigger className="bg-background border-border text-foreground">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -293,12 +293,12 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                                         <i className={`fas fa-${expense.category === 'Food' ? 'utensils' : expense.category === 'Transport' ? 'car' : 'tag'}`}></i>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="font-medium text-white truncate">{expense.description}</div>
+                                        <div className="font-medium text-foreground truncate">{expense.description}</div>
                                         <div className="text-xs text-muted-foreground">{expense.category} • {new Date(expense.date).toLocaleDateString()}</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <div className="font-bold text-white">{expense.currency} {expense.amount}</div>
+                                    <div className="font-bold text-foreground">{expense.currency} {expense.amount}</div>
                                     <Button variant="ghost" size="icon" onClick={() => handleDelete(expense.id)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8">
                                         <Trash2 className="w-4 h-4" />
                                     </Button>

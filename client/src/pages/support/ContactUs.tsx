@@ -55,7 +55,7 @@ export default function ContactUs() {
                                     <Mail className="text-[#1D4E89] dark:text-blue-400 w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white mb-1">Email Us</h3>
+                                    <h3 className="text-lg font-bold text-foreground mb-1">Email Us</h3>
                                     <p className="text-muted-foreground text-sm mb-2">For general inquiries and support</p>
                                     <a href="mailto:support@tripmate.com" className="text-[#1D4E89] dark:text-blue-400 hover:underline">support@tripmate.com</a>
                                 </div>
@@ -68,7 +68,7 @@ export default function ContactUs() {
                                     <Phone className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white mb-1">Call Us</h3>
+                                    <h3 className="text-lg font-bold text-foreground mb-1">Call Us</h3>
                                     <p className="text-muted-foreground text-sm mb-2">Mon-Fri from 8am to 5pm</p>
                                     <a href="tel:+1234567890" className="text-emerald-600 dark:text-emerald-400 hover:underline">+1 (234) 567-890</a>
                                 </div>
@@ -81,7 +81,7 @@ export default function ContactUs() {
                                     <MapPin className="text-[#163F73] w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white mb-1">Visit Us</h3>
+                                    <h3 className="text-lg font-bold text-foreground mb-1">Visit Us</h3>
                                     <p className="text-muted-foreground text-sm">
                                         123 Innovation Drive<br />
                                         Tech Valley, CA 94043
@@ -93,15 +93,15 @@ export default function ContactUs() {
 
                     {/* Contact Form */}
                     <div className="bg-card border border-border rounded-xl p-8">
-                        <h2 className="text-2xl font-bold text-white mb-6">Send a Message</h2>
+                        <h2 className="text-2xl font-bold text-foreground mb-6">Send a Message</h2>
                         {submitted ? (
                             <div className="text-center py-12">
                                 <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <i className="fas fa-check text-green-500 text-2xl"></i>
                                 </div>
-                                <h3 className="text-xl font-bold text-white mb-2">Message Sent!</h3>
-                                <p className="text-gray-400">Thank you for contacting us. We will get back to you shortly.</p>
-                                <Button onClick={() => setSubmitted(false)} variant="outline" className="mt-6 border-gray-600 text-white hover:bg-gray-800">
+                                <h3 className="text-xl font-bold text-foreground mb-2">Message Sent!</h3>
+                                <p className="text-muted-foreground">Thank you for contacting us. We will get back to you shortly.</p>
+                                <Button onClick={() => setSubmitted(false)} variant="outline" className="mt-6 border-border text-foreground hover:bg-muted">
                                     Send Another
                                 </Button>
                             </div>
@@ -109,26 +109,26 @@ export default function ContactUs() {
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-300">First Name</label>
-                                        <Input placeholder="John" className="bg-muted border-border text-white" required />
+                                        <label className="text-sm font-medium text-foreground">First Name</label>
+                                        <Input placeholder="John" className="bg-muted border-border text-foreground" required />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-300">Last Name</label>
-                                        <Input placeholder="Doe" className="bg-muted border-border text-white" required />
+                                        <label className="text-sm font-medium text-foreground">Last Name</label>
+                                        <Input placeholder="Doe" className="bg-muted border-border text-foreground" required />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-300">Email</label>
-                                    <Input type="email" placeholder="john@example.com" className="bg-muted border-border text-white" required />
+                                    <label className="text-sm font-medium text-foreground">Email</label>
+                                    <Input type="email" placeholder="john@example.com" className="bg-muted border-border text-foreground" required />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-300">Message</label>
-                                    <Textarea placeholder="How can we help you?" className="bg-muted border-border text-white min-h-[150px]" required />
+                                    <label className="text-sm font-medium text-foreground">Message</label>
+                                    <Textarea placeholder="How can we help you?" className="bg-muted border-border text-foreground min-h-[150px]" required />
                                 </div>
 
-                                <Button type="submit" className="w-full bg-[#1D4E89] hover:bg-blue-600">
+                                <Button type="submit" className="w-full bg-[#1D4E89] hover:bg-[#163F73]">
                                     Send Message
                                 </Button>
                             </form>

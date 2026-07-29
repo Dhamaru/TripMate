@@ -186,7 +186,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
     return (
         <Card className="bg-card border-border">
             <CardHeader>
-                <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
                     <Search className="w-5 h-5" />
                     Discover Locations
                 </CardTitle>
@@ -220,7 +220,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                    className="bg-muted border-border text-white"
+                                    className="bg-muted border-border text-foreground"
                                 />
                                 <Button
                                     onClick={handleSearch}
@@ -290,7 +290,7 @@ export function LocationDiscovery({ tripId, onPlaceSelect }: LocationDiscoveryPr
 
                                                     {/* Details */}
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className="font-semibold text-white truncate">{place.name}</h4>
+                                                        <h4 className="font-semibold text-foreground truncate">{place.name}</h4>
                                                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                                             {place.rating && (
                                                                 <div className="flex items-center gap-1">

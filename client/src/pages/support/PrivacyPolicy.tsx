@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
 
                 <section className="space-y-4 mb-8">
                     <h2 className="text-2xl font-semibold text-foreground">1. Introduction</h2>
-                    <p className="text-gray-300">
+                    <p className="text-muted-foreground">
                         Welcome to TripMate. We respect your privacy and are committed to protecting your personal data.
                         This privacy policy will inform you as to how we look after your personal data when you visit our website
                         and tell you about your privacy rights and how the law protects you.
@@ -36,10 +36,10 @@ export default function PrivacyPolicy() {
 
                 <section className="space-y-4 mb-8">
                     <h2 className="text-2xl font-semibold text-foreground">2. Data We Collect</h2>
-                    <p className="text-gray-300">
+                    <p className="text-muted-foreground">
                         We may collect, use, store and transfer different kinds of personal data about you which we have grouped together follows:
                     </p>
-                    <ul className="list-disc pl-6 text-gray-300 space-y-2">
+                    <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                         <li><strong>Identity Data:</strong> First name, last name, username.</li>
                         <li><strong>Contact Data:</strong> Email address, telephone number.</li>
                         <li><strong>Technical Data:</strong> Internet protocol (IP) address, browser type and version, time zone setting and location.</li>
@@ -49,10 +49,10 @@ export default function PrivacyPolicy() {
 
                 <section className="space-y-4 mb-8">
                     <h2 className="text-2xl font-semibold text-foreground">3. How We Use Your Data</h2>
-                    <p className="text-gray-300">
+                    <p className="text-muted-foreground">
                         We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:
                     </p>
-                    <ul className="list-disc pl-6 text-gray-300 space-y-2">
+                    <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                         <li>To provide the travel planning services you request.</li>
                         <li>To manage your account and relationship with us.</li>
                         <li>To improve our website, products/services, marketing or customer relationships.</li>
@@ -62,21 +62,21 @@ export default function PrivacyPolicy() {
 
                 <section className="space-y-4 mb-8">
                     <h2 className="text-2xl font-semibold text-foreground">4. Data Security</h2>
-                    <p className="text-gray-300">
+                    <p className="text-muted-foreground">
                         We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used, or accessed in an unauthorized way. In addition, we limit access to your personal data to those employees, agents, contractors, and other third parties who have a business need to know.
                     </p>
                 </section>
 
                 <section className="space-y-4 mb-8">
                     <h2 className="text-2xl font-semibold text-foreground">5. Third-Party Links</h2>
-                    <p className="text-gray-300">
+                    <p className="text-muted-foreground">
                         This website may include links to third-party websites, plug-ins, and applications. Clicking on those links or enabling those connections may allow third parties to collect or share data about you. We do not control these third-party websites and are not responsible for their privacy statements.
                     </p>
                 </section>
 
                 <section className="space-y-4 mb-8">
                     <h2 className="text-2xl font-semibold text-foreground">6. Contact Us</h2>
-                    <p className="text-gray-300">
+                    <p className="text-muted-foreground">
                         If you have any questions about this privacy policy or our privacy practices, please contact us via our feedback form.
                     </p>
                 </section>

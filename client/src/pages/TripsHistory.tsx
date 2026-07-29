@@ -14,9 +14,9 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { logError } from "@/lib/logger";
 
 const STATUS_STYLE: Record<string, string> = {
-  active:    "bg-blue-50 text-blue-600 border-blue-200",
-  planning:  "bg-[#FFFBEB] text-[#163F73] border-[#FDE68A]",
-  completed: "bg-green-50 text-green-600 border-green-200",
+  planning:  "bg-[#1D4E89]/15 text-[#1D4E89] border-[#1D4E89]/50 dark:bg-[#1D4E89]/20 dark:text-[#4F82C4]",
+  active:    "bg-[#3D9467]/15 text-[#3D9467] border-[#3D9467]/50 dark:bg-[#3D9467]/20 dark:text-[#5DB889]",
+  completed: "bg-[#B3261E]/15 text-[#B3261E] border-[#B3261E]/50 dark:bg-[#B3261E]/20 dark:text-[#E0655D]",
 };
 
 export default function TripsHistory() {

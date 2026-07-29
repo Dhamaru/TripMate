@@ -633,7 +633,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
             {/* Navigation Overlay Controls */}
             {activeTab === 'navigation' && (
-              <div className="absolute top-2 left-2 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-lg border border-gray-700 shadow-xl space-y-3 sm:w-64">
+              <div className="absolute top-2 left-2 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-lg border border-border shadow-xl space-y-3 sm:w-64">
                 <div className="flex items-center justify-between">
                   <h4 className="text-foreground font-semibold text-sm">Live Navigation</h4>
                   <div className="sm:hidden flex items-center gap-2">
@@ -641,16 +641,16 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-300 text-xs">Tracking</span>
+                  <span className="text-muted-foreground text-xs">Tracking</span>
                   <div
-                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? 'bg-green-500' : 'bg-gray-600'}`}
+                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? 'bg-green-500' : 'bg-muted'}`}
                     onClick={() => setIsNavigating(!isNavigating)}
                   >
                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isNavigating ? 'translate-x-6' : 'translate-x-0'}`} />
                   </div>
                 </div>
 
-                <div className="border-t border-gray-700 pt-3">
+                <div className="border-t border-border pt-3">
                   <h4 className="text-foreground font-semibold text-sm mb-2">Route</h4>
                   <div className="space-y-2 relative">
                     <input
@@ -683,9 +683,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       className="w-full bg-muted border border-border rounded px-2 py-1 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-[#163F73]"
                     />
                     {showNavDestSuggestions && (navDestLoading || navDestSuggestions.length > 0) && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border border-border rounded shadow-lg max-h-48 overflow-y-auto">
                         {navDestLoading && (
-                          <div className="px-2 py-1.5 text-[11px] text-gray-400">Searching...</div>
+                          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">Searching...</div>
                         )}
                         {!navDestLoading && navDestSuggestions.map((s, i) => (
                           <button
@@ -693,7 +693,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => selectNavDestSuggestion(s)}
-                            className="w-full text-left px-2 py-1.5 text-[11px] text-gray-200 hover:bg-gray-700 truncate border-b border-gray-700 last:border-b-0"
+                            className="w-full text-left px-2 py-1.5 text-[11px] text-foreground hover:bg-muted truncate border-b border-border last:border-b-0"
                           >
                             {s.display_name}
                           </button>
@@ -872,8 +872,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <Progress value={(totalSize / 2048) * 100} className="h-2 bg-gray-700 [&>div]:bg-blue-500" />
-          <p className="text-[10px] text-gray-400 mt-2 text-right">Offline maps auto-expire after 30 days of inactivity</p>
+          <Progress value={(totalSize / 2048) * 100} className="h-2 bg-muted [&>div]:bg-[#163F73]" />
+          <p className="text-[10px] text-muted-foreground mt-2 text-right">Offline maps auto-expire after 30 days of inactivity</p>
         </CardContent>
       </Card>
 
@@ -882,7 +882,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         <CardHeader><CardTitle className="text-foreground">Saved Regions</CardTitle></CardHeader>
         <CardContent>
           {mapRegions.length === 0 ? (
-            <div className="text-gray-500 text-sm py-8 text-center border-2 border-dashed border-gray-700 rounded-lg">
+            <div className="text-muted-foreground text-sm py-8 text-center border-2 border-dashed border-border rounded-lg">
               <i className="fas fa-map-marked-alt text-4xl mb-3 opacity-50"></i>
               <p>No saved regions yet.</p>
               <p className="text-xs mt-1">Search for a city above to add it.</p>
@@ -890,20 +890,20 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {mapRegions.map(r => (
-                <div key={r.id} className="bg-muted rounded-xl overflow-hidden border border-gray-800 group relative">
+                <div key={r.id} className="bg-muted rounded-xl overflow-hidden border border-border group relative">
                   {/* Fake Map Preview Header */}
                   <div className="h-24 bg-gradient-to-br from-gray-800 to-gray-900 relative">
                     <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#9ca3af 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
                     <div className="absolute bottom-2 left-3">
                       <h3 className="font-bold text-lg text-foreground leading-tight">{r.name}</h3>
-                      <p className="text-xs text-gray-300">{r.country}</p>
+                      <p className="text-xs text-muted-foreground">{r.country}</p>
                     </div>
                     {r.downloaded && <div className="absolute top-2 right-2 bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full border border-green-500/50">SAVED</div>}
                   </div>
 
                   <div className="p-3">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="text-xs text-gray-400 font-mono">{r.size}</span>
+                      <span className="text-xs text-muted-foreground font-mono-data">{r.size}</span>
                       <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-400/10" onClick={() => deleteMap(r.id)}>
                         <i className="fas fa-trash text-xs"></i>
                       </Button>

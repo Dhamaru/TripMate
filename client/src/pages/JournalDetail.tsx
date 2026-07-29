@@ -321,7 +321,7 @@ export default function JournalDetail() {
                                         <Button
                                             type="submit"
                                             disabled={updateEntryMutation.isPending}
-                                            className="flex-1 bg-amber-500 text-white"
+                                            className="flex-1 bg-[#163F73] hover:bg-[#0F2C52] text-white"
                                         >
                                             {updateEntryMutation.isPending ? "Saving..." : "Save Changes"}
                                         </Button>

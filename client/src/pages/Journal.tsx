@@ -266,7 +266,7 @@ export default function Journal() {
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button
-              className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl gap-2"
+              className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-xl gap-2"
               data-testid="button-new-entry"
               onClick={() => { setEditingEntry(null); resetForm(); }}
             >
@@ -341,7 +341,7 @@ export default function Journal() {
                   multiple
                   accept="image/*"
                   onChange={(e) => setPhotos(e.target.files)}
-                  className="bg-muted/50 border text-foreground file:bg-amber-500 file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:hover:bg-amber-600 cursor-pointer"
+                  className="bg-muted/50 border text-foreground file:bg-[#163F73] file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:hover:bg-[#0F2C52] cursor-pointer"
                 />
                 {photos && photos.length > 0 && (
                   <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
@@ -379,7 +379,7 @@ export default function Journal() {
                 <Button type="button" onClick={handleCancel} variant="outline" className="flex-1 border text-muted-foreground hover:bg-muted/50" data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createEntryMutation.isPending || updateEntryMutation.isPending} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white" data-testid="button-save">
+                <Button type="submit" disabled={createEntryMutation.isPending || updateEntryMutation.isPending} className="flex-1 bg-[#163F73] hover:bg-[#0F2C52] text-white" data-testid="button-save">
                   {(createEntryMutation.isPending || updateEntryMutation.isPending) ? 'Saving…' : (editingEntry ? 'Update Entry' : 'Save Entry')}
                 </Button>
               </div>
@@ -471,7 +471,7 @@ export default function Journal() {
           </p>
           <Button
             onClick={() => { setEditingEntry(null); resetForm(); setIsCreateDialogOpen(true); }}
-            className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl gap-2"
+            className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-xl gap-2"
             data-testid="button-create-first-entry"
           >
             <Plus className="h-4 w-4" /> Create Your First Entry

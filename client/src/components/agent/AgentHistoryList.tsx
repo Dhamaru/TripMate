@@ -46,7 +46,7 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
 
   if (isLoading && jobs.length === 0) {
     return (
-      <Card className="bg-muted/50 border-white/5">
+      <Card className="bg-muted/50 border-border">
         <CardContent className="p-8 flex flex-col items-center justify-center space-y-4">
           <Brain className="w-8 h-8 text-[#1D4E89] dark:text-blue-400 animate-pulse" />
           <p className="text-muted-foreground text-sm">Consulting our archives...</p>
@@ -56,9 +56,9 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
   }
 
   return (
-    <Card className={`bg-muted/50 border-white/5 backdrop-blur-xl ${className}`}>
+    <Card className={`bg-muted/50 border-border backdrop-blur-xl ${className}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-white flex items-center gap-2">
+        <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Brain className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
           Intelligence Logs
         </CardTitle>
@@ -73,11 +73,11 @@ export const AgentHistoryList: React.FC<AgentHistoryListProps> = ({ tripId, clas
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
+                  className="p-3 rounded-xl bg-muted border border-border hover:border-foreground/20 transition-colors"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="text-xs font-bold text-white uppercase tracking-wider">
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider">
                         {job.trigger.replace(/_/g, ' ')}
                       </p>
                       <p className="text-[10px] text-muted-foreground">

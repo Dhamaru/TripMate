@@ -556,7 +556,7 @@ export default function PackingChecklist() {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-20 font-sans print:bg-card print:text-black print:pb-0">
+        <div className="min-h-screen bg-background pb-20 font-sans-clean print:bg-card print:text-black print:pb-0">
             <style>{`
                 @media print {
                     @page { margin: 1cm; size: auto; }
@@ -594,7 +594,7 @@ export default function PackingChecklist() {
                                 <TabsTrigger
                                     key={season}
                                     value={season}
-                                    className="rounded-full data-[state=active]:bg-amber-500 data-[state=active]:text-white transition-all duration-300 flex items-center justify-center gap-2"
+                                    className="rounded-full data-[state=active]:bg-[#163F73] data-[state=active]:text-white transition-all duration-300 flex items-center justify-center gap-2"
                                 >
                                     {getSeasonIcon(season)}
                                     <span className="text-xs sm:text-sm font-medium">{labels[season]}</span>
@@ -756,7 +756,7 @@ export default function PackingChecklist() {
                         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                         className="bg-card border text-foreground rounded-full h-12 px-6 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                    <Button onClick={handleAdd} className="bg-amber-500 hover:bg-amber-600 text-white rounded-full h-12 px-6">
+                    <Button onClick={handleAdd} className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-full h-12 px-6">
                         <Plus className="w-5 h-5 mr-2" /> Add
                     </Button>
                 </div>

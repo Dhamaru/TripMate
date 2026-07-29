@@ -9,9 +9,9 @@ type AuthLayoutProps = {
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col md:flex-row overflow-hidden">
+    <div className="min-h-screen bg-[#0D1B2E] text-white flex flex-col md:flex-row overflow-hidden">
       {/* Visual Left Side (Desktop) */}
-      <div className="hidden md:flex md:w-1/2 relative bg-[#0a1628] overflow-hidden border-r border-white/5">
+      <div className="hidden md:flex md:w-1/2 relative bg-[#0D1B2E] overflow-hidden border-r border-white/5">
         <div className="absolute inset-0 z-0">
           <img
             src={authHero}

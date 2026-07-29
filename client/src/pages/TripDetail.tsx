@@ -37,9 +37,9 @@ const travelStyles = [
 ];
 
 const statusColors = {
-  planning: 'bg-amber-500',
-  active: 'bg-emerald-500',
-  completed: 'bg-muted-foreground'
+  planning: 'bg-[#1D4E89]',
+  active: 'bg-[#3D9467]',
+  completed: 'bg-[#B3261E]'
 };
 
 export default function TripDetail() {
@@ -826,9 +826,9 @@ export default function TripDetail() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-muted/50 border">
-                        <SelectItem value="planning" className="text-white hover:bg-card">Planning</SelectItem>
-                        <SelectItem value="active" className="text-white hover:bg-card">Active</SelectItem>
-                        <SelectItem value="completed" className="text-white hover:bg-card">Completed</SelectItem>
+                        <SelectItem value="planning" className="text-foreground hover:bg-card">Planning</SelectItem>
+                        <SelectItem value="active" className="text-foreground hover:bg-card">Active</SelectItem>
+                        <SelectItem value="completed" className="text-foreground hover:bg-card">Completed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1087,7 +1087,7 @@ export default function TripDetail() {
           <TabsContent value="places" className="mt-0">
           <div id="suggested-places-section" className="space-y-6">
             <div className="flex flex-col items-center gap-4">
-              <h3 className="text-white font-semibold text-lg flex items-center gap-2">
+              <h3 className="text-foreground font-semibold text-lg flex items-center gap-2">
                 <i className="fas fa-map-marked-alt text-[#1D4E89]"></i>
                 What are you looking for at your destination?
               </h3>
@@ -1095,7 +1095,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowHotels(!showHotels)}
                   variant={showHotels ? "default" : "outline"}
-                  className={` h-12 ${showHotels ? 'bg-[#1D4E89] text-white hover:bg-[#1D4E89]/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
+                  className={` h-12 ${showHotels ? 'bg-[#1D4E89] text-white hover:bg-[#1D4E89]/90' : 'bg-muted/50 border text-muted-foreground hover:text-foreground'}`}
                 >
                   <i className="fas fa-bed mr-2"></i>
                   Hotels
@@ -1103,7 +1103,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowRestaurants(!showRestaurants)}
                   variant={showRestaurants ? "default" : "outline"}
-                  className={` h-12 ${showRestaurants ? 'bg-emerald-500 text-white hover:bg-emerald-500/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
+                  className={` h-12 ${showRestaurants ? 'bg-emerald-500 text-white hover:bg-emerald-500/90' : 'bg-muted/50 border text-muted-foreground hover:text-foreground'}`}
                 >
                   <i className="fas fa-utensils mr-2"></i>
                   Restaurants
@@ -1111,7 +1111,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowSpots(!showSpots)}
                   variant={showSpots ? "default" : "outline"}
-                  className={` h-12 ${showSpots ? 'bg-amber-500 text-white hover:bg-amber-500/90' : 'bg-muted/50 border text-muted-foreground hover:text-white'}`}
+                  className={` h-12 ${showSpots ? 'bg-[#163F73] text-white hover:bg-[#0F2C52]' : 'bg-muted/50 border text-muted-foreground hover:text-foreground'}`}
                 >
                   <i className="fas fa-camera mr-2"></i>
                   Tourist Spots
@@ -1127,7 +1127,7 @@ export default function TripDetail() {
               >
                 <Card className="bg-card border-border">
                   <CardHeader>
-                    <CardTitle className="text-white text-base">Suggested Places</CardTitle>
+                    <CardTitle className="text-foreground text-base">Suggested Places</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {(hotelsLoading || foodLoading || sightsLoading) && !(hotelResults || foodResults || sightsResults) ? (
@@ -1153,7 +1153,7 @@ export default function TripDetail() {
                               ) : (
                                 <>
                                   {(hotelResults || []).slice(0, 5).map((i: any) => (
-                                    <div key={`h-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
+                                    <div key={`h-${i.id}`} className="text-sm text-foreground bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
                                       <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
                                       <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center">
@@ -1180,7 +1180,7 @@ export default function TripDetail() {
                               ) : (
                                 <>
                                   {(foodResults || []).slice(0, 5).map((i: any) => (
-                                    <div key={`f-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
+                                    <div key={`f-${i.id}`} className="text-sm text-foreground bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
                                       <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
                                       <a href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ''))}`} target="_blank" rel="noreferrer" className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center">
@@ -1207,7 +1207,7 @@ export default function TripDetail() {
                               ) : (
                                 <>
                                   {(sightsResults || []).slice(0, 5).map((i: any) => (
-                                    <div key={`s-${i.id}`} className="text-sm text-white bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
+                                    <div key={`s-${i.id}`} className="text-sm text-foreground bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors">
                                       <div className="font-semibold">{String(i.name || i.title || i.name_en || i.name_local || i.display_name?.split(',')[0] || 'Unknown Place')}</div>
                                       <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(i.address || (i.display_name?.includes(',') ? i.display_name.split(',').slice(1).join(',').trim() : i.display_name) || '')}</div>
                                       <a
@@ -1266,7 +1266,7 @@ export default function TripDetail() {
               <div className="space-y-4">
                 {tripJournalEntries.slice(0, 3).map((entry) => (
                   <div key={entry.id} className="bg-muted/50 rounded-xl p-4">
-                    <h4 className="font-bold text-white mb-2">{entry.title}</h4>
+                    <h4 className="font-bold text-foreground mb-2">{entry.title}</h4>
                     <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{entry.content}</p>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{entry.location}</span>
