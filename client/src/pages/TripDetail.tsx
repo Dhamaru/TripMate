@@ -588,7 +588,13 @@ export default function TripDetail() {
     );
   }
 
-  if (tripLoading) {
+  // Only show the full-page spinner on the true initial load (no trip data
+  // yet). Every itinerary/expense/collaborator edit re-fetches the trip in
+  // the background via fetchTrip(), which flips this same tripLoading flag —
+  // if we unmount the whole page on every one of those, the Tabs component
+  // below remounts and resets to its defaultValue, silently kicking the user
+  // back to the Overview tab after every save.
+  if (tripLoading && !trip) {
     return (
       <div className="">
 
