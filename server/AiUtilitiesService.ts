@@ -1616,7 +1616,6 @@ export class AiUtilitiesService {
 
   /** Plain-text last-resort reply when the primary chat model(s) are unavailable — no tool-calling, no JSON parsing, just the best available provider's raw answer. */
   async generateFallbackReply(userMessage: string, systemPrompt: string): Promise<string | null> {
-    const diag: string[] = [`openai=${!!this.openai}`, `geminiKey=${!!config.GEMINI_API_KEY}`];
     try {
       if (this.openai) {
         const completion = await this.openai.chat.completions.create({
@@ -1629,23 +1628,19 @@ export class AiUtilitiesService {
         });
         const text = completion.choices?.[0]?.message?.content?.trim();
         if (text) return text;
-        diag.push('openai-empty');
       }
-    } catch (e: any) {
-      diag.push(`openai-err:${e?.message || e}`);
+    } catch (e) {
+      console.error("[AiUtilities] Fallback reply via OpenAI failed:", e);
     }
 
     try {
       const text = await this.generateWithGemini(userMessage, systemPrompt);
       if (text && text.trim()) return text.trim();
-      diag.push('gemini-empty');
-    } catch (e: any) {
-      diag.push(`gemini-err:${e?.message || e}`);
+    } catch (e) {
+      console.error("[AiUtilities] Fallback reply via Gemini failed:", e);
     }
 
-    console.error("[AiUtilities] generateFallbackReply exhausted:", diag.join(' | '));
-    // TEMP DIAGNOSTIC: surface why in the message itself since we don't have log access right now.
-    return `[[FALLBACK_DIAG: ${diag.join(' | ')}]]`;
+    return null;
   }
 
   async getQuietPlaceSuggestions(destination: string): Promise<Array<{ name: string; address: string; crowdLevel: string; type: string; bestTime: string; reason: string }>> {
