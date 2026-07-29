@@ -347,14 +347,21 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
 
     }, [coords, mapTheme, itinerary]);
 
-    // Route paths — own effect so toggling doesn't re-render markers
+    // Route paths — own effect so toggling doesn't re-render markers.
+    // Draws real road-following routes via OSRM (same routing engine used on
+    // the standalone Maps page) instead of a naive straight-line polyline
+    // between activities, which doesn't reflect actual travel paths.
     useEffect(() => {
         if (!pathLayerRef.current) return;
         pathLayerRef.current.clearLayers();
         if (!showPaths || !itinerary) return;
-        itinerary.forEach((day: any) => {
+
+        const dayColors = ['#3b82f6', '#8b5cf6', '#ef4444', '#f97316', '#10b981', '#d946ef', '#64748b'];
+        let cancelled = false;
+
+        itinerary.forEach((day: any, dayIndex: number) => {
             if (!Array.isArray(day.activities)) return;
-            const dayPoints: L.LatLngExpression[] = [];
+            const dayPoints: [number, number][] = [];
             day.activities.forEach((act: any) => {
                 const nLat = Number(act.lat ?? act.latitude ?? act.coords?.lat);
                 const nLon = Number(act.lon ?? act.lng ?? act.longitude ?? act.coords?.lon);
@@ -362,11 +369,31 @@ export function TripMap({ destination, itinerary, origin, onAddActivity, onDelet
                     dayPoints.push([nLat, nLon]);
                 }
             });
-            if (dayPoints.length > 1) {
-                L.polyline(dayPoints, { color: '#3b82f6', weight: 3, opacity: 0.6, dashArray: '10, 10', lineJoin: 'round' })
-                    .addTo(pathLayerRef.current!);
-            }
+            if (dayPoints.length < 2) return;
+
+            const color = dayColors[dayIndex % dayColors.length];
+            const drawStraightFallback = () => {
+                if (cancelled || !pathLayerRef.current) return;
+                L.polyline(dayPoints, { color, weight: 3, opacity: 0.5, dashArray: '6, 8', lineJoin: 'round' })
+                    .addTo(pathLayerRef.current);
+            };
+
+            const waypoints = dayPoints.map(([lat, lon]) => `${lon},${lat}`).join(';');
+            fetch(`https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson`)
+                .then((res) => res.json())
+                .then((json) => {
+                    if (cancelled || !pathLayerRef.current) return;
+                    const coords: [number, number][] = json?.routes?.[0]?.geometry?.coordinates?.map(
+                        ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
+                    ) ?? [];
+                    if (!coords.length) { drawStraightFallback(); return; }
+                    L.polyline(coords, { color, weight: 3, opacity: 0.7, lineJoin: 'round' })
+                        .addTo(pathLayerRef.current);
+                })
+                .catch(drawStraightFallback);
         });
+
+        return () => { cancelled = true; };
     }, [showPaths, itinerary]);
 
     if (!destination) return null;
