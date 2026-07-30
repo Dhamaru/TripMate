@@ -10,14 +10,25 @@ import { TripModel } from '../../shared/schema';
 import { config } from '../config';
 
 const MAX_ITERATIONS = 10;
+// NVIDIA NIM models answer a trivial ping fine but have been observed timing
+// out on the real request (full system prompt + tool schema) even when not
+// quota-exhausted — Groq is a confirmed-reliable third tier for exactly that
+// case, using the same OpenAI-compatible chat completions shape.
 const MODELS = [
     'meta/llama-3.3-70b-instruct',
-    'deepseek-ai/deepseek-v4-flash'
+    'deepseek-ai/deepseek-v4-flash',
+    'llama-3.3-70b-versatile',
+];
+const MODEL_BASE_URLS = [
+    'https://integrate.api.nvidia.com/v1',
+    'https://integrate.api.nvidia.com/v1',
+    'https://api.groq.com/openai/v1',
 ];
 // Each model has its own NVIDIA NIM key (free-tier keys are per-model scoped).
 const MODEL_KEYS = [
     config.NVIDIA_API_KEY_2,
     config.NVIDIA_API_KEY_1,
+    config.GROQ_API_KEY,
 ];
 
 /** Summarizes conversation history when estimated tokens exceed 4000 to prevent context overflow. */
@@ -78,7 +89,7 @@ export async function runAgentLoop(
     }
     const clientsByModel = MODELS.map((_, i) => new OpenAI({
         apiKey: MODEL_KEYS[i] || config.NVIDIA_API_KEY || '',
-        baseURL: 'https://integrate.api.nvidia.com/v1',
+        baseURL: MODEL_BASE_URLS[i],
         timeout: 25_000, // fail fast instead of hanging when the provider stalls under quota exhaustion
         maxRetries: 0, // we handle model fallback ourselves; the SDK's own retries would just multiply the hang
     }));
@@ -166,8 +177,17 @@ export async function runAgentLoop(
                 const msg = String(apiErr?.message || '');
                 const isQuotaOrRateLimit = apiErr.status === 429
                     || /resourceexhausted|rate.?limit|quota|too many requests/i.test(msg);
-                if (isQuotaOrRateLimit && currentModelIndex < MODELS.length - 1) {
-                    console.warn(`[Atlas:Loop] Quota/rate-limit hit for ${MODELS[currentModelIndex]} (${msg}). Falling back to ${MODELS[currentModelIndex + 1]}`);
+                // NVIDIA has been observed answering a trivial ping fine but
+                // timing out on the real request (full system prompt + tool
+                // schema) without ever hitting a quota/429 — that's a
+                // timeout/connection error, a different shape entirely, and
+                // previously fell straight through to a hard failure instead
+                // of trying the next model.
+                const isTimeoutOrConnection = apiErr?.name === 'APIConnectionTimeoutError'
+                    || apiErr?.name === 'APIConnectionError'
+                    || /timeout|timed out|econnreset|econnrefused|etimedout|aborted/i.test(msg);
+                if ((isQuotaOrRateLimit || isTimeoutOrConnection) && currentModelIndex < MODELS.length - 1) {
+                    console.warn(`[Atlas:Loop] ${isQuotaOrRateLimit ? 'Quota/rate-limit' : 'Timeout'} hit for ${MODELS[currentModelIndex]} (${msg}). Falling back to ${MODELS[currentModelIndex + 1]}`);
                     currentModelIndex++;
                     iteration--; // Retry this iteration
                     continue;
