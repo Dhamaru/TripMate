@@ -7,6 +7,26 @@ import { AiUtilitiesService } from "../AiUtilitiesService";
 
 const startTime = Date.now();
 
+// TEMP diagnostic — checks OpenAI reachability/quota only. Remove after use.
+export const diagOpenai = async (_req: Request, res: Response) => {
+    const out: Record<string, any> = { keyPresent: !!config.OPENAI_API_KEY };
+    if (config.OPENAI_API_KEY) {
+        try {
+            const r = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.OPENAI_API_KEY}` },
+                body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: "ping" }], max_tokens: 5 }),
+            });
+            out.status = r.status;
+            if (!r.ok) out.error = (await r.text()).slice(0, 400);
+            else out.ok = true;
+        } catch (e: any) {
+            out.error = e.message;
+        }
+    }
+    res.json(out);
+};
+
 // ─── Public endpoints (no auth) ───────────────────────────────────────────────
 
 export const health = async (_req: Request, res: Response) => {
