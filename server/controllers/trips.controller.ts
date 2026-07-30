@@ -270,11 +270,18 @@ export const forceUpdateImage = async (req: Request, res: Response, next: NextFu
         // overwrites imageUrl/imageCaption if it actually finds a new one, so
         // a failed search (network blip, no results) no longer leaves the
         // trip with no image at all.
+        const previousImageUrl = trip.imageUrl;
         const randomOffset = Math.floor(Math.random() * 5);
-        await fetchImageForTrip(trip.id, trip.destination, randomOffset);
+        // Wikipedia lookup is deterministic (same article, same thumbnail every
+        // time), so on a *refresh* — as opposed to the first-ever fetch for a
+        // trip with no image yet — skip it entirely, otherwise the "refresh"
+        // silently re-fetches the identical photo and the offset below never
+        // gets a chance to matter.
+        await fetchImageForTrip(trip.id, trip.destination, randomOffset, /* skipWikipedia */ !!previousImageUrl);
 
         const updated = await TripModel.findById(trip.id);
-        res.json(updated);
+        const imageChanged = !!updated?.imageUrl && updated.imageUrl !== previousImageUrl;
+        res.json({ ...updated?.toJSON(), imageChanged });
     } catch (error) {
         next(error);
     }
@@ -283,14 +290,17 @@ export const forceUpdateImage = async (req: Request, res: Response, next: NextFu
 /**
  * Helper to fetch image from Google Places API
  */
-async function fetchImageForTrip(tripId: string, destination: string, skipCount: number = 0) {
+async function fetchImageForTrip(tripId: string, destination: string, skipCount: number = 0, skipWikipedia: boolean = false) {
     try {
         if (!tripId) return;
 
         let imageUrl: string | null = null;
         let imageCaption: string | null = null;
 
-        // 1. Wikipedia — article images are always the landmark itself, no people
+        // 1. Wikipedia — article images are always the landmark itself, no people.
+        // Deterministic (same title always returns the same thumbnail), so a
+        // caller that's looking for a *different* photo skips this source.
+        if (!skipWikipedia)
         try {
             const firstWord = destination.split(',')[0].trim();
             const wikiTitles = [...new Set([destination, firstWord])];

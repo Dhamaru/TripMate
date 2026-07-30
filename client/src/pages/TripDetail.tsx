@@ -743,9 +743,11 @@ export default function TripDetail() {
                       const data = await res.json();
                       if (data?.imageUrl && trip) {
                         setCurrentTrip({ ...trip, imageUrl: data.imageUrl, imageCaption: data.imageCaption });
+                      }
+                      if (data?.imageChanged) {
                         toast({ title: "Image updated!", description: "Found a new photo." });
                       } else {
-                        toast({ title: "No better photo found", description: "Couldn't find a new photo for this destination.", variant: "destructive" });
+                        toast({ title: "No new photo found", description: "That's the best match we could find for this destination.", variant: "destructive" });
                       }
                     } catch (err) {
                       toast({ title: "Failed to refresh", variant: "destructive" });
