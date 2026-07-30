@@ -7,45 +7,6 @@ import { AiUtilitiesService } from "../AiUtilitiesService";
 
 const startTime = Date.now();
 
-// TEMP diagnostic — checks whether Overpass/Nominatim are reachable from THIS
-// server right now. Remove after use.
-export const diagOsm = async (_req: Request, res: Response) => {
-    const out: Record<string, any> = {};
-    try {
-        const r = await fetch("https://overpass-api.de/api/interpreter", {
-            method: "POST",
-            body: '[out:json][timeout:10];(node["amenity"="hospital"](17.325,78.427,17.445,78.547););out body 2;',
-            headers: { 'User-Agent': 'TripMate/1.0' },
-        });
-        out.overpass = { status: r.status };
-        if (r.ok) {
-            const j = await r.json();
-            out.overpass.elementCount = j?.elements?.length;
-        } else {
-            out.overpass.error = (await r.text()).slice(0, 300);
-        }
-    } catch (e: any) {
-        out.overpass = { error: e.message };
-    }
-
-    try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=Hyderabad&limit=1`, {
-            headers: { 'User-Agent': 'TripMate/2.0.0 (kasivasl2005@gmail.com)' },
-        });
-        out.nominatim = { status: r.status };
-        if (r.ok) {
-            const j = await r.json();
-            out.nominatim.resultCount = Array.isArray(j) ? j.length : 0;
-        } else {
-            out.nominatim.error = (await r.text()).slice(0, 300);
-        }
-    } catch (e: any) {
-        out.nominatim = { error: e.message };
-    }
-
-    res.json(out);
-};
-
 // ─── Public endpoints (no auth) ───────────────────────────────────────────────
 
 export const health = async (_req: Request, res: Response) => {
