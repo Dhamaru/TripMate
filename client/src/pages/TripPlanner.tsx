@@ -565,7 +565,7 @@ export default function TripPlanner() {
                     Your Schedule <span className="text-red-500">*</span>
                   </label>
                   <Textarea
-                    placeholder={`Paste your travel plan here. For example:\n\nDay 1 - Hyderabad to Delhi ✈️ (evening flight)\nDay 2 - Delhi to Haridwar 🚗, then Haridwar to Joshi Math\nDay 3 - Joshi Math to Badrinath\nDay 4 - Badrinath darshan\nDay 5 - Return to Delhi\n...`}
+                    placeholder={`Paste your travel plan here. For example:\n\nDay 1 - Mumbai to Goa ✈️ (morning flight)\nDay 2 - Baga Beach, then Fort Aguada 🏖️\nDay 3 - Old Goa churches, spice plantation tour\nDay 4 - Dudhsagar Falls day trip 🚗\nDay 5 - Return to Mumbai\n...`}
                     value={importForm.scheduleText}
                     onChange={(e) => setImportForm(prev => ({ ...prev, scheduleText: e.target.value }))}
                     className="bg-muted border text-foreground placeholder:text-muted-foreground min-h-[200px] font-mono text-sm"
