@@ -7,9 +7,11 @@ import { AiUtilitiesService } from "../AiUtilitiesService";
 
 const startTime = Date.now();
 
-// TEMP diagnostic — checks OpenAI reachability/quota only. Remove after use.
+// TEMP diagnostic — checks OpenAI + Groq reachability/quota. Remove after use.
 export const diagOpenai = async (_req: Request, res: Response) => {
-    const out: Record<string, any> = { keyPresent: !!config.OPENAI_API_KEY };
+    const out: Record<string, any> = {};
+
+    out.openai = { keyPresent: !!config.OPENAI_API_KEY };
     if (config.OPENAI_API_KEY) {
         try {
             const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -17,13 +19,30 @@ export const diagOpenai = async (_req: Request, res: Response) => {
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.OPENAI_API_KEY}` },
                 body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: "ping" }], max_tokens: 5 }),
             });
-            out.status = r.status;
-            if (!r.ok) out.error = (await r.text()).slice(0, 400);
-            else out.ok = true;
+            out.openai.status = r.status;
+            if (!r.ok) out.openai.error = (await r.text()).slice(0, 400);
+            else out.openai.ok = true;
         } catch (e: any) {
-            out.error = e.message;
+            out.openai.error = e.message;
         }
     }
+
+    out.groq = { keyPresent: !!config.GROQ_API_KEY };
+    if (config.GROQ_API_KEY) {
+        try {
+            const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.GROQ_API_KEY}` },
+                body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: "ping" }], max_tokens: 5 }),
+            });
+            out.groq.status = r.status;
+            if (!r.ok) out.groq.error = (await r.text()).slice(0, 400);
+            else out.groq.ok = true;
+        } catch (e: any) {
+            out.groq.error = e.message;
+        }
+    }
+
     res.json(out);
 };
 
