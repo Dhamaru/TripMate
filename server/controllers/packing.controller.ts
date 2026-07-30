@@ -113,7 +113,7 @@ export const generatePackingList = async (req: Request, res: Response, next: Nex
         );
 
         logger.info(`[packing] Generated packing list via Orchestrator for trip ${tripId}`);
-        socketService.broadcastMutation(tripId as string, { type: "packing-updated", data: packingList });
+        socketService.broadcastMutation(tripId as string, { type: "packing-updated", data: packingList }, String(userId));
         res.json({ success: true, data: packingList });
     } catch (err) {
         next(err);
@@ -194,7 +194,7 @@ export const updatePackingItem = async (req: Request, res: Response, next: NextF
 
         await list.save();
         if (list.tripId) {
-            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list });
+            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list }, String(userId));
         }
         res.json(list);
     } catch (error) {
@@ -220,7 +220,7 @@ export const deletePackingList = async (req: Request, res: Response, next: NextF
 
         await PackingListModel.deleteOne({ _id: req.params.id });
         if (list.tripId) {
-            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-deleted", data: { id: req.params.id } });
+            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-deleted", data: { id: req.params.id } }, String(userId));
         }
         res.status(204).send();
     } catch (error) {
@@ -242,7 +242,7 @@ export const updatePackingList = async (req: Request, res: Response, next: NextF
         if (!list) throw new NotFoundError("Packing list not found");
         
         if (list.tripId) {
-            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list });
+            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list }, String(userId));
         }
         
         res.json(list);
@@ -266,7 +266,7 @@ export const togglePackingItem = async (req: Request, res: Response, next: NextF
         await list.save();
 
         if (list.tripId) {
-            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list });
+            socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list }, String(userId));
         }
 
         res.json(item);

@@ -30,7 +30,7 @@ export const addExpense = async (req: Request, res: Response, next: NextFunction
         
         await trip.save();
 
-        socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses });
+        socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses }, String(userId));
 
         res.status(201).json(trip);
     } catch (error) {
@@ -60,7 +60,7 @@ export const updateExpense = async (req: Request, res: Response, next: NextFunct
         trip.markModified("expenses");
         await trip.save();
 
-        socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses });
+        socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses }, String(userId));
 
         res.json(trip);
     } catch (error) {
@@ -85,7 +85,7 @@ export const deleteExpense = async (req: Request, res: Response, next: NextFunct
         if (trip.expenses) {
             trip.expenses = trip.expenses.filter(e => e.id !== expenseId);
             await trip.save();
-            socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses });
+            socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses }, String(userId));
         }
 
         res.status(204).send();

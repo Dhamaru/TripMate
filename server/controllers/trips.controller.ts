@@ -119,7 +119,7 @@ export const updateTrip = async (req: Request, res: Response, next: NextFunction
         );
         if (!trip) throw new ForbiddenError("Trip not found or insufficient permissions");
         
-        socketService.broadcastMutation((trip as any)._id.toString(), { type: "trip-updated", data: trip });
+        socketService.broadcastMutation((trip as any)._id.toString(), { type: "trip-updated", data: trip }, String(userId));
         
         res.json(trip);
     } catch (error) {
@@ -161,7 +161,7 @@ export const shareTrip = async (req: Request, res: Response, next: NextFunction)
         
         if (!trip) throw new NotFoundError("Trip not found");
 
-        socketService.broadcastMutation((trip as any)._id.toString(), { type: "trip-updated", data: trip });
+        socketService.broadcastMutation((trip as any)._id.toString(), { type: "trip-updated", data: trip }, String(userId));
 
         res.json(trip);
     } catch (error) {

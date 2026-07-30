@@ -37,7 +37,7 @@ export const createEntry = async (req: Request, res: Response, next: NextFunctio
         });
 
         if (entry.tripId) {
-            socketService.broadcastMutation(entry.tripId.toString(), { type: "journal-updated", data: entry });
+            socketService.broadcastMutation(entry.tripId.toString(), { type: "journal-updated", data: entry }, String(userId));
         }
 
         res.status(201).json(entry);
@@ -117,7 +117,7 @@ export const updateEntry = async (req: Request, res: Response, next: NextFunctio
         );
 
         if (updatedEntry?.tripId) {
-            socketService.broadcastMutation(updatedEntry.tripId.toString(), { type: "journal-updated", data: updatedEntry });
+            socketService.broadcastMutation(updatedEntry.tripId.toString(), { type: "journal-updated", data: updatedEntry }, String(userId));
         }
 
         res.json(updatedEntry);
@@ -150,7 +150,7 @@ export const deleteEntry = async (req: Request, res: Response, next: NextFunctio
         await JournalEntryModel.deleteOne({ _id: entryId });
 
         if (entry.tripId) {
-            socketService.broadcastMutation(entry.tripId.toString(), { type: "journal-deleted", data: { id: entryId } });
+            socketService.broadcastMutation(entry.tripId.toString(), { type: "journal-deleted", data: { id: entryId } }, String(userId));
         }
 
         res.status(204).send();

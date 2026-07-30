@@ -30,7 +30,7 @@ export const addActivity = async (req: Request, res: Response, next: NextFunctio
         trip.markModified("itinerary");
         await trip.save();
 
-        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary });
+        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
 
         res.status(201).json(trip);
     } catch (error) {
@@ -63,7 +63,7 @@ export const updateActivity = async (req: Request, res: Response, next: NextFunc
         trip.markModified("itinerary");
         await trip.save();
 
-        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary });
+        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
 
         res.json(trip);
     } catch (error) {
@@ -91,7 +91,7 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
             day.activities = day.activities.filter((a: any) => a.id !== activityId);
             trip.markModified("itinerary");
             await trip.save();
-            socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary });
+            socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
         }
 
         res.json(trip);
@@ -119,7 +119,7 @@ export const reorderItinerary = async (req: Request, res: Response, next: NextFu
         );
         if (!trip) throw new NotFoundError("Trip not found or access denied");
 
-        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary });
+        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
 
         res.json(trip);
     } catch (error) {
@@ -162,7 +162,7 @@ export const toggleVote = async (req: Request, res: Response, next: NextFunction
         trip.markModified("itinerary");
         await trip.save();
 
-        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary });
+        socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
         res.json(trip);
     } catch (error) {
         next(error);

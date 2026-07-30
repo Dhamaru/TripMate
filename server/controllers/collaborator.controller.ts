@@ -41,7 +41,7 @@ export const addCollaborator = async (req: Request, res: Response, next: NextFun
             { new: true }
         );
 
-        socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updatedTrip });
+        socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updatedTrip }, String(userId));
 
         res.json(updatedTrip);
     } catch (error) {
@@ -68,7 +68,7 @@ export const removeCollaborator = async (req: Request, res: Response, next: Next
             { new: true }
         );
 
-        socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updatedTrip });
+        socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updatedTrip }, String(userId));
 
         res.json(updatedTrip);
     } catch (error) {

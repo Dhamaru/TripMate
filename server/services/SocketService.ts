@@ -40,7 +40,16 @@ export class SocketService {
 
         // Auth middleware — reject invalid tokens, allow missing (public/guest connections)
         this.io.use((socket: AuthenticatedSocket, next) => {
-            const token = socket.handshake.auth?.token;
+            // The client never sets handshake.auth.token — the JWT lives in
+            // an httpOnly "token" cookie (set in auth.controller.ts), which
+            // socket.io does receive on the handshake request but does not
+            // parse into handshake.auth. Without this fallback every
+            // connection was treated as an unauthenticated guest, so
+            // join-trip always rejected and real-time collaboration never
+            // worked for any signed-in user.
+            const cookieHeader = socket.handshake.headers.cookie ?? "";
+            const cookieToken = cookieHeader.match(/(?:^|;\s*)token=([^;]+)/)?.[1];
+            const token = socket.handshake.auth?.token ?? cookieToken;
             if (!token) {
                 // No token — unauthenticated connection allowed (read-only / public trip view)
                 return next();
@@ -113,10 +122,24 @@ export class SocketService {
         }
     }
 
-    public broadcastMutation(tripId: string, mutation: { type: string; data?: any }) {
-        if (this.io) {
-            this.io.to(`trip:${tripId}`).emit("trip-mutation", mutation);
+    public broadcastMutation(tripId: string, mutation: { type: string; data?: any }, excludeUserId?: string) {
+        if (!this.io) return;
+        const room = `trip:${tripId}`;
+        if (!excludeUserId) {
+            this.io.to(room).emit("trip-mutation", mutation);
+            return;
         }
+        // broadcastMutation is called from REST controllers, not a socket
+        // handler, so there's no single "sender socket" to exclude with
+        // socket.to() — instead find every connected socket for this user
+        // in the room (they may have multiple tabs open) and skip those,
+        // so the actor doesn't get a "A collaborator updated..." toast for
+        // their own change.
+        const roomSocketIds = this.io.sockets.adapter.rooms.get(room);
+        const excludeSocketIds = roomSocketIds
+            ? [...roomSocketIds].filter((id) => (this.io!.sockets.sockets.get(id) as AuthenticatedSocket | undefined)?.userId === excludeUserId)
+            : [];
+        this.io.to(room).except(excludeSocketIds).emit("trip-mutation", mutation);
     }
 
     public broadcastAtlasThinking(tripId: string, isThinking: boolean) {

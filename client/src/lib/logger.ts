@@ -1,11 +1,23 @@
 type LogPayload = Record<string, any> | undefined;
 
+// Duplicated from queryClient.ts's readCookie/getCsrfToken rather than
+// imported — queryClient.ts already imports logError from this file, and
+// importing back from it here would create a circular module dependency.
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function send(url: string, body: any) {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const csrfToken = getCsrfToken();
+    if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
     await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
+      credentials: "include",
       keepalive: true,
     });
   } catch {}
