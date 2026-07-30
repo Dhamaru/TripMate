@@ -86,6 +86,39 @@ export class AiUtilitiesService {
     }
   }
 
+  // NVIDIA's OpenAI-compatible chat endpoint — the same provider the main
+  // itinerary-generation pipeline (agentLoop.ts) uses as its primary model,
+  // but this service's other text-generation methods only ever fell back to
+  // Gemini then OpenAI. When both of those are quota-exhausted, those
+  // methods have no working provider left even though NVIDIA is reachable.
+  private async generateWithNvidia(prompt: string, systemPrompt?: string): Promise<string> {
+    const nvidiaKey = config.NVIDIA_API_KEY;
+    if (!nvidiaKey) throw new Error('nvidia_disabled');
+
+    const messages = systemPrompt
+      ? [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }]
+      : [{ role: 'user', content: prompt }];
+
+    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${nvidiaKey}` },
+      body: JSON.stringify({
+        model: 'meta/llama-3.1-8b-instruct',
+        messages,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`NVIDIA status ${response.status}: ${await response.text()}`);
+    }
+
+    const json = await response.json();
+    const text = json.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error('NVIDIA returned an empty response');
+    return text;
+  }
+
   private getCached<T>(key: string): T | null {
     const entry = this.cache.get(key);
     if (entry && entry.expiresAt > Date.now()) return entry.data as T;
@@ -2102,17 +2135,21 @@ Return ONLY valid JSON, no markdown, no explanation:
     let raw = '';
     try {
       raw = await this.generateWithGemini(prompt);
-    } catch (e) {
-      // Fallback to OpenAI if Gemini fails
-      if (this.openai) {
-        const res = await this.openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-        });
-        raw = res.choices[0]?.message?.content || '{}';
-      } else {
-        throw new Error('No AI provider available');
+    } catch (geminiError) {
+      // Fallback to NVIDIA, then OpenAI, if Gemini fails
+      try {
+        raw = await this.generateWithNvidia(prompt);
+      } catch (nvidiaError) {
+        if (this.openai) {
+          const res = await this.openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.3,
+          });
+          raw = res.choices[0]?.message?.content || '{}';
+        } else {
+          throw new Error('No AI provider available');
+        }
       }
     }
 
