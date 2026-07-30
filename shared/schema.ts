@@ -618,6 +618,33 @@ export const insertFeedbackSchema = z.object({
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
 export type Feedback = IFeedback;
 
+export interface INotification extends Document {
+  userId: string;
+  type: string; // "collaborator-invite" | "trip-mutation" | ...
+  title: string;
+  message: string;
+  link?: string;
+  tripId?: string;
+  read: boolean;
+  createdAt: Date;
+}
+
+const notificationSchema = new Schema<INotification>(
+  {
+    userId: { type: String, required: true, index: true },
+    type: { type: String, required: true },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    link: { type: String },
+    tripId: { type: String },
+    read: { type: Boolean, default: false, index: true },
+  },
+  { timestamps: true, toJSON: baseToJSON, versionKey: false }
+);
+
+export const NotificationModel: Model<INotification> = mongoose.model<INotification>("Notification", notificationSchema);
+export type Notification = INotification;
+
 export async function connectMongo(uri: string) {
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(uri, {

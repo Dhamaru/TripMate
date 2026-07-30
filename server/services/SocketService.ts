@@ -66,6 +66,14 @@ export class SocketService {
         this.io.on("connection", (socket: AuthenticatedSocket) => {
             log(`[Socket] Client connected: ${socket.id} (user: ${socket.userId ?? "guest"})`);
 
+            // A personal room, independent of any trip — lets us push a
+            // notification to a user regardless of what page they're on,
+            // rather than only to sockets that happened to join a specific
+            // trip room. Every authenticated connection gets this for free.
+            if (socket.userId) {
+                socket.join(`user:${socket.userId}`);
+            }
+
             socket.on("join-trip", ({ tripId, userName, avatar }) => {
                 // Always use server-verified userId from JWT — never trust client payload
                 const userId = socket.userId;
@@ -146,6 +154,15 @@ export class SocketService {
         if (this.io) {
             this.io.to(`trip:${tripId}`).emit("atlas-thinking", { isThinking });
         }
+    }
+
+    // Push a notification to every connection a user currently has open
+    // (any tab, any page) — the DB row is the source of truth (so it shows
+    // up on next load / other devices too); this just makes it appear live
+    // without a reload for whoever's online right now.
+    public pushNotification(userId: string, notification: { id: string; type: string; title: string; message: string; link?: string; createdAt: string }) {
+        if (!this.io) return;
+        this.io.to(`user:${userId}`).emit("notification", notification);
     }
 }
 

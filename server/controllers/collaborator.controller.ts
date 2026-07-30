@@ -3,6 +3,7 @@ import { TripModel, UserModel } from "@shared/schema";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
 import { sendCollaboratorInviteEmail } from "../email";
+import { notifyUser } from "../notifications";
 
 export const addCollaborator = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -54,9 +55,18 @@ export const addCollaborator = async (req: Request, res: Response, next: NextFun
             try {
                 const inviter = await UserModel.findById(userId);
                 const inviterName = (inviter && (`${inviter.firstName || ''} ${inviter.lastName || ''}`.trim() || inviter.email)) || 'A TripMate user';
-                await sendCollaboratorInviteEmail(email.toLowerCase(), inviterName, trip.destination || 'a trip', tripId, role || 'editor');
+                const destination = trip.destination || 'a trip';
+                await sendCollaboratorInviteEmail(email.toLowerCase(), inviterName, destination, tripId, role || 'editor');
+                await notifyUser({
+                    userId: userToAddId,
+                    type: 'collaborator-invite',
+                    title: 'Added to a trip',
+                    message: `${inviterName} added you as a${role === 'viewer' ? ' viewer' : 'n editor'} on their trip to ${destination}.`,
+                    link: `/app/trips/${tripId}`,
+                    tripId,
+                });
             } catch (e) {
-                console.error('[Collaborator] Invite email failed:', e);
+                console.error('[Collaborator] Invite email/notification failed:', e);
             }
         });
     } catch (error) {

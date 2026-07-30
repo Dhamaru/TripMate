@@ -33,6 +33,7 @@ import journalRoutes from './routes/journal.routes';
 import orchestratorRoutes from "./routes/orchestrator.routes";
 import suggestionRoutes from "./routes/suggestion.routes";
 import feedbackRoutes from "./routes/feedback.routes";
+import notificationsRoutes from "./routes/notifications.routes";
 import agentRoutes from "./routes/agent.routes";
 import placesRoutes from "./routes/places.routes";
 import emergencyRoutes from "./routes/emergency.routes";
@@ -90,6 +91,7 @@ app.use("/api/v1/planner", plannerRoutes);
 app.use("/api/v1/itinerary", itineraryRoutes);
 app.use("/api/v1/agent", agentRoutes);
 app.use("/api/v1/feedback", feedbackRoutes);
+app.use("/api/v1/notifications", notificationsRoutes);
 app.use("/api/v1/crowd", crowdRoutes);
 // packingRoutes/journalRoutes define their own full sub-paths
 // (/trips/:id/packing, /packing, /journal) — mount at the bare /api/v1

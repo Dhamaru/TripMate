@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/NotificationBell";
 import { useAuthStore } from "@/store";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -190,7 +191,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           <div className="hidden md:block" />
 
-          {/* Right: user */}
+          {/* Right: notifications + user */}
+          <div className="flex items-center gap-3">
+          <NotificationBell />
           <Link href="/app/profile">
             <div className="flex items-center gap-3 cursor-pointer group">
               <div className="hidden md:flex flex-col items-end">
@@ -214,6 +217,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Avatar>
             </div>
           </Link>
+          </div>
         </header>
 
         {/* Page content */}
