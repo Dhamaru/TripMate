@@ -155,8 +155,14 @@ router.post("/sessions/:id/revoke", requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any)?._id?.toString() || (req.user as any)?.id?.toString();
     const { id } = req.params;
-    // Synthetic JWT session — nothing to delete in DB
-    if (id === "current") return res.json({ ok: true });
+    // Synthetic JWT session — there's no DB row to delete, but this IS
+    // the active session, so revoking it has to actually sign the user
+    // out (clear the auth cookie), or it's a no-op that looks like it
+    // worked: the same session reappears on the next page load.
+    if (id === "current") {
+      res.clearCookie("token", { path: "/" });
+      return res.json({ ok: true });
+    }
     const col = mongoose.connection.db?.collection("sessions");
     if (!col) return res.status(500).json({ error: "Session store unavailable" });
     const doc = await col.findOne({ _id: id as any });
