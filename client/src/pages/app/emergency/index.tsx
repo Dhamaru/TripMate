@@ -148,7 +148,7 @@ export default function EmergencyPage() {
           <Input
             type="text"
             value={searchLocation}
-            onChange={(e) => { setSearchLocation(e.target.value); setCoords(null); }}
+            onChange={(e) => setSearchLocation(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
             placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
             className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#163F73]/30"
