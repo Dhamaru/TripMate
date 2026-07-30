@@ -12,23 +12,26 @@ import { config } from '../config';
 const MAX_ITERATIONS = 10;
 // NVIDIA NIM models answer a trivial ping fine but have been observed timing
 // out on the real request (full system prompt + tool schema) even when not
-// quota-exhausted — Groq is a confirmed-reliable third tier for exactly that
-// case, using the same OpenAI-compatible chat completions shape.
+// quota-exhausted. Groq is confirmed fast and reliable, so it sits second —
+// right after the first, fastest-to-fail NVIDIA attempt — rather than last:
+// the client has its own ~35s stall watchdog, and two 25s NVIDIA timeouts
+// back-to-back before ever reaching a working provider would blow past that
+// budget and surface as "Connection lost" before Groq got a chance to answer.
 const MODELS = [
     'meta/llama-3.3-70b-instruct',
-    'deepseek-ai/deepseek-v4-flash',
     'llama-3.3-70b-versatile',
+    'deepseek-ai/deepseek-v4-flash',
 ];
 const MODEL_BASE_URLS = [
     'https://integrate.api.nvidia.com/v1',
-    'https://integrate.api.nvidia.com/v1',
     'https://api.groq.com/openai/v1',
+    'https://integrate.api.nvidia.com/v1',
 ];
 // Each model has its own NVIDIA NIM key (free-tier keys are per-model scoped).
 const MODEL_KEYS = [
     config.NVIDIA_API_KEY_2,
-    config.NVIDIA_API_KEY_1,
     config.GROQ_API_KEY,
+    config.NVIDIA_API_KEY_1,
 ];
 
 /** Summarizes conversation history when estimated tokens exceed 4000 to prevent context overflow. */

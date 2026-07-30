@@ -43,8 +43,10 @@ export const agentApi = {
         // Without a watchdog, a hung backend request leaves the UI's
         // isLoading stuck true forever. Reset this on every event received;
         // fire once if the gap since the last event (or connection open)
-        // exceeds STALL_TIMEOUT_MS.
-        const STALL_TIMEOUT_MS = 35_000
+        // exceeds STALL_TIMEOUT_MS. Must comfortably exceed the server's
+        // per-model timeout (25s) plus room for a fallback attempt, or this
+        // fires before the backend's own model-fallback chain gets a chance.
+        const STALL_TIMEOUT_MS = 45_000
         let stallTimer: ReturnType<typeof setTimeout>
         let settled = false
         const resetStallTimer = () => {
