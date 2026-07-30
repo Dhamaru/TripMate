@@ -574,18 +574,27 @@ export class AiUtilitiesService {
       // doesn't reason about "near" in free text. This is the real path
       // most users hit now that the OpenAI primary path is quota-exhausted.
       let center: { lat: number; lon: number } | null = null;
-      try {
-        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}&limit=1`, {
-          headers: { 'User-Agent': 'TripMate/1.0' }
-        });
-        if (geoRes.ok) {
-          const geoJson = await geoRes.json();
-          if (Array.isArray(geoJson) && geoJson[0]) {
-            center = { lat: parseFloat(geoJson[0].lat), lon: parseFloat(geoJson[0].lon) };
+
+      // "Near your location" sends raw "lat,lon" as the location string —
+      // that's already coordinates, forward-geocoding it through Nominatim's
+      // text search doesn't work (it's not a place name). Use it directly.
+      const coordMatch = loc.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/);
+      if (coordMatch) {
+        center = { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[2]) };
+      } else {
+        try {
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}&limit=1`, {
+            headers: { 'User-Agent': 'TripMate/1.0' }
+          });
+          if (geoRes.ok) {
+            const geoJson = await geoRes.json();
+            if (Array.isArray(geoJson) && geoJson[0]) {
+              center = { lat: parseFloat(geoJson[0].lat), lon: parseFloat(geoJson[0].lon) };
+            }
           }
+        } catch (e) {
+          console.warn(`Emergency: geocoding failed for ${loc}`, e);
         }
-      } catch (e) {
-        console.warn(`Emergency: geocoding failed for ${loc}`, e);
       }
 
       if (center) {
