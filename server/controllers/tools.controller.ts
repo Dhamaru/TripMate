@@ -9,38 +9,15 @@ const startTime = Date.now();
 
 // TEMP diagnostic — checks SMTP connectivity/auth without sending an email.
 // Remove after use.
-export const diagSmtp = async (req: Request, res: Response) => {
-    const out: Record<string, any> = {};
+export const diagSmtp = async (_req: Request, res: Response) => {
     try {
         const { getTransporterForDiag } = await import("../email");
         const transporter = await getTransporterForDiag();
         await transporter.verify();
-        out.verify = { ok: true };
+        res.json({ ok: true });
     } catch (e: any) {
-        out.verify = { ok: false, error: e.message, code: e.code, command: e.command };
+        res.json({ ok: false, error: e.message, code: e.code, command: e.command });
     }
-
-    // verify() only checks the auth handshake, not sending quota — attempt a
-    // real send if a `to` query param is given, since that's the only way to
-    // catch a quota-exceeded rejection specifically.
-    const to = req.query.to as string;
-    if (to) {
-        try {
-            const { getTransporterForDiag } = await import("../email");
-            const transporter = await getTransporterForDiag();
-            const info = await transporter.sendMail({
-                from: process.env.SMTP_FROM || process.env.SMTP_USER,
-                to,
-                subject: "TripMate SMTP diagnostic",
-                text: "This is a one-off diagnostic email to confirm sending works.",
-            });
-            out.send = { ok: true, messageId: info.messageId, response: info.response };
-        } catch (e: any) {
-            out.send = { ok: false, error: e.message, code: e.code, command: e.command, response: e.response, responseCode: e.responseCode };
-        }
-    }
-
-    res.json(out);
 };
 
 // ─── Public endpoints (no auth) ───────────────────────────────────────────────
