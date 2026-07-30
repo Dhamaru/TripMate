@@ -13,6 +13,16 @@ function sanitize(input: string, max = 2000): string {
   return safe.slice(0, max);
 }
 
+// Mirrors the language list in client/src/components/LanguageTranslator.tsx —
+// small instruct models translate far more reliably from a spelled-out
+// language name than a bare ISO code.
+const LANGUAGE_NAMES: Record<string, string> = {
+  auto: 'the detected language',
+  en: 'English', hi: 'Hindi', ta: 'Tamil', te: 'Telugu', kn: 'Kannada',
+  ml: 'Malayalam', gu: 'Gujarati', mr: 'Marathi', pa: 'Punjabi',
+  bn: 'Bengali', ur: 'Urdu', fr: 'French', de: 'German', es: 'Spanish',
+};
+
 export class AiUtilitiesService {
   private openai: OpenAI | null;
   private cache = new Map<string, CacheEntry<any>>();
@@ -237,7 +247,7 @@ export class AiUtilitiesService {
     try {
       if (!this.openai) throw new Error('ai_disabled');
       const client = this.openai!;
-      const prompt = `Translate the following text from ${from} to ${to}. Return only the translated text and optional pronunciation in a JSON format.`;
+      const prompt = `Translate the following text from ${LANGUAGE_NAMES[from] || from} to ${LANGUAGE_NAMES[to] || to}. Write the translation in the native script of ${LANGUAGE_NAMES[to] || to} (not a Romanized transliteration). Return only the translated text and optional pronunciation in a JSON format.`;
       const completion = await client.chat.completions.create({
         model: "gpt-4o-mini",
         temperature: 0,
@@ -258,7 +268,12 @@ export class AiUtilitiesService {
       // a real translation instead of a lookup, so try it before falling
       // all the way to MyMemory.
       try {
-        const prompt = `Translate the following text from ${from} to ${to}. Reply with ONLY the translated text, no explanation, no quotes.`;
+        // Small instruct models are unreliable with bare ISO codes (observed:
+        // asking for "te" produced Hindi written in Roman transliteration,
+        // not Telugu script at all) — spell out the language name and
+        // explicitly require native script to stop it from transliterating.
+        const langName = (code: string) => LANGUAGE_NAMES[code] || code;
+        const prompt = `Translate the following text from ${langName(from)} to ${langName(to)}. Write the translation in the native script of ${langName(to)} (not a Romanized transliteration). Reply with ONLY the translated text, no explanation, no quotes.`;
         const nvidiaText = await this.generateWithNvidia(t, prompt);
         if (nvidiaText && nvidiaText.trim()) {
           const result = { translatedText: nvidiaText.trim(), pronunciation: undefined };

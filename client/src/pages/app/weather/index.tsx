@@ -21,6 +21,11 @@ export default function WeatherPage() {
   const debounceRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
+  // Set right before a programmatic setSearchLocation (resolved search
+  // result, suggestion click, geolocation) so the suggestions effect below
+  // doesn't treat it as new typing and re-fetch + repopulate the dropdown
+  // with the very result that was just selected.
+  const skipNextSuggestFetchRef = useRef(false);
 
   useEffect(() => {
     // Auto-load user's location weather on mount
@@ -86,6 +91,11 @@ export default function WeatherPage() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
 
+    if (skipNextSuggestFetchRef.current) {
+      skipNextSuggestFetchRef.current = false;
+      return;
+    }
+
     const q = searchLocation.trim();
     if (!q || q.length < 3) { setSuggestions([]); setActiveIndex(-1); return; }
 
@@ -147,6 +157,7 @@ export default function WeatherPage() {
           const name = parsed.displayName || "Current Location";
           setDisplayName(name);
           setLocation(name);
+          skipNextSuggestFetchRef.current = true;
           setSearchLocation(name);
         } else {
           setCoords({ lat, lon });
@@ -190,6 +201,7 @@ export default function WeatherPage() {
       setCoords({ lat: parsed.lat, lon: parsed.lon });
       setDisplayName(parsed.displayName ?? query);
       setLocation(parsed.displayName || query);
+      skipNextSuggestFetchRef.current = true;
       setSearchLocation(parsed.displayName || query);
       setSuggestions([]);
       setActiveIndex(-1);
@@ -225,6 +237,7 @@ export default function WeatherPage() {
                   setCoords({ lat: s.lat, lon: s.lon });
                   setDisplayName(s.name);
                   setLocation(s.name);
+                  skipNextSuggestFetchRef.current = true;
                   setSearchLocation(s.name);
                   setSuggestions([]);
                 } else {
@@ -259,6 +272,7 @@ export default function WeatherPage() {
                   setCoords({ lat: s.lat, lon: s.lon });
                   setDisplayName(s.name);
                   setLocation(s.name);
+                  skipNextSuggestFetchRef.current = true;
                   setSearchLocation(s.name);
                   setSuggestions([]);
                 }}
