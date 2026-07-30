@@ -251,7 +251,22 @@ export class AiUtilitiesService {
       const result = { translatedText: String(json.translatedText || ""), pronunciation: json.pronunciation ? String(json.pronunciation) : undefined };
       return this.setCached(key, result);
     } catch {
-      // Fallback: MyMemory free translation API (no key required)
+      // Fallback 1: NVIDIA (reliable LLM translation). MyMemory's free
+      // crowd-sourced translation memory can return confidently wrong
+      // results even for common phrases — e.g. "Thank you" -> a sentence
+      // about reciting a poem, with match:1 (max confidence). NVIDIA gives
+      // a real translation instead of a lookup, so try it before falling
+      // all the way to MyMemory.
+      try {
+        const prompt = `Translate the following text from ${from} to ${to}. Reply with ONLY the translated text, no explanation, no quotes.`;
+        const nvidiaText = await this.generateWithNvidia(t, prompt);
+        if (nvidiaText && nvidiaText.trim()) {
+          const result = { translatedText: nvidiaText.trim(), pronunciation: undefined };
+          return this.setCached(key, result);
+        }
+      } catch { /* fall through to MyMemory */ }
+
+      // Fallback 2: MyMemory free translation API (no key required)
       try {
         const langPair = `${from === 'auto' ? 'en' : from}|${to}`;
         const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=${encodeURIComponent(langPair)}`;
