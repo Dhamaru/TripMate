@@ -247,9 +247,35 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         html: `<div style="background-color: ${pin.color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
         iconSize: [20, 20]
       });
+
+      // Build the popup as real DOM nodes with a bound listener instead of
+      // an HTML string with an inline onclick= attribute — the CSP here has
+      // no 'unsafe-inline' in script-src, so inline event handler attributes
+      // are silently blocked by the browser. That made the Delete button
+      // a no-op in production despite looking and rendering fine.
+      const popupEl = document.createElement('div');
+      const title = document.createElement('b');
+      title.textContent = pin.name;
+      popupEl.appendChild(title);
+      if (pin.note) {
+        popupEl.appendChild(document.createElement('br'));
+        popupEl.appendChild(document.createTextNode(pin.note));
+      }
+      popupEl.appendChild(document.createElement('br'));
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.style.color = 'red';
+      deleteBtn.style.fontSize = '10px';
+      deleteBtn.style.marginTop = '4px';
+      deleteBtn.addEventListener('click', () => {
+        setCustomPins(prev => prev.filter(p => p.id !== pin.id));
+        toast({ title: "Pin Deleted" });
+      });
+      popupEl.appendChild(deleteBtn);
+
       const marker = L.marker([pin.lat, pin.lng], { icon })
         .addTo(map)
-        .bindPopup(`<b>${pin.name}</b><br/>${pin.note || ''}<br/><button onclick="window.dispatchEvent(new CustomEvent('delete-pin', {detail: '${pin.id}'}))" style="color:red; font-size:10px; margin-top:4px;">Delete</button>`);
+        .bindPopup(popupEl);
       pinMarkersRef.current.push(marker);
     });
   };
@@ -297,14 +323,6 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       // I will rely on a "Add Pin Current Location" button in the UI instead of click-map for stability.
     });
 
-    // Event listener for pin deletion (via popup)
-    const handleDeletePin = ((e: CustomEvent) => {
-      setCustomPins(prev => prev.filter(p => p.id !== e.detail));
-      toast({ title: "Pin Deleted" });
-    }) as EventListener;
-    window.addEventListener('delete-pin', handleDeletePin);
-
-
     // Initial state: Prioritize Geolocation
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -333,7 +351,6 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     refreshPinMarkers();
 
     return () => {
-      window.removeEventListener('delete-pin', handleDeletePin);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
