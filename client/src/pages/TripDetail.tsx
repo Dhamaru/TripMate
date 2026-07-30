@@ -672,12 +672,12 @@ export default function TripDetail() {
                 </motion.div>
               )}
             </AnimatePresence>
-            <div className="flex items-center gap-2 self-start">
+            <div className="flex items-center gap-2 self-start flex-wrap">
               <Badge className={`${statusColors[trip?.status as keyof typeof statusColors] || 'bg-muted-foreground'} text-white`}>
                 {trip?.status ? (trip.status.charAt(0).toUpperCase() + trip.status.slice(1)) : 'Planning'}
               </Badge>
               {!isEditing && (
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {id && trip && (
                     <div className="flex items-center space-x-4">
                       <PresenceBubbles tripId={id} />
