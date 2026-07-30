@@ -28,6 +28,16 @@ export default function Feedback() {
         if (!form.category) missing.push('Category');
         if (!form.subject.trim()) missing.push('Subject');
         if (!form.description.trim()) missing.push('Description');
+        const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+        if (!form.email.trim()) missing.push('Email');
+        else if (!emailValid) {
+            toast({
+                title: 'Invalid email',
+                description: 'Please enter a valid email address.',
+                variant: 'destructive',
+            });
+            return;
+        }
         if (missing.length > 0) {
             toast({
                 title: 'Missing required fields',
@@ -83,7 +93,7 @@ export default function Feedback() {
                         <CardTitle className="text-foreground">Submit Feedback or Report Issue</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} noValidate className="space-y-6">
                             {/* Type Selection */}
                             <div>
                                 <label className="block text-sm font-semibold text-foreground mb-2">
