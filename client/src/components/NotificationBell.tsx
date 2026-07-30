@@ -92,7 +92,7 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0 max-h-96 overflow-hidden flex flex-col">
+      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-1rem))] p-0 max-h-96 overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-3 py-2 border-b border-[hsl(var(--border))]">
           <span className="text-sm font-semibold text-[hsl(var(--foreground))]">Notifications</span>
           {unreadCount > 0 && (

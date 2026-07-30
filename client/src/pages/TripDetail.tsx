@@ -899,20 +899,20 @@ export default function TripDetail() {
         {/* Trip Content — Tabbed */}
         <Tabs defaultValue="overview" className="space-y-0">
           <TabsList className="flex w-full bg-muted/50 rounded-xl mb-6 p-1 h-auto gap-0.5 overflow-x-auto">
-            <TabsTrigger value="overview"   className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
-              <i className="fas fa-compass mr-1.5" />Overview
+            <TabsTrigger value="overview"   className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-compass mr-1 sm:mr-1.5" />Overview
             </TabsTrigger>
-            <TabsTrigger value="itinerary"  className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
-              <i className="fas fa-route mr-1.5" />Itinerary
+            <TabsTrigger value="itinerary"  className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-route mr-1 sm:mr-1.5" />Itinerary
             </TabsTrigger>
-            <TabsTrigger value="map"        className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
-              <i className="fas fa-map-marked-alt mr-1.5" />Map
+            <TabsTrigger value="map"        className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-map-marked-alt mr-1 sm:mr-1.5" />Map
             </TabsTrigger>
-            <TabsTrigger value="budget"     className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
-              <i className="fas fa-wallet mr-1.5" />Budget
+            <TabsTrigger value="budget"     className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-wallet mr-1 sm:mr-1.5" />Budget
             </TabsTrigger>
-            <TabsTrigger value="places"     className="flex-1 min-w-[80px] rounded-lg text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
-              <i className="fas fa-search-location mr-1.5" />Places
+            <TabsTrigger value="places"     className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2">
+              <i className="fas fa-search-location mr-1 sm:mr-1.5" />Places
             </TabsTrigger>
           </TabsList>
 
