@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { TripModel, UserModel } from "@shared/schema";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
+import { sendCollaboratorInviteEmail } from "../email";
 
 export const addCollaborator = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -44,6 +45,20 @@ export const addCollaborator = async (req: Request, res: Response, next: NextFun
         socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updatedTrip }, String(userId));
 
         res.json(updatedTrip);
+
+        // Fire-and-forget — the invited user otherwise has no way to find
+        // out they were added except being live on a socket connection to
+        // this exact trip at this exact moment, which basically never
+        // happens. Same silent-feature-gap pattern as the feedback form.
+        setImmediate(async () => {
+            try {
+                const inviter = await UserModel.findById(userId);
+                const inviterName = (inviter && (`${inviter.firstName || ''} ${inviter.lastName || ''}`.trim() || inviter.email)) || 'A TripMate user';
+                await sendCollaboratorInviteEmail(email.toLowerCase(), inviterName, trip.destination || 'a trip', tripId, role || 'editor');
+            } catch (e) {
+                console.error('[Collaborator] Invite email failed:', e);
+            }
+        });
     } catch (error) {
         next(error);
     }

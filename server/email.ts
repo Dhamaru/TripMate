@@ -128,6 +128,31 @@ async function sendViaResend(to: string, subject: string, html: string, text: st
     }
 }
 
+export async function sendCollaboratorInviteEmail(toEmail: string, inviterName: string, destination: string, tripId: string, role: string) {
+    const tripUrl = `${config.FRONTEND_URL || "http://localhost:5000"}/app/trips/${tripId}`;
+    const subject = `${inviterName} added you to a trip on TripMate`;
+    const text = `${inviterName} added you as a${role === 'viewer' ? ' viewer' : 'n editor'} on their trip to ${destination}.\n\nOpen it here:\n${tripUrl}`;
+    const html = `<div style="font-family:sans-serif;max-width:480px;margin:auto">
+<h2 style="color:#1E3A8A">You've been added to a trip</h2>
+<p><strong>${inviterName}</strong> added you as a${role === 'viewer' ? ' viewer' : 'n editor'} on their trip to <strong>${destination}</strong>.</p>
+<a href="${tripUrl}" style="display:inline-block;background:#F59E0B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">Open Trip</a>
+</div>`;
+
+    const sentViaResend = await sendViaResend(toEmail, subject, html, text);
+    if (sentViaResend) return true;
+
+    try {
+        const transporter = await transporterPromise;
+        if (!transporter) throw new Error("Email transporter not initialized");
+        const info = await transporter.sendMail({ from: `"TripMate" <${config.SMTP_FROM_EMAIL || config.SMTP_USER || 'noreply@tripmate.app'}>`, to: toEmail, subject, text, html });
+        console.log("Collaborator invite email sent: %s", info.messageId);
+        return true;
+    } catch (error: any) {
+        console.error("Error sending collaborator invite email:", error?.message || error);
+        return false;
+    }
+}
+
 export async function sendPasswordResetEmail(email: string, token: string) {
     const resetUrl = `${config.FRONTEND_URL || "http://localhost:5000"}/reset-password?token=${token}`;
     console.log("=================================================================");
