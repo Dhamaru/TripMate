@@ -32,38 +32,64 @@ interface TranslationResult {
   meaning?: string;
 }
 
+async function runTranslate(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult> {
+  const payload = { text, sourceLang, targetLang };
+  const res = await apiRequest('POST', '/api/v1/translate', payload);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message = res.status === 429
+      ? "Too many requests — please wait a moment and try again."
+      : (body?.error || body?.message || `Translation failed (${res.status}).`);
+    throw new Error(message);
+  }
+  const data = await res.json();
+  return {
+    translatedText: String(data?.translatedText || ''),
+    pronunciation: String(data?.pronunciation || ''),
+    meaning: String(data?.meaning || '')
+  };
+}
+
 export function LanguageTranslator({ className = '' }: { className?: string }) {
   const [text, setText] = useState('');
   const [fromLanguage, setFromLanguage] = useState('en');
   const [toLanguage, setToLanguage] = useState('hi');
+  const [replyText, setReplyText] = useState('');
   const { toast } = useToast();
 
   const { data: translation, isLoading, refetch } = useQuery<TranslationResult>({
     queryKey: ['/translate', fromLanguage, toLanguage, text],
     enabled: false,
-    queryFn: async ({ queryKey }) => {
+    queryFn: ({ queryKey }) => {
       const [, from, to, inputRaw] = queryKey as [string, string, string, string];
-      const payload = { text: String(inputRaw), sourceLang: String(from), targetLang: String(to) };
-      const res = await apiRequest('POST', '/api/v1/translate', payload);
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        const message = res.status === 429
-          ? "Too many requests — please wait a moment and try again."
-          : (body?.error || body?.message || `Translation failed (${res.status}).`);
-        throw new Error(message);
-      }
-      const data = await res.json();
-      return {
-        translatedText: String(data?.translatedText || ''),
-        pronunciation: String(data?.pronunciation || ''),
-        meaning: String(data?.meaning || '')
-      };
+      return runTranslate(String(inputRaw), String(from), String(to));
+    },
+  });
+
+  const { data: replyTranslation, isLoading: isReplyLoading, refetch: refetchReply } = useQuery<TranslationResult>({
+    queryKey: ['/translate-reply', toLanguage, fromLanguage, replyText],
+    enabled: false,
+    queryFn: ({ queryKey }) => {
+      const [, from, to, inputRaw] = queryKey as [string, string, string, string];
+      return runTranslate(String(inputRaw), String(from), String(to));
     },
   });
 
   const handleTranslateClick = async () => {
     if (!text.trim()) return;
     const result = await refetch();
+    if (result.error) {
+      toast({
+        title: "Translation failed",
+        description: result.error instanceof Error ? result.error.message : "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReplyTranslateClick = async () => {
+    if (!replyText.trim()) return;
+    const result = await refetchReply();
     if (result.error) {
       toast({
         title: "Translation failed",
@@ -151,6 +177,39 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
             )}
           </div>
         ) : null}
+
+        <div className="border-t pt-4 space-y-2">
+          <label className="block text-sm text-foreground mb-1">
+            Their Reply (paste what they said back, in their language — we'll translate it to yours)
+          </label>
+          <Textarea
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleReplyTranslateClick();
+              }
+            }}
+            placeholder={`Paste their reply here...`}
+            className="bg-muted border text-foreground placeholder:text-muted-foreground"
+          />
+          <Button
+            onClick={handleReplyTranslateClick}
+            className="w-full bg-[#1D4E89] hover:bg-blue-800"
+            disabled={isReplyLoading || !replyText.trim()}
+          >
+            Translate Their Reply
+          </Button>
+          {isReplyLoading ? (
+            <Skeleton className="w-full h-20" />
+          ) : replyTranslation?.translatedText ? (
+            <div className="p-3 border rounded bg-muted">
+              <strong className="text-[#1D4E89] dark:text-blue-400">What they meant:</strong>
+              <p className="text-emerald-600 dark:text-emerald-400 mt-1 text-lg">{replyTranslation.translatedText}</p>
+            </div>
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   );
