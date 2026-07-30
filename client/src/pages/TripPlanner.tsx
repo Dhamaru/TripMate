@@ -24,21 +24,6 @@ const travelStyles = [
   { id: 'culinary',  name: 'Culinary',   Icon: Utensils,  gradient: 'from-[var(--forest)] to-[var(--emerald-horizon)]',        iconColor: 'text-emerald-300' },
 ];
 
-// Guess a sensible default currency from the browser's locale rather than
-// hardcoding INR for every user regardless of where they actually are.
-function guessDefaultCurrency(): string {
-  try {
-    const region = navigator.language.split('-')[1]?.toUpperCase();
-    const regionCurrency: Record<string, string> = {
-      IN: 'INR', US: 'USD', GB: 'GBP', AU: 'AUD', CA: 'CAD', JP: 'JPY', CN: 'CNY',
-      DE: 'EUR', FR: 'EUR', ES: 'EUR', IT: 'EUR',
-    };
-    return (region && regionCurrency[region]) || 'USD';
-  } catch {
-    return 'USD';
-  }
-}
-
 const CURRENCY_FORMAT: Record<string, { symbol: string; locale: string }> = {
   INR: { symbol: '₹', locale: 'en-IN' },
   USD: { symbol: '$', locale: 'en-US' },
@@ -66,7 +51,7 @@ export default function TripPlanner() {
     origin: '',
     destination: '',
     budget: '',
-    currency: guessDefaultCurrency(),
+    currency: 'INR',
     days: '',
     groupSize: '',
     travelStyle: '',
@@ -86,7 +71,7 @@ export default function TripPlanner() {
     startDate: '',
     groupSize: '',
     budget: '',
-    currency: guessDefaultCurrency(),
+    currency: 'INR',
   });
   const [isParsing, setIsParsing] = useState(false);
   const importSaved = useRef(false);
@@ -685,7 +670,6 @@ export default function TripPlanner() {
                     value={tripForm.origin}
                     onChange={(e) => setTripForm(prev => ({ ...prev, origin: e.target.value }))}
                     className="bg-muted border text-foreground placeholder:text-muted-foreground"
-                    data-testid="input-origin"
                     required
                   />
                 </div>

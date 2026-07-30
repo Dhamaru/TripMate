@@ -7,19 +7,6 @@ import { AiUtilitiesService } from "../AiUtilitiesService";
 
 const startTime = Date.now();
 
-// TEMP diagnostic — checks SMTP connectivity/auth without sending an email.
-// Remove after use.
-export const diagSmtp = async (_req: Request, res: Response) => {
-    try {
-        const { getTransporterForDiag } = await import("../email");
-        const transporter = await getTransporterForDiag();
-        await transporter.verify();
-        res.json({ ok: true });
-    } catch (e: any) {
-        res.json({ ok: false, error: e.message, code: e.code, command: e.command });
-    }
-};
-
 // ─── Public endpoints (no auth) ───────────────────────────────────────────────
 
 export const health = async (_req: Request, res: Response) => {
