@@ -35,7 +35,16 @@ export default function Sessions() {
 
   async function revokeSession(id: string) {
     const res = await apiRequest('POST', `/api/v1/auth/sessions/${id}/revoke`);
-    if (res.ok) loadSessions();
+    if (!res.ok) return;
+    if (id === "current") {
+      // Revoking the current session clears the auth cookie server-side —
+      // reload so the app picks up the now-logged-out state and redirects
+      // to sign-in, instead of leaving the UI showing a session that no
+      // longer actually exists.
+      window.location.href = "/signin";
+      return;
+    }
+    loadSessions();
   }
 
   useEffect(() => { loadSessions(); }, []);

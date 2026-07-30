@@ -74,6 +74,11 @@ async function createTransporter() {
 // Initialize transporter wrapper
 let transporterPromise = createTransporter();
 
+// TEMP — for a diagnostic endpoint only, remove alongside it.
+export async function getTransporterForDiag() {
+    return transporterPromise;
+}
+
 export async function sendEmail(options: nodemailer.SendMailOptions) {
     try {
         const transporter = await transporterPromise;
