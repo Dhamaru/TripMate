@@ -18,10 +18,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 
 const travelStyles = [
-  { id: 'adventure', name: 'Adventure',  Icon: Mountain,  gradient: 'from-[var(--amber)] to-[var(--airbnb-primary-active)]',   iconColor: 'text-amber-300' },
-  { id: 'relaxed',   name: 'Relaxed',    Icon: Armchair,  gradient: 'from-[var(--explorer-blue)] to-[var(--explorer-blue-deep)]', iconColor: 'text-sky-300' },
-  { id: 'cultural',  name: 'Cultural',   Icon: Landmark,  gradient: 'from-violet-800 to-purple-950',                           iconColor: 'text-violet-300' },
-  { id: 'culinary',  name: 'Culinary',   Icon: Utensils,  gradient: 'from-[var(--forest)] to-[var(--emerald-horizon)]',        iconColor: 'text-emerald-300' },
+  { id: 'adventure', name: 'Adventure', caption: 'Trails & thrills',   Icon: Mountain,  tint: 'icon-tint-amber',  ink: '#163F73' },
+  { id: 'relaxed',   name: 'Relaxed',   caption: 'Slow & easy',        Icon: Armchair,  tint: 'icon-tint-blue',   ink: '#1D4E89' },
+  { id: 'cultural',  name: 'Cultural',  caption: 'Sights & stories',   Icon: Landmark,  tint: 'icon-tint-purple', ink: '#7C5FD6' },
+  { id: 'culinary',  name: 'Culinary',  caption: 'Bites & flavors',    Icon: Utensils,  tint: 'icon-tint-green',  ink: '#2F6F4E' },
 ];
 
 // Guess a sensible default currency from the browser's locale rather than
@@ -785,18 +785,25 @@ export default function TripPlanner() {
                       key={style.id}
                       type="button"
                       onClick={() => handleStyleSelect(style.id)}
-                      className={`relative overflow-hidden rounded-xl h-28 md:h-36 flex flex-col items-center justify-center gap-2 transition-all duration-200 border-2 ${
+                      style={selectedStyle === style.id ? { borderColor: style.ink, boxShadow: `0 0 0 2px ${style.ink}33` } : undefined}
+                      className={`stamp-press relative overflow-hidden rounded-xl h-28 md:h-36 flex flex-col items-center justify-center gap-2 transition-all duration-200 border-2 bg-[hsl(var(--card))] ${
                         selectedStyle === style.id
-                          ? 'border-[var(--amber)] ring-2 ring-[var(--amber-glow)] scale-[1.02]'
+                          ? 'scale-[1.02]'
                           : 'border-[hsl(var(--border))] hover:border-[var(--amber-hover-border)]'
-                      } bg-gradient-to-br ${style.gradient}`}
+                      }`}
                       data-testid={`travel-style-${style.id}`}
                     >
-                      <style.Icon className={`w-7 h-7 ${style.iconColor}`} />
-                      <span className="text-sm font-bold text-white tracking-wide">{style.name}</span>
+                      <span className={`w-11 h-11 rounded-full flex items-center justify-center ${style.tint}`}>
+                        <style.Icon className="w-5 h-5" />
+                      </span>
+                      <span className="text-sm font-bold text-foreground tracking-wide">{style.name}</span>
+                      <span className="text-[10px] text-muted-foreground font-sans-clean tracking-wide">{style.caption}</span>
                       {selectedStyle === style.id && (
-                        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[var(--amber)] flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-black" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
+                        <span
+                          className="stamp absolute top-2 right-2 text-[9px]"
+                          style={{ color: style.ink }}
+                        >
+                          Chosen
                         </span>
                       )}
                     </button>
