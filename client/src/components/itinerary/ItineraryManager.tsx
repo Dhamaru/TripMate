@@ -12,7 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { ActivityFormDialog } from "./ActivityFormDialog";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useTripStore } from "@/store";
+import { useTripStore, useAuthStore } from "@/store";
 import { ModelConfidenceBadge } from "./ModelConfidenceBadge";
 import { AIReasoningPanel } from "./AIReasoningPanel";
 import { AtlasDayButton } from "./AtlasDayButton";
@@ -32,7 +32,8 @@ function SortableActivity({
     onDelete,
     onMove,
     tripId,
-    dayIndex
+    dayIndex,
+    canEdit
 }: {
     activity: IItineraryActivity;
     index: number;
@@ -42,6 +43,7 @@ function SortableActivity({
     onMove: (direction: 'up' | 'down') => void;
     tripId: string;
     dayIndex: number;
+    canEdit: boolean;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: activity.id });
 
@@ -66,10 +68,12 @@ function SortableActivity({
 
     return (
         <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isTravelLeg ? 'bg-[var(--amber)]/5' : 'hover:bg-[hsl(var(--muted))]/50'}`}>
-            {/* Drag handle */}
-            <div {...attributes} {...listeners} className="shrink-0 text-[hsl(var(--muted-foreground))]/40 cursor-grab active:cursor-grabbing hover:text-[hsl(var(--muted-foreground))] transition-colors">
-                <GripVertical className="w-4 h-4" />
-            </div>
+            {/* Drag handle — viewers can't reorder either */}
+            {canEdit && (
+                <div {...attributes} {...listeners} className="shrink-0 text-[hsl(var(--muted-foreground))]/40 cursor-grab active:cursor-grabbing hover:text-[hsl(var(--muted-foreground))] transition-colors">
+                    <GripVertical className="w-4 h-4" />
+                </div>
+            )}
 
             {/* Time badge */}
             {activity.time && (
@@ -109,15 +113,19 @@ function SortableActivity({
             {/* Vibe vote — inline, compact */}
             <VibeVoting tripId={tripId} dayIndex={dayIndex} activityId={activity.id} initialVotes={activity.votes} />
 
-            {/* Action buttons — always visible, small */}
-            <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
-                <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-foreground" title="Edit">
-                    <Edit2 className="w-3.5 h-3.5" />
-                </Button>
-                <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-red-400" title="Delete">
-                    <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-            </div>
+            {/* Edit/Delete — viewer-role collaborators can't mutate the
+                itinerary (enforced server-side too), so don't show controls
+                that would just fail. */}
+            {canEdit && (
+                <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+                    <Button onClick={(e) => { e.stopPropagation(); onEdit(); }} variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-foreground" title="Edit">
+                        <Edit2 className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button onClick={(e) => { e.stopPropagation(); onDelete(); }} variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-red-400" title="Delete">
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
@@ -127,6 +135,20 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingActivity, setEditingActivity] = useState<{ dayIndex: number; activity: IItineraryActivity | null } | null>(null);
     const [conflictError, setConflictError] = useState<string | null>(null);
+
+    // The server already rejects mutations from viewer-role collaborators
+    // (403/404), but the Edit/Delete/Add controls were rendered unconditionally
+    // regardless of role — a viewer could click Delete, see a (now-fixed) false
+    // "Activity deleted" success toast, and have no idea nothing actually
+    // happened. Compute it here too so those controls aren't even shown.
+    const { user } = useAuthStore();
+    const currentUserId = String((user as any)?._id || (user as any)?.id || '');
+    const isOwner = String((trip as any).userId) === currentUserId;
+    const collaboratorEntry = trip.collaborators?.find((c) => {
+        const cId = typeof c.userId === 'string' ? c.userId : String((c.userId as any)?._id || (c.userId as any)?.id || '');
+        return cId === currentUserId;
+    });
+    const canEdit = isOwner || collaboratorEntry?.role === 'editor';
 
     /**
      * Helper to parse "HH:MM AM/PM" into minutes from midnight.
@@ -276,6 +298,22 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         deleteActivityMutation.mutate({ dayIndex, activityId: activity.id });
     };
 
+    // apiRequest() is a raw fetch wrapper — it does NOT throw on a non-2xx
+    // response. Every mutation below used to call response.json() straight
+    // through and treat whatever came back as success data, including a
+    // 403/404 permission-denied body from the server (e.g. a viewer-role
+    // collaborator hitting the editor-only itinerary routes) — the mutation
+    // still ran onSuccess and showed a false "Activity updated"/"deleted"
+    // toast even though nothing actually changed. Throw on !response.ok so
+    // onError fires with the real reason instead.
+    async function parseOrThrow(response: Response) {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data?.error || `Request failed (${response.status})`);
+        }
+        return data;
+    }
+
     // Add Activity Mutation
     const addActivityMutation = useMutation({
         mutationFn: async ({ dayIndex, activity }: { dayIndex: number; activity: any }) => {
@@ -283,15 +321,15 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                 dayIndex,
                 activity
             });
-            return response.json();
+            return parseOrThrow(response);
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
             useTripStore.getState().fetchTrip(trip.id!);
             toast({ title: "Activity added", description: "Activity has been added to your itinerary." });
         },
-        onError: () => {
-            toast({ title: "Error", description: "Failed to add activity.", variant: "destructive" });
+        onError: (error: any) => {
+            toast({ title: "Error", description: error?.message || "Failed to add activity.", variant: "destructive" });
         }
     });
 
@@ -302,15 +340,15 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                 dayIndex,
                 data: updates
             });
-            return response.json();
+            return parseOrThrow(response);
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
             useTripStore.getState().fetchTrip(trip.id!);
             toast({ title: "Activity updated", description: "Activity has been updated." });
         },
-        onError: () => {
-            toast({ title: "Error", description: "Failed to update activity.", variant: "destructive" });
+        onError: (error: any) => {
+            toast({ title: "Error", description: error?.message || "Failed to update activity.", variant: "destructive" });
         }
     });
 
@@ -318,15 +356,15 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     const deleteActivityMutation = useMutation({
         mutationFn: async ({ dayIndex, activityId }: { dayIndex: number; activityId: string }) => {
             const response = await apiRequest('DELETE', `/api/v1/trips/${trip.id}/itinerary/activity/${activityId}`, { dayIndex });
-            return response.json();
+            return parseOrThrow(response);
         },
         onSuccess: (data) => {
             setItinerary(data.itinerary);
             useTripStore.getState().fetchTrip(trip.id!);
             toast({ title: "Activity deleted", description: "Activity has been removed from your itinerary." });
         },
-        onError: () => {
-            toast({ title: "Error", description: "Failed to delete activity.", variant: "destructive" });
+        onError: (error: any) => {
+            toast({ title: "Error", description: error?.message || "Failed to delete activity.", variant: "destructive" });
         }
     });
 
@@ -351,11 +389,18 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
 
     const saveItinerary = async (updated: IItineraryDay[]) => {
         try {
-            await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary/reorder`, { itinerary: updated });
+            const response = await apiRequest('PUT', `/api/v1/trips/${trip.id}/itinerary/reorder`, { itinerary: updated });
+            await parseOrThrow(response);
             useTripStore.getState().fetchTrip(trip.id!);
-        } catch (e) {
+        } catch (e: any) {
             console.error("Failed to save itinerary", e);
-            toast({ title: "Error", description: "Failed to save the reordered itinerary.", variant: "destructive" });
+            // Re-sync from the server — the drag-and-drop already reordered
+            // the local state optimistically, so on failure (e.g. a
+            // viewer-role collaborator whose reorder was rejected) it has to
+            // be pulled back to what's actually saved, not left showing an
+            // order that was never persisted.
+            useTripStore.getState().fetchTrip(trip.id!);
+            toast({ title: "Error", description: e?.message || "Failed to save the reordered itinerary.", variant: "destructive" });
         }
     };
 
@@ -407,14 +452,16 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-mono-data text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-2 py-1 rounded-full">{day.activities.length} Activities</span>
-                            <Button
-                                onClick={() => handleAddActivity(dayIdx)}
-                                size="sm"
-                                className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Add Activity</span>
-                            </Button>
+                            {canEdit && (
+                                <Button
+                                    onClick={() => handleAddActivity(dayIdx)}
+                                    size="sm"
+                                    className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Add Activity</span>
+                                </Button>
+                            )}
                         </div>
                     </div>
 
@@ -429,6 +476,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                                         total={day.activities.length}
                                         onEdit={() => handleEditActivity(dayIdx, actIdx)}
                                         onDelete={() => handleDeleteActivity(dayIdx, actIdx)}
+                                        canEdit={canEdit}
                                         onMove={(dir) => moveActivity(dayIdx, actIdx, dir)}
                                         tripId={String(trip.id)}
                                         dayIndex={dayIdx}
