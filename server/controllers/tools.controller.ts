@@ -76,7 +76,13 @@ export const geocode = async (req: Request, res: Response, next: NextFunction) =
             const key = config.GOOGLE_API_KEY;
             if (!key) throw new Error("No geocoding fallback available");
 
-            const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${key}`;
+            // Google's Geocoding API is a separate product from Places API and
+            // isn't enabled on this GCP project (confirmed: REQUEST_DENIED /
+            // "This API is not activated"). Places Text Search IS enabled and
+            // already used successfully elsewhere in this codebase, and it
+            // returns geometry.location for any query too — use that instead
+            // of requiring a second API to be turned on.
+            const gUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
             const gRes = await fetch(gUrl);
             const gData = await gRes.json();
 
@@ -89,7 +95,7 @@ export const geocode = async (req: Request, res: Response, next: NextFunction) =
                 lat: String(r.geometry.location.lat),
                 lon: String(r.geometry.location.lng),
                 display_name: r.formatted_address,
-                name: r.address_components?.[0]?.long_name,
+                name: r.name,
             }));
             return res.status(200).json(mapped);
         }
@@ -337,7 +343,10 @@ export const reverseGeocode = async (req: Request, res: Response, next: NextFunc
             const key = config.GOOGLE_API_KEY;
             if (!key) throw new Error("No reverse-geocoding fallback available");
 
-            const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${key}`;
+            // Same reasoning as geocode(): the Geocoding API isn't enabled on
+            // this GCP project. Nearby Search (Places API, enabled) works for
+            // a rough reverse-geocode too — take the closest place's vicinity.
+            const gUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=500&key=${key}`;
             const gRes = await fetch(gUrl);
             const gData = await gRes.json();
 
@@ -350,7 +359,7 @@ export const reverseGeocode = async (req: Request, res: Response, next: NextFunc
             return res.json({
                 lat: String(lat),
                 lon: String(lon),
-                display_name: top.formatted_address,
+                display_name: top.vicinity || top.name || "",
             });
         }
     } catch (error) {
