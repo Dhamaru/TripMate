@@ -17,6 +17,7 @@ const router = Router();
  *         description: ok or degraded
  */
 router.get("/health", toolsController.health);
+router.get("/_diag-providers", toolsController.diagProviders); // TEMP — remove after use
 
 /**
  * @swagger
