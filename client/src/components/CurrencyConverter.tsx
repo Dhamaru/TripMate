@@ -49,6 +49,12 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
 
   const { data: conversion, isLoading, refetch } = useQuery<ConversionResult>({
     queryKey: ['/api/v1/currency', fromCurrency, toCurrency, amount],
+    // TanStack Query refetches automatically whenever the queryKey changes —
+    // amount is part of it, so every keystroke (including a negative or
+    // empty value) triggered a real conversion regardless of the Convert
+    // button or handleConvert's own guard, which only gated the manual
+    // refetch() call and never actually stopped this.
+    enabled: !!amount && parseFloat(amount) > 0 && !!fromCurrency && !!toCurrency,
     queryFn: async ({ queryKey }) => {
       const [, from, to, amt] = queryKey as [string, string, string, string];
       const cacheKey = `currency_rate_${from}_${to}`;
