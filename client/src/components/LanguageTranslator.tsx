@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language' },
@@ -35,6 +36,7 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
   const [text, setText] = useState('');
   const [fromLanguage, setFromLanguage] = useState('en');
   const [toLanguage, setToLanguage] = useState('hi');
+  const { toast } = useToast();
 
   const { data: translation, isLoading, refetch } = useQuery<TranslationResult>({
     queryKey: ['/translate', fromLanguage, toLanguage, text],
@@ -43,6 +45,13 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
       const [, from, to, inputRaw] = queryKey as [string, string, string, string];
       const payload = { text: String(inputRaw), sourceLang: String(from), targetLang: String(to) };
       const res = await apiRequest('POST', '/api/v1/translate', payload);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const message = res.status === 429
+          ? "Too many requests — please wait a moment and try again."
+          : (body?.error || body?.message || `Translation failed (${res.status}).`);
+        throw new Error(message);
+      }
       const data = await res.json();
       return {
         translatedText: String(data?.translatedText || ''),
@@ -52,8 +61,16 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
     },
   });
 
-  const handleTranslate = () => {
-    if (text.trim()) refetch();
+  const handleTranslateClick = async () => {
+    if (!text.trim()) return;
+    const result = await refetch();
+    if (result.error) {
+      toast({
+        title: "Translation failed",
+        description: result.error instanceof Error ? result.error.message : "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const swapLanguages = () => {
@@ -75,7 +92,7 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleTranslate();
+                handleTranslateClick();
               }
             }}
             placeholder="Enter text..."
@@ -115,7 +132,7 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
             </Select>
           </div>
         </div>
-        <Button onClick={handleTranslate} className="w-full bg-[#1D4E89] hover:bg-blue-800" disabled={isLoading || !text.trim()}>Translate</Button>
+        <Button onClick={handleTranslateClick} className="w-full bg-[#1D4E89] hover:bg-blue-800" disabled={isLoading || !text.trim()}>Translate</Button>
         {isLoading ? (
           <Skeleton className="w-full h-20" />
         ) : translation?.translatedText ? (
