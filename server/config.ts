@@ -24,6 +24,7 @@ const envSchema = z.object({
     SMTP_PASS: z.string().optional(),
     SMTP_PORT: z.coerce.number().default(587),
     SMTP_FROM_EMAIL: z.string().optional(),
+    ADMIN_EMAIL: z.string().optional().default('kasivasi2005@gmail.com'),
     RESEND_API_KEY: z.string().optional(),
     TRANSLATE_API_URL: z.string().optional(),
     TRANSLATE_API_KEY: z.string().optional(),

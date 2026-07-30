@@ -163,6 +163,60 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     }
 }
 
+export async function sendFeedbackNotificationEmail(feedback: { type: string; category: string; subject: string; description: string; email: string }) {
+    const kind = feedback.type === "bug" ? "Bug Report" : feedback.type === "feature" ? "Feature Request" : "Feedback";
+    const subject = `New ${kind}: ${feedback.subject}`;
+    const text = `New ${kind} submitted on TripMate.\n\nFrom: ${feedback.email}\nCategory: ${feedback.category}\nSubject: ${feedback.subject}\n\n${feedback.description}`;
+    const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto">
+<h2 style="color:#1E3A8A">New ${kind}</h2>
+<p><strong>From:</strong> ${feedback.email}<br/><strong>Category:</strong> ${feedback.category}</p>
+<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px"><strong>${feedback.subject}</strong><br/><br/>${feedback.description.replace(/\n/g, '<br/>')}</p>
+</div>`;
+
+    const adminEmail = config.ADMIN_EMAIL;
+    if (!adminEmail) return false;
+
+    const sentViaResend = await sendViaResend(adminEmail, subject, html, text);
+    if (sentViaResend) return true;
+
+    try {
+        const transporter = await transporterPromise;
+        if (!transporter) throw new Error("Email transporter not initialized");
+        const info = await transporter.sendMail({ from: `"TripMate Feedback" <${config.SMTP_FROM_EMAIL || config.SMTP_USER || 'noreply@tripmate.app'}>`, to: adminEmail, replyTo: feedback.email, subject, text, html });
+        console.log("Feedback notification sent to admin: %s", info.messageId);
+        return true;
+    } catch (error: any) {
+        console.error("Error sending feedback notification email:", error?.message || error);
+        return false;
+    }
+}
+
+export async function sendFeedbackConfirmationEmail(email: string, subjectLine: string, type: string) {
+    const subject = "We received your feedback — TripMate";
+    const kind = type === "bug" ? "bug report" : "feedback";
+    const text = `Thanks for reaching out — we received your ${kind}:\n\n"${subjectLine}"\n\nOur team typically responds within 24-48 hours. We'll follow up at this email address if we need more details or once it's resolved.`;
+    const html = `<div style="font-family:sans-serif;max-width:480px;margin:auto">
+<h2 style="color:#1E3A8A">Thanks for your ${kind}</h2>
+<p>We received the following, and it's now in our queue:</p>
+<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px;font-style:italic">"${subjectLine}"</p>
+<p style="color:#666;font-size:13px">We typically respond within 24-48 hours. We'll follow up at this email address if we need more details or once it's resolved.</p>
+</div>`;
+
+    const sentViaResend = await sendViaResend(email, subject, html, text);
+    if (sentViaResend) return true;
+
+    try {
+        const transporter = await transporterPromise;
+        if (!transporter) throw new Error("Email transporter not initialized");
+        const info = await transporter.sendMail({ from: `"TripMate Support" <${config.SMTP_FROM_EMAIL || config.SMTP_USER || 'noreply@tripmate.app'}>`, to: email, subject, text, html });
+        console.log("Feedback confirmation sent: %s", info.messageId);
+        return true;
+    } catch (error: any) {
+        console.error("Error sending feedback confirmation email:", error?.message || error);
+        return false;
+    }
+}
+
 export async function sendEmailDetailed(options: nodemailer.SendMailOptions): Promise<{ ok: boolean, error?: any, messageId?: string }> {
     try {
         const transporter = await transporterPromise;
