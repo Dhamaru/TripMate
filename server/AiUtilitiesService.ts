@@ -531,34 +531,96 @@ export class AiUtilitiesService {
       }));
       return this.setCached(key, normalized);
     } catch {
-      // Fallback: Use Nominatim (OpenStreetMap)
       const types = ['hospital', 'police', 'embassy', 'pharmacy'];
       const results: Array<{ name: string; type: string; phone?: string; address?: string; coordinates?: { lat: number; lon: number }; safetyNotes?: string }> = [];
 
-      for (const t of types) {
-        try {
-          const q = `${t} near ${loc}`;
-          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=2`, {
-            headers: { 'User-Agent': 'TripMate/1.0' }
-          });
-          if (!r.ok) continue;
-          const json = await r.json();
-          const arr = Array.isArray(json) ? json : [];
-
-          for (const item of arr) {
-            results.push({
-              name: String(item.display_name?.split(',')[0] || t),
-              type: t,
-              phone: undefined, // Nominatim rarely provides phone numbers
-              address: String(item.display_name || ''),
-              coordinates: { lat: parseFloat(item.lat), lon: parseFloat(item.lon) },
-              safetyNotes: undefined
-            });
+      // Geocode the location first, then search by proximity (Overpass,
+      // OSM amenity tags). A raw Nominatim text search like "hospital near
+      // <full street address>" returns zero results for anything more
+      // specific than a city name — Nominatim matches place names, it
+      // doesn't reason about "near" in free text. This is the real path
+      // most users hit now that the OpenAI primary path is quota-exhausted.
+      let center: { lat: number; lon: number } | null = null;
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}&limit=1`, {
+          headers: { 'User-Agent': 'TripMate/1.0' }
+        });
+        if (geoRes.ok) {
+          const geoJson = await geoRes.json();
+          if (Array.isArray(geoJson) && geoJson[0]) {
+            center = { lat: parseFloat(geoJson[0].lat), lon: parseFloat(geoJson[0].lon) };
           }
-        } catch (e) {
-          console.warn(`Nominatim fallback failed for ${t} in ${loc}`, e);
+        }
+      } catch (e) {
+        console.warn(`Emergency: geocoding failed for ${loc}`, e);
+      }
+
+      if (center) {
+        const amenityByType: Record<string, string> = {
+          hospital: 'hospital',
+          police: 'police',
+          pharmacy: 'pharmacy',
+          embassy: 'embassy',
+        };
+        const { lat, lon } = center;
+        const box = `${lat - 0.06},${lon - 0.06},${lat + 0.06},${lon + 0.06}`;
+        for (const t of types) {
+          try {
+            const amenity = amenityByType[t];
+            const overpassQuery = `[out:json][timeout:15];(node["amenity"="${amenity}"](${box}););out body 3;`;
+            const r = await fetch("https://overpass-api.de/api/interpreter", {
+              method: "POST",
+              body: overpassQuery,
+              headers: { 'User-Agent': 'TripMate/1.0' },
+            });
+            if (!r.ok) continue;
+            const json = await r.json();
+            const elements = Array.isArray(json?.elements) ? json.elements : [];
+            for (const el of elements) {
+              const tags = el.tags || {};
+              results.push({
+                name: String(tags.name || t.charAt(0).toUpperCase() + t.slice(1)),
+                type: t,
+                phone: tags.phone || tags["contact:phone"] || undefined,
+                address: [tags["addr:housenumber"], tags["addr:street"], tags["addr:city"]].filter(Boolean).join(', ') || undefined,
+                coordinates: { lat: el.lat, lon: el.lon },
+                safetyNotes: undefined,
+              });
+            }
+          } catch (e) {
+            console.warn(`Overpass fallback failed for ${t} near ${loc}`, e);
+          }
         }
       }
+
+      // Last resort: the old broad text search, in case geocoding itself
+      // failed (unrecognized location string) — better than returning nothing.
+      if (results.length === 0) {
+        for (const t of types) {
+          try {
+            const q = `${t} near ${loc}`;
+            const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=2`, {
+              headers: { 'User-Agent': 'TripMate/1.0' }
+            });
+            if (!r.ok) continue;
+            const json = await r.json();
+            const arr = Array.isArray(json) ? json : [];
+            for (const item of arr) {
+              results.push({
+                name: String(item.display_name?.split(',')[0] || t),
+                type: t,
+                phone: undefined,
+                address: String(item.display_name || ''),
+                coordinates: { lat: parseFloat(item.lat), lon: parseFloat(item.lon) },
+                safetyNotes: undefined
+              });
+            }
+          } catch (e) {
+            console.warn(`Nominatim fallback failed for ${t} in ${loc}`, e);
+          }
+        }
+      }
+
       return this.setCached(key, results);
     }
   }
