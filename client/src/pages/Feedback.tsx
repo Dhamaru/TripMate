@@ -23,6 +23,20 @@ export default function Feedback() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const missing: string[] = [];
+        if (!form.category) missing.push('Category');
+        if (!form.subject.trim()) missing.push('Subject');
+        if (!form.description.trim()) missing.push('Description');
+        if (missing.length > 0) {
+            toast({
+                title: 'Missing required fields',
+                description: `Please fill in: ${missing.join(', ')}.`,
+                variant: 'destructive',
+            });
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -217,7 +231,7 @@ export default function Feedback() {
                             {/* Submit Button */}
                             <Button
                                 type="submit"
-                                disabled={loading || !form.category || !form.subject || !form.description}
+                                disabled={loading}
                                 className="w-full bg-[#1D4E89] hover:bg-blue-600 text-white py-3 text-lg font-semibold "
                             >
                                 {loading ? (

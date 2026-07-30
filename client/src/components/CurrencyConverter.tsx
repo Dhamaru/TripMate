@@ -97,7 +97,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
   });
 
   const handleConvert = () => {
-    if (amount && fromCurrency && toCurrency) {
+    if (amount && parseFloat(amount) > 0 && fromCurrency && toCurrency) {
       refetch();
     }
   };
@@ -183,6 +183,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
                 <label className="block text-sm font-medium text-foreground mb-1">Amount</label>
                 <Input
                   type="number"
+                  min="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
