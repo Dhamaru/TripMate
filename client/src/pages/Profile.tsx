@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogOut, Link as LinkIcon, AlertTriangle } from "lucide-react";
 import { authApi } from "@/lib/api/auth.api";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getCsrfToken } from "@/lib/queryClient";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -43,6 +43,11 @@ export default function Profile() {
       const url = '/api/v1/auth/user/avatar';
       return await new Promise((resolve, reject) => {
         xhr.open('POST', url);
+        // Raw XHR bypasses apiRequest()'s automatic X-CSRF-Token attachment
+        // (needed here instead of fetch for upload-progress events) — without
+        // this header the server's CSRF middleware 403s every upload.
+        const csrfToken = getCsrfToken();
+        if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken);
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable) {
             const percent = Math.round((evt.loaded / evt.total) * 100);
@@ -114,16 +119,13 @@ export default function Profile() {
 
   const profileMutation = useMutation({
     mutationFn: async (payload: Partial<User>) => {
-      const res = await fetch('/api/v1/auth/user', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-          phoneNumber: (payload as any).phoneNumber,
-        }),
+      // Was a raw fetch(), which skips apiRequest()'s automatic
+      // X-CSRF-Token header — every save 403'd with "Invalid CSRF token"
+      // in production, where CSRF protection is on by default.
+      const res = await apiRequest('PUT', '/api/v1/auth/user', {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        phoneNumber: (payload as any).phoneNumber,
       });
       if (!res.ok) throw new Error('Failed to update profile');
       return res.json();
