@@ -12,6 +12,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { Trash2, Plus, AlertTriangle, TrendingUp, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 interface BudgetTrackerProps {
     trip: Trip;
@@ -22,6 +23,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#ff7300'
 const CATEGORIES = ["Accommodation", "Food", "Transport", "Activities", "Shopping", "Other"];
 
 export function BudgetTracker({ trip }: BudgetTrackerProps) {
+    const { toast } = useToast();
     const [isAdding, setIsAdding] = useState(false);
     const [newExpense, setNewExpense] = useState<Partial<IExpense>>({
         amount: 0,
@@ -74,26 +76,42 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
 
     const handleAdd = async () => {
         if (!newExpense.amount || !newExpense.description) return;
+        if (Number(newExpense.amount) <= 0) {
+            toast({ title: "Invalid amount", description: "Amount must be greater than zero.", variant: "destructive" });
+            return;
+        }
 
         try {
-            await apiRequest('POST', `/api/v1/trips/${trip.id}/expenses`, {
+            // apiRequest() never throws on a non-2xx response, so the server's
+            // 400 on an invalid amount was previously read as success — the
+            // form closed and reset as if the expense had saved, with nothing
+            // actually written and no error shown.
+            const res = await apiRequest('POST', `/api/v1/trips/${trip.id}/expenses`, {
                 ...newExpense,
                 date: new Date(),
             });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `Failed to add expense (${res.status})`);
+            }
             useTripStore.getState().fetchTrip(trip.id!);
             setIsAdding(false);
             setNewExpense({ amount: 0, currency: trip.currency || "INR", category: "Food", description: "" });
         } catch (error) {
-            console.error("Failed to add expense", error);
+            toast({ title: "Failed to add expense", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
         }
     };
 
     const handleDelete = async (id: string) => {
         try {
-            await apiRequest('DELETE', `/api/v1/trips/${trip.id}/expenses/${id}`);
+            const res = await apiRequest('DELETE', `/api/v1/trips/${trip.id}/expenses/${id}`);
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `Failed to delete expense (${res.status})`);
+            }
             useTripStore.getState().fetchTrip(trip.id!);
         } catch (error) {
-            console.error("Failed to delete expense", error);
+            toast({ title: "Failed to delete expense", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
         }
     };
 
