@@ -494,8 +494,24 @@ export default function PackingChecklist() {
         setNewItemName("");
     };
 
-    const handleReorder = (newOrder: PackingItem[]) => {
-        // Implementation for reordering if needed in future
+    // Reorder.Group only sees one category's (filtered, visible) items at a
+    // time, so we can't just replace `items` with what it hands back — that
+    // would drop every item outside this category/filter. Instead walk the
+    // full list in its existing order and, at each slot that belonged to
+    // this visible subset (matched by object identity), substitute the next
+    // item from the new order — leaving every other item exactly where it was.
+    const handleReorderCategory = (category: string, newOrder: PackingItem[]) => {
+        const inThisDrag = new Set(newOrder);
+        let cursor = 0;
+        const updated = items.map((item) => {
+            let cat = item.category || "Misc";
+            if (cat === "Documents") cat = "Government / ID Documents";
+            if (cat === category && inThisDrag.has(item)) {
+                return newOrder[cursor++];
+            }
+            return item;
+        });
+        updateLocalItems(updated);
     };
 
     // Filter Logic
@@ -699,7 +715,7 @@ export default function PackingChecklist() {
                                             transition={{ duration: 0.2 }}
                                         >
                                             <CardContent className="p-4 space-y-2">
-                                                <Reorder.Group axis="y" values={displayItems} onReorder={() => { }} className="space-y-2">
+                                                <Reorder.Group axis="y" values={displayItems} onReorder={(newOrder) => handleReorderCategory(category, newOrder as PackingItem[])} className="space-y-2">
                                                     {displayItems.map((item) => (
                                                         <SortablePackingItem
                                                             key={`${item.name}-${items.indexOf(item)}`}
