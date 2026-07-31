@@ -25,6 +25,8 @@ router.post("/packing", validate(createPackingListSchema), packingController.cre
 router.post("/packing-lists", validate(createPackingListSchema), packingController.createPackingList);
 router.put("/packing/:id", packingController.updatePackingList);
 router.put("/packing-lists/:id", packingController.updatePackingList);
+router.post("/packing/:id/duplicate", packingController.duplicatePackingList);
+router.post("/packing-lists/:id/duplicate", packingController.duplicatePackingList);
 router.patch("/packing/:id/items/:itemId/toggle", packingController.togglePackingItem);
 router.put("/packing-lists/:id/item/:itemId", validate(updatePackingItemSchema), packingController.updatePackingItem);
 router.delete("/packing/:id", packingController.deletePackingList);

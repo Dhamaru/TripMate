@@ -232,20 +232,81 @@ export const updatePackingList = async (req: Request, res: Response, next: NextF
     try {
         const { id } = req.params;
         const userId = req.user?._id || req.user?.id;
-        
-        const list = await PackingListModel.findOneAndUpdate(
-            { _id: id, userId },
-            req.body,
-            { new: true }
-        );
-        
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+        const list = await PackingListModel.findById(id);
         if (!list) throw new NotFoundError("Packing list not found");
-        
+
+        // Same permission model as updatePackingItem: owner of the list, or
+        // an editor collaborator on the trip it's attached to. The previous
+        // owner-only findOneAndUpdate query silently 404'd for any
+        // collaborator trying to save changes to a shared trip's list.
+        if (list.userId !== userId.toString()) {
+            if (list.tripId) {
+                const trip = await TripModel.findOne({
+                    _id: list.tripId,
+                    collaborators: { $elemMatch: { userId, role: "editor" } }
+                });
+                if (!trip) throw new ForbiddenError("Insufficient permissions");
+            } else {
+                throw new ForbiddenError("Insufficient permissions");
+            }
+        }
+
+        Object.assign(list, req.body);
+        await list.save();
+
         if (list.tripId) {
             socketService.broadcastMutation(list.tripId.toString(), { type: "packing-updated", data: list }, String(userId));
         }
-        
+
         res.json(list);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const duplicatePackingList = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user?._id || req.user?.id;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+        const source = await PackingListModel.findById(id);
+        if (!source) throw new NotFoundError("Packing list not found");
+
+        // Same read-access rule as getPackingLists: owner, or any collaborator
+        // on the trip (not just editors — duplicating just makes you a new,
+        // independent copy, it doesn't mutate the original).
+        if (source.userId !== userId.toString()) {
+            if (source.tripId) {
+                const trip = await TripModel.findOne({
+                    _id: source.tripId,
+                    $or: [{ userId }, { "collaborators.userId": userId }]
+                });
+                if (!trip) throw new ForbiddenError("Trip access denied");
+            } else {
+                throw new ForbiddenError("Insufficient permissions");
+            }
+        }
+
+        const copy = await PackingListModel.create({
+            name: `${source.name} (Copy)`,
+            season: source.season,
+            // Intentionally not carrying tripId over — a duplicate starts as
+            // a standalone personal list so it doesn't silently overwrite the
+            // trip's shared list on next save.
+            userId,
+            items: source.items.map((item: any) => ({
+                name: item.name,
+                quantity: item.quantity,
+                category: item.category,
+                is_mandatory: item.is_mandatory,
+                packed: false,
+            })),
+        });
+
+        res.status(201).json(copy);
     } catch (error) {
         next(error);
     }

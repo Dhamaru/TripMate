@@ -324,24 +324,6 @@ export default function PackingChecklist() {
         }
     });
 
-    // ... (rest of the file until return)
-
-    // In the JSX (Actions Bar):
-    // Previously:
-    // <Button ... onClick={() => handleSave(items)} ...> <Save ... /> </Button>
-    // <Button ... onClick={handleDuplicate} ...> <Copy ... /> </Button>
-    // <Button ... onClick={handlePrint} ...> <Printer ... /> </Button>
-
-    /* 
-       We need to replace the Actions Bar section in the JSX.
-       I will use a wider replacement range to cover mutations AND the UI.
-       Wait, the tool only allows replacing contiguous blocks but I can update mutations here.
-       I'll update mutations first, then separate call for UI?
-       No, `multi_replace` is better or just replace the component body parts.
-       Actually, `replace_file_content` with a larger scope spanning mutations.
-    */
-
-
     const deleteTemplateMutation = useMutation({
         mutationFn: async (id: string) => {
             await apiRequest("DELETE", `/api/v1/packing-lists/templates/${id}`);
@@ -352,20 +334,10 @@ export default function PackingChecklist() {
         }
     });
 
-    const saveList = (newItems: IPackingListItem[]) => {
-        if (currentList && currentList._id && !String(currentList._id).startsWith("optimistic-")) {
-            updateListMutation.mutate({ id: String(currentList._id), newItems });
-        } else {
-            createListMutation.mutate(newItems);
-        }
-    };
-
     const handleSave = (newItems: IPackingListItem[]) => {
         if (currentList && currentList._id && !String(currentList._id).startsWith("optimistic-")) {
             updateListMutation.mutate({ id: String(currentList._id), newItems });
         } else {
-            // Include selectedTripId if set
-            const tripData = selectedTripId !== "none" ? { tripId: selectedTripId } : {};
             createListMutation.mutate(newItems);
         }
     };
@@ -687,7 +659,15 @@ export default function PackingChecklist() {
                     </DropdownMenu>
                 </div>
 
-                {/* PROGRESS BAR REMOVED */}
+                {items.length > 0 && (
+                    <div className="bg-card border rounded-3xl p-4 mb-6 shadow-sm">
+                        <div className="flex justify-between items-center mb-2 text-sm">
+                            <span className="font-medium text-foreground">Packing progress</span>
+                            <span className="text-muted-foreground">{packedCount} / {items.length} packed</span>
+                        </div>
+                        <Progress value={(packedCount / items.length) * 100} className="h-2" />
+                    </div>
+                )}
 
                 <div className="space-y-6 mb-8">
                     {Object.entries(itemsByCategory).map(([category, catItems]) => {
