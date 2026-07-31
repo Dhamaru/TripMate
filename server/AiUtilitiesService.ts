@@ -1706,7 +1706,10 @@ export class AiUtilitiesService {
       };
     } catch (e) {
       console.error("[AiUtilities] Failed to augment journal:", e);
-      return { augmentedContent: content, suggestedLabels: ["Travel"], sentiment: "Positive" };
+      // Previously returned the original content unchanged with a 200, which
+      // the client read as a successful enhancement — "Entry Enhanced!" even
+      // though nothing had changed. Throw so the caller surfaces a real error.
+      throw new Error("AI enhancement is temporarily unavailable. Please try again.");
     }
   }
 

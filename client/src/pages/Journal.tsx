@@ -169,15 +169,18 @@ export default function Journal() {
     setIsAugmenting(true);
     try {
       const res = await apiRequest('POST', '/api/v1/journal/augment', { content: entryForm.content, destination: entryForm.location });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || "Failed to enhance entry.");
+      }
       setEntryForm(prev => ({
         ...prev,
         content: data.augmentedContent,
         title: prev.title || (data.suggestedLabels?.[0] ? `My ${data.suggestedLabels[0]} Trip` : prev.title)
       }));
       toast({ title: "Entry Enhanced!", description: `Tone: ${data.sentiment}` });
-    } catch {
-      toast({ title: "AI Error", description: "Failed to enhance entry.", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "AI Error", description: err instanceof Error ? err.message : "Failed to enhance entry.", variant: "destructive" });
     } finally {
       setIsAugmenting(false);
     }
