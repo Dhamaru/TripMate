@@ -76,6 +76,15 @@ import { AnimatePresence, motion } from "framer-motion";
 
 type PackingItem = IPackingListItem & { is_mandatory?: boolean; category?: string };
 
+// Every model's toJSON (shared/schema.ts baseToJSON) rewrites _id -> id, so
+// API responses never actually carry `_id` — only the raw Mongoose document
+// does, before serialization. Reading `._id` directly on anything that came
+// back from a fetch always silently returns undefined. Use this everywhere
+// an id is read off an API response (trips, packing lists, templates).
+function getId(obj: any): string {
+    return String(obj?._id || obj?.id || '');
+}
+
 
 const SEASONS = ["Summer", "Winter", "Spring", "Autumn"] as const;
 type Season = typeof SEASONS[number];
@@ -151,7 +160,7 @@ export default function PackingChecklist() {
     // instead of leaving the user to hunt for it in the dropdown.
     useEffect(() => {
         const tripId = new URLSearchParams(window.location.search).get("tripId");
-        if (tripId && userTrips?.some(t => String(t._id) === tripId)) {
+        if (tripId && userTrips?.some(t => getId(t) === tripId)) {
             setSelectedTripId(tripId);
         }
     }, [userTrips]);
@@ -208,7 +217,7 @@ export default function PackingChecklist() {
         mutationFn: async (newItems: IPackingListItem[]) => {
             const tripId = selectedTripId !== "none" ? selectedTripId : undefined;
             const tripName = tripId
-                ? userTrips?.find(t => String(t._id) === tripId)?.destination || "Trip"
+                ? userTrips?.find(t => getId(t) === tripId)?.destination || "Trip"
                 : activeSeason;
 
             const res = await apiRequest("POST", "/api/v1/packing-lists", {
@@ -224,7 +233,7 @@ export default function PackingChecklist() {
             const previousLists = queryClient.getQueryData<PackingList[]>(["/api/v1/packing-lists"]);
             const tripId = selectedTripId !== "none" ? selectedTripId : undefined;
             const tripName = tripId
-                ? userTrips?.find(t => String(t._id) === tripId)?.destination || "Trip"
+                ? userTrips?.find(t => getId(t) === tripId)?.destination || "Trip"
                 : activeSeason;
 
             const optimisticList: PackingList = {
@@ -261,7 +270,7 @@ export default function PackingChecklist() {
             await queryClient.cancelQueries({ queryKey: ["/api/v1/packing-lists"] });
             const previousLists = queryClient.getQueryData<PackingList[]>(["/api/v1/packing-lists"]);
             queryClient.setQueryData<PackingList[]>(["/api/v1/packing-lists"], (old) =>
-                old?.map(list => (list._id === id ? { ...list, items: newItems } as PackingList : list)) || []
+                old?.map(list => (getId(list) === id ? { ...list, items: newItems } as PackingList : list)) || []
             );
             return { previousLists };
         },
@@ -355,8 +364,9 @@ export default function PackingChecklist() {
     });
 
     const handleSave = (newItems: IPackingListItem[]) => {
-        if (currentList && currentList._id && !String(currentList._id).startsWith("optimistic-")) {
-            updateListMutation.mutate({ id: String(currentList._id), newItems });
+        const currentId = currentList ? getId(currentList) : '';
+        if (currentId && !currentId.startsWith("optimistic-")) {
+            updateListMutation.mutate({ id: currentId, newItems });
         } else {
             createListMutation.mutate(newItems);
         }
@@ -386,7 +396,8 @@ export default function PackingChecklist() {
     };
 
     const handleDuplicate = () => {
-        if (currentList?._id) duplicateListMutation.mutate(String(currentList._id));
+        const currentId = currentList ? getId(currentList) : '';
+        if (currentId && !currentId.startsWith("optimistic-")) duplicateListMutation.mutate(currentId);
     };
 
     const handleSaveTemplate = () => {
@@ -419,7 +430,7 @@ export default function PackingChecklist() {
 
         // 2. If Trip Selected, fetch weather-based suggestions
         if (selectedTripId !== "none") {
-            const trip = userTrips?.find(t => String(t._id) === selectedTripId);
+            const trip = userTrips?.find(t => getId(t) === selectedTripId);
             if (trip && trip.destination) {
                 try {
                     toast({ title: "Analyzing Weather...", description: `Checking forecast for ${trip.destination}...` });
@@ -677,7 +688,7 @@ export default function PackingChecklist() {
                                     <div className="px-2 py-2 text-xs text-muted-foreground">No saved templates yet</div>
                                 ) : (
                                     templates.map((t: any) => (
-                                        <div key={t._id} className="flex items-center justify-between px-2 py-1.5 hover:bg-muted/50 rounded-sm">
+                                        <div key={getId(t)} className="flex items-center justify-between px-2 py-1.5 hover:bg-muted/50 rounded-sm">
                                             <button
                                                 className="flex-1 text-left text-sm text-foreground truncate"
                                                 onClick={() => setTemplateToLoad(t)}
@@ -687,7 +698,7 @@ export default function PackingChecklist() {
                                             <button
                                                 className="text-muted-foreground hover:text-red-500 p-1"
                                                 title="Delete template"
-                                                onClick={(e) => { e.stopPropagation(); deleteTemplateMutation.mutate(t._id); }}
+                                                onClick={(e) => { e.stopPropagation(); deleteTemplateMutation.mutate(getId(t)); }}
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
                                             </button>
