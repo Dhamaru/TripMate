@@ -303,7 +303,13 @@ export default function TripDetail() {
     },
     onSuccess: () => {
       fetchTrip(id);
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
+      // Prefix matching only catches an exact-element match, so this alone
+      // misses queries keyed on the full URL string '/api/v1/trips?light=true'
+      // (one element, not a nested array) — pages using the light variant
+      // (e.g. packing list's trip picker) kept showing stale data.
+      queryClient.invalidateQueries({
+        predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/v1/trips'),
+      });
       toast({
         title: "Trip Updated",
         description: "Your trip has been updated successfully.",
@@ -328,7 +334,13 @@ export default function TripDetail() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
+      // Prefix matching only catches an exact-element match, so this alone
+      // misses queries keyed on the full URL string '/api/v1/trips?light=true'
+      // (one element, not a nested array) — pages using the light variant
+      // (e.g. packing list's trip picker) kept showing stale data.
+      queryClient.invalidateQueries({
+        predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/v1/trips'),
+      });
       toast({
         title: "Trip Deleted",
         description: "Your trip has been deleted.",

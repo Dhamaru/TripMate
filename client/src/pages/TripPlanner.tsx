@@ -122,7 +122,14 @@ export default function TripPlanner() {
     },
     onSuccess: async (trip: any) => {
 
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/trips'] });
+      // Plain prefix matching only invalidates an exact-element match, so
+      // ['/api/v1/trips'] does NOT catch queries keyed on the full URL
+      // string '/api/v1/trips?light=true' (a single element, not a nested
+      // array) — every page using the light variant (e.g. the packing list's
+      // trip picker) kept serving a stale trip list until a hard reload.
+      queryClient.invalidateQueries({
+        predicate: (query) => typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/v1/trips'),
+      });
 
 
 
