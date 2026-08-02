@@ -9,7 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { useTripStore } from "@/store";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { Trash2, Plus, AlertTriangle, TrendingUp, Lightbulb } from "lucide-react";
+import { Trash2, Plus, Pencil, AlertTriangle, TrendingUp, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +31,8 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
         category: "Food",
         description: "",
     });
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editExpense, setEditExpense] = useState<Partial<IExpense>>({});
 
     const expenses = trip.expenses || [];
 
@@ -99,6 +101,38 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
             setNewExpense({ amount: 0, currency: trip.currency || "INR", category: "Food", description: "" });
         } catch (error) {
             toast({ title: "Failed to add expense", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+        }
+    };
+
+    const startEdit = (expense: IExpense) => {
+        setIsAdding(false);
+        setEditingId(expense.id);
+        setEditExpense({ amount: expense.amount, currency: expense.currency, category: expense.category, description: expense.description });
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setEditExpense({});
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingId) return;
+        if (!editExpense.amount || !editExpense.description) return;
+        if (Number(editExpense.amount) <= 0) {
+            toast({ title: "Invalid amount", description: "Amount must be greater than zero.", variant: "destructive" });
+            return;
+        }
+
+        try {
+            const res = await apiRequest('PUT', `/api/v1/trips/${trip.id}/expenses/${editingId}`, editExpense);
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `Failed to update expense (${res.status})`);
+            }
+            useTripStore.getState().fetchTrip(trip.id!);
+            cancelEdit();
+        } catch (error) {
+            toast({ title: "Failed to update expense", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
         }
     };
 
@@ -305,23 +339,66 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                             <div className="text-center text-muted-foreground py-4">No expenses recorded.</div>
                         )}
                         {expenses.map((expense) => (
-                            <div key={expense.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[#1D4E89] dark:text-blue-400">
-                                        <i className={`fas fa-${expense.category === 'Food' ? 'utensils' : expense.category === 'Transport' ? 'car' : 'tag'}`}></i>
+                            editingId === expense.id ? (
+                                <div key={expense.id} className="p-4 bg-secondary rounded-lg grid gap-4 md:grid-cols-4 items-end">
+                                    <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Description</label>
+                                        <Input
+                                            value={editExpense.description}
+                                            onChange={e => setEditExpense({ ...editExpense, description: e.target.value })}
+                                            className="bg-background border-border text-foreground"
+                                        />
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="font-medium text-foreground truncate">{expense.description}</div>
-                                        <div className="text-xs text-muted-foreground">{expense.category} • {new Date(expense.date).toLocaleDateString()}</div>
+                                    <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Amount</label>
+                                        <Input
+                                            type="number"
+                                            value={editExpense.amount}
+                                            onChange={e => setEditExpense({ ...editExpense, amount: Number(e.target.value) })}
+                                            className="bg-background border-border text-foreground"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+                                        <Select
+                                            value={editExpense.category}
+                                            onValueChange={(val: any) => setEditExpense({ ...editExpense, category: val })}
+                                        >
+                                            <SelectTrigger className="bg-background border-border text-foreground">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button onClick={handleSaveEdit} className="bg-[#1D4E89] hover:bg-[#1D4E89]/90 flex-1">Save</Button>
+                                        <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="font-bold text-foreground">{expense.currency} {expense.amount}</div>
-                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(expense.id)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8">
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
+                            ) : (
+                                <div key={expense.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[#1D4E89] dark:text-blue-400">
+                                            <i className={`fas fa-${expense.category === 'Food' ? 'utensils' : expense.category === 'Transport' ? 'car' : 'tag'}`}></i>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-medium text-foreground truncate">{expense.description}</div>
+                                            <div className="text-xs text-muted-foreground">{expense.category} • {new Date(expense.date).toLocaleDateString()}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="font-bold text-foreground mr-2">{expense.currency} {expense.amount}</div>
+                                        <Button variant="ghost" size="icon" onClick={() => startEdit(expense)} className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8">
+                                            <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(expense.id)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8">
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
+                            )
                         ))}
                     </div>
                 </CardContent>

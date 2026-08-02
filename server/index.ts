@@ -28,7 +28,6 @@ import atlasRoutes from "./routes/atlas.routes";
 import toolsRoutes from "./routes/tools.routes";
 import plannerRoutes from "./routes/planner.routes";
 import itineraryRoutes from './routes/itinerary.routes';
-import packingRoutes from './routes/packing.routes';
 import journalRoutes from './routes/journal.routes';
 import orchestratorRoutes from "./routes/orchestrator.routes";
 import suggestionRoutes from "./routes/suggestion.routes";
@@ -93,11 +92,15 @@ app.use("/api/v1/agent", agentRoutes);
 app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/notifications", notificationsRoutes);
 app.use("/api/v1/crowd", crowdRoutes);
-// packingRoutes/journalRoutes define their own full sub-paths
-// (/trips/:id/packing, /packing, /journal) — mount at the bare /api/v1
-// prefix. These were imported but never mounted, silently 404ing the
-// entire packing and journal APIs.
-app.use("/api/v1", packingRoutes);
+// journalRoutes defines its own full sub-paths (/journal) — mount at the
+// bare /api/v1 prefix. It carries the real multer photo-upload middleware
+// that shared.routes.ts's identical-looking /journal paths lack, so it
+// must stay mounted before sharedRoutes to win the match.
+//
+// packingRoutes (a fully redundant duplicate of the /packing paths shared.
+// routes.ts already serves, with none of shared.routes.ts's later additions
+// like /packing-lists/templates or /duplicate) was removed — nothing on the
+// client ever called its one non-overlapping route, POST /trips/:id/packing.
 app.use("/api/v1", journalRoutes);
 
 // Generic/Shared routes (Last, as they match widely)

@@ -50,6 +50,16 @@ import {
     DialogTrigger,
     DialogFooter,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -131,10 +141,20 @@ export default function PackingChecklist() {
     const [selectedTripId, setSelectedTripId] = useState<string>("none");
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [templateName, setTemplateName] = useState("");
+    const [templateToLoad, setTemplateToLoad] = useState<any>(null);
 
     const { data: userTrips } = useQuery<Trip[]>({
         queryKey: ["/api/v1/trips?light=true"],
     });
+
+    // Deep-linked from a trip's own page (?tripId=...) — pre-select it
+    // instead of leaving the user to hunt for it in the dropdown.
+    useEffect(() => {
+        const tripId = new URLSearchParams(window.location.search).get("tripId");
+        if (tripId && userTrips?.some(t => String(t._id) === tripId)) {
+            setSelectedTripId(tripId);
+        }
+    }, [userTrips]);
 
     const { data: templates } = useQuery<any[]>({
         queryKey: ["/api/v1/packing-lists/templates"],
@@ -375,10 +395,6 @@ export default function PackingChecklist() {
     };
 
     const handleLoadTemplate = (template: any) => {
-        // Confirm overwrite?
-        const confirmed = window.confirm("This will replace current items (excluding mandatory). Continue?");
-        if (!confirmed) return;
-
         const newItems = [
             ...items.filter(i => i.is_mandatory),
             ...template.items.map((i: any) => ({ ...i, packed: false }))
@@ -645,9 +661,91 @@ export default function PackingChecklist() {
                         <Button variant="outline" size="icon" title="Print" onClick={handlePrint} className="border hover:bg-muted/50">
                             <Printer className="w-4 h-4 text-muted-foreground" />
                         </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" title="Templates" className="border hover:bg-muted/50">
+                                    <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-card border text-foreground w-64">
+                                <DropdownMenuLabel>Templates</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => setIsTemplateModalOpen(true)}>
+                                    <Save className="w-4 h-4 mr-2" /> Save Current List As Template
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {(!templates || templates.length === 0) ? (
+                                    <div className="px-2 py-2 text-xs text-muted-foreground">No saved templates yet</div>
+                                ) : (
+                                    templates.map((t: any) => (
+                                        <div key={t._id} className="flex items-center justify-between px-2 py-1.5 hover:bg-muted/50 rounded-sm">
+                                            <button
+                                                className="flex-1 text-left text-sm text-foreground truncate"
+                                                onClick={() => setTemplateToLoad(t)}
+                                            >
+                                                {t.name}
+                                            </button>
+                                            <button
+                                                className="text-muted-foreground hover:text-red-500 p-1"
+                                                title="Delete template"
+                                                onClick={(e) => { e.stopPropagation(); deleteTemplateMutation.mutate(t._id); }}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
                     </div>
                 </div>
+
+                <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Save as Template</DialogTitle>
+                            <DialogDescription>Reuse this list's items for future trips.</DialogDescription>
+                        </DialogHeader>
+                        <div>
+                            <Label htmlFor="template-name">Template Name</Label>
+                            <Input
+                                id="template-name"
+                                value={templateName}
+                                onChange={(e) => setTemplateName(e.target.value)}
+                                placeholder="e.g. Beach Trip Essentials"
+                                className="mt-2"
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsTemplateModalOpen(false)}>Cancel</Button>
+                            <Button onClick={handleSaveTemplate} disabled={!templateName || createTemplateMutation.isPending}>
+                                {createTemplateMutation.isPending ? 'Saving...' : 'Save Template'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <AlertDialog open={!!templateToLoad} onOpenChange={(open) => !open && setTemplateToLoad(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Load "{templateToLoad?.name}"?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This replaces your current items (mandatory documents are kept). This can't be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => {
+                                    if (templateToLoad) handleLoadTemplate(templateToLoad);
+                                    setTemplateToLoad(null);
+                                }}
+                            >
+                                Load Template
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
                 {/* SEARCH & FILTER */}
                 <div className="flex gap-2 mb-6">

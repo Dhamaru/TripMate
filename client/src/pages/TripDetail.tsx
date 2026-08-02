@@ -3,7 +3,6 @@ import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { motion, AnimatePresence } from "framer-motion";
-import { PackingList } from "@/components/PackingList";
 import { TripMap } from "@/components/TripMap";
 import { BudgetTracker } from "@/components/budget/BudgetTracker";
 import { ItineraryManager } from "@/components/itinerary/ItineraryManager";
@@ -988,6 +987,19 @@ export default function TripDetail() {
                   <p className="text-muted-foreground bg-muted/50 rounded-xl p-4">{tripForm.notes}</p>
                 </div>
               )}
+
+              <Link href={`/app/packing?tripId=${id}`}>
+                <div className="mt-6 flex items-center justify-between p-4 bg-muted/50 hover:bg-muted rounded-xl cursor-pointer transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <i className="fas fa-suitcase-rolling text-[#1D4E89] text-lg"></i>
+                    <div>
+                      <p className="font-semibold text-foreground">Packing List</p>
+                      <p className="text-xs text-muted-foreground">Smart checklist for this trip</p>
+                    </div>
+                  </div>
+                  <i className="fas fa-chevron-right text-muted-foreground group-hover:text-foreground transition-colors"></i>
+                </div>
+              </Link>
             </CardContent>
           </Card>
 
