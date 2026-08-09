@@ -2,7 +2,7 @@ import { TripMateLogo } from "@/components/TripMateLogo";
 import {
   Route, BookOpen, CloudSun, Languages, Banknote, Shield,
   Mountain, Armchair, Landmark, Utensils,
-  Menu, X, Lightbulb, Code, Star, MapPin, Users, ArrowRight,
+  Menu, X, Lightbulb, Code, MapPin, Users, ArrowRight,
   Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -79,13 +79,6 @@ const travelStyles = [
   { icon: Armchair, name: "Relaxation" },
   { icon: Landmark, name: "Cultural" },
   { icon: Utensils, name: "Culinary" },
-];
-
-const stats = [
-  { value: "10K+", label: "Trips Planned" },
-  { value: "50+", label: "Destinations" },
-  { value: "4.9", label: "User Rating", icon: Star },
-  { value: "24/7", label: "AI Support" },
 ];
 
 const navLinks = [
@@ -402,23 +395,6 @@ export default function Landing() {
               </button>
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* ── Stats strip ────────────────────────────────── */}
-      <section className="border-y border-[#ebebeb] py-10 bg-[#f7f7f7]">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {stats.map((stat) => (
-              <div key={stat.label}>
-                <div className="flex items-center justify-center gap-1">
-                  <span className="font-display text-3xl font-bold text-gradient">{stat.value}</span>
-                  {stat.icon && <stat.icon className="w-4 h-4 text-[#163F73] fill-[#163F73]" />}
-                </div>
-                <div className="text-sm font-medium text-[#6a6a6a] mt-1">{stat.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
