@@ -100,6 +100,15 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath, {
     maxAge: "1y",
     immutable: true,
+    // express.static's default `index: true` auto-serves index.html itself
+    // whenever a request resolves to it (including "/") — WITH the same 1y
+    // immutable cache meant for hashed asset filenames. Since that header is
+    // "public", any CDN/shared cache in front of the app can then keep
+    // serving a stale index.html (pointing at an old JS bundle) to every
+    // visitor for up to a year after a deploy. index.html must always be
+    // revalidated, so route it through the catch-all below instead, which
+    // sets Cache-Control: no-cache.
+    index: false,
   }));
 
   // fall through to index.html if the file doesn't exist
