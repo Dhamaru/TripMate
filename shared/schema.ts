@@ -591,6 +591,7 @@ export interface IFeedback extends Document {
   email: string;
   userId?: string;
   status: string;
+  attachments?: string[];
 }
 
 const feedbackSchema = new Schema<IFeedback>(
@@ -601,7 +602,8 @@ const feedbackSchema = new Schema<IFeedback>(
     description: { type: String, required: true },
     email: { type: String, required: true },
     userId: { type: String },
-    status: { type: String, default: "open" }
+    status: { type: String, default: "open" },
+    attachments: { type: [String], default: undefined },
   },
   { timestamps: true, toJSON: baseToJSON, versionKey: false }
 );
@@ -614,6 +616,7 @@ export const insertFeedbackSchema = z.object({
   subject: z.string(),
   description: z.string(),
   email: z.string().email(),
+  attachments: z.array(z.string()).optional(),
 });
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
 export type Feedback = IFeedback;

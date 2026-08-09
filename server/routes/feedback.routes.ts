@@ -1,14 +1,41 @@
 import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { insertFeedbackSchema } from "@shared/schema";
 import { storage } from "../storage";
 import { sendFeedbackNotificationEmail, sendFeedbackConfirmationEmail } from "../email";
 
 const router = Router();
 
-router.post("/", async (req, res, next) => {
+const uploadDir = path.join(process.cwd(), "server", "uploads", "feedback");
+const diskStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        cb(null, uploadDir);
+    },
+    filename: (_req, file, cb) => {
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        cb(null, `feedback-${unique}${path.extname(file.originalname)}`);
+    },
+});
+
+const upload = multer({
+    storage: diskStorage,
+    limits: { fileSize: 5 * 1024 * 1024, files: 3 }, // 5MB each, up to 3 screenshots
+    fileFilter: (_req, file, cb) => {
+        if (file.mimetype.startsWith("image/")) cb(null, true);
+        else cb(new Error("Only image attachments are allowed"));
+    },
+});
+
+router.post("/", upload.array("attachments", 3), async (req, res, next) => {
     try {
         const userId = req.user ? (req.user as any).id || (req.user as any)._id : undefined;
-        const feedbackData = insertFeedbackSchema.parse(req.body);
+        const attachments = (req.files as Express.Multer.File[] | undefined)?.map(
+            (f) => `/uploads/feedback/${f.filename}`
+        );
+        const feedbackData = insertFeedbackSchema.parse({ ...req.body, attachments });
 
         const feedback = await storage.createFeedback({
             ...feedbackData,

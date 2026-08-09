@@ -188,14 +188,20 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     }
 }
 
-export async function sendFeedbackNotificationEmail(feedback: { type: string; category: string; subject: string; description: string; email: string }) {
+export async function sendFeedbackNotificationEmail(feedback: { type: string; category: string; subject: string; description: string; email: string; attachments?: string[] }) {
     const kind = feedback.type === "bug" ? "Bug Report" : feedback.type === "feature" ? "Feature Request" : "Feedback";
     const subject = `New ${kind}: ${feedback.subject}`;
-    const text = `New ${kind} submitted on TripMate.\n\nFrom: ${feedback.email}\nCategory: ${feedback.category}\nSubject: ${feedback.subject}\n\n${feedback.description}`;
+    const attachmentUrls = (feedback.attachments || []).map(a => `${config.FRONTEND_URL || "http://localhost:5000"}${a}`);
+    const attachmentsText = attachmentUrls.length ? `\n\nAttachments:\n${attachmentUrls.join('\n')}` : '';
+    const text = `New ${kind} submitted on TripMate.\n\nFrom: ${feedback.email}\nCategory: ${feedback.category}\nSubject: ${feedback.subject}\n\n${feedback.description}${attachmentsText}`;
+    const attachmentsHtml = attachmentUrls.length
+        ? `<div style="margin-top:14px"><strong>Attachments:</strong><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${attachmentUrls.map(u => `<a href="${u}" target="_blank"><img src="${u}" alt="Screenshot" style="width:140px;height:140px;object-fit:cover;border-radius:8px;border:1px solid #ddd" /></a>`).join('')}</div></div>`
+        : '';
     const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto">
 <h2 style="color:#1E3A8A">New ${kind}</h2>
 <p><strong>From:</strong> ${feedback.email}<br/><strong>Category:</strong> ${feedback.category}</p>
 <p style="background:#f5f5f5;padding:12px 16px;border-radius:8px"><strong>${feedback.subject}</strong><br/><br/>${feedback.description.replace(/\n/g, '<br/>')}</p>
+${attachmentsHtml}
 </div>`;
 
     const adminEmail = config.ADMIN_EMAIL;

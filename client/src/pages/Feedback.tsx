@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,7 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
-import { Lightbulb, Bug, Sparkles, FileText } from 'lucide-react';
+import { Lightbulb, Bug, Sparkles, FileText, Paperclip, X } from 'lucide-react';
+
+const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB, matches the server's multer limit
 
 export default function Feedback() {
     const { user } = useAuth() as any;
@@ -19,7 +22,34 @@ export default function Feedback() {
         email: user?.email || '',
     });
     const [loading, setLoading] = useState(false);
+    const [attachments, setAttachments] = useState<File[]>([]);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const { toast } = useToast();
+
+    const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        e.currentTarget.value = '';
+        if (files.length === 0) return;
+
+        const oversized = files.find(f => f.size > MAX_ATTACHMENT_SIZE);
+        if (oversized) {
+            toast({ title: 'File too large', description: `"${oversized.name}" is over 5MB.`, variant: 'destructive' });
+            return;
+        }
+
+        setAttachments(prev => {
+            const combined = [...prev, ...files];
+            if (combined.length > MAX_ATTACHMENTS) {
+                toast({ title: 'Too many files', description: `You can attach up to ${MAX_ATTACHMENTS} screenshots.`, variant: 'destructive' });
+                return combined.slice(0, MAX_ATTACHMENTS);
+            }
+            return combined;
+        });
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,7 +80,15 @@ export default function Feedback() {
         setLoading(true);
 
         try {
-            const response = await apiRequest('POST', '/api/v1/feedback', form);
+            let response: Response;
+            if (attachments.length > 0) {
+                const fd = new FormData();
+                Object.entries(form).forEach(([key, value]) => fd.append(key, value));
+                attachments.forEach(file => fd.append('attachments', file));
+                response = await apiRequest('POST', '/api/v1/feedback', fd);
+            } else {
+                response = await apiRequest('POST', '/api/v1/feedback', form);
+            }
 
             if (response.ok) {
                 toast({
@@ -64,6 +102,7 @@ export default function Feedback() {
                     description: '',
                     email: user?.email || '',
                 });
+                setAttachments([]);
             } else {
                 throw new Error('Failed to submit');
             }
@@ -236,6 +275,48 @@ export default function Feedback() {
                                     className="bg-muted border-border text-foreground placeholder:text-muted-foreground min-h-[200px]"
                                     required
                                 />
+                            </div>
+
+                            {/* Attachments */}
+                            <div>
+                                <label className="block text-sm font-semibold text-foreground mb-2">
+                                    Screenshots <span className="text-muted-foreground font-normal">(optional, up to {MAX_ATTACHMENTS})</span>
+                                </label>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleFilesSelected}
+                                    className="hidden"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={attachments.length >= MAX_ATTACHMENTS}
+                                    className="gap-2"
+                                >
+                                    <Paperclip className="w-4 h-4" />
+                                    Attach Screenshot
+                                </Button>
+                                {attachments.length > 0 && (
+                                    <div className="flex flex-wrap gap-3 mt-3">
+                                        {attachments.map((file, i) => (
+                                            <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border group">
+                                                <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeAttachment(i)}
+                                                    aria-label={`Remove ${file.name}`}
+                                                    className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Submit Button */}
