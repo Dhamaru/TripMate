@@ -19,6 +19,7 @@ interface WeatherData {
     windDeg?: number;
     windDir?: string;
     icon?: string;
+    isDay?: boolean;
     uvi?: number;
     visibility?: number;
     pressure?: number;
@@ -64,14 +65,21 @@ function getClothingSuggestions(temp: number, condition: string, uvi: number = 0
   return suggestions.slice(0, 2); // Return top 2
 }
 
-function getBackgroundGradient(condition: string, temp: number): string {
+// isDay reflects the actual local time at the queried destination (from the
+// weather API's own day/night signal), not the browser's clock or the app's
+// dark-mode setting — a clear night should never show the bright daytime
+// orange/blue gradient just because the condition text says "Clear".
+function getBackgroundGradient(condition: string, temp: number, isDay: boolean = true): string {
   const cond = condition.toLowerCase();
   if (cond.includes('rain') || cond.includes('drizzle')) return 'bg-gradient-to-br from-blue-900 via-gray-800 to-gray-900';
-  if (cond.includes('cloud')) return 'bg-gradient-to-br from-gray-600 via-gray-700 to-slate-800';
-  if (cond.includes('clear') || cond.includes('sun')) return temp > 25 ? 'bg-gradient-to-br from-orange-500 via-amber-600 to-red-600' : 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-700';
+  if (cond.includes('cloud')) return isDay ? 'bg-gradient-to-br from-gray-600 via-gray-700 to-slate-800' : 'bg-gradient-to-br from-slate-800 via-gray-900 to-black';
+  if (cond.includes('clear') || cond.includes('sun')) {
+    if (!isDay) return 'bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950';
+    return temp > 25 ? 'bg-gradient-to-br from-orange-500 via-amber-600 to-red-600' : 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-700';
+  }
   if (cond.includes('snow')) return 'bg-gradient-to-br from-blue-100 via-blue-200 to-white text-slate-800'; // Light theme for snow? Maybe keep dark for consistency but frosty.
   if (cond.includes('storm') || cond.includes('thunder')) return 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900';
-  return 'bg-gradient-to-br from-[#1D4E89] to-blue-700'; // Default
+  return isDay ? 'bg-gradient-to-br from-[#1D4E89] to-blue-700' : 'bg-gradient-to-br from-slate-900 to-indigo-950'; // Default
 }
 
 export function WeatherWidget({ location, coords = null, className = '' }: WeatherWidgetProps) {
@@ -176,7 +184,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
     try { localStorage.setItem(UNIT_KEY, next); } catch { }
   }
 
-  const bgClass = getBackgroundGradient(weather.current.condition, weather.current.temperature);
+  const bgClass = getBackgroundGradient(weather.current.condition, weather.current.temperature, weather.current.isDay !== false);
   const clothing = getClothingSuggestions(weather.current.temperature, weather.current.condition, weather.current.uvi);
 
   return (

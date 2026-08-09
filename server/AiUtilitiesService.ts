@@ -363,13 +363,21 @@ export class AiUtilitiesService {
           if (!unix) return '';
           return new Date(unix * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         };
+        // OpenWeather's own icon code carries a day/night suffix ("01d" vs
+        // "01n") based on the queried location's actual local sunrise/sunset
+        // — not the browser's clock or dark-mode setting — so it's the
+        // correct signal for "is it night at this destination right now."
+        // Previously ignored entirely: a sunny-at-night result always showed
+        // the sun icon and the bright daytime gradient.
+        const isDay = !String(currentJson.weather?.[0]?.icon || '').endsWith('n');
         const current = {
           temperature: Math.round(currentJson.main?.temp ?? 22),
           condition: cond,
           humidity: Math.round(currentJson.main?.humidity ?? 60),
           windSpeed: Math.round(currentJson.wind?.speed ?? 10),
           wind_kph: Math.round((currentJson.wind?.speed ?? 0) * 3.6),
-          icon: iconMap[cond] || 'fas fa-cloud',
+          icon: (cond === 'Clear' && !isDay) ? 'fas fa-moon' : (iconMap[cond] || 'fas fa-cloud'),
+          isDay,
           visibility: currentJson.visibility != null ? Math.round(currentJson.visibility / 100) / 10 : null,
           sunrise: fmtTime(currentJson.sys?.sunrise),
           sunset: fmtTime(currentJson.sys?.sunset),
@@ -461,7 +469,10 @@ export class AiUtilitiesService {
               const iconMap: Record<string, string> = { Clear: 'fas fa-sun', Clouds: 'fas fa-cloud', Rain: 'fas fa-cloud-rain', Snow: 'fas fa-snowflake', Thunderstorm: 'fas fa-bolt', Mist: 'fas fa-smog' };
               const cond = condMap(wc);
               const temp = Math.round(meteo.current_weather?.temperature ?? 20);
-              const current = { temperature: temp, condition: cond, humidity: 60, windSpeed: Math.round(meteo.current_weather?.windspeed ?? 10), icon: iconMap[cond] || 'fas fa-cloud' };
+              // Open-Meteo's current_weather already reports is_day (0/1) at
+              // no extra cost — same day/night fix as the primary OWM path.
+              const isDay = meteo.current_weather?.is_day !== 0;
+              const current = { temperature: temp, condition: cond, humidity: 60, windSpeed: Math.round(meteo.current_weather?.windspeed ?? 10), icon: (cond === 'Clear' && !isDay) ? 'fas fa-moon' : (iconMap[cond] || 'fas fa-cloud'), isDay };
               const daily = meteo.daily || {};
               const forecast = Array.from({ length: 7 }, (_, i) => {
                 const hi = Math.round(daily.temperature_2m_max?.[i] ?? temp);
