@@ -221,7 +221,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto pb-24 md:pb-8">
+        {/* pb-32 (128px) mobile clearance for the fixed bottom nav (bottom-3
+            offset + ~64px height ≈ 76px) — pb-24 measured 34px short on
+            pages whose last content sits close to the true page bottom. */}
+        <main className="flex-1 overflow-y-auto pb-32 md:pb-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={location}
