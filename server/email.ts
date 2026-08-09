@@ -222,6 +222,38 @@ ${attachmentsHtml}
     }
 }
 
+export async function sendAgentTriagePlanEmail(feedback: { type: string; category: string; subject: string; description: string; email: string; agentPlan?: string }) {
+    const kind = feedback.type === "bug" ? "Bug Report" : feedback.type === "feature" ? "Feature Request" : "Feedback";
+    const subject = `Triage plan ready: ${feedback.subject}`;
+    const plan = feedback.agentPlan || "(no plan text)";
+    const text = `The automated feedback-triage routine investigated this ${kind.toLowerCase()} and drafted a fix plan.\n\nOriginal report from ${feedback.email} (${feedback.category}):\n"${feedback.subject}"\n${feedback.description}\n\n--- Proposed plan ---\n${plan}\n\nThis plan has NOT been applied — review it and say the word if you want it built.`;
+    const html = `<div style="font-family:sans-serif;max-width:560px;margin:auto">
+<h2 style="color:#1E3A8A">Triage plan ready</h2>
+<p style="color:#666;font-size:13px">The automated feedback-triage routine investigated this ${kind.toLowerCase()} and drafted a fix plan below. <strong>Nothing has been changed yet</strong> — this is a proposal for you to review.</p>
+<p><strong>Reported by:</strong> ${feedback.email}<br/><strong>Category:</strong> ${feedback.category}</p>
+<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px"><strong>${feedback.subject}</strong><br/><br/>${feedback.description.replace(/\n/g, '<br/>')}</p>
+<h3 style="color:#1E3A8A;margin-top:20px">Proposed plan</h3>
+<div style="background:#f0f4fa;padding:12px 16px;border-radius:8px;white-space:pre-wrap;font-size:14px">${plan.replace(/\n/g, '<br/>')}</div>
+</div>`;
+
+    const adminEmail = config.ADMIN_EMAIL;
+    if (!adminEmail) return false;
+
+    const sentViaResend = await sendViaResend(adminEmail, subject, html, text);
+    if (sentViaResend) return true;
+
+    try {
+        const transporter = await transporterPromise;
+        if (!transporter) throw new Error("Email transporter not initialized");
+        const info = await transporter.sendMail({ from: `"TripMate Feedback Triage" <${config.SMTP_FROM_EMAIL || config.SMTP_USER || 'noreply@tripmate.app'}>`, to: adminEmail, subject, text, html });
+        console.log("Triage plan email sent to admin: %s", info.messageId);
+        return true;
+    } catch (error: any) {
+        console.error("Error sending triage plan email:", error?.message || error);
+        return false;
+    }
+}
+
 export async function sendFeedbackConfirmationEmail(email: string, subjectLine: string, type: string) {
     const subject = "We received your feedback — TripMate";
     const kind = type === "bug" ? "bug report" : "feedback";

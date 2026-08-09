@@ -592,6 +592,9 @@ export interface IFeedback extends Document {
   userId?: string;
   status: string;
   attachments?: string[];
+  agentReviewed: boolean;
+  agentReviewedAt?: Date;
+  agentPlan?: string;
 }
 
 const feedbackSchema = new Schema<IFeedback>(
@@ -604,6 +607,12 @@ const feedbackSchema = new Schema<IFeedback>(
     userId: { type: String },
     status: { type: String, default: "open" },
     attachments: { type: [String], default: undefined },
+    // Set by the automated feedback-triage routine once it has investigated
+    // and reproduced the issue — agentPlan holds its proposed fix, not an
+    // applied change. A human still decides whether to act on it.
+    agentReviewed: { type: Boolean, default: false, index: true },
+    agentReviewedAt: { type: Date },
+    agentPlan: { type: String },
   },
   { timestamps: true, toJSON: baseToJSON, versionKey: false }
 );

@@ -25,6 +25,11 @@ const envSchema = z.object({
     SMTP_PORT: z.coerce.number().default(587),
     SMTP_FROM_EMAIL: z.string().optional(),
     ADMIN_EMAIL: z.string().optional().default('kasivasi2005@gmail.com'),
+    // Service-to-service secret for the automated feedback-triage routine —
+    // deliberately NOT a user login, so no account password ever has to sit
+    // in a scheduled cloud-agent's stored config. Unset by default so the
+    // admin feedback endpoints fail closed until this is explicitly set.
+    ADMIN_SECRET: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
     TRANSLATE_API_URL: z.string().optional(),
     TRANSLATE_API_KEY: z.string().optional(),

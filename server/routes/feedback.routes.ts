@@ -2,9 +2,11 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertFeedbackSchema } from "@shared/schema";
+import { insertFeedbackSchema, FeedbackModel } from "@shared/schema";
 import { storage } from "../storage";
-import { sendFeedbackNotificationEmail, sendFeedbackConfirmationEmail } from "../email";
+import { sendFeedbackNotificationEmail, sendFeedbackConfirmationEmail, sendAgentTriagePlanEmail } from "../email";
+import { requireAdminSecret } from "../middleware/adminAuth.middleware";
+import { NotFoundError, BadRequestError } from "../errors";
 
 const router = Router();
 
@@ -52,6 +54,46 @@ router.post("/", upload.array("attachments", 3), async (req, res, next) => {
         setImmediate(() => {
             sendFeedbackNotificationEmail(feedback).catch((e) => console.error("[Feedback] Admin notification failed:", e));
             sendFeedbackConfirmationEmail(feedback.email, feedback.subject, feedback.type).catch((e) => console.error("[Feedback] Submitter confirmation failed:", e));
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Admin/automation endpoints — secret-header auth, not user login ──────
+// Used by the scheduled feedback-triage routine to find new reports and
+// record what it found. Deliberately read/annotate only: the routine drafts
+// a fix plan here, it never touches application code directly.
+
+router.get("/", requireAdminSecret, async (req, res, next) => {
+    try {
+        const filter: Record<string, unknown> = {};
+        if (req.query.unreviewed === "true") filter.agentReviewed = false;
+        if (req.query.type) filter.type = req.query.type;
+
+        const feedback = await FeedbackModel.find(filter).sort({ createdAt: -1 }).limit(100);
+        res.json(feedback);
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.patch("/:id/review", requireAdminSecret, async (req, res, next) => {
+    try {
+        const { plan } = req.body as { plan?: string };
+        if (!plan || !plan.trim()) throw new BadRequestError("plan is required");
+
+        const feedback = await FeedbackModel.findByIdAndUpdate(
+            req.params.id,
+            { agentReviewed: true, agentReviewedAt: new Date(), agentPlan: plan },
+            { new: true }
+        );
+        if (!feedback) throw new NotFoundError("Feedback not found");
+
+        res.json(feedback);
+
+        setImmediate(() => {
+            sendAgentTriagePlanEmail(feedback).catch((e) => console.error("[Feedback] Triage-plan notification failed:", e));
         });
     } catch (error) {
         next(error);
