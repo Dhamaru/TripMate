@@ -609,10 +609,10 @@ export default function PackingChecklist() {
                                 <TabsTrigger
                                     key={season}
                                     value={season}
-                                    className="rounded-full data-[state=active]:bg-[#163F73] data-[state=active]:text-white transition-all duration-300 flex items-center justify-center gap-2"
+                                    className="min-w-0 px-1 rounded-full data-[state=active]:bg-[#163F73] data-[state=active]:text-white transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2"
                                 >
                                     {getSeasonIcon(season)}
-                                    <span className="text-xs sm:text-sm font-medium">{labels[season]}</span>
+                                    <span className="text-[11px] sm:text-sm font-medium truncate">{labels[season]}</span>
                                 </TabsTrigger>
                             )
                         })}
@@ -641,7 +641,7 @@ export default function PackingChecklist() {
                         </Select>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-center gap-2">
                         <Button
                             variant="outline"
                             size="icon"

@@ -5,7 +5,10 @@ export function AtlasTriggerButton() {
     const toggleChat = useAgentStore(s => s.toggleChat)
     return (
         <button
-            className="fixed bottom-6 right-6 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center hover:brightness-110"
+            // bottom-[88px] on mobile clears the fixed bottom nav (offset 12px +
+            // height ~64px + 12px breathing room) — bottom-6 alone put this
+            // directly on top of the nav's "Feedback" item.
+            className="fixed bottom-[88px] right-6 md:bottom-6 z-50 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center hover:brightness-110"
             onClick={toggleChat}
             aria-label="Open Atlas AI assistant (Ctrl+K)"
             title="Open Atlas (Ctrl+K)"
