@@ -597,7 +597,7 @@ export default function PackingChecklist() {
                 </div>
 
                 <Tabs value={activeSeason} onValueChange={(v) => setActiveSeason(v as Season)} className="mb-8">
-                    <TabsList className="grid grid-cols-4 bg-card border border rounded-full p-1 h-12">
+                    <TabsList className="grid grid-cols-4 w-full bg-card border border rounded-full p-1 h-12">
                         {SEASONS.map(season => {
                             const labels = {
                                 Summer: "Summer",
@@ -641,7 +641,7 @@ export default function PackingChecklist() {
                         </Select>
                     </div>
 
-                    <div className="flex flex-wrap justify-center gap-2">
+                    <div className="flex flex-wrap justify-center gap-2 w-full">
                         <Button
                             variant="outline"
                             size="icon"
