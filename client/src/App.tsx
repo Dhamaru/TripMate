@@ -13,8 +13,11 @@ function App() {
     void checkSession();
   }, [checkSession]);
 
-  // Only show Atlas on authenticated app pages
-  const showAtlas = isAuthenticated && location.startsWith('/app');
+  // Only show Atlas on authenticated app pages — except /app/maps, which runs
+  // its own full-bleed "focus mode" layout with a bottom sheet that already
+  // occupies the same bottom-right zone this fixed button would float in.
+  // Still reachable there via Ctrl+K.
+  const showAtlas = isAuthenticated && location.startsWith('/app') && !location.startsWith('/app/maps');
 
   return (
     <main id="main">

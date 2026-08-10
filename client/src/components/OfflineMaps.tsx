@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,11 @@ const DEFAULT_REGIONS: MapRegion[] = [];
 
 export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [activeTab, setActiveTab] = useState<'explore' | 'navigation' | 'saved'>('explore');
+  // Focus-mode bottom sheet — collapsed shows a one-line peek (Storage Usage
+  // summary + handle), expanded reveals Storage/Search/Saved Regions in full.
+  // An overlay on top of the map rather than a flow sibling, so toggling it
+  // never changes the map container's own size (no need to invalidateSize).
+  const [sheetExpanded, setSheetExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
   const { theme } = useTheme();
@@ -727,63 +733,58 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   }
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Tab Navigation */}
-      <div className="flex space-x-2 bg-muted p-1 rounded-lg w-fit">
-        <button
-          onClick={() => setActiveTab('explore')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          Explore
-        </button>
-        <button
-          onClick={() => setActiveTab('navigation')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          Navigation
-        </button>
-        <button
-          onClick={() => setActiveTab('saved')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          Saved Pins
-        </button>
+    <div className={`relative h-full w-full flex flex-col overflow-hidden ${className}`}>
+      {/* Slim top bar — tabs + offline/dark-mode state, not a full page header */}
+      <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card">
+        <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('explore')}
+            className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Explore
+          </button>
+          <button
+            onClick={() => setActiveTab('navigation')}
+            className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Navigation
+          </button>
+          <button
+            onClick={() => setActiveTab('saved')}
+            className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Saved Pins
+          </button>
+        </div>
+        {offlineModeRegion ? (
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-green-400 min-w-0">
+            <span className="truncate">Offline: {offlineModeRegion.name}</span>
+            <Button variant="ghost" size="sm" onClick={exitOfflineMap} className="h-6 w-6 p-0 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50 flex items-center justify-center flex-shrink-0">
+              <i className="fas fa-times text-xs"></i>
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDarkMode(!darkMode)}
+            className="text-muted-foreground hover:text-foreground flex-shrink-0"
+            title={darkMode ? "Light Mode" : "Dark Mode"}
+          >
+            {darkMode ? <i className="fas fa-sun"></i> : <i className="fas fa-moon"></i>}
+            <span className="hidden sm:inline ml-2">{darkMode ? "Light Mode" : "Dark Mode"}</span>
+          </Button>
+        )}
       </div>
 
       <div id={activeTab === 'saved' ? 'tab-indicator-saved' : undefined}></div>
 
-      <Card className="bg-card border-border" data-testid="offline-map-display">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg font-bold text-foreground flex gap-2 items-center">
-              {offlineModeRegion ? (
-                <>
-                  <span className="text-green-400">Offline View:</span> {offlineModeRegion.name}
-                  <Button variant="ghost" size="sm" onClick={exitOfflineMap} className="ml-3 h-7 w-7 p-0 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50 transition-colors flex items-center justify-center">
-                    <i className="fas fa-times text-xs"></i>
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <span>Interactive Map</span>
-                  {isNavigating && <span className="text-green-400 text-sm animate-pulse flex items-center gap-1"><i className="fas fa-circle text-[8px]"></i> Live</span>}
-                </>
-              )}
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDarkMode(!darkMode)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              {darkMode ? <i className="fas fa-sun mr-2"></i> : <i className="fas fa-moon mr-2"></i>}
-              {darkMode ? "Light Mode" : "Dark Mode"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-6">
-          <div className="relative isolate w-full h-[350px] md:h-[500px] sm:rounded-xl overflow-hidden group">
-            <div ref={mapContainerRef} className="w-full h-full bg-muted" style={{ zIndex: 0 }} />
+      {/* Map fills all remaining space — the bottom sheet below is an overlay
+          on top of it, not a document-flow sibling, so it never changes this
+          container's size (no invalidateSize dance needed on toggle). */}
+      <div className="relative flex-1 min-h-0" data-testid="offline-map-display">
+        <div className="relative isolate w-full h-full overflow-hidden group">
+          <div ref={mapContainerRef} className="w-full h-full bg-muted" style={{ zIndex: 0 }} />
 
             {/* Navigation Overlay Controls */}
             {activeTab === 'navigation' && (
@@ -908,40 +909,68 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               </div>
             )}
 
-            <Button
-              onClick={() => {
-                navigator.geolocation.getCurrentPosition(p => {
-                  const map = mapInstanceRef.current;
-                  if (!map) return;
-                  const { latitude, longitude } = p.coords;
-                  map.flyTo([latitude, longitude], 15);
+            {!sheetExpanded && (
+              <Button
+                onClick={() => {
+                  navigator.geolocation.getCurrentPosition(p => {
+                    const map = mapInstanceRef.current;
+                    if (!map) return;
+                    const { latitude, longitude } = p.coords;
+                    map.flyTo([latitude, longitude], 15);
 
-                  // Add marker only when locating
-                  if (userMarkerRef.current) userMarkerRef.current.remove();
-                  userMarkerRef.current = L.marker([latitude, longitude])
-                    .addTo(map)
-                    .bindPopup("You are here")
-                    .openPopup();
+                    // Add marker only when locating
+                    if (userMarkerRef.current) userMarkerRef.current.remove();
+                    userMarkerRef.current = L.marker([latitude, longitude])
+                      .addTo(map)
+                      .bindPopup("You are here")
+                      .openPopup();
 
-                  // Feed the same location into Get Route so users who've
-                  // already located themselves here don't have to trigger a
-                  // second, separate geolocation request from the Navigation tab.
-                  setUserLocation({ lat: latitude, lon: longitude });
-                }, () => {
-                  toast({ title: "Location unavailable", description: "Couldn't get your position.", variant: "destructive" });
-                });
-              }}
-              variant="secondary"
-              size="icon"
-              className="absolute bottom-4 right-4 z-[400] bg-card text-foreground rounded-full border border-border"
-              title="Locate Me"
-            >
-              <i className="fas fa-crosshairs"></i>
-            </Button>
+                    // Feed the same location into Get Route so users who've
+                    // already located themselves here don't have to trigger a
+                    // second, separate geolocation request from the Navigation tab.
+                    setUserLocation({ lat: latitude, lon: longitude });
+                  }, () => {
+                    toast({ title: "Location unavailable", description: "Couldn't get your position.", variant: "destructive" });
+                  });
+                }}
+                variant="secondary"
+                size="icon"
+                className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border shadow-lg"
+                style={{ bottom: 76 }}
+                title="Locate Me"
+              >
+                <i className="fas fa-crosshairs"></i>
+              </Button>
+            )}
           </div>
-        </CardContent>
-      </Card>
 
+          {/* Bottom sheet — an overlay on top of the map (absolute, not a
+              flow sibling), so expanding/collapsing it never resizes the map
+              container. bottom-[76px] on mobile clears the fixed bottom nav;
+              md:bottom-0 because the desktop sidebar layout has no bottom nav
+              to clear. */}
+          <motion.div
+            className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-[500] bg-card border-t border-border rounded-t-2xl shadow-[0_-4px_24px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden"
+            animate={{ height: sheetExpanded ? '65%' : 56 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            style={{ maxHeight: '80%' }}
+          >
+            <button
+              onClick={() => setSheetExpanded(v => !v)}
+              className="relative flex-shrink-0 flex items-center justify-between gap-3 px-4 h-14 w-full text-left"
+              aria-expanded={sheetExpanded}
+              aria-label="Toggle map details panel"
+            >
+              <div className="absolute left-1/2 -translate-x-1/2 top-1.5 w-10 h-1 rounded-full bg-border" />
+              <div className="flex items-center gap-2 min-w-0 mt-1.5">
+                <i className="fas fa-hdd text-muted-foreground text-sm"></i>
+                <span className="text-sm font-medium text-foreground truncate">{formatBytes(totalSize)} / 2 GB used</span>
+              </div>
+              <i className={`fas fa-chevron-up text-muted-foreground text-xs transition-transform mt-1.5 ${sheetExpanded ? 'rotate-180' : ''}`}></i>
+            </button>
+
+            {sheetExpanded && (
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-4">
       {/* Filtering & Search only visible in Explore */}
       {activeTab === 'explore' && (
         <Card className="bg-card border-border">
@@ -1089,6 +1118,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           )}
         </CardContent>
       </Card>
+              </div>
+            )}
+          </motion.div>
+        </div>
 
       <NamePromptDialog
         open={pinDialogOpen}

@@ -32,6 +32,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
+  // The Maps page manages its own full-height "focus mode" layout (map fills
+  // the viewport, a bottom sheet holds secondary controls) — the standard
+  // padded/max-width/bottom-nav-clearance wrapper below would fight that, so
+  // it opts out and takes the full content area itself.
+  const isFullBleed = location.startsWith('/app/maps');
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
@@ -174,7 +179,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Main content ──────────────────────────────── */}
       <div className={cn(
-        "flex-1 flex flex-col h-full transition-all duration-300 ease-in-out",
+        "flex-1 flex flex-col h-full transition-all duration-300 ease-in-out min-w-0",
         "md:ml-[240px]",
         collapsed && "md:ml-[60px]"
       )}>
@@ -224,7 +229,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* pb-32 (128px) mobile clearance for the fixed bottom nav (bottom-3
             offset + ~64px height ≈ 76px) — pb-24 measured 34px short on
             pages whose last content sits close to the true page bottom. */}
-        <main className="flex-1 overflow-y-auto pb-32 md:pb-8">
+        <main className={isFullBleed ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto pb-32 md:pb-8"}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location}
@@ -232,7 +237,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className="px-6 py-7 max-w-5xl mx-auto w-full"
+              className={isFullBleed ? "w-full h-full" : "px-6 py-7 max-w-5xl mx-auto w-full"}
             >
               {children}
             </motion.div>
