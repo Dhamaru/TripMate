@@ -42,10 +42,25 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     activeStreamCleanup: null,
     toggleChat: () => set((state) => {
         const closing = state.isChatOpen;
-        if (closing && state.activeStreamCleanup) {
-            state.activeStreamCleanup();
+        const hadActiveStream = closing && !!state.activeStreamCleanup;
+        if (hadActiveStream) {
+            state.activeStreamCleanup!();
         }
-        return { isChatOpen: !state.isChatOpen, activeStreamCleanup: closing ? null : state.activeStreamCleanup };
+        return {
+            isChatOpen: !state.isChatOpen,
+            activeStreamCleanup: closing ? null : state.activeStreamCleanup,
+            // es.close() is a client-initiated close — per the EventSource
+            // spec it does NOT fire onerror, so neither onDone nor onError
+            // ever ran to reset these. Without this, closing mid-response
+            // left isLoading/isStreaming stuck true forever: the input
+            // stayed disabled and the streaming bubble stayed frozen with
+            // its cursor, even after reopening the panel — required a full
+            // page reload to recover.
+            ...(hadActiveStream ? {
+                isLoading: false,
+                messages: state.messages.map(m => m.isStreaming ? { ...m, isStreaming: false } : m),
+            } : {}),
+        };
     }),
 
     setContext: (context) => set((state) => ({ context: { ...state.context, ...context } })),
