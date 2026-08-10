@@ -55,7 +55,7 @@ export const version = (_req: Request, res: Response) => {
 // France métropolitaine, France" two or three times with only whitespace/
 // punctuation differences. Dedupe on a normalized display_name so the
 // search-suggestion dropdown doesn't show visibly identical rows.
-function dedupeByDisplayName<T extends { display_name?: string }>(results: T[]): T[] {
+function dedupeByDisplayName<T extends { display_name?: string; lat?: string; lon?: string }>(results: T[]): T[] {
     const seen = new Set<string>();
     return results.filter((r) => {
         const key = String(r.display_name || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -65,13 +65,46 @@ function dedupeByDisplayName<T extends { display_name?: string }>(results: T[]):
     });
 }
 
+// Haversine, in km — good enough for ranking nearby results, not for
+// anything requiring geodesic precision.
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Sort by distance to a bias point when one's given, e.g. searching a chain
+// name like "D-Mart" or "Domino's" otherwise returns branches from anywhere
+// in the country in whatever order the geocoder felt like, no more useful
+// than the nearest one. Nominatim's own viewbox param only nudges its
+// ranking (soft preference), so an explicit sort is what actually guarantees
+// nearest-first regardless of how it scored things internally.
+function sortByDistanceIfBiased<T extends { lat?: string; lon?: string }>(results: T[], biasLat: number | null, biasLon: number | null): T[] {
+    if (biasLat == null || biasLon == null) return results;
+    return [...results].sort((a, b) => {
+        const da = distanceKm(biasLat, biasLon, parseFloat(a.lat || '0'), parseFloat(a.lon || '0'));
+        const db = distanceKm(biasLat, biasLon, parseFloat(b.lat || '0'), parseFloat(b.lon || '0'));
+        return da - db;
+    });
+}
+
 export const geocode = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const query = req.query.q as string;
         if (!query) throw new BadRequestError("Missing query parameter 'q'");
+        const biasLat = req.query.lat ? parseFloat(req.query.lat as string) : null;
+        const biasLon = req.query.lon ? parseFloat(req.query.lon as string) : null;
+        // Unbounded (no bounded=1) — a soft ranking preference toward this
+        // box, not a hard filter, so a legitimately relevant distant result
+        // still shows up if nothing local matches.
+        const viewboxParam = (biasLat != null && biasLon != null)
+            ? `&viewbox=${biasLon - 0.5},${biasLat + 0.5},${biasLon + 0.5},${biasLat - 0.5}`
+            : '';
 
         try {
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5${viewboxParam}`;
             const response = await fetch(url, {
                 headers: {
                     "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)"
@@ -82,7 +115,7 @@ export const geocode = async (req: Request, res: Response, next: NextFunction) =
 
             const data = await response.json();
             if (Array.isArray(data) && data.length > 0) {
-                return res.status(200).json(dedupeByDisplayName(data));
+                return res.status(200).json(sortByDistanceIfBiased(dedupeByDisplayName(data), biasLat, biasLon));
             }
             throw new Error("Nominatim returned no results");
         } catch (nominatimError: any) {
@@ -112,7 +145,7 @@ export const geocode = async (req: Request, res: Response, next: NextFunction) =
                 display_name: r.formatted_address,
                 name: r.name,
             }));
-            return res.status(200).json(dedupeByDisplayName(mapped));
+            return res.status(200).json(sortByDistanceIfBiased(dedupeByDisplayName(mapped), biasLat, biasLon));
         }
     } catch (error) {
         next(error);

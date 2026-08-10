@@ -472,7 +472,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     navDestDebounceRef.current = setTimeout(async () => {
       try {
         setNavDestLoading(true);
-        const r = await fetch(`/api/v1/geocode?q=${encodeURIComponent(query.trim())}`);
+        // For a "where do I want to go" navigation search, bias results
+        // toward the user's actual location — otherwise a common chain name
+        // like "D-Mart" or "Domino's" returns branches from anywhere in the
+        // country in no particular order, no more useful than the nearest
+        // one. Falls back to wherever the map is currently centered (which
+        // itself starts at the user's location on load) if geolocation
+        // hasn't set userLocation yet.
+        const bias = userLocation || (() => {
+          const c = mapInstanceRef.current?.getCenter();
+          return c ? { lat: c.lat, lon: c.lng } : null;
+        })();
+        const biasParam = bias ? `&lat=${bias.lat}&lon=${bias.lon}` : '';
+        const r = await fetch(`/api/v1/geocode?q=${encodeURIComponent(query.trim())}${biasParam}`);
         const data = await r.json();
         setNavDestSuggestions(Array.isArray(data) ? data : []);
         setShowNavDestSuggestions(true);
