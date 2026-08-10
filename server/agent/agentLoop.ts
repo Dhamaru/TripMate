@@ -34,6 +34,30 @@ const MODEL_KEYS = [
     config.NVIDIA_API_KEY_1,
 ];
 
+/**
+ * Classifies whether a provider error is worth falling back to the next
+ * model for (quota/rate-limit, timeout/connection, or a stale-resource 410),
+ * versus a genuine hard failure that should just surface to the user.
+ * Shared by both the initial completion-request error handler and the
+ * mid-stream error handler below — a 410 or timeout can happen either before
+ * the stream starts or partway through it, and previously only the former
+ * was caught, so a mid-stream failure skipped fallback entirely and went
+ * straight to a hard user-facing error with working models still available.
+ */
+function classifyFallbackError(err: any): { shouldFallback: boolean; reason: string } {
+    const msg = String(err?.message || '');
+    const isQuotaOrRateLimit = err?.status === 429
+        || /resourceexhausted|rate.?limit|quota|too many requests/i.test(msg);
+    const isTimeoutOrConnection = err?.name === 'APIConnectionTimeoutError'
+        || err?.name === 'APIConnectionError'
+        || /timeout|timed out|econnreset|econnrefused|etimedout|aborted/i.test(msg);
+    const isGone = err?.status === 410;
+    if (isQuotaOrRateLimit) return { shouldFallback: true, reason: 'Quota/rate-limit' };
+    if (isGone) return { shouldFallback: true, reason: '410 Gone' };
+    if (isTimeoutOrConnection) return { shouldFallback: true, reason: 'Timeout' };
+    return { shouldFallback: false, reason: '' };
+}
+
 /** Summarizes conversation history when estimated tokens exceed 4000 to prevent context overflow. */
 async function summarizeIfNeeded(
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
@@ -177,28 +201,9 @@ export async function runAgentLoop(
                     stream_options: { include_usage: true }
                 });
             } catch (apiErr: any) {
-                const msg = String(apiErr?.message || '');
-                const isQuotaOrRateLimit = apiErr.status === 429
-                    || /resourceexhausted|rate.?limit|quota|too many requests/i.test(msg);
-                // NVIDIA has been observed answering a trivial ping fine but
-                // timing out on the real request (full system prompt + tool
-                // schema) without ever hitting a quota/429 — that's a
-                // timeout/connection error, a different shape entirely, and
-                // previously fell straight through to a hard failure instead
-                // of trying the next model.
-                const isTimeoutOrConnection = apiErr?.name === 'APIConnectionTimeoutError'
-                    || apiErr?.name === 'APIConnectionError'
-                    || /timeout|timed out|econnreset|econnrefused|etimedout|aborted/i.test(msg);
-                // Observed live: a NVIDIA NIM free-tier endpoint returning
-                // 410 Gone (no body) mid-conversation, after a tool-call
-                // round-trip — a stale/rotated resource, not a quota or
-                // timeout issue, so neither check above caught it and it
-                // fell straight through to a hard user-facing failure with
-                // two more models still available in the chain.
-                const isGone = apiErr?.status === 410;
-                if ((isQuotaOrRateLimit || isTimeoutOrConnection || isGone) && currentModelIndex < MODELS.length - 1) {
-                    const reason = isQuotaOrRateLimit ? 'Quota/rate-limit' : isGone ? '410 Gone' : 'Timeout';
-                    console.warn(`[Atlas:Loop] ${reason} hit for ${MODELS[currentModelIndex]} (${msg}). Falling back to ${MODELS[currentModelIndex + 1]}`);
+                const { shouldFallback, reason } = classifyFallbackError(apiErr);
+                if (shouldFallback && currentModelIndex < MODELS.length - 1) {
+                    console.warn(`[Atlas:Loop] ${reason} hit for ${MODELS[currentModelIndex]} (${apiErr?.message}). Falling back to ${MODELS[currentModelIndex + 1]}`);
                     currentModelIndex++;
                     iteration--; // Retry this iteration
                     continue;
@@ -209,37 +214,55 @@ export async function runAgentLoop(
             let fullContent = '';
             let toolCalls: any[] = [];
 
-            for await (const chunk of stream) {
-                if ((chunk as any).usage) {
-                    totalTokens += (chunk as any).usage.total_tokens;
-                }
-                const delta = chunk.choices[0]?.delta;
-                if (delta?.content) {
-                    fullContent += delta.content;
-                    input.onToken?.(delta.content);
-                }
+            try {
+                for await (const chunk of stream) {
+                    if ((chunk as any).usage) {
+                        totalTokens += (chunk as any).usage.total_tokens;
+                    }
+                    const delta = chunk.choices[0]?.delta;
+                    if (delta?.content) {
+                        fullContent += delta.content;
+                        input.onToken?.(delta.content);
+                    }
 
-                if (delta?.tool_calls) {
-                    for (const tc of delta.tool_calls) {
-                        if (tc.index !== undefined) {
-                            if (!toolCalls[tc.index]) {
-                                toolCalls[tc.index] = {
-                                    id: tc.id,
-                                    type: 'function',
-                                    function: { name: '', arguments: '' }
-                                };
-                            }
-                            if (tc.id) toolCalls[tc.index].id = tc.id;
-                            if (tc.function?.name) {
-                                toolCalls[tc.index].function.name = tc.function.name;
-                                input.onTool?.(tc.function.name);
-                            }
-                            if (tc.function?.arguments) {
-                                toolCalls[tc.index].function.arguments += tc.function.arguments;
+                    if (delta?.tool_calls) {
+                        for (const tc of delta.tool_calls) {
+                            if (tc.index !== undefined) {
+                                if (!toolCalls[tc.index]) {
+                                    toolCalls[tc.index] = {
+                                        id: tc.id,
+                                        type: 'function',
+                                        function: { name: '', arguments: '' }
+                                    };
+                                }
+                                if (tc.id) toolCalls[tc.index].id = tc.id;
+                                if (tc.function?.name) {
+                                    toolCalls[tc.index].function.name = tc.function.name;
+                                }
+                                if (tc.function?.arguments) {
+                                    toolCalls[tc.index].function.arguments += tc.function.arguments;
+                                }
                             }
                         }
                     }
                 }
+            } catch (streamErr: any) {
+                // The completion call above can succeed and start streaming,
+                // then the connection itself 410s/times out partway through
+                // (observed live, right after a tool-call round-trip) — that
+                // previously escaped uncaught here, skipped model fallback
+                // entirely, and surfaced a raw provider error to the user
+                // even with working models left in the chain. Any partial
+                // content/tool-call state from this attempt is discarded;
+                // the whole iteration retries fresh against the next model.
+                const { shouldFallback, reason } = classifyFallbackError(streamErr);
+                if (shouldFallback && currentModelIndex < MODELS.length - 1) {
+                    console.warn(`[Atlas:Loop] ${reason} hit mid-stream for ${MODELS[currentModelIndex]} (${streamErr?.message}). Falling back to ${MODELS[currentModelIndex + 1]}`);
+                    currentModelIndex++;
+                    iteration--;
+                    continue;
+                }
+                throw streamErr;
             }
 
             const message = {

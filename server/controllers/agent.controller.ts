@@ -16,14 +16,17 @@ export const chat = async (req: Request, res: Response, next: NextFunction) => {
         const userId = req.user?._id || req.user?.id;
         if (!userId) throw new UnauthorizedError();
 
-        if (!message) {
+        if (!message || !String(message).trim()) {
             return res.status(400).json({ message: "Message is required" });
         }
 
         const actualTripId = tripId || clientContext?.currentTripId || clientContext?.tripId;
+        // See the streaming handler below for why this falls back instead of
+        // dropping history entirely when no trip is open.
+        const conversationKey = actualTripId || `general:${userId}`;
 
         // 1. Fetch conversation history
-        const history = actualTripId ? await AtlasMemoryService.getHistory(actualTripId, userId) : [];
+        const history = await AtlasMemoryService.getHistory(conversationKey, userId);
 
         // 2. Run Agent Loop
         const result = await runAgentLoop(
@@ -44,8 +47,8 @@ export const chat = async (req: Request, res: Response, next: NextFunction) => {
         );
 
         // 3. Save new messages to history
-        if (actualTripId && result.message) {
-            await AtlasMemoryService.addMessages(actualTripId, userId, [
+        if (result.message) {
+            await AtlasMemoryService.addMessages(conversationKey, userId, [
                 { role: "user", content: message },
                 { role: "assistant", content: result.message },
             ], {
@@ -55,7 +58,7 @@ export const chat = async (req: Request, res: Response, next: NextFunction) => {
             });
         }
 
-        res.json(result);
+        res.json({ ...result, conversationId: conversationKey });
     } catch (error) {
         next(error);
     }
@@ -67,7 +70,7 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         const userId = req.user?._id || req.user?.id;
         if (!userId) throw new UnauthorizedError();
 
-        if (!message) {
+        if (!message || !String(message).trim()) {
             return res.status(400).json({ message: "Message is required" });
         }
 
@@ -99,8 +102,18 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         if (currentPage && !contextObj.currentPage) contextObj.currentPage = currentPage;
         if (tripIdStr && !contextObj.currentTripId) contextObj.currentTripId = tripIdStr;
 
+        // Conversation memory needs a key regardless of whether a trip is
+        // open — Atlas is very commonly used before any trip exists yet
+        // ("plan a trip to Goa"), and previously that case got no history at
+        // all, so every message was a cold start with zero memory of what
+        // was just said. Falls back to a per-user "general" bucket, kept
+        // separate from `tripIdStr` itself (which stays the real trip id or
+        // undefined) since tools that operate on a specific trip must not
+        // receive this synthetic key as if it were one.
+        const conversationKey = tripIdStr || `general:${userId}`;
+
         // 1. Fetch conversation history
-        const history = tripIdStr ? await AtlasMemoryService.getHistory(tripIdStr, userId) : [];
+        const history = await AtlasMemoryService.getHistory(conversationKey, userId);
 
         let tokensSent = false;
 
@@ -130,8 +143,8 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         );
 
         // 3. Save new messages to history
-        if (tripIdStr && result.message) {
-            await AtlasMemoryService.addMessages(tripIdStr, userId, [
+        if (result.message) {
+            await AtlasMemoryService.addMessages(conversationKey, userId, [
                 { role: "user", content: messageStr },
                 { role: "assistant", content: result.message },
             ], {
@@ -147,6 +160,7 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         }
         res.write(`data: ${JSON.stringify({
             type: 'done',
+            conversationId: conversationKey,
             toolsUsed: result.toolsUsed,
             confidence: result.confidence,
             feasibilityScore: result.feasibilityScore,

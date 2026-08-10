@@ -12,6 +12,10 @@ const TOOL_LABELS: Record<string, string> = {
     finalize_trip_plan: '✅ Plan saved',
     get_travel_hacks: '💡 Travel hacks fetched',
     augment_journal: '📔 Journal enhanced',
+    modify_itinerary: '🗓 Itinerary updated',
+    get_user_preferences: '⚙️ Preferences checked',
+    update_user_preferences: '⚙️ Preferences saved',
+    collaborate_with_agents: '🤝 Team consulted',
 }
 
 interface Props { toolName: string }
