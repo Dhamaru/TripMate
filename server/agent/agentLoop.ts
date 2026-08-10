@@ -182,9 +182,20 @@ export async function runAgentLoop(
     let currentModelIndex = 0;
 
     try {
-        // Summarize old messages if context window is getting too long
-        const summarized = await summarizeIfNeeded([...messages], deps.openai ?? openai)
-        messages.splice(0, messages.length, ...summarized)
+        // Summarize old messages if context window is getting too long. This
+        // always calls NVIDIA directly (hardcoded model, no fallback chain)
+        // and sat outside any error handling — if that one call failed, the
+        // whole request died right here without ever reaching the real
+        // fallback loop below, even though Groq and a second NVIDIA key were
+        // still available for the actual conversation. Summarization is
+        // strictly an optimization; failing it should degrade to the
+        // unsummarized (longer) message list, not the whole response.
+        try {
+            const summarized = await summarizeIfNeeded([...messages], deps.openai ?? openai)
+            messages.splice(0, messages.length, ...summarized)
+        } catch (summarizeErr) {
+            console.warn('[Atlas:Loop] Context summarization failed, proceeding with full history:', summarizeErr);
+        }
         for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
             lastIteration = iteration;
 

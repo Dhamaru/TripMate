@@ -16,6 +16,12 @@ interface AgentStore {
     suggestedActions: SuggestedAction[]
     context: AgentContext
     isChatOpen: boolean
+    // Closes the in-flight EventSource + clears its stall timer. agentApi.stream()
+    // returns this on every call, but until now nothing captured or invoked
+    // it — closing the panel mid-response left the connection and its ~45s
+    // watchdog timer running invisibly in the background instead of tearing
+    // down with the UI that was displaying it.
+    activeStreamCleanup: (() => void) | null
     toggleChat: () => void
     setContext: (context: AgentContext) => void
     sendMessage: (text: string) => Promise<void>
@@ -33,7 +39,14 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     context: {},
     isChatOpen: false,
 
-    toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
+    activeStreamCleanup: null,
+    toggleChat: () => set((state) => {
+        const closing = state.isChatOpen;
+        if (closing && state.activeStreamCleanup) {
+            state.activeStreamCleanup();
+        }
+        return { isChatOpen: !state.isChatOpen, activeStreamCleanup: closing ? null : state.activeStreamCleanup };
+    }),
 
     setContext: (context) => set((state) => ({ context: { ...state.context, ...context } })),
 
@@ -98,7 +111,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         }))
 
         return new Promise<void>((resolve) => {
-            agentApi.stream(
+            const cleanup = agentApi.stream(
                 { message: text, conversationId: get().conversationId ?? undefined, context: get().context },
                 (token) => {
                     set((state) => ({
@@ -123,6 +136,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
                         ),
                         conversationId: meta.conversationId,
                         isLoading: false,
+                        activeStreamCleanup: null,
                     }))
                     if (meta.structuredData) {
                         get().handleStructuredData(meta.structuredData as AgentStructuredData)
@@ -135,10 +149,12 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
                             m.id === streamingId ? { ...m, content: `Error: ${error}`, isStreaming: false } : m
                         ),
                         isLoading: false, error,
+                        activeStreamCleanup: null,
                     }))
                     resolve()
                 }
             )
+            set({ activeStreamCleanup: cleanup })
         })
     },
 
