@@ -54,14 +54,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           collapsed ? "justify-center px-0" : "px-5"
         )}>
           {collapsed ? (
-            <div className="w-7 h-7 rounded-lg bg-[var(--amber)] flex items-center justify-center flex-shrink-0">
-              <span className="text-black text-[11px] font-bold font-display">T</span>
-            </div>
+            <TripMateLogo size="sm" showText={false} />
           ) : (
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[var(--amber)] flex items-center justify-center flex-shrink-0">
-                <span className="text-black text-[11px] font-bold">T</span>
-              </div>
+              <TripMateLogo size="sm" showText={false} />
               <div>
                 <div className="font-display text-[15px] font-bold text-[hsl(var(--sidebar-foreground))] leading-none tracking-tight">
                   TripMate
@@ -188,9 +184,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <header className="h-14 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
           {/* Mobile logo */}
           <div className="md:hidden flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-[var(--amber)] flex items-center justify-center">
-              <span className="text-black text-[10px] font-bold">T</span>
-            </div>
+            <TripMateLogo size="sm" showText={false} />
             <span className="font-display text-sm font-bold text-[hsl(var(--foreground))]">TripMate</span>
           </div>
 
