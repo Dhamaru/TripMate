@@ -50,6 +50,21 @@ export const version = (_req: Request, res: Response) => {
     });
 };
 
+// Nominatim (and occasionally Google Places) returns the same place twice
+// for common queries — e.g. "Paris" comes back as "Paris, Île-de-France,
+// France métropolitaine, France" two or three times with only whitespace/
+// punctuation differences. Dedupe on a normalized display_name so the
+// search-suggestion dropdown doesn't show visibly identical rows.
+function dedupeByDisplayName<T extends { display_name?: string }>(results: T[]): T[] {
+    const seen = new Set<string>();
+    return results.filter((r) => {
+        const key = String(r.display_name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 export const geocode = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const query = req.query.q as string;
@@ -67,7 +82,7 @@ export const geocode = async (req: Request, res: Response, next: NextFunction) =
 
             const data = await response.json();
             if (Array.isArray(data) && data.length > 0) {
-                return res.status(200).json(data);
+                return res.status(200).json(dedupeByDisplayName(data));
             }
             throw new Error("Nominatim returned no results");
         } catch (nominatimError: any) {
@@ -97,7 +112,7 @@ export const geocode = async (req: Request, res: Response, next: NextFunction) =
                 display_name: r.formatted_address,
                 name: r.name,
             }));
-            return res.status(200).json(mapped);
+            return res.status(200).json(dedupeByDisplayName(mapped));
         }
     } catch (error) {
         next(error);
