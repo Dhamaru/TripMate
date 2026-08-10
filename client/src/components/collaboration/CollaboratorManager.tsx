@@ -30,6 +30,16 @@ interface CollaboratorManagerProps {
     ownerId: string;
 }
 
+// Every model's toJSON (shared/schema.ts baseToJSON) rewrites _id -> id, so
+// a populated collaborator's userId object never actually carries `_id` —
+// only `.id`. Reading `._id` here always returned undefined, silently
+// falling back to the whole User object, which meant "remove collaborator"
+// sent the URL-encoded string "[object Object]" to the server, matched
+// nothing, and no-op'd behind a false "Collaborator removed" success toast.
+function getCollaboratorUserId(col: any): string {
+    return String(col?.userId?.id || col?.userId?._id || col?.userId || '');
+}
+
 export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProps) {
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
@@ -156,7 +166,7 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
                                 <AnimatePresence mode="popLayout">
                                     {collaborators.map((col: any) => (
                                         <motion.div
-                                            key={col.userId?._id || col.userId}
+                                            key={getCollaboratorUserId(col)}
                                             initial={{ opacity: 0, x: -10 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, scale: 0.95 }}
@@ -172,7 +182,7 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-medium">
                                                         {col.userId?.firstName} {col.userId?.lastName}
-                                                        {(col.userId?._id === user?.id || col.userId === user?.id) && " (You)"}
+                                                        {getCollaboratorUserId(col) === String(user?.id || '') && " (You)"}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
                                                         {col.userId?.email}
@@ -196,7 +206,7 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                        onClick={() => removeMutation.mutate(col.userId?._id || col.userId)}
+                                                        onClick={() => removeMutation.mutate(getCollaboratorUserId(col))}
                                                         disabled={removeMutation.isPending}
                                                     >
                                                         <X className="w-4 h-4" />
