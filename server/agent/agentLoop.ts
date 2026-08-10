@@ -189,8 +189,16 @@ export async function runAgentLoop(
                 const isTimeoutOrConnection = apiErr?.name === 'APIConnectionTimeoutError'
                     || apiErr?.name === 'APIConnectionError'
                     || /timeout|timed out|econnreset|econnrefused|etimedout|aborted/i.test(msg);
-                if ((isQuotaOrRateLimit || isTimeoutOrConnection) && currentModelIndex < MODELS.length - 1) {
-                    console.warn(`[Atlas:Loop] ${isQuotaOrRateLimit ? 'Quota/rate-limit' : 'Timeout'} hit for ${MODELS[currentModelIndex]} (${msg}). Falling back to ${MODELS[currentModelIndex + 1]}`);
+                // Observed live: a NVIDIA NIM free-tier endpoint returning
+                // 410 Gone (no body) mid-conversation, after a tool-call
+                // round-trip — a stale/rotated resource, not a quota or
+                // timeout issue, so neither check above caught it and it
+                // fell straight through to a hard user-facing failure with
+                // two more models still available in the chain.
+                const isGone = apiErr?.status === 410;
+                if ((isQuotaOrRateLimit || isTimeoutOrConnection || isGone) && currentModelIndex < MODELS.length - 1) {
+                    const reason = isQuotaOrRateLimit ? 'Quota/rate-limit' : isGone ? '410 Gone' : 'Timeout';
+                    console.warn(`[Atlas:Loop] ${reason} hit for ${MODELS[currentModelIndex]} (${msg}). Falling back to ${MODELS[currentModelIndex + 1]}`);
                     currentModelIndex++;
                     iteration--; // Retry this iteration
                     continue;
