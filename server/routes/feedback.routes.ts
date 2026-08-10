@@ -68,7 +68,15 @@ router.post("/", upload.array("attachments", 3), async (req, res, next) => {
 router.get("/", requireAdminSecret, async (req, res, next) => {
     try {
         const filter: Record<string, unknown> = {};
-        if (req.query.unreviewed === "true") filter.agentReviewed = false;
+        // Mongoose's `default: false` on agentReviewed only applies when
+        // hydrating a fetched document into a JS object — it does NOT
+        // backfill the raw stored document, and Mongo's own query matching
+        // doesn't know about schema defaults. { agentReviewed: false } alone
+        // misses every doc created before this field existed (the field is
+        // absent, not `false`), which meant the triage routine's first
+        // "successful" run found nothing even with real unreviewed feedback
+        // sitting there. $ne: true catches both false and missing.
+        if (req.query.unreviewed === "true") filter.agentReviewed = { $ne: true };
         if (req.query.type) filter.type = req.query.type;
 
         const feedback = await FeedbackModel.find(filter).sort({ createdAt: -1 }).limit(100);
