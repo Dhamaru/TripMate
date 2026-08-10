@@ -317,7 +317,7 @@ export default function Landing() {
                     }
                     if (e.key === "Escape") setShowSuggestions(false);
                   }}
-                  className="flex-1 text-[#16283F] text-base outline-none bg-transparent placeholder:text-[#929292]"
+                  className="flex-1 min-w-0 text-[#16283F] text-base outline-none bg-transparent placeholder:text-[#929292]"
                   data-testid="input-destination"
                   autoComplete="off"
                 />
