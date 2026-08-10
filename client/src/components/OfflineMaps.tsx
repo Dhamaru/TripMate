@@ -935,8 +935,15 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 }}
                 variant="secondary"
                 size="icon"
+                // z-[400] doesn't help against the sheet's z-[500] here — the
+                // isolate div this button lives in is its own stacking
+                // context, so its z-index only competes within that context,
+                // never against the sheet in the outer one. Real fix is
+                // geometric: sit clear above the peek bar's top edge (peek
+                // bar occupies 76-132px from the container bottom), not
+                // "under" it with a lower z-index.
                 className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border shadow-lg"
-                style={{ bottom: 76 }}
+                style={{ bottom: 140 }}
                 title="Locate Me"
               >
                 <i className="fas fa-crosshairs"></i>
