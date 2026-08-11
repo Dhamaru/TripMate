@@ -411,7 +411,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 height: 0; 
                 border-left: 10px solid transparent;
                 border-right: 10px solid transparent;
-                border-bottom: 20px solid #3b82f6;
+                border-bottom: 20px solid #1D4E89;
                 filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
               "></div>`;
 
@@ -809,12 +809,16 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground text-xs">Tracking</span>
-                  <div
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isNavigating}
+                    aria-label="Live tracking"
                     className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? 'bg-green-500' : 'bg-muted'}`}
                     onClick={() => setIsNavigating(!isNavigating)}
                   >
                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isNavigating ? 'translate-x-6' : 'translate-x-0'}`} />
-                  </div>
+                  </button>
                 </div>
 
                 <div className="border-t border-border pt-3">
@@ -822,6 +826,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                   <div className="space-y-2 relative">
                     <input
                       type="text"
+                      autoFocus
                       placeholder="Destination (city or place)"
                       value={navDestInput}
                       onChange={(e) => {
@@ -1010,8 +1015,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 }}
                 className="bg-muted border-border text-foreground flex-1"
               />
-              <Button onClick={() => fetchPlaces(searchQuery)} className="bg-[#1D4E89] w-full sm:w-auto">Search</Button>
+              <Button onClick={() => fetchPlaces(searchQuery)} disabled={placesLoading} className="bg-[#1D4E89] w-full sm:w-auto">
+                {placesLoading ? 'Searching...' : 'Search'}
+              </Button>
             </div>
+            {placesLoading && (
+              <div className="text-center py-4 text-sm text-muted-foreground">Searching...</div>
+            )}
 
             {/* Category Filters */}
             <div className="flex flex-wrap gap-4">

@@ -461,4 +461,15 @@
   @media (prefers-reduced-motion: reduce) {
     .typing-indicator__dot { animation: none; opacity: 0.8; }
   }
+
+  /* Referenced across all four auth pages (Sign In/Up, Forgot/Reset Password)
+     but never defined anywhere the app actually imports — client/src/styles/index.css
+     has a real .smooth-transition rule, but that file is never imported by
+     main.tsx or anything else, so it never reached the browser. Same phantom-
+     class shape as .typing-indicator above. */
+  .radius-card { border-radius: var(--radius-lg, 20px); }
+  .smooth-transition { transition: all 150ms ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .smooth-transition { transition: none; }
+  }
 }

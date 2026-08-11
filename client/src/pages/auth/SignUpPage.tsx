@@ -92,6 +92,7 @@ export default function SignUpPage() {
                 id="firstName"
                 name="firstName"
                 type="text"
+                autoFocus
                 placeholder="Jane"
                 value={formData.firstName}
                 onChange={handleChange}

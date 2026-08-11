@@ -113,6 +113,7 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
         <div>
           <label className="block text-sm text-foreground mb-1">Text to Translate</label>
           <Textarea
+            autoFocus
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -158,7 +159,7 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
             </Select>
           </div>
         </div>
-        <Button onClick={handleTranslateClick} className="w-full bg-[#1D4E89] hover:bg-blue-800" disabled={isLoading || !text.trim()}>Translate</Button>
+        <Button onClick={handleTranslateClick} className="w-full bg-[var(--explorer-blue)] hover:bg-[var(--explorer-blue-deep)]" disabled={isLoading || !text.trim()}>Translate</Button>
         {isLoading ? (
           <Skeleton className="w-full h-20" />
         ) : translation?.translatedText ? (
@@ -196,7 +197,7 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
           />
           <Button
             onClick={handleReplyTranslateClick}
-            className="w-full bg-[#1D4E89] hover:bg-blue-800"
+            className="w-full bg-[var(--explorer-blue)] hover:bg-[var(--explorer-blue-deep)]"
             disabled={isReplyLoading || !replyText.trim()}
           >
             Translate Their Reply

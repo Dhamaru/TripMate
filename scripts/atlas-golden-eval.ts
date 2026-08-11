@@ -49,11 +49,19 @@ async function main() {
         console.error(`[golden-eval] Signup failed: ${signupRes.status} ${await signupRes.text()}`);
         process.exit(1);
     }
-    const cookie = signupRes.headers.get("set-cookie");
-    if (!cookie) {
+    // Node's fetch splits multiple Set-Cookie headers apart; headers.get()
+    // only returns the first one, silently dropping the session cookie if
+    // the server also sets a CSRF or other cookie in the same response.
+    const rawCookies = typeof (signupRes.headers as any).getSetCookie === "function"
+        ? (signupRes.headers as any).getSetCookie()
+        : [signupRes.headers.get("set-cookie")].filter(Boolean);
+    if (!rawCookies.length) {
         console.error("[golden-eval] No session cookie returned from signup — cannot authenticate further requests.");
         process.exit(1);
     }
+    const cookie = rawCookies.map((c: string) => c.split(";")[0]).join("; ");
+    const csrfMatch = cookie.match(/XSRF-TOKEN=([^;]+)/);
+    const csrfToken = csrfMatch ? csrfMatch[1] : "";
 
     let pass = 0;
     let fail = 0;
@@ -63,7 +71,7 @@ async function main() {
         try {
             const res = await fetch(`${BASE_URL}/api/v1/agent/chat`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Cookie: cookie },
+                headers: { "Content-Type": "application/json", Cookie: cookie, "x-csrf-token": csrfToken },
                 body: JSON.stringify({ message: c.message }),
             });
             const elapsed = Date.now() - start;

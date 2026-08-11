@@ -56,7 +56,7 @@ export function DashboardFilters({ filters, onChange, tripCount }: Props) {
                 <select
                     value={filters.sort}
                     onChange={e => set({ sort: e.target.value as SortOption })}
-                    className="px-3 py-2.5 rounded-xl text-sm bg-muted border border-border text-muted-foreground outline-none cursor-pointer hover:text-foreground transition-colors"
+                    className="px-3 py-2.5 rounded-xl text-sm bg-muted border border-border text-muted-foreground cursor-pointer hover:text-foreground focus:ring-2 focus:ring-[var(--amber)]/40 focus:border-[var(--amber)] transition-colors"
                     aria-label="Sort trips"
                 >
                     {SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}

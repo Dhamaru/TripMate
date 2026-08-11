@@ -139,7 +139,8 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1D4E89] smooth-transition"
+                                                autoFocus
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#163F73] smooth-transition"
                                                 {...field}
                                             />
                                             <Button
@@ -172,7 +173,7 @@ export default function ResetPasswordPage() {
                                             <Input
                                                 type={showConfirmPassword ? "text" : "password"}
                                                 placeholder="••••••••"
-                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#1D4E89] smooth-transition"
+                                                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#163F73] smooth-transition"
                                                 {...field}
                                             />
                                             <Button
@@ -197,7 +198,7 @@ export default function ResetPasswordPage() {
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-amber-500/30"
+                            className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-[#163F73]/30"
                         >
                             {isLoading ? (
                                 <>

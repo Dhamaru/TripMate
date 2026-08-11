@@ -147,7 +147,7 @@ export function PlannerWizard() {
                         <h2 className="text-2xl font-bold text-foreground tracking-tight">Where are you going?</h2>
                         <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true">📍</span>
-                            <input className={`${inputCls} pl-10`} type="text" value={form.destination} onChange={e => update('destination', e.target.value)} placeholder="e.g. Tokyo, Japan" aria-label="Destination" />
+                            <input className={`${inputCls} pl-10`} type="text" autoFocus value={form.destination} onChange={e => update('destination', e.target.value)} placeholder="e.g. Tokyo, Japan" aria-label="Destination" />
                         </div>
                         <button className={`w-full mt-4 ${primaryBtn}`} onClick={() => setStep(2)} disabled={!form.destination.trim()} aria-label="Continue to dates">Continue →</button>
                     </div>

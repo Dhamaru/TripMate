@@ -68,7 +68,7 @@ export function RecapPanel({ tripId, destination, entryCount, onRecapSaved, reca
             )}
 
             {state === 'done' && !recap && (
-                 <p className="recap-panel__success" role="status">✅ Recap saved to your journal</p>
+                 <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 py-2" role="status">✅ Recap saved to your journal</p>
             )}
 
             {state === 'error' && (

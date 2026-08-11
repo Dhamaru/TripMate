@@ -102,6 +102,7 @@ export default function SignInPage() {
             <Input
               id="email"
               type="email"
+              autoFocus
               placeholder="Enter your email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

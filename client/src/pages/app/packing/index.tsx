@@ -802,13 +802,13 @@ export default function PackingChecklist() {
                         return (
                             <Card key={category} className="bg-card border rounded-3xl overflow-hidden shadow-sm">
                                 <div
-                                    className="flex justify-between items-center p-4 bg-muted/50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                    className="flex justify-between items-center p-4 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
                                     onClick={() => toggleCategory(category)}
                                 >
                                     <h3 className="font-semibold text-lg flex items-center">
                                         {collapsedCategories.has(category) ? <ChevronRight className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
                                         {category}
-                                        <span className="ml-2 text-xs bg-gray-100 text-muted-foreground px-2 py-0.5 rounded-full">{displayItems.length}</span>
+                                        <span className="ml-2 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{displayItems.length}</span>
                                     </h3>
                                     <div className="text-sm text-muted-foreground">
                                         {displayItems.filter(i => i.packed).length}/{displayItems.length} packed
@@ -859,9 +859,9 @@ export default function PackingChecklist() {
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                        className="bg-card border text-foreground rounded-full h-12 px-6 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="bg-card border text-foreground rounded-full h-12 px-6"
                     />
-                    <Button onClick={handleAdd} className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-full h-12 px-6">
+                    <Button onClick={handleAdd} className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white rounded-full h-12 px-6">
                         <Plus className="w-5 h-5 mr-2" /> Add
                     </Button>
                 </div>

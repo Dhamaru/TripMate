@@ -199,7 +199,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
               </div>
               <Button
                 onClick={handleConvert}
-                className="w-full bg-[#1D4E89] hover:bg-blue-800"
+                className="w-full bg-[var(--explorer-blue)] hover:bg-[var(--explorer-blue-deep)]"
                 disabled={isLoading}
                 data-testid="button-convert"
               >

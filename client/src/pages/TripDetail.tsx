@@ -589,7 +589,7 @@ export default function TripDetail() {
             <h2 className="text-xl font-bold text-foreground mb-2">Trip Not Found</h2>
             <p className="text-muted-foreground mb-4">The trip you're looking for doesn't exist or you don't have access to it.</p>
             <Link href="/">
-              <Button className="bg-[#1D4E89] hover:bg-[#1D4E89] ">
+              <Button className="bg-[#1D4E89] hover:bg-[#163F73]">
                 Go Back Home
               </Button>
             </Link>
@@ -766,7 +766,7 @@ export default function TripDetail() {
                   }}
                   title="Refresh Image"
                 >
-                  <i className="fas fa-sync-alt animate-hover-spin"></i>
+                  <i className="fas fa-sync-alt hover:animate-spin"></i>
                 </Button>
               </>
             ) : (
@@ -886,7 +886,7 @@ export default function TripDetail() {
                     type="button"
                     onClick={handleSave}
                     disabled={updateTripMutation.isPending}
-                    className="flex-1 bg-[#1D4E89] hover:bg-[#1D4E89] "
+                    className="flex-1 bg-[#1D4E89] hover:bg-[#163F73]"
                     data-testid="button-save-trip"
                   >
                     {updateTripMutation.isPending ? (
@@ -1151,7 +1151,7 @@ export default function TripDetail() {
                 <Button
                   onClick={() => setShowSpots(!showSpots)}
                   variant={showSpots ? "default" : "outline"}
-                  className={` h-12 ${showSpots ? 'bg-[#163F73] text-white hover:bg-[#0F2C52]' : 'bg-muted/50 border text-muted-foreground hover:text-foreground'}`}
+                  className={` h-12 ${showSpots ? 'bg-[#1D4E89] text-white hover:bg-[#163F73]' : 'bg-muted/50 border text-muted-foreground hover:text-foreground'}`}
                 >
                   <i className="fas fa-camera mr-2"></i>
                   Tourist Spots
