@@ -139,7 +139,15 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
                     set((state) => ({
                         messages: state.messages.map(m =>
                             m.id === streamingId
-                                ? { ...m, toolsUsed: [...(m.toolsUsed ?? []), tool] }
+                                // Server fires onTool per invocation, not per
+                                // unique tool — a turn that calls the same
+                                // tool twice (e.g. two search_places calls)
+                                // showed two identical badges mid-stream. The
+                                // final `done` event already sends a
+                                // deduplicated toolsUsed array, but only after
+                                // streaming finishes, so this flickered
+                                // visibly for multi-tool-call turns until then.
+                                ? { ...m, toolsUsed: (m.toolsUsed ?? []).includes(tool) ? m.toolsUsed : [...(m.toolsUsed ?? []), tool] }
                                 : m
                         )
                     }))
