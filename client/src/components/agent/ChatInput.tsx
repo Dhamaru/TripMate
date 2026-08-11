@@ -17,6 +17,32 @@ export function ChatInput() {
         el.style.height = `${Math.min(el.scrollHeight, 120)}px`
     }, [text])
 
+    // Focus the input as soon as the panel opens, and redirect any typing
+    // back to it for as long as the panel stays open — ChatInput only exists
+    // in the tree while isChatOpen is true (AgentOverlayPanel renders null
+    // otherwise), so this mount/unmount lifecycle already matches "open
+    // until closed" without tracking isChatOpen directly. Lets a user open
+    // Atlas and start typing immediately without clicking the text box first,
+    // even after focus drifts to a button (e.g. after clicking Send).
+    useEffect(() => {
+        textareaRef.current?.focus()
+
+        const redirectTypingToInput = (e: globalThis.KeyboardEvent) => {
+            const target = e.target as HTMLElement
+            const alreadyEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+            if (alreadyEditable) return
+            if (e.metaKey || e.ctrlKey || e.altKey) return
+            if (e.key.length === 1 || e.key === 'Backspace') {
+                // Focusing before the browser finishes this keydown redirects
+                // the resulting character into the textarea instead of
+                // wherever focus was (or nowhere, if it was on the body).
+                textareaRef.current?.focus()
+            }
+        }
+        window.addEventListener('keydown', redirectTypingToInput)
+        return () => window.removeEventListener('keydown', redirectTypingToInput)
+    }, [])
+
     const handleSubmit = async () => {
         const trimmed = text.trim()
         if (!trimmed || isLoading) return
