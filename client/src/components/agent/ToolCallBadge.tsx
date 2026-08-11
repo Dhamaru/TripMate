@@ -9,6 +9,7 @@ const TOOL_LABELS: Record<string, string> = {
     translate_text: '🗣 Translation done',
     get_budget_breakdown: '💰 Budget calculated',
     get_trip_details: '🗺 Trip details fetched',
+    list_trips: '🧭 Trips listed',
     finalize_trip_plan: '✅ Plan saved',
     get_travel_hacks: '💡 Travel hacks fetched',
     augment_journal: '📔 Journal enhanced',

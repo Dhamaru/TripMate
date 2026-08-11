@@ -7,6 +7,7 @@ import {
     emergencyHandler,
     placesHandler,
     tripHandler,
+    tripsListHandler,
     packingHandler,
     translateHandler,
     budgetHandler,
@@ -149,6 +150,12 @@ export async function executeTool(
                     },
                     { aiService: deps.aiService }
                 );
+                break;
+
+            case 'list_trips':
+                result = await tripsListHandler({
+                    userId: (args as { userId?: string }).userId || context.userId || '',
+                });
                 break;
 
             case 'get_trip_details':

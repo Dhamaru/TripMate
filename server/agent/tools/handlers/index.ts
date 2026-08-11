@@ -7,6 +7,7 @@ export { placesHandler } from './placesHandler';
 export { userPreferencesHandler } from './userPreferencesHandler';
 export * from './tripPlannerHandler';
 export { tripHandler } from './tripHandler';
+export { tripsListHandler } from './tripsListHandler';
 export { packingHandler } from './packingHandler';
 export { translateHandler } from './translateHandler';
 export { budgetHandler } from './budgetHandler';

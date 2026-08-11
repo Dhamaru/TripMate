@@ -264,6 +264,24 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
     {
         type: 'function',
         function: {
+            name: 'list_trips',
+            description:
+                "List the current user's trips (destination, dates, status, budget). Use this whenever the user refers to 'my trips' or 'current trips' without a specific trip already open.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    userId: {
+                        type: 'string',
+                        description: 'User ID for authorization',
+                    },
+                },
+                required: [],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'get_trip_details',
             description:
                 'Fetch full trip details including itinerary, budget, and status for a specific trip.',
