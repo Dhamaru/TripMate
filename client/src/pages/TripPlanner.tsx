@@ -688,6 +688,7 @@ export default function TripPlanner() {
                   </label>
                   <Input
                     type="text"
+                    autoFocus
                     placeholder="Where are you traveling from?"
                     value={tripForm.origin}
                     onChange={(e) => setTripForm(prev => ({ ...prev, origin: e.target.value }))}
