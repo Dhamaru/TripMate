@@ -11,28 +11,34 @@ import { TripModel } from '../../shared/schema';
 import { config } from '../config';
 
 const MAX_ITERATIONS = 10;
-// NVIDIA NIM models answer a trivial ping fine but have been observed timing
-// out on the real request (full system prompt + tool schema) even when not
-// quota-exhausted. Groq is confirmed fast and reliable, so it sits second —
-// right after the first, fastest-to-fail NVIDIA attempt — rather than last:
-// the client has its own ~35s stall watchdog, and two 25s NVIDIA timeouts
-// back-to-back before ever reaching a working provider would blow past that
-// budget and surface as "Connection lost" before Groq got a chance to answer.
+// Verified live against NVIDIA's actual /v1/models + /v1/chat/completions
+// (2026-08-12), under a realistic full-size prompt, not a trivial ping:
+//   - 'meta/llama-3.3-70b-instruct' (old slot 0, NVIDIA_2 key): hangs to
+//     timeout on every model tried under real load — this specific key
+//     appears throttled/queued for "meta/*" models specifically (deepseek
+//     on the SAME key responded fine), not a general key-dead condition.
+//   - 'deepseek-ai/deepseek-v4-flash' (old slot 2, NVIDIA_1 key): was never
+//     actually retired — NVIDIA renamed it to 'deepseek-ai/deepseek-v4-flash-0731'.
+//     The 410 was a stale model id in our own config, not a dead provider.
+// Rebuilt from only the combinations that responded successfully under a
+// realistic prompt size: Groq first (fastest when its quota isn't tight),
+// then NVIDIA_1+llama-3.1-70b-instruct and NVIDIA_2+deepseek-v4-flash-0731
+// as two independently-verified backups — no billing required, this just
+// corrects stale model ids and a bad key/model pairing.
 export const MODELS = [
-    'meta/llama-3.3-70b-instruct',
     'llama-3.3-70b-versatile',
-    'deepseek-ai/deepseek-v4-flash',
+    'meta/llama-3.1-70b-instruct',
+    'deepseek-ai/deepseek-v4-flash-0731',
 ];
 export const MODEL_BASE_URLS = [
-    'https://integrate.api.nvidia.com/v1',
     'https://api.groq.com/openai/v1',
     'https://integrate.api.nvidia.com/v1',
+    'https://integrate.api.nvidia.com/v1',
 ];
-// Each model has its own NVIDIA NIM key (free-tier keys are per-model scoped).
 const MODEL_KEYS = [
-    config.NVIDIA_API_KEY_2,
     config.GROQ_API_KEY,
     config.NVIDIA_API_KEY_1,
+    config.NVIDIA_API_KEY_2,
 ];
 
 /**
@@ -62,7 +68,8 @@ function classifyFallbackError(err: any): { shouldFallback: boolean; reason: str
 /** Summarizes conversation history when estimated tokens exceed 4000 to prevent context overflow. */
 async function summarizeIfNeeded(
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-    openai: OpenAI
+    openai: OpenAI,
+    model: string
 ): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
     const estimatedTokens = messages.reduce((sum, m) => {
         const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? '')
@@ -80,7 +87,7 @@ async function summarizeIfNeeded(
     if (toSummarize.length === 0) return messages
 
     const summaryResponse = await openai.chat.completions.create({
-        model: 'meta/llama-3.3-70b-instruct',
+        model,
         messages: [
             { role: 'system', content: 'Summarize this conversation in 3 sentences, preserving key decisions, trip details, and data.' },
             { role: 'user', content: toSummarize.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`).join('\n') },
@@ -192,7 +199,7 @@ export async function runAgentLoop(
         // strictly an optimization; failing it should degrade to the
         // unsummarized (longer) message list, not the whole response.
         try {
-            const summarized = await summarizeIfNeeded([...messages], deps.openai ?? openai)
+            const summarized = await summarizeIfNeeded([...messages], deps.openai ?? openai, MODELS[0])
             messages.splice(0, messages.length, ...summarized)
         } catch (summarizeErr) {
             console.warn('[Atlas:Loop] Context summarization failed, proceeding with full history:', summarizeErr);
