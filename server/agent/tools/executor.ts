@@ -15,7 +15,20 @@ import {
     modifyItineraryHandler,
     userPreferencesHandler,
     updateUserPreferencesHandler,
+    packingListToolHandler,
+    journalToolHandler,
+    expenseToolHandler,
+    collaboratorToolHandler,
 } from './handlers';
+
+// Actions that mutate or revoke access/data in a way that's hard to undo.
+// Gated so the model must present the change and get an explicit "yes" from
+// the user before it fires — a confirmed:true arg proves that happened,
+// rather than trusting the model not to hallucinate straight into a delete.
+const CONFIRM_REQUIRED: Record<string, (args: Record<string, unknown>) => boolean> = {
+    manage_expense: (args) => args.action === 'remove',
+    manage_collaborator: () => true,
+};
 import OpenAI from 'openai';
 import { masterOrchestrator } from '../multiAgent/MasterOrchestrator';
 
@@ -73,6 +86,15 @@ export async function executeTool(
     }
 
     console.log(`[Atlas:Tool] ${name} called`, JSON.stringify(args).slice(0, 200));
+
+    const needsConfirm = CONFIRM_REQUIRED[name];
+    if (needsConfirm && needsConfirm(args) && args.confirmed !== true) {
+        return {
+            success: false,
+            error: 'Confirmation required: summarize this exact change for the user and ask them to confirm, then call this tool again with confirmed: true. Do not call it again without an explicit yes from the user.',
+            durationMs: Date.now() - start,
+        };
+    }
 
     let result: ToolResult;
 
@@ -201,6 +223,52 @@ export async function executeTool(
                 });
                 break;
             
+            case 'manage_packing_list':
+                result = await packingListToolHandler({
+                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    tripId: (args as { tripId?: string }).tripId || context.tripId,
+                    action: (args as { action: any }).action,
+                    itemName: (args as { itemName?: string }).itemName,
+                    itemId: (args as { itemId?: string }).itemId,
+                    quantity: (args as { quantity?: number }).quantity,
+                });
+                break;
+
+            case 'create_journal_entry':
+                result = await journalToolHandler({
+                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    tripId: (args as { tripId?: string }).tripId || context.tripId,
+                    title: (args as { title: string }).title,
+                    content: (args as { content: string }).content,
+                    dayIndex: (args as { dayIndex?: number }).dayIndex,
+                    location: (args as { location?: string }).location,
+                });
+                break;
+
+            case 'manage_expense':
+                result = await expenseToolHandler({
+                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    tripId: (args as { tripId?: string }).tripId || context.tripId || '',
+                    action: (args as { action: any }).action,
+                    amount: (args as { amount?: number }).amount,
+                    currency: (args as { currency?: string }).currency,
+                    category: (args as { category?: string }).category,
+                    description: (args as { description?: string }).description,
+                    expenseId: (args as { expenseId?: string }).expenseId,
+                });
+                break;
+
+            case 'manage_collaborator':
+                result = await collaboratorToolHandler({
+                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    tripId: (args as { tripId?: string }).tripId || context.tripId || '',
+                    action: (args as { action: any }).action,
+                    email: (args as { email?: string }).email,
+                    role: (args as { role?: any }).role,
+                    collaboratorId: (args as { collaboratorId?: string }).collaboratorId,
+                });
+                break;
+
             case 'collaborate_with_agents': {
                 const collStart = Date.now();
                 try {

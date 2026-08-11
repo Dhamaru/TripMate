@@ -403,4 +403,62 @@
   .status-planning  { background: rgba(29,78,137,0.10);  color: #4F82C4;  border: 2px solid rgba(29,78,137,0.55); }
   .status-active    { background: rgba(61,148,103,0.10); color: #3D9467;  border: 2px solid rgba(61,148,103,0.55); }
   .status-completed { background: rgba(179,38,30,0.10);  color: #B3261E;  border: 2px solid rgba(179,38,30,0.55); }
+
+  /* Atlas typing indicator — three pulsing dots shown while waiting on the
+     first token. These classes previously had no CSS anywhere in the repo,
+     so the component rendered three zero-size empty spans: for the full
+     20-30s provider-fallback latency, the chat panel showed nothing at all
+     instead of any "Atlas is thinking" signal. */
+  .typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    border-radius: 1rem 1rem 1rem 0.25rem;
+    background: hsl(var(--muted) / 0.8);
+    border: 1px solid hsl(var(--border) / 0.5);
+    width: fit-content;
+  }
+  .typing-indicator__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: hsl(var(--muted-foreground));
+    animation: typing-bounce 1.2s infinite ease-in-out;
+  }
+  .typing-indicator__dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-indicator__dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* Atlas suggested-action chips — same missing-CSS issue as above: rendered
+     as unstyled stacked buttons with no spacing or visual affordance. */
+  .suggested-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 16px 12px;
+  }
+  .suggested-actions__chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    color: var(--explorer-blue);
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+  .suggested-actions__chip:hover {
+    background: hsl(var(--muted));
+    border-color: var(--explorer-blue);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing-indicator__dot { animation: none; opacity: 0.8; }
+  }
 }

@@ -13,3 +13,7 @@ export { translateHandler } from './translateHandler';
 export { budgetHandler } from './budgetHandler';
 export { modifyItineraryHandler } from './modifyItineraryHandler';
 export { updateUserPreferencesHandler } from './updateUserPreferencesHandler';
+export { packingListToolHandler } from './packingListToolHandler';
+export { journalToolHandler } from './journalToolHandler';
+export { expenseToolHandler } from './expenseToolHandler';
+export { collaboratorToolHandler } from './collaboratorToolHandler';

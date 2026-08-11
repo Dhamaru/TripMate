@@ -20,6 +20,18 @@ router.get("/health", toolsController.health);
 
 /**
  * @swagger
+ * /atlas/health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Atlas AI provider circuit-breaker status — which providers are currently healthy
+ *     responses:
+ *       200:
+ *         description: ok or degraded
+ */
+router.get("/atlas/health", toolsController.atlasHealth);
+
+/**
+ * @swagger
  * /ping:
  *   get:
  *     tags: [Health]

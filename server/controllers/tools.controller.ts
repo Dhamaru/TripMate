@@ -30,6 +30,18 @@ export const ping = (_req: Request, res: Response) => {
     res.status(200).send("pong");
 };
 
+export const atlasHealth = async (_req: Request, res: Response) => {
+    const { getHealthSnapshot } = await import("../agent/providerHealth");
+    const { MODELS, MODEL_BASE_URLS } = await import("../agent/agentLoop");
+    const providers = getHealthSnapshot(MODELS, MODEL_BASE_URLS);
+    const anyHealthy = providers.some((p) => p.healthy);
+    res.status(200).json({
+        status: anyHealthy ? "ok" : "degraded",
+        providers,
+        timestamp: new Date().toISOString(),
+    });
+};
+
 export const liveness = (_req: Request, res: Response) => {
     res.status(200).json({ status: "alive" });
 };

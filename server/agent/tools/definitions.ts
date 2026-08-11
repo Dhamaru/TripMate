@@ -476,6 +476,94 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
     {
         type: 'function',
         function: {
+            name: 'manage_packing_list',
+            description:
+                "Add an item to, remove an item from, toggle an item packed/unpacked on, or list the user's packing list for a trip.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    tripId: { type: 'string', description: 'ID of the trip whose packing list to modify' },
+                    action: {
+                        type: 'string',
+                        enum: ['add_item', 'remove_item', 'toggle_packed', 'list'],
+                        description: 'Which operation to perform',
+                    },
+                    itemName: { type: 'string', description: "Item name (e.g. 'sunscreen'), required for add_item and useful for remove_item/toggle_packed" },
+                    itemId: { type: 'string', description: 'Item id, alternative to itemName for remove_item/toggle_packed' },
+                    quantity: { type: 'integer', description: 'Quantity for add_item (default 1)' },
+                },
+                required: ['action'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_journal_entry',
+            description:
+                'Create and save a new travel journal entry for the user, from conversation content.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    tripId: { type: 'string', description: 'ID of the trip this entry belongs to' },
+                    title: { type: 'string', description: 'Short title for the entry' },
+                    content: { type: 'string', description: 'The journal entry text' },
+                    dayIndex: { type: 'integer', description: 'Which day of the trip this entry is for (0-based)' },
+                    location: { type: 'string', description: 'Location the entry was written about' },
+                },
+                required: ['title', 'content'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'manage_expense',
+            description:
+                'Add a new expense to a trip, or remove an existing one. Removing an expense is destructive.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    tripId: { type: 'string', description: 'ID of the trip' },
+                    action: { type: 'string', enum: ['add', 'remove'], description: 'Which operation to perform' },
+                    amount: { type: 'number', description: 'Expense amount (for add)' },
+                    currency: { type: 'string', description: 'Currency code (for add)' },
+                    category: {
+                        type: 'string',
+                        enum: ['Accommodation', 'Food', 'Transport', 'Activities', 'Shopping', 'Other'],
+                        description: 'Expense category (for add)',
+                    },
+                    description: { type: 'string', description: 'Short description of the expense (for add)' },
+                    expenseId: { type: 'string', description: 'Id of the expense to remove (for remove)' },
+                    confirmed: { type: 'boolean', description: 'Set true only after the user has explicitly confirmed a remove action' },
+                },
+                required: ['tripId', 'action'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'manage_collaborator',
+            description:
+                "Add a collaborator to a trip by email, or remove one. Only the trip owner can do this. Both actions change who has access and must be confirmed by the user first.",
+            parameters: {
+                type: 'object',
+                properties: {
+                    tripId: { type: 'string', description: 'ID of the trip' },
+                    action: { type: 'string', enum: ['add', 'remove'], description: 'Which operation to perform' },
+                    email: { type: 'string', description: "Collaborator's email (for add)" },
+                    role: { type: 'string', enum: ['editor', 'viewer'], description: 'Role to grant (for add, default editor)' },
+                    collaboratorId: { type: 'string', description: 'User id of the collaborator to remove (for remove)' },
+                    confirmed: { type: 'boolean', description: 'Set true only after the user has explicitly confirmed this action' },
+                },
+                required: ['tripId', 'action'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'collaborate_with_agents',
             description:
                 'Trigger a multi-agent collaboration pipeline for complex tasks (budget audits, weather-impacted packing, itinerary restructuring). Atlas will delegate to specialized agents.',

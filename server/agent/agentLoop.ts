@@ -6,6 +6,7 @@ import { buildSystemPrompt } from './systemPrompt';
 import { TRIPMATE_TOOLS } from './tools/definitions';
 import { executeTool, type ExecutorDeps } from './tools/executor';
 import { calculateFormalConfidence } from './confidence';
+import { isProviderOpen, recordSuccess, recordFailure } from './providerHealth';
 import { TripModel } from '../../shared/schema';
 import { config } from '../config';
 
@@ -17,12 +18,12 @@ const MAX_ITERATIONS = 10;
 // the client has its own ~35s stall watchdog, and two 25s NVIDIA timeouts
 // back-to-back before ever reaching a working provider would blow past that
 // budget and surface as "Connection lost" before Groq got a chance to answer.
-const MODELS = [
+export const MODELS = [
     'meta/llama-3.3-70b-instruct',
     'llama-3.3-70b-versatile',
     'deepseek-ai/deepseek-v4-flash',
 ];
-const MODEL_BASE_URLS = [
+export const MODEL_BASE_URLS = [
     'https://integrate.api.nvidia.com/v1',
     'https://api.groq.com/openai/v1',
     'https://integrate.api.nvidia.com/v1',
@@ -199,6 +200,17 @@ export async function runAgentLoop(
         for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
             lastIteration = iteration;
 
+            // Circuit breaker: skip a provider that's failed 3+ requests in a
+            // row without spending its 25s timeout on a request it's very
+            // likely to fail again — this is what actually caused the ~30s
+            // reply latency during an outage where every provider was down.
+            // If every remaining provider is open, fall through and try the
+            // current one anyway (best effort beats a hard refusal).
+            while (isProviderOpen(currentModelIndex) && currentModelIndex < MODELS.length - 1) {
+                console.warn(`[Atlas:Loop] Skipping ${MODELS[currentModelIndex]} — circuit open (repeated recent failures)`);
+                currentModelIndex++;
+            }
+
             let stream;
             try {
                 stream = await (deps.openai ?? clientsByModel[currentModelIndex]).chat.completions.create({
@@ -213,11 +225,14 @@ export async function runAgentLoop(
                 });
             } catch (apiErr: any) {
                 const { shouldFallback, reason } = classifyFallbackError(apiErr);
-                if (shouldFallback && currentModelIndex < MODELS.length - 1) {
-                    console.warn(`[Atlas:Loop] ${reason} hit for ${MODELS[currentModelIndex]} (${apiErr?.message}). Falling back to ${MODELS[currentModelIndex + 1]}`);
-                    currentModelIndex++;
-                    iteration--; // Retry this iteration
-                    continue;
+                if (shouldFallback) {
+                    recordFailure(currentModelIndex, reason);
+                    if (currentModelIndex < MODELS.length - 1) {
+                        console.warn(`[Atlas:Loop] ${reason} hit for ${MODELS[currentModelIndex]} (${apiErr?.message}). Falling back to ${MODELS[currentModelIndex + 1]}`);
+                        currentModelIndex++;
+                        iteration--; // Retry this iteration
+                        continue;
+                    }
                 }
                 throw apiErr;
             }
@@ -267,14 +282,19 @@ export async function runAgentLoop(
                 // content/tool-call state from this attempt is discarded;
                 // the whole iteration retries fresh against the next model.
                 const { shouldFallback, reason } = classifyFallbackError(streamErr);
-                if (shouldFallback && currentModelIndex < MODELS.length - 1) {
-                    console.warn(`[Atlas:Loop] ${reason} hit mid-stream for ${MODELS[currentModelIndex]} (${streamErr?.message}). Falling back to ${MODELS[currentModelIndex + 1]}`);
-                    currentModelIndex++;
-                    iteration--;
-                    continue;
+                if (shouldFallback) {
+                    recordFailure(currentModelIndex, reason);
+                    if (currentModelIndex < MODELS.length - 1) {
+                        console.warn(`[Atlas:Loop] ${reason} hit mid-stream for ${MODELS[currentModelIndex]} (${streamErr?.message}). Falling back to ${MODELS[currentModelIndex + 1]}`);
+                        currentModelIndex++;
+                        iteration--;
+                        continue;
+                    }
                 }
                 throw streamErr;
             }
+
+            recordSuccess(currentModelIndex);
 
             const message = {
                 role: 'assistant' as const,

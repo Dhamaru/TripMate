@@ -17,6 +17,10 @@ const TOOL_LABELS: Record<string, string> = {
     get_user_preferences: '⚙️ Preferences checked',
     update_user_preferences: '⚙️ Preferences saved',
     collaborate_with_agents: '🤝 Team consulted',
+    manage_packing_list: '🎒 Packing list updated',
+    create_journal_entry: '📝 Journal entry saved',
+    manage_expense: '💳 Expense updated',
+    manage_collaborator: '👥 Collaborator updated',
 }
 
 interface Props { toolName: string }

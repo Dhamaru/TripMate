@@ -1,5 +1,6 @@
 // Task 7 — Chat header with clear and close actions
 import { useAgentStore } from '../../store'
+import { TripMateLogo } from '../TripMateLogo'
 
 interface Props { onClose: () => void }
 
@@ -8,10 +9,13 @@ export function ChatHeader({ onClose }: Props) {
     return (
         <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
             <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-full bg-[#163F73]/20 flex items-center justify-center text-sm" aria-hidden="true">🌍</span>
+                {/* Same gradient-arrow mark as the Atlas trigger button and the
+                    app logo — was a 🌍 emoji, the one place Atlas didn't carry
+                    the unified brand mark used everywhere else this session. */}
+                <TripMateLogo size="sm" showText={false} />
                 <div>
                     <h2 className="text-foreground text-sm font-semibold leading-tight">Atlas AI</h2>
-                    <span className="text-xs text-[#163F73]">Your AI travel expert</span>
+                    <span className="text-xs text-[var(--explorer-blue)]">Your AI travel expert</span>
                 </div>
             </div>
             <div className="flex items-center gap-2">
