@@ -11,23 +11,26 @@ import { TripModel } from '../../shared/schema';
 import { config } from '../config';
 
 const MAX_ITERATIONS = 10;
-// Verified live against NVIDIA's actual /v1/models + /v1/chat/completions
-// (2026-08-12), under a realistic full-size prompt, not a trivial ping:
-//   - 'meta/llama-3.3-70b-instruct' (old slot 0, NVIDIA_2 key): hangs to
-//     timeout on every model tried under real load — this specific key
-//     appears throttled/queued for "meta/*" models specifically (deepseek
-//     on the SAME key responded fine), not a general key-dead condition.
-//   - 'deepseek-ai/deepseek-v4-flash' (old slot 2, NVIDIA_1 key): was never
-//     actually retired — NVIDIA renamed it to 'deepseek-ai/deepseek-v4-flash-0731'.
-//     The 410 was a stale model id in our own config, not a dead provider.
-// Rebuilt from only the combinations that responded successfully under a
-// realistic prompt size: Groq first (fastest when its quota isn't tight),
-// then NVIDIA_1+llama-3.1-70b-instruct and NVIDIA_2+deepseek-v4-flash-0731
-// as two independently-verified backups — no billing required, this just
-// corrects stale model ids and a bad key/model pairing.
+// Verified live against NVIDIA's actual /v1/chat/completions (2026-08-12)
+// under both a realistic full-size prompt AND a real tool-calling request,
+// not just a trivial ping — two rounds of model swaps needed correcting:
+//   - 'meta/llama-3.3-70b-instruct': hangs to timeout under real load on
+//     BOTH NVIDIA keys, not just one — it's the model, not the key.
+//   - 'meta/llama-3.1-70b-instruct': answers fast but is unreliable for
+//     tool-calling — confirmed hallucinating an unprompted get_weather call
+//     on a plain "Hi", and separately observed leaking raw tool-routing
+//     text ("No function call is needed for this prompt.") as its reply.
+//     Fast is worthless if the answers are wrong; pulled from the chain.
+//   - 'deepseek-ai/deepseek-v4-flash' (no suffix) 410s — NVIDIA renamed it
+//     to 'deepseek-ai/deepseek-v4-flash-0731'; it was never actually
+//     retired, our config just had a stale id.
+// deepseek-v4-flash-0731 is the only NVIDIA model confirmed both fast
+// (9-11s under load) AND correct (clean greeting, no hallucinated tool
+// calls) on either key, so it fills both NVIDIA slots. No billing change —
+// this only corrects which models our own config points at.
 export const MODELS = [
     'llama-3.3-70b-versatile',
-    'meta/llama-3.1-70b-instruct',
+    'deepseek-ai/deepseek-v4-flash-0731',
     'deepseek-ai/deepseek-v4-flash-0731',
 ];
 export const MODEL_BASE_URLS = [
