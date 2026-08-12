@@ -127,7 +127,9 @@ const sessionSchema = new Schema<ISession>(
     device: { type: String },
     ip: { type: String },
     userAgent: { type: String },
-    expiresAt: { type: Date, required: true, index: true },
+    // TTL index: Mongo auto-deletes the doc once expiresAt passes, so revoked/
+    // expired session rows don't accumulate forever with no cleanup job.
+    expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
     revoked: { type: Boolean, default: false },
   },
   {

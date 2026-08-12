@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import { UserModel, SessionModel } from "@shared/schema";
+import {
+  UserModel, SessionModel, TripModel, JournalEntryModel,
+  PackingListModel, PackingListTemplateModel, AtlasConversationModel,
+  NotificationModel, FeedbackModel,
+} from "@shared/schema";
 import { BadRequestError, UnauthorizedError, NotFoundError, TooManyRequestsError } from "../errors";
 import { hashPassword, comparePasswords } from "../auth";
 import { nanoid } from "nanoid";
@@ -35,8 +39,28 @@ function clearAuthCookie(res: Response) {
   res.clearCookie("token", { path: "/" });
 }
 
-function signToken(userId: string, extra: Record<string, unknown> = {}) {
-  return jwt.sign({ sub: userId, ...extra }, config.JWT_SECRET, { expiresIn: JWT_EXPIRY });
+function signToken(userId: string, sessionId: string, extra: Record<string, unknown> = {}) {
+  return jwt.sign({ sub: userId, sid: sessionId, ...extra }, config.JWT_SECRET, { expiresIn: JWT_EXPIRY });
+}
+
+/** Issues a token AND its backing SessionModel row in one call — every
+ * signin/signup/reset path needs both, and previously only the stateless
+ * JWT existed, which meant "log out this other device" was structurally
+ * impossible (nothing tracked which tokens were live). */
+async function issueSession(req: Request, userId: string, extra: Record<string, unknown> = {}) {
+  const sessionId = nanoid();
+  const token = signToken(userId, sessionId, extra);
+  const expiresAt = new Date(Date.now() + COOKIE_MAX_AGE);
+  await SessionModel.create({
+    userId,
+    sessionId,
+    tokenHash: crypto.createHash("sha256").update(token).digest("hex"),
+    ip: req.ip,
+    userAgent: req.headers["user-agent"],
+    expiresAt,
+    revoked: false,
+  });
+  return token;
 }
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
@@ -52,7 +76,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       existingUser.firstName = existingUser.firstName || firstName;
       existingUser.lastName = existingUser.lastName || lastName;
       await existingUser.save();
-      const token = signToken(existingUser.id);
+      const token = await issueSession(req, existingUser.id);
       setAuthCookie(req, res, token);
       return res.status(200).json({ user: existingUser, token });
     }
@@ -65,7 +89,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       lastName,
     });
 
-    const token = signToken(user.id);
+    const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
     req.login(user, (err) => {
       if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
@@ -87,7 +111,7 @@ export const guestSignin = async (req: Request, res: Response, next: NextFunctio
       isGuest: true,
     });
 
-    const token = signToken(user.id, { isGuest: true });
+    const token = await issueSession(req, user.id, { isGuest: true });
     setAuthCookie(req, res, token);
     req.login(user, (err) => {
       if (err) console.warn("[Auth] Guest session init failed (non-fatal):", err?.message);
@@ -131,7 +155,7 @@ export const signin = async (req: Request, res: Response, next: NextFunction) =>
     if (user.lockUntil) user.lockUntil = undefined;
     await user.save();
 
-    const token = signToken(user.id);
+    const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
     req.login(user, (err) => {
       if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
@@ -142,7 +166,18 @@ export const signin = async (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
-export const signout = (req: Request, res: Response, next: NextFunction) => {
+export const signout = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = req.cookies?.token;
+    if (token) {
+      const decoded = jwt.decode(token) as { sid?: string } | null;
+      if (decoded?.sid) {
+        await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
+      }
+    }
+  } catch {
+    // Non-fatal — logging out should still succeed even if revocation lookup fails
+  }
   clearAuthCookie(res);
   req.logout((err) => {
     if (err) return next(err);
@@ -162,7 +197,7 @@ export const googleCallback = async (req: Request, res: Response, next: NextFunc
     const userId = user._id || user.id;
     if (!userId) return res.redirect(`${frontendBaseUrl}/signin?error=auth_failed`);
 
-    const token = signToken(userId);
+    const token = await issueSession(req, userId);
     setAuthCookie(req, res, token);
     res.redirect(`${frontendBaseUrl}/app/home`);
   } catch (error) {
@@ -257,8 +292,15 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     if (!isMatch) throw new UnauthorizedError("Incorrect current password");
     user.password = await hashPassword(newPassword);
     await user.save();
-    // Rotate cookie token after password change
-    const token = signToken(user.id);
+    // Rotate cookie token after password change — revoke the old session
+    // too, not just swap the cookie, so a stolen pre-change token can't
+    // keep working after the user thinks they've secured their account.
+    const oldToken = req.cookies?.token;
+    if (oldToken) {
+      const decoded = jwt.decode(oldToken) as { sid?: string } | null;
+      if (decoded?.sid) await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
+    }
+    const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
     res.json({ message: "Password changed successfully" });
   } catch (error) {
@@ -278,6 +320,45 @@ export const uploadAvatar = async (req: Request, res: Response, next: NextFuncti
       { new: true }
     );
     res.json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const exportUserData = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!._id;
+
+    const [user, trips, journalEntries, packingLists, packingListTemplates, atlasConversations, notifications, feedback] =
+      await Promise.all([
+        UserModel.findById(userId).select("-password -resetPasswordToken -resetPasswordExpires").lean(),
+        TripModel.find({ userId }).lean(),
+        JournalEntryModel.find({ userId }).lean(),
+        PackingListModel.find({ userId }).lean(),
+        PackingListTemplateModel.find({ userId }).lean(),
+        AtlasConversationModel.find({ userId }).lean(),
+        NotificationModel.find({ userId }).lean(),
+        FeedbackModel.find({ userId }).lean(),
+      ]);
+
+    if (!user) throw new NotFoundError("User not found");
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      profile: user,
+      trips,
+      journalEntries,
+      packingLists,
+      packingListTemplates,
+      atlasConversations,
+      notifications,
+      feedback,
+    };
+
+    const filename = `tripmate-export-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(exportData, null, 2));
   } catch (error) {
     next(error);
   }

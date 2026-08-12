@@ -9,7 +9,7 @@ import type { User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LogOut, Link as LinkIcon, AlertTriangle } from "lucide-react";
+import { LogOut, Link as LinkIcon, AlertTriangle, Download } from "lucide-react";
 import { authApi } from "@/lib/api/auth.api";
 import { apiRequest, getCsrfToken } from "@/lib/queryClient";
 
@@ -24,6 +24,7 @@ export default function Profile() {
     enabled: true,
   });
 
+  const [isExporting, setIsExporting] = useState<boolean>(false);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -144,6 +145,13 @@ export default function Profile() {
   const email = (userData?.email ?? '');
   const profileImageUrl = localPreviewUrl || userData?.avatar || userData?.profileImageUrl || '';
   const phoneNumber = (userData as any)?.phoneNumber ?? '';
+  const memberSince = useMemo(() => {
+    const raw = (userData as any)?.createdAt;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }, [userData]);
 
   const [countryCode, setCountryCode] = useState<string>('');
   const [phoneLocal, setPhoneLocal] = useState<string>('');
@@ -225,6 +233,9 @@ export default function Profile() {
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Your Profile</h1>
         <p className="text-muted-foreground">Manage your account settings and preferences</p>
+        {memberSince && (
+          <p className="text-xs text-muted-foreground mt-1">Member since {memberSince}</p>
+        )}
       </div>
 
       <Card className="bg-card border-border">
@@ -459,6 +470,40 @@ export default function Profile() {
             >
               <LogOut className="w-4 h-4" />
               Logout
+            </Button>
+          </div>
+          <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-foreground">Export Your Data</h3>
+              <p className="text-sm text-muted-foreground">Download a copy of your trips, journal entries, packing lists, and account data</p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={isExporting}
+              onClick={async () => {
+                setIsExporting(true);
+                try {
+                  const res = await apiRequest('GET', '/api/v1/auth/user/export');
+                  if (!res.ok) throw new Error('Export failed');
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `tripmate-export-${new Date().toISOString().slice(0, 10)}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } catch {
+                  toast({ title: 'Error', description: 'Could not export your data', variant: 'destructive' });
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {isExporting ? 'Exporting…' : 'Export Data'}
             </Button>
           </div>
           <div className="mt-8 pt-6 border-t border-red-500/20">

@@ -10,8 +10,7 @@ import { config as appConfig } from "../config";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import mongoose from "mongoose";
-import { UserModel } from "@shared/schema";
+import { UserModel, SessionModel } from "@shared/schema";
 
 const router = Router();
 
@@ -101,6 +100,7 @@ router.post("/google/disconnect", requireAuth, async (req, res, next) => {
 // Settings & Security
 router.post("/change-password", requireAuth, authController.changePassword);
 router.put("/change-password", requireAuth, authController.changePassword); // Support both
+router.get("/user/export", requireAuth, authController.exportUserData);
 router.post("/delete-account", requireAuth, authController.deleteAccount);
 router.delete("/delete-account", requireAuth, authController.deleteAccount); // Support both
 
@@ -108,44 +108,23 @@ router.get("/sessions", requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any)?._id?.toString() || (req.user as any)?.id?.toString();
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const currentSid = (req.user as any)?.sid;
 
-    // Try MongoDB sessions first (session-based auth)
-    const col = mongoose.connection.db?.collection("sessions");
-    let result: any[] = [];
-    if (col) {
-      const docs = await col.find({}).toArray();
-      result = docs
-        .map((doc: any) => {
-          try {
-            const s = typeof doc.session === "string" ? JSON.parse(doc.session) : doc.session;
-            const passportUser = s?.passport?.user;
-            if (!passportUser || passportUser !== userId) return null;
-            return {
-              id: doc._id?.toString(),
-              userAgent: req.headers["user-agent"] || null,
-              ip: req.ip || null,
-              device: null,
-              expiresAt: doc.expires?.toISOString() || null,
-              isCurrent: req.sessionID === doc._id?.toString(),
-            };
-          } catch { return null; }
-        })
-        .filter(Boolean);
-    }
+    const sessions = await SessionModel.find({
+      userId,
+      revoked: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
 
-    // JWT-auth users have no session row — return synthetic current session
-    if (result.length === 0) {
-      result = [{
-        id: "current",
-        userAgent: req.headers["user-agent"] || null,
-        ip: req.ip || null,
-        device: null,
-        expiresAt: null,
-        isCurrent: true,
-      }];
-    }
-
-    res.json(result);
+    res.json(sessions.map((s) => ({
+      id: s.sessionId,
+      userAgent: s.userAgent || null,
+      ip: s.ip || null,
+      device: s.device || null,
+      expiresAt: s.expiresAt.toISOString(),
+      createdAt: s.createdAt.toISOString(),
+      isCurrent: s.sessionId === currentSid,
+    })));
   } catch {
     res.status(500).json({ error: "Failed to fetch sessions" });
   }
@@ -154,22 +133,20 @@ router.get("/sessions", requireAuth, async (req, res) => {
 router.post("/sessions/:id/revoke", requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any)?._id?.toString() || (req.user as any)?.id?.toString();
+    const currentSid = (req.user as any)?.sid;
     const { id } = req.params;
-    // Synthetic JWT session — there's no DB row to delete, but this IS
-    // the active session, so revoking it has to actually sign the user
-    // out (clear the auth cookie), or it's a no-op that looks like it
-    // worked: the same session reappears on the next page load.
-    if (id === "current") {
+
+    const session = await SessionModel.findOne({ sessionId: id, userId });
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    session.revoked = true;
+    await session.save();
+
+    // Revoking your own current session should also sign this browser out
+    // right now, not just take effect on requireAuth's next check.
+    if (id === currentSid) {
       res.clearCookie("token", { path: "/" });
-      return res.json({ ok: true });
     }
-    const col = mongoose.connection.db?.collection("sessions");
-    if (!col) return res.status(500).json({ error: "Session store unavailable" });
-    const doc = await col.findOne({ _id: id as any });
-    if (!doc) return res.status(404).json({ error: "Session not found" });
-    const s = typeof doc.session === "string" ? JSON.parse(doc.session) : doc.session;
-    if (s?.passport?.user !== userId) return res.status(403).json({ error: "Forbidden" });
-    await col.deleteOne({ _id: id as any });
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to revoke session" });
