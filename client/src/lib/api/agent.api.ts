@@ -1,11 +1,12 @@
 import client from './client'
-import type { AgentResponse, AgentChatRequest } from '../../types/api.types'
+import type { AgentResponse, AgentChatRequest, PendingConfirmation } from '../../types/api.types'
 import { env } from '../../config/env'
 
 interface StreamDonePayload {
     conversationId: string
     toolsUsed: string[]
     structuredData?: unknown
+    pendingConfirmation?: PendingConfirmation
 }
 
 interface SSEMessage {
@@ -15,6 +16,7 @@ interface SSEMessage {
     conversationId?: string
     toolsUsed?: string[]
     structuredData?: unknown
+    pendingConfirmation?: PendingConfirmation
     error?: string
 }
 
@@ -72,6 +74,7 @@ export const agentApi = {
                     conversationId: parsed.conversationId ?? '',
                     toolsUsed: parsed.toolsUsed ?? [],
                     structuredData: parsed.structuredData,
+                    pendingConfirmation: parsed.pendingConfirmation,
                 })
                 es.close()
             }
@@ -100,4 +103,10 @@ export const agentApi = {
 
     clearConversation: (tripId: string) =>
         client.delete(`/api/v1/agent/history/${tripId}`),
+
+    // Executes a tool call Atlas held back pending confirmation — this is
+    // the real "yes", proven by an authenticated request from whoever is
+    // looking at the confirm button, not anything the model itself can say.
+    confirmAction: (pendingActionId: string) =>
+        client.post(`/api/v1/agent/confirm-action/${pendingActionId}`),
 }

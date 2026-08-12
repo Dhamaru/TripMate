@@ -3,6 +3,7 @@ import { Server as HTTPServer } from "http";
 import { log } from "../vite";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
+import { TripModel } from "@shared/schema";
 
 interface UserPresence {
     userId: string;
@@ -74,11 +75,25 @@ export class SocketService {
                 socket.join(`user:${socket.userId}`);
             }
 
-            socket.on("join-trip", ({ tripId, userName, avatar }) => {
+            socket.on("join-trip", async ({ tripId, userName, avatar }) => {
                 // Always use server-verified userId from JWT — never trust client payload
                 const userId = socket.userId;
                 if (!userId) {
                     socket.emit("error", { message: "Authentication required to join trip room" });
+                    return;
+                }
+
+                // REST endpoints scope every trip query to owner-or-collaborator,
+                // but this room join had no such check — any authenticated user
+                // who learned a tripId (a shared link, a screenshot) could listen
+                // to another trip's live itinerary/expense/collaborator events.
+                // Can't write anything through sockets, but it leaked activity.
+                const trip = await TripModel.findOne({
+                    _id: tripId,
+                    $or: [{ userId }, { "collaborators.userId": userId }],
+                }).select('_id').lean();
+                if (!trip) {
+                    socket.emit("error", { message: "Not authorized to join this trip" });
                     return;
                 }
 

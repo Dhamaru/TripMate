@@ -6,7 +6,7 @@ import * as expenseController from "../controllers/expense.controller";
 import * as collaboratorController from "../controllers/collaborator.controller";
 import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
-import { generationLimiter } from "../middleware/rateLimit.middleware";
+import { generationLimiter, aiLimiter } from "../middleware/rateLimit.middleware";
 import { createTripSchema } from "../schemas/trip.schemas";
 import { addActivitySchema, updateActivitySchema, reorderItinerarySchema } from "../schemas/itinerary.schemas";
 import { addExpenseSchema, updateExpenseSchema } from "../schemas/expense.schemas";
@@ -34,7 +34,7 @@ router.post("/:id/share", tripsController.shareTrip);
 router.post("/generate-itinerary", generationLimiter, tripsController.generateItinerary);
 
 // Parse user's own schedule text into structured itinerary
-router.post("/parse-schedule", requireAuth, tripsController.parseSchedule);
+router.post("/parse-schedule", requireAuth, aiLimiter, tripsController.parseSchedule);
 
 // Expense management
 router.post("/:id/expenses", validate(addExpenseSchema), expenseController.addExpense);
@@ -54,11 +54,11 @@ router.post("/:id/collaborators", validate(addCollaboratorSchema), collaboratorC
 router.delete("/:id/collaborators/:collaboratorId", collaboratorController.removeCollaborator);
 
 // AI Suggestions & Content
-router.get("/:id/hacks", tripsController.getHacks);
-router.get("/:id/quiet-places", tripsController.getQuietPlaces);
-router.get("/:id/budget-forecast", tripsController.getBudgetForecast);
-router.post("/:id/discover", tripsController.discoverPlaces);
-router.post("/:id/ai-recommendations", tripsController.getAiRecommendations);
+router.get("/:id/hacks", aiLimiter, tripsController.getHacks);
+router.get("/:id/quiet-places", aiLimiter, tripsController.getQuietPlaces);
+router.get("/:id/budget-forecast", aiLimiter, tripsController.getBudgetForecast);
+router.post("/:id/discover", aiLimiter, tripsController.discoverPlaces);
+router.post("/:id/ai-recommendations", aiLimiter, tripsController.getAiRecommendations);
 router.post("/:id/image", tripsController.forceUpdateImage);
 
 export default router;

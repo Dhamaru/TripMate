@@ -7,6 +7,7 @@ import { storage } from "../storage";
 import { sendFeedbackNotificationEmail, sendFeedbackConfirmationEmail, sendAgentTriagePlanEmail } from "../email";
 import { requireAdminSecret } from "../middleware/adminAuth.middleware";
 import { NotFoundError, BadRequestError } from "../errors";
+import { imageFileFilter } from "../middleware/imageUpload";
 
 const router = Router();
 
@@ -25,10 +26,7 @@ const diskStorage = multer.diskStorage({
 const upload = multer({
     storage: diskStorage,
     limits: { fileSize: 5 * 1024 * 1024, files: 3 }, // 5MB each, up to 3 screenshots
-    fileFilter: (_req, file, cb) => {
-        if (file.mimetype.startsWith("image/")) cb(null, true);
-        else cb(new Error("Only image attachments are allowed"));
-    },
+    fileFilter: imageFileFilter,
 });
 
 router.post("/", upload.array("attachments", 3), async (req, res, next) => {

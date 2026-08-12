@@ -2,9 +2,11 @@ import { Request, Response, NextFunction } from "express";
 import { runAgentLoop } from "../agent/agentLoop";
 import { AtlasMemoryService } from "../agent/memory";
 import { AiUtilitiesService } from "../AiUtilitiesService";
-import { UnauthorizedError } from "../errors";
+import { UnauthorizedError, NotFoundError } from "../errors";
 import { config } from "../config";
 import OpenAI from "openai";
+import { dispatchTool } from "../agent/tools/executor";
+import { consumePendingAction } from "../agent/pendingActions";
 
 // OpenAI configuration is now handled natively within `agentLoop.ts`
 const emptyOpenai = null;
@@ -29,14 +31,19 @@ export const chat = async (req: Request, res: Response, next: NextFunction) => {
         const history = await AtlasMemoryService.getHistory(conversationKey, userId);
 
         // 2. Run Agent Loop
+        // clientContext is client-supplied (req.body.context) — spreading it
+        // after userId let a caller override the session-derived userId with
+        // an arbitrary victim id, which every Atlas tool handler then trusted
+        // as the acting user's identity. Strip it before spreading.
+        const { userId: _clientUserId, ...safeClientContext } = clientContext ?? {};
         const result = await runAgentLoop(
             {
                 message,
                 userId,
                 context: {
+                    ...safeClientContext,
                     userId,
                     tripId: actualTripId,
-                    ...clientContext,
                 },
                 conversationHistory: history,
             },
@@ -118,14 +125,17 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         let tokensSent = false;
 
         // 2. Run Agent Loop with callbacks
+        // Same client-controlled-identity issue as the chat handler above —
+        // contextObj comes from a client-supplied query param.
+        const { userId: _clientUserId, ...safeContextObj } = contextObj ?? {};
         const result = await runAgentLoop(
             {
                 message: messageStr,
                 userId,
                 context: {
+                    ...safeContextObj,
                     userId,
                     tripId: tripIdStr,
-                    ...contextObj,
                 },
                 conversationHistory: history,
                 onToken: (token) => {
@@ -165,7 +175,8 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
             confidence: result.confidence,
             feasibilityScore: result.feasibilityScore,
             mutations: result.mutations,
-            structuredData: result.structuredData
+            structuredData: result.structuredData,
+            pendingConfirmation: result.pendingConfirmation,
         })}\n\n`);
         
         res.end();
@@ -193,6 +204,34 @@ export const clearHistory = async (req: Request, res: Response, next: NextFuncti
         const userId = req.user!._id;
         const success = await AtlasMemoryService.clearHistory(tripId, userId);
         res.json({ success });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Executes a tool call Atlas previously gated behind confirmation (see
+// server/agent/tools/executor.ts's CONFIRM_REQUIRED / pendingActions.ts).
+// This is the ONLY path that can run those tools — the chat/stream
+// handlers above never execute them directly, no matter what the model's
+// tool-call arguments say. Real confirmation is this authenticated request
+// itself, from whoever is looking at the confirmation button in their own
+// browser, not anything the LLM can generate on its own.
+export const confirmAction = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?._id || req.user?.id;
+        if (!userId) throw new UnauthorizedError();
+
+        const { id } = req.params;
+        const pending = consumePendingAction(id, userId);
+        if (!pending) throw new NotFoundError("This confirmation has expired or was already used");
+
+        const args = JSON.parse(pending.argsJson);
+        const result = await dispatchTool(pending.toolName, args, { userId }, {
+            openai: emptyOpenai,
+            aiService: aiService as any,
+        });
+
+        res.json(result);
     } catch (error) {
         next(error);
     }

@@ -88,6 +88,11 @@ export interface Trip {
 }
 
 // Agent
+export interface PendingConfirmation {
+    id: string
+    toolName: string
+    summary: string
+}
 export interface AgentMessage {
     id: string
     role: 'user' | 'assistant'
@@ -95,6 +100,7 @@ export interface AgentMessage {
     toolsUsed?: string[]
     timestamp: string
     isStreaming?: boolean
+    pendingConfirmation?: PendingConfirmation
 }
 export interface SuggestedAction {
     label: string
@@ -112,6 +118,7 @@ export interface AgentResponse {
     toolsUsed: string[]
     suggestedActions?: SuggestedAction[]
     structuredData?: AgentStructuredData
+    pendingConfirmation?: PendingConfirmation
 }
 export interface AgentChatRequest {
     message: string

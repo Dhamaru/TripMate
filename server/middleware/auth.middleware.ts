@@ -45,7 +45,7 @@ export const requireAuth = async (
     }
 }
 
-export const optionalAuth = (
+export const optionalAuth = async (
     req: Request, res: Response, next: NextFunction
 ) => {
     try {
@@ -54,12 +54,21 @@ export const optionalAuth = (
 
         if (token) {
             const decoded = jwt.verify(token, config.JWT_SECRET) as any;
-            req.user = {
-                ...decoded,
-                _id: decoded.sub,
-                id: decoded.sub
-            };
+            // Same revocation check as requireAuth — without it, a revoked
+            // session (via /sessions/:id/revoke, signout, or a password
+            // change) kept being treated as authenticated on every route
+            // mounted with optionalAuth instead of requireAuth.
+            const session = decoded.sid
+                ? await SessionModel.findOne({ sessionId: decoded.sid }).select('revoked expiresAt').lean()
+                : null;
+            if (session && !session.revoked && session.expiresAt.getTime() > Date.now()) {
+                req.user = {
+                    ...decoded,
+                    _id: decoded.sub,
+                    id: decoded.sub
+                };
+            }
         }
-    } catch { /* ignore */ }
+    } catch { /* ignore — optionalAuth never blocks the request */ }
     next();
 }

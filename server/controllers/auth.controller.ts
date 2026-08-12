@@ -71,14 +71,22 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     const existingUser = await UserModel.findOne({ email: normalizedEmail });
     if (existingUser) {
       if (existingUser.password) throw new BadRequestError("User already exists");
-      // Google-authed user setting a password for the first time
-      existingUser.password = await hashPassword(password);
-      existingUser.firstName = existingUser.firstName || firstName;
-      existingUser.lastName = existingUser.lastName || lastName;
+      // Google-authed user with no password yet — this is an unauthenticated
+      // public endpoint, so we can't just set whatever password the caller
+      // supplied (that was a full account-takeover: anyone who knew a
+      // Google user's email could set their password here with no proof of
+      // ownership). Route through the same email-token flow forgotPassword
+      // already uses instead — it proves the caller controls the inbox
+      // before any password is set.
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      existingUser.resetPasswordToken = resetToken;
+      existingUser.resetPasswordExpires = new Date(Date.now() + 3_600_000);
       await existingUser.save();
-      const token = await issueSession(req, existingUser.id);
-      setAuthCookie(req, res, token);
-      return res.status(200).json({ user: existingUser, token });
+      const { sendPasswordResetEmail } = await import("../email");
+      await sendPasswordResetEmail(existingUser.email!, resetToken);
+      return res.status(200).json({
+        message: "This email already has an account. We've sent a link to set a password for it.",
+      });
     }
 
     const user = await UserModel.create({
@@ -242,6 +250,11 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
+    // changePassword already revokes the old session on rotation — a
+    // forgot-password reset is the same kind of credential rotation and
+    // needs the same treatment, or a session an attacker already holds
+    // stays valid for up to 7 more days after the "legitimate" reset.
+    await SessionModel.updateMany({ userId: user.id }, { revoked: true });
 
     res.json({ message: "Password has been reset. You can now sign in." });
   } catch (error) {

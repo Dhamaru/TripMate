@@ -186,6 +186,7 @@ export async function runAgentLoop(
     let totalTokens = 0;
     let finalText = '';
     let currentFeasibilityScore: number | undefined = undefined;
+    let pendingConfirmation: { id: string; toolName: string; summary: string } | undefined = undefined;
     const mutations: Mutation[] = [];
     let groundingSignals = { mentions: 0, verified: 0 };
     let lastIteration = 0;
@@ -342,6 +343,11 @@ export async function runAgentLoop(
                         if (toolName === 'search_places' || toolName === 'get_weather') {
                             groundingSignals.verified++;
                         }
+                    } else if ((toolResult.data as any)?.requiresConfirmation) {
+                        // Surfaced to the client so it can render a real
+                        // confirm button — see server/agent/pendingActions.ts.
+                        const d = toolResult.data as any;
+                        pendingConfirmation = { id: d.pendingActionId, toolName, summary: d.summary };
                     } else if (toolResult.error?.includes('infeasible')) {
                         // FEASIBILITY FAILURE: Provide a strong system hint for self-correction
                         const corrections = (toolResult.data as any)?.corrections || [];
@@ -454,6 +460,7 @@ export async function runAgentLoop(
         feasibilityScore: currentFeasibilityScore,
         mutations: mutations.length > 0 ? mutations : undefined,
         tokensUsed: totalTokens,
+        pendingConfirmation,
     };
 }
 

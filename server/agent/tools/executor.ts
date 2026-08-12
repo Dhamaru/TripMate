@@ -22,15 +22,35 @@ import {
 } from './handlers';
 
 // Actions that mutate or revoke access/data in a way that's hard to undo.
-// Gated so the model must present the change and get an explicit "yes" from
-// the user before it fires — a confirmed:true arg proves that happened,
-// rather than trusting the model not to hallucinate straight into a delete.
+// A confirmed:true arg used to be enough to skip this gate — but that flag
+// lives in the LLM's own generated tool-call JSON, not anything a real user
+// produced. A prompt injection (text embedded in trip notes, journal
+// content, anything that ends up in the model's context) could instruct
+// the model to set confirmed:true on its first attempt and nothing would
+// stop it. Gated tools now ALWAYS short-circuit into a pending action
+// (see pendingActions.ts) instead of executing here, regardless of what
+// the model put in args — the only path to actually running them is a
+// separate authenticated HTTP request from a real button click.
 const CONFIRM_REQUIRED: Record<string, (args: Record<string, unknown>) => boolean> = {
     manage_expense: (args) => args.action === 'remove',
     manage_collaborator: () => true,
 };
+
+function summarizeGatedAction(name: string, args: Record<string, unknown>): string {
+    if (name === 'manage_expense') {
+        return `Remove the expense (id: ${args.expenseId ?? 'unknown'}) from this trip?`;
+    }
+    if (name === 'manage_collaborator') {
+        if (args.action === 'add') {
+            return `Add ${args.email ?? 'this person'} as a${args.role === 'viewer' ? ' viewer' : 'n editor'} on this trip?`;
+        }
+        return `Remove this collaborator from the trip?`;
+    }
+    return `Confirm this action: ${name}`;
+}
 import OpenAI from 'openai';
 import { masterOrchestrator } from '../multiAgent/MasterOrchestrator';
+import { createPendingAction } from '../pendingActions';
 
 export interface ExecutorDeps {
     openai: OpenAI | null;
@@ -88,14 +108,32 @@ export async function executeTool(
     console.log(`[Atlas:Tool] ${name} called`, JSON.stringify(args).slice(0, 200));
 
     const needsConfirm = CONFIRM_REQUIRED[name];
-    if (needsConfirm && needsConfirm(args) && args.confirmed !== true) {
+    if (needsConfirm && needsConfirm(args) && context.userId) {
+        const summary = summarizeGatedAction(name, args);
+        const pending = createPendingAction(context.userId, name, argsJson, summary);
         return {
             success: false,
-            error: 'Confirmation required: summarize this exact change for the user and ask them to confirm, then call this tool again with confirmed: true. Do not call it again without an explicit yes from the user.',
+            error: 'Confirmation required: tell the user exactly what this action will do and that they need to confirm it themselves using the button shown — you cannot confirm it for them.',
+            data: { requiresConfirmation: true, pendingActionId: pending.id, summary },
             durationMs: Date.now() - start,
         };
     }
 
+    return dispatchTool(name, args, context, deps, start);
+}
+
+/** The actual per-tool dispatch, separated from executeTool so the
+ * confirm-action endpoint can invoke a previously-gated tool directly once
+ * a real authenticated request (not an LLM tool call) confirms it — that
+ * path must skip the CONFIRM_REQUIRED gate above (it already passed an
+ * equivalent, stronger check) without re-implementing every case here. */
+export async function dispatchTool(
+    name: string,
+    args: Record<string, unknown>,
+    context: AgentContext,
+    deps: ExecutorDeps,
+    start: number = Date.now(),
+): Promise<ToolResult> {
     let result: ToolResult;
 
     try {
@@ -176,14 +214,14 @@ export async function executeTool(
 
             case 'list_trips':
                 result = await tripsListHandler({
-                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    userId: context.userId || '',
                 });
                 break;
 
             case 'get_trip_details':
                 result = await tripHandler({
                     tripId: (args as { tripId?: string }).tripId || context.tripId || '',
-                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    userId: context.userId || '',
                     action: 'get',
                 });
                 break;
@@ -192,7 +230,7 @@ export async function executeTool(
                 result = await tripPlannerHandler({
                     ...args as any,
                     tripId: (args as { tripId?: string }).tripId || context.tripId || '',
-                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    userId: context.userId || '',
                 });
                 break;
 
@@ -200,7 +238,7 @@ export async function executeTool(
                 result = await modifyItineraryHandler(
                     {
                         tripId: (args as { tripId?: string }).tripId || context.tripId || '',
-                        userId: (args as { userId?: string }).userId || context.userId || '',
+                        userId: context.userId || '',
                         action: (args as { action: any }).action,
                         dayIndex: (args as { dayIndex: number }).dayIndex,
                         activityId: (args as { activityId?: string }).activityId,
@@ -213,19 +251,19 @@ export async function executeTool(
             
             case 'get_user_preferences':
                 result = await userPreferencesHandler({ 
-                    userId: (args as { userId?: string }).userId || context.userId 
+                    userId: context.userId 
                 });
                 break; // Added missing break
             case 'update_user_preferences': // Corrected case placement
                 result = await updateUserPreferencesHandler({
                     ...(args as any),
-                    userId: (args as { userId?: string }).userId || context.userId,
+                    userId: context.userId,
                 });
                 break;
             
             case 'manage_packing_list':
                 result = await packingListToolHandler({
-                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    userId: context.userId || '',
                     tripId: (args as { tripId?: string }).tripId || context.tripId,
                     action: (args as { action: any }).action,
                     itemName: (args as { itemName?: string }).itemName,
@@ -236,7 +274,7 @@ export async function executeTool(
 
             case 'create_journal_entry':
                 result = await journalToolHandler({
-                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    userId: context.userId || '',
                     tripId: (args as { tripId?: string }).tripId || context.tripId,
                     title: (args as { title: string }).title,
                     content: (args as { content: string }).content,
@@ -247,7 +285,7 @@ export async function executeTool(
 
             case 'manage_expense':
                 result = await expenseToolHandler({
-                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    userId: context.userId || '',
                     tripId: (args as { tripId?: string }).tripId || context.tripId || '',
                     action: (args as { action: any }).action,
                     amount: (args as { amount?: number }).amount,
@@ -260,7 +298,7 @@ export async function executeTool(
 
             case 'manage_collaborator':
                 result = await collaboratorToolHandler({
-                    userId: (args as { userId?: string }).userId || context.userId || '',
+                    userId: context.userId || '',
                     tripId: (args as { tripId?: string }).tripId || context.tripId || '',
                     action: (args as { action: any }).action,
                     email: (args as { email?: string }).email,

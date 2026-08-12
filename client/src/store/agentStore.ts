@@ -28,6 +28,7 @@ interface AgentStore {
     streamMessage: (text: string) => Promise<void>
     clearConversation: () => void
     handleStructuredData: (data: AgentStructuredData) => void
+    confirmPendingAction: (messageId: string, pendingActionId: string) => Promise<void>
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
@@ -86,7 +87,8 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
                 role: 'assistant',
                 content: result.message || result.response || "I'm here to help, but I couldn't form a response. Please try again.",
                 toolsUsed: result.toolsUsed,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                pendingConfirmation: result.pendingConfirmation,
             }
             set((state) => ({
                 messages: [...state.messages, assistantMsg],
@@ -155,7 +157,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
                 (meta) => {
                     set((state) => ({
                         messages: state.messages.map(m =>
-                            m.id === streamingId ? { ...m, isStreaming: false, toolsUsed: meta.toolsUsed } : m
+                            m.id === streamingId ? { ...m, isStreaming: false, toolsUsed: meta.toolsUsed, pendingConfirmation: meta.pendingConfirmation } : m
                         ),
                         conversationId: meta.conversationId,
                         isLoading: false,
@@ -191,5 +193,35 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
 
     handleStructuredData: (_data: AgentStructuredData) => {
         // Structured data received from Atlas — trip store will refresh on next fetchTrips
+    },
+
+    // The only place a gated tool (manage_expense remove, manage_collaborator)
+    // actually runs — triggered by a real button click here, not anything
+    // the model said. See server/agent/pendingActions.ts for why this can't
+    // just be "confirmed: true" in the chat message.
+    confirmPendingAction: async (messageId, pendingActionId) => {
+        set((state) => ({
+            messages: state.messages.map(m =>
+                m.id === messageId ? { ...m, pendingConfirmation: undefined } : m
+            ),
+        }))
+        try {
+            const result: any = await agentApi.confirmAction(pendingActionId)
+            const note = result?.success
+                ? `\n\n✅ ${result?.data?.message || 'Done.'}`
+                : `\n\n⚠️ ${result?.error || 'Could not complete this action.'}`
+            set((state) => ({
+                messages: state.messages.map(m =>
+                    m.id === messageId ? { ...m, content: m.content + note } : m
+                ),
+            }))
+        } catch (e: any) {
+            const msg = e?.message || 'Could not complete this action.'
+            set((state) => ({
+                messages: state.messages.map(m =>
+                    m.id === messageId ? { ...m, content: m.content + `\n\n⚠️ ${msg}` } : m
+                ),
+            }))
+        }
     },
 }))

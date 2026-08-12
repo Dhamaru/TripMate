@@ -5,7 +5,7 @@ import { ToolCallBadge } from './ToolCallBadge'
 import { TypingIndicator } from './TypingIndicator'
 
 export function ChatMessageList() {
-    const { messages, isLoading } = useAgentStore()
+    const { messages, isLoading, confirmPendingAction } = useAgentStore()
     const bottomRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -65,6 +65,20 @@ export function ChatMessageList() {
                                 {msg.toolsUsed.map((tool, i) => (
                                     <ToolCallBadge key={i} toolName={tool} />
                                 ))}
+                            </div>
+                        )}
+                        {msg.pendingConfirmation && (
+                            <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                                <p className="text-xs font-medium text-foreground mb-2">{msg.pendingConfirmation.summary}</p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => confirmPendingAction(msg.id, msg.pendingConfirmation!.id)}
+                                        className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)] transition-colors"
+                                    >
+                                        Confirm
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

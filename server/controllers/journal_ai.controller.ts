@@ -147,31 +147,29 @@ export const confirmEnhancement = async (req: Request, res: Response, next: Next
         const userId = req.user!._id;
         const { text } = req.body as { text: string };
 
+        // Authorization must be checked BEFORE any write — the previous
+        // version updated the entry first (matching any entry with a
+        // tripId, no ownership filter at all) and only checked permissions
+        // afterward, so a viewer collaborator (or anyone who could guess/
+        // enumerate an entry id) could overwrite another user's journal
+        // entry and get a 403 back while the write had already committed.
+        const entry = await JournalEntryModel.findById(req.params.id);
+        if (!entry) throw new NotFoundError("Entry not found");
+
+        const isAuthor = entry.userId === userId.toString();
+        if (!isAuthor) {
+            const trip = await TripModel.findOne({
+                _id: entry.tripId,
+                collaborators: { $elemMatch: { userId, role: "editor" } }
+            });
+            if (!trip) throw new ForbiddenError("Insufficient permissions");
+        }
+
         const updated = await JournalEntryModel.findOneAndUpdate(
-            {
-                _id: req.params.id,
-                $or: [
-                    { userId },
-                    { tripId: { $exists: true } } // Placeholder, logic below is more precise
-                ]
-            },
+            { _id: req.params.id },
             { content: text, enhanced: true },
             { new: true }
         );
-        
-        if (!updated) throw new NotFoundError("Entry not found");
-
-        // Double check permissions if updated by non-author
-        if (updated.userId !== userId.toString()) {
-            const trip = await TripModel.findOne({
-                _id: updated.tripId,
-                collaborators: { $elemMatch: { userId, role: "editor" } }
-            });
-            if (!trip) {
-                // Relentlessly revert or throw error if permissions were dodged (unlikely with .findOneAndUpdate)
-                throw new ForbiddenError("Insufficient permissions");
-            }
-        }
 
         res.json({ success: true, data: updated });
     } catch (err) {

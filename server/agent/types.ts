@@ -132,4 +132,5 @@ export interface AgentResponse {
     feasibilityScore?: number;
     mutations?: Mutation[];
     tokensUsed?: number;
+    pendingConfirmation?: { id: string; toolName: string; summary: string };
 }

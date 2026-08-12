@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { addActivity, updateActivity, deleteActivity, reorderItinerary } from "../controllers/itinerary.controller";
 import { requireAuth } from "../middleware/auth.middleware";
-import { validate } from "../middleware/validate.middleware";
+import { validate } from "../middleware/validate";
 import { addActivitySchema, updateActivitySchema, reorderItinerarySchema } from "../schemas/itinerary.schemas";
 
 const router = Router();

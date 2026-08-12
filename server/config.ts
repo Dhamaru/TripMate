@@ -1,5 +1,14 @@
 import { z } from "zod";
 import "dotenv/config";
+import crypto from "crypto";
+
+// A random-per-process default instead of a fixed string — the old default
+// ("your-jwt-secret-key") is a known, public value (it's right here in the
+// repo). Any dev/CI/staging environment that forgot to set a real secret
+// was silently signing every JWT with a string anyone can find on GitHub;
+// production is already guarded (throws below), but non-production
+// environments deserve better than a guessable default too.
+const randomSecret = () => crypto.randomBytes(32).toString("hex");
 
 const envSchema = z.object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -9,8 +18,8 @@ const envSchema = z.object({
     GEMINI_API_KEY: z.string().optional().default(''),
     GROQ_API_KEY: z.string().optional().default(''),
     GOOGLE_API_KEY: z.string().optional(),
-    SESSION_SECRET: z.string().default("your-session-secret-key"),
-    JWT_SECRET: z.string().default("your-jwt-secret-key"),
+    SESSION_SECRET: z.string().default(randomSecret),
+    JWT_SECRET: z.string().default(randomSecret),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     NVIDIA_API_KEY_1: z.string().optional(),
@@ -64,15 +73,20 @@ const derivedConfig = {
     NVIDIA_API_KEY: _config.NVIDIA_API_KEY_2 || _config.NVIDIA_API_KEY_1,
 };
 
-// Transition placeholders to mandatory for production
+// Transition placeholders to mandatory for production. Checks the RAW env
+// var, not _config's already-defaulted value — since the default is now a
+// random-per-process string (not a fixed known one), checking _config here
+// would never catch a genuinely-unset var in production, it'd just silently
+// run on a secret that's regenerated (and every existing JWT invalidated)
+// on every single restart.
 if (_config.NODE_ENV === "production") {
     const missingSecrets = [];
 
-    if (!_config.SESSION_SECRET || _config.SESSION_SECRET === "your-session-secret-key") {
+    if (!process.env.SESSION_SECRET) {
         missingSecrets.push("SESSION_SECRET");
     }
 
-    if (!_config.JWT_SECRET || _config.JWT_SECRET === "your-jwt-secret-key") {
+    if (!process.env.JWT_SECRET) {
         missingSecrets.push("JWT_SECRET");
     }
 

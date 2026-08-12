@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as toolsController from "../controllers/tools.controller";
 import { requireAuth } from "../middleware/auth";
+import { generationLimiter, aiLimiter } from "../middleware/rateLimit.middleware";
 
 const router = Router();
 
@@ -225,7 +226,7 @@ router.get("/weather/tiles/:layer/:z/:x/:y", requireAuth, toolsController.weathe
  *                 translatedText: { type: string }
  *                 pronunciation: { type: string }
  */
-router.post("/translate", requireAuth, toolsController.translateText);
+router.post("/translate", requireAuth, aiLimiter, toolsController.translateText);
 
 /**
  * @swagger
@@ -265,7 +266,7 @@ router.get("/emergency", requireAuth, toolsController.getEmergencyContacts);
  *       200:
  *         description: Generated trip plan
  */
-router.post("/planTrip", requireAuth, toolsController.planTrip);
-router.get("/proactive-insights", requireAuth, toolsController.getProactiveInsights);
+router.post("/planTrip", requireAuth, generationLimiter, toolsController.planTrip);
+router.get("/proactive-insights", requireAuth, aiLimiter, toolsController.getProactiveInsights);
 
 export default router;

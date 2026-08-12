@@ -102,10 +102,26 @@ export const getTrip = async (req: Request, res: Response, next: NextFunction) =
     }
 };
 
+// Trip fields an owner/editor is allowed to change through this route.
+// Deliberately excludes userId (ownership), collaborators, shareId, and
+// isPublic — those have their own owner-only endpoints (addCollaborator,
+// removeCollaborator, shareTrip) and must not be settable by passing raw
+// req.body through here, which previously let any editor collaborator
+// reassign trip ownership to themselves or wipe out the collaborator list.
+const UPDATABLE_TRIP_FIELDS = new Set([
+    "origin", "destination", "imageUrl", "imageCaption", "currency", "budget",
+    "days", "groupSize", "travelStyle", "transportMode", "isInternational",
+    "status", "startDate", "endDate", "itinerary", "expenses", "notes",
+    "aiPlanMarkdown", "isDraft", "syncStatus", "costBreakdown",
+]);
+
 export const updateTrip = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user?._id || req.user?.id;
         if (req.body?.itinerary) ensureActivityIds(req.body.itinerary);
+        const updates = Object.fromEntries(
+            Object.entries(req.body ?? {}).filter(([key]) => UPDATABLE_TRIP_FIELDS.has(key))
+        );
         const trip = await TripModel.findOneAndUpdate(
             {
                 _id: req.params.id,
@@ -114,8 +130,8 @@ export const updateTrip = async (req: Request, res: Response, next: NextFunction
                     { collaborators: { $elemMatch: { userId, role: "editor" } } }
                 ]
             },
-            req.body,
-            { new: true }
+            { $set: updates },
+            { new: true, runValidators: true }
         );
         if (!trip) throw new ForbiddenError("Trip not found or insufficient permissions");
         
