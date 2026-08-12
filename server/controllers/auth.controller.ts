@@ -327,9 +327,15 @@ export const uploadAvatar = async (req: Request, res: Response, next: NextFuncti
     if (req.file) avatarUrl = `/uploads/${req.file.filename}`;
     if (!avatarUrl) throw new BadRequestError("No avatar provided");
 
+    // Two fields have historically tracked the user's picture: `avatar`
+    // (set by this upload flow) and `profileImageUrl` (set at signup, e.g.
+    // from Google OAuth). The sidebar/topbar/bottom-nav (Layout.tsx) read
+    // only `profileImageUrl`, so a crop upload that wrote just `avatar`
+    // silently diverged from what those surfaces show. Write both so every
+    // avatar-reading surface reflects the new picture.
     const user = await UserModel.findByIdAndUpdate(
       req.user!._id,
-      { avatar: avatarUrl },
+      { avatar: avatarUrl, profileImageUrl: avatarUrl },
       { new: true }
     );
     res.json(user);

@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store";
 
 export default function CropImagePage() {
   const { user } = useAuth();
@@ -317,7 +318,17 @@ export default function CropImagePage() {
       fd.append('image', finalBlob, 'avatar.jpg');
       const res = await apiRequest('POST', '/api/v1/auth/user/avatar', fd);
       const updated = await res.json();
+      // apiRequest never throws on non-2xx — without this check a failed
+      // upload's error envelope ({success:false, error, code}) would get
+      // written into the user-profile cache as if it were the user object,
+      // wiping the avatar field and showing the fallback letter while
+      // still reporting success below.
+      if (!res.ok) throw new Error(updated?.error || 'Upload failed');
       queryClient.setQueryData(["/api/v1/auth/user"], updated);
+      // The sidebar/topbar/bottom-nav read the Zustand authStore, not this
+      // query cache — refresh it so the new picture shows everywhere, not
+      // just on the Profile card after a reload.
+      await useAuthStore.getState().checkSession();
       toast({ title: 'Profile updated', description: 'Your profile picture has been updated.' });
       navigate('/app/profile');
     } catch (e: any) {
