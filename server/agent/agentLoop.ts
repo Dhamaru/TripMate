@@ -228,7 +228,13 @@ export async function runAgentLoop(
                     model: MODELS[currentModelIndex],
                     messages: messages,
                     tools: TRIPMATE_TOOLS as any,
-                    max_tokens: 4096,
+                    // Was 4096 — the system prompt itself asks for replies
+                    // under 200 words (~270 tokens), so 4096 was purely
+                    // worst-case exposure against Groq's 12k-tokens/minute
+                    // ceiling with no upside. 1024 comfortably covers a
+                    // real reply + tool-call arguments while cutting the
+                    // worst-case per-request token cost by 75%.
+                    max_tokens: 1024,
                     temperature: 0.20,
                     top_p: 0.70,
                     stream: true,
