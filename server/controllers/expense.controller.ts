@@ -3,6 +3,7 @@ import { TripModel } from "@shared/schema";
 import { NotFoundError } from "../errors";
 import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
+import { notifyTripParticipants } from "../notifications";
 
 export const addExpense = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -31,6 +32,13 @@ export const addExpense = async (req: Request, res: Response, next: NextFunction
         await trip.save();
 
         socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses }, String(userId));
+        await notifyTripParticipants(trip, String(userId), {
+            type: "expense-updated",
+            title: "Expense added",
+            message: `${newExpense.amount} ${newExpense.currency} (${newExpense.category}) added to your trip to ${trip.destination}.`,
+            link: `/app/trips/${tripId}`,
+            tripId,
+        });
 
         res.status(201).json(trip);
     } catch (error) {
@@ -61,6 +69,13 @@ export const updateExpense = async (req: Request, res: Response, next: NextFunct
         await trip.save();
 
         socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses }, String(userId));
+        await notifyTripParticipants(trip, String(userId), {
+            type: "expense-updated",
+            title: "Expense updated",
+            message: `An expense was updated on your trip to ${trip.destination}.`,
+            link: `/app/trips/${tripId}`,
+            tripId,
+        });
 
         res.json(trip);
     } catch (error) {
@@ -86,6 +101,13 @@ export const deleteExpense = async (req: Request, res: Response, next: NextFunct
             trip.expenses = trip.expenses.filter(e => e.id !== expenseId);
             await trip.save();
             socketService.broadcastMutation(tripId, { type: "expenses-updated", data: trip.expenses }, String(userId));
+            await notifyTripParticipants(trip, String(userId), {
+                type: "expense-updated",
+                title: "Expense removed",
+                message: `An expense was removed from your trip to ${trip.destination}.`,
+                link: `/app/trips/${tripId}`,
+                tripId,
+            });
         }
 
         res.status(204).send();

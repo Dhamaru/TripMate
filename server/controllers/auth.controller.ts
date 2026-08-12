@@ -15,6 +15,7 @@ const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const ALLOWED_PROFILE_FIELDS = new Set([
   "firstName", "lastName", "phoneNumber", "homeCity",
   "dietaryPreferences", "interests", "preferredTransport", "travelStyle",
+  "mutedNotificationTypes",
 ]);
 
 function setAuthCookie(req: Request, res: Response, token: string) {

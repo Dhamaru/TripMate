@@ -5,6 +5,7 @@ import type { ToolResult } from '../../types';
 import { TripModel } from '@shared/schema';
 import { nanoid } from 'nanoid';
 import { socketService } from '../../../services/SocketService';
+import { notifyTripParticipants } from '../../../notifications';
 
 export async function expenseToolHandler(
     args: {
@@ -50,6 +51,13 @@ export async function expenseToolHandler(
             trip.expenses.push(newExpense as any);
             await trip.save();
             socketService.broadcastMutation(tripId, { type: 'expenses-updated', data: trip.expenses }, userId);
+            await notifyTripParticipants(trip, userId, {
+                type: 'expense-updated',
+                title: 'Expense added',
+                message: `${newExpense.amount} ${newExpense.currency} (${newExpense.category}) added to your trip to ${trip.destination}.`,
+                link: `/app/trips/${tripId}`,
+                tripId,
+            });
             return {
                 success: true,
                 data: { message: `Added ${args.amount} ${args.currency} expense (${args.category}).`, expense: newExpense },
@@ -68,6 +76,13 @@ export async function expenseToolHandler(
             }
             await trip.save();
             socketService.broadcastMutation(tripId, { type: 'expenses-updated', data: trip.expenses }, userId);
+            await notifyTripParticipants(trip, userId, {
+                type: 'expense-updated',
+                title: 'Expense removed',
+                message: `An expense was removed from your trip to ${trip.destination}.`,
+                link: `/app/trips/${tripId}`,
+                tripId,
+            });
             return { success: true, data: { message: 'Expense removed.' }, durationMs: Date.now() - start };
         }
 

@@ -10,6 +10,7 @@ import { AiUtilitiesService } from "../AiUtilitiesService";
 import { config } from "../config";
 import logger from "../logger";
 import { socketService } from "../services/SocketService";
+import { notifyTripParticipants } from "../notifications";
 
 const openai = new OpenAI({
     apiKey: config.NVIDIA_API_KEY_2 || config.NVIDIA_API_KEY || '',
@@ -243,6 +244,13 @@ export const generateRecap = async (req: Request, res: Response, next: NextFunct
         });
 
         logger.info(`[journal] Generated recap for trip ${tripId}`);
+        await notifyTripParticipants(trip, String(userId), {
+            type: "recap-generated",
+            title: "Trip recap ready",
+            message: `A new recap "${parsed.title}" was generated for your trip to ${trip.destination}.`,
+            link: `/app/trips/${tripId}`,
+            tripId,
+        });
         return res.json({ success: true, data: { recap: recapEntry } });
     } catch (err) {
         return next(err);

@@ -3,6 +3,7 @@ import { TripModel } from "@shared/schema";
 import { NotFoundError } from "../errors";
 import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
+import { notifyTripParticipants } from "../notifications";
 
 export const addActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -31,6 +32,13 @@ export const addActivity = async (req: Request, res: Response, next: NextFunctio
         await trip.save();
 
         socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
+        await notifyTripParticipants(trip, String(userId), {
+            type: "itinerary-updated",
+            title: "Itinerary updated",
+            message: `${newActivity.title || 'A new activity'} was added to your trip to ${trip.destination}.`,
+            link: `/app/trips/${tripId}`,
+            tripId,
+        });
 
         res.status(201).json(trip);
     } catch (error) {
@@ -64,6 +72,13 @@ export const updateActivity = async (req: Request, res: Response, next: NextFunc
         await trip.save();
 
         socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
+        await notifyTripParticipants(trip, String(userId), {
+            type: "itinerary-updated",
+            title: "Itinerary updated",
+            message: `${activity.title || 'An activity'} was updated on your trip to ${trip.destination}.`,
+            link: `/app/trips/${tripId}`,
+            tripId,
+        });
 
         res.json(trip);
     } catch (error) {
@@ -88,10 +103,18 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
 
         const day = trip.itinerary?.find(d => d.dayIndex === dayIndex);
         if (day) {
+            const removed = day.activities.find((a: any) => a.id === activityId);
             day.activities = day.activities.filter((a: any) => a.id !== activityId);
             trip.markModified("itinerary");
             await trip.save();
             socketService.broadcastMutation(tripId, { type: "itinerary-updated", data: trip.itinerary }, String(userId));
+            await notifyTripParticipants(trip, String(userId), {
+                type: "itinerary-updated",
+                title: "Itinerary updated",
+                message: `${removed?.title || 'An activity'} was removed from your trip to ${trip.destination}.`,
+                link: `/app/trips/${tripId}`,
+                tripId,
+            });
         }
 
         res.json(trip);

@@ -94,6 +94,15 @@ export const removeCollaborator = async (req: Request, res: Response, next: Next
         );
 
         socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updatedTrip }, String(userId));
+        // Notify the removed person directly — they're no longer in
+        // trip.collaborators after the $pull above, so notifyTripParticipants
+        // (which reads the trip's current participant list) can't reach them.
+        await notifyUser({
+            userId: collaboratorId,
+            type: "collaborator-removed",
+            title: "Removed from a trip",
+            message: `You were removed as a collaborator on the trip to ${trip.destination}.`,
+        });
 
         res.json(updatedTrip);
     } catch (error) {

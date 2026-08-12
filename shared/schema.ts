@@ -38,6 +38,7 @@ export interface IBaseUser {
   interests?: string[];
   googleConnected?: boolean;
   googleId?: string;
+  mutedNotificationTypes?: string[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -68,6 +69,7 @@ const userSchema = new Schema<IUser>(
     interests: { type: [String], default: [] },
     googleConnected: { type: Boolean, default: false },
     googleId: { type: String },
+    mutedNotificationTypes: { type: [String], default: [] },
   },
   {
     timestamps: true,
