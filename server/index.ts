@@ -63,7 +63,14 @@ app.use(csrfMiddleware);
 app.use("/api/v1", generalLimiter);
 
 // 2. Serve uploads as static files
-app.use("/uploads", express.static(path.join(import.meta.dirname, "uploads")));
+// Multer writes uploads (avatars, feedback, journal images) to
+// process.cwd()/server/uploads (see auth.routes.ts, feedback.routes.ts,
+// journal.routes.ts). import.meta.dirname resolves to the bundled dist/
+// directory at runtime, not the source server/ directory, so serving from
+// it here pointed at a directory nothing ever writes to — every uploaded
+// file 404'd into the SPA catch-all instead of loading. Must match the
+// write path exactly.
+app.use("/uploads", express.static(path.join(process.cwd(), "server", "uploads")));
 
 // Swagger UI — available at /api/docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
