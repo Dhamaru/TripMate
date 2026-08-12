@@ -198,6 +198,25 @@ router.get("/weather/tiles/:layer/:z/:x/:y", requireAuth, toolsController.weathe
 
 /**
  * @swagger
+ * /proxy-image:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: Fetch an allowlisted external image server-side (OAuth avatar CDNs) to work around canvas CORS taint
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: url
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Proxied image bytes
+ */
+router.get("/proxy-image", requireAuth, toolsController.proxyImage);
+
+/**
+ * @swagger
  * /translate:
  *   post:
  *     tags: [AI Tools]

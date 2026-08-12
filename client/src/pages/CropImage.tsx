@@ -29,9 +29,12 @@ export default function CropImagePage() {
   const [imageUrl, setImageUrl] = useState<string>(srcParam || user?.avatar || user?.profileImageUrl || "");
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string>("");
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 480, h: 480 });
+  const [imageLoading, setImageLoading] = useState<boolean>(false);
   const editorCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const loadedImageRef = useRef<HTMLImageElement | null>(null);
+  const imageUrlRef = useRef<string>("");
   const [crop, setCrop] = useState<{ x: number; y: number; w: number; h: number }>({ x: 60, y: 60, w: 360, h: 360 });
   const [dragging, setDragging] = useState<boolean>(false);
   const [dragHandle, setDragHandle] = useState<string>("");
@@ -58,73 +61,106 @@ export default function CropImagePage() {
     return () => { cancelled = true; };
   }, [imageUrl]);
 
-  const renderPreview = () => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = editorCanvasRef.current;
-      const preview = previewCanvasRef.current;
-      if (!canvas || !preview) return;
-      const ctx = canvas.getContext('2d');
-      const pctx = preview.getContext('2d');
-      if (!ctx || !pctx) return;
+  // Draws the already-loaded source image onto the display (editor) canvas
+  // and derives the circular preview from it. Pure function of current
+  // transform/crop state — never fetches or decodes the image itself, so it
+  // can safely re-run on every crop/zoom/rotation change without racing
+  // concurrent image loads.
+  const drawToCanvas = () => {
+    const img = loadedImageRef.current;
+    const canvas = editorCanvasRef.current;
+    const preview = previewCanvasRef.current;
+    if (!img || !canvas || !preview) return;
+    const ctx = canvas.getContext('2d');
+    const pctx = preview.getContext('2d');
+    if (!ctx || !pctx) return;
 
-      const containerW = containerRef.current?.clientWidth || canvasSize.w;
-      const desiredW = Math.min(720, Math.max(320, Math.floor(containerW)));
-      const desiredH = desiredW;
-      if (canvasSize.w !== desiredW || canvasSize.h !== desiredH) {
-        setCanvasSize({ w: desiredW, h: desiredH });
-      }
-      canvas.width = desiredW; canvas.height = desiredH;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(rotation * Math.PI / 180);
-      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
-      ctx.filter = `brightness(${brightness + 100}%) contrast(${contrast + 100}%) saturate(${saturation}%)`;
-      const baseScale = Math.min(canvas.width / img.width, canvas.height / img.height) * zoom;
-      ctx.drawImage(img, -img.width * baseScale / 2, -img.height * baseScale / 2, img.width * baseScale, img.height * baseScale);
-      ctx.restore();
+    const containerW = containerRef.current?.clientWidth || canvasSize.w;
+    const desiredW = Math.min(720, Math.max(320, Math.floor(containerW)));
+    const desiredH = desiredW;
+    if (canvasSize.w !== desiredW || canvasSize.h !== desiredH) {
+      setCanvasSize({ w: desiredW, h: desiredH });
+      return; // re-render on the next effect pass once canvasSize settles
+    }
+    canvas.width = desiredW; canvas.height = desiredH;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+    ctx.filter = `brightness(${brightness + 100}%) contrast(${contrast + 100}%) saturate(${saturation}%)`;
+    const baseScale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight) * zoom;
+    ctx.drawImage(img, -img.naturalWidth * baseScale / 2, -img.naturalHeight * baseScale / 2, img.naturalWidth * baseScale, img.naturalHeight * baseScale);
+    ctx.restore();
 
-      // Pixel-perfect preview: extract exact crop region from canvas
-      pctx.clearRect(0, 0, preview.width, preview.height);
-      pctx.save();
+    // Pixel-perfect preview: extract exact crop region from canvas
+    pctx.clearRect(0, 0, preview.width, preview.height);
+    pctx.save();
 
-      // Create circular clipping path for preview
-      pctx.beginPath();
-      pctx.arc(preview.width / 2, preview.height / 2, preview.width / 2, 0, Math.PI * 2);
-      pctx.clip();
+    // Create circular clipping path for preview
+    pctx.beginPath();
+    pctx.arc(preview.width / 2, preview.height / 2, preview.width / 2, 0, Math.PI * 2);
+    pctx.clip();
 
-      // Extract the exact cropped region from the main canvas
-      // srcX = cropLeft, srcY = cropTop, srcW = cropWidth, srcH = cropHeight
-      const srcX = crop.x;
-      const srcY = crop.y;
-      const srcW = crop.w;
-      const srcH = crop.h;
+    // Extract the exact cropped region from the main canvas
+    const srcX = crop.x;
+    const srcY = crop.y;
+    const srcW = crop.w;
+    const srcH = crop.h;
 
-      // Calculate scale to fit crop into preview circle
-      const scale = preview.width / Math.max(srcW, srcH);
-      const scaledW = srcW * scale;
-      const scaledH = srcH * scale;
+    // Calculate scale to fit crop into preview circle
+    const scale = preview.width / Math.max(srcW, srcH);
+    const scaledW = srcW * scale;
+    const scaledH = srcH * scale;
 
-      // Center the scaled crop in the preview
-      const offsetX = (preview.width - scaledW) / 2;
-      const offsetY = (preview.height - scaledH) / 2;
+    // Center the scaled crop in the preview
+    const offsetX = (preview.width - scaledW) / 2;
+    const offsetY = (preview.height - scaledH) / 2;
 
-      // Draw the exact cropped region from canvas to preview
-      pctx.drawImage(
-        canvas,           // source canvas
-        srcX, srcY, srcW, srcH,  // source rectangle (crop region)
-        offsetX, offsetY, scaledW, scaledH  // destination rectangle (centered in preview)
-      );
+    // Draw the exact cropped region from canvas to preview
+    pctx.drawImage(
+      canvas,           // source canvas
+      srcX, srcY, srcW, srcH,  // source rectangle (crop region)
+      offsetX, offsetY, scaledW, scaledH  // destination rectangle (centered in preview)
+    );
 
-      pctx.restore();
-    };
-    img.src = resolvedImageUrl || imageUrl;
+    pctx.restore();
   };
 
+  // Loads the source image exactly once per resolvedImageUrl change. Decoding
+  // is decoupled from drawing so crop/zoom/rotation changes never re-fetch or
+  // re-decode the image, and a stale in-flight load can't win a race against
+  // a newer one.
   useEffect(() => {
-    renderPreview();
-  }, [resolvedImageUrl, imageUrl, crop, aspect, rotation, flipH, flipV, zoom, brightness, contrast, saturation, canvasSize]);
+    if (!resolvedImageUrl) {
+      loadedImageRef.current = null;
+      setImageLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setImageLoading(true);
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      loadedImageRef.current = img;
+      setImageLoading(false);
+      drawToCanvas();
+    };
+    img.onerror = () => {
+      if (cancelled) return;
+      loadedImageRef.current = null;
+      setImageLoading(false);
+      toast({ title: 'Image failed to load', description: 'Could not load this image. Try choosing a different file.', variant: 'destructive' });
+    };
+    img.src = resolvedImageUrl;
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedImageUrl]);
+
+  useEffect(() => {
+    drawToCanvas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crop, aspect, rotation, flipH, flipV, zoom, brightness, contrast, saturation, canvasSize]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -180,11 +216,25 @@ export default function CropImagePage() {
         e.currentTarget.value = '';
         return;
       }
+      if (imageUrlRef.current.startsWith('blob:')) URL.revokeObjectURL(imageUrlRef.current);
       const url = URL.createObjectURL(file);
       setImageUrl(url);
       e.currentTarget.value = '';
     }
   };
+
+  // Track the current imageUrl in a ref (for revocation) and revoke any
+  // stale blob: URL left over from a previous file selection once React has
+  // moved on to a new one.
+  useEffect(() => {
+    imageUrlRef.current = imageUrl;
+  }, [imageUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (imageUrlRef.current.startsWith('blob:')) URL.revokeObjectURL(imageUrlRef.current);
+    };
+  }, []);
 
   const saveCropped = async () => {
     if (isSaving) return;
@@ -192,18 +242,38 @@ export default function CropImagePage() {
     setIsSaving(true);
     try {
 
-      const sourceCanvas = editorCanvasRef.current;
-      if (!sourceCanvas) throw new Error('no_canvas');
+      const img = loadedImageRef.current;
+      const canvas = editorCanvasRef.current;
+      if (!img || !canvas) throw new Error('no_image');
 
-      const cx = Math.round(crop.x);
-      const cy = Math.round(crop.y);
-      const cw = Math.round(crop.w);
-      const ch = Math.round(crop.h);
+      // Re-render the full transform pipeline at native source resolution
+      // instead of reading pixels back from the viewport-sized display
+      // canvas — otherwise the export is capped at whatever size the
+      // editor happened to be laid out at (e.g. 480px) regardless of how
+      // high-resolution the source photo actually is.
+      const S = Math.max(img.naturalWidth, img.naturalHeight) / canvas.width;
+      const renderW = Math.round(canvas.width * S);
+      const renderH = Math.round(canvas.height * S);
+      const renderCanvas = document.createElement('canvas');
+      renderCanvas.width = renderW;
+      renderCanvas.height = renderH;
+      const ctx = renderCanvas.getContext('2d');
+      if (!ctx) throw new Error('no_render_ctx');
+      ctx.save();
+      ctx.translate(renderW / 2, renderH / 2);
+      ctx.rotate(rotation * Math.PI / 180);
+      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+      ctx.filter = `brightness(${brightness + 100}%) contrast(${contrast + 100}%) saturate(${saturation}%)`;
+      const baseScale = Math.min(renderW / img.naturalWidth, renderH / img.naturalHeight) * zoom;
+      ctx.drawImage(img, -img.naturalWidth * baseScale / 2, -img.naturalHeight * baseScale / 2, img.naturalWidth * baseScale, img.naturalHeight * baseScale);
+      ctx.restore();
 
-      const ctx = sourceCanvas.getContext('2d');
-      if (!ctx) throw new Error('no_src_ctx');
+      const cx = Math.round(crop.x * S);
+      const cy = Math.round(crop.y * S);
+      const cw = Math.round(crop.w * S);
+      const ch = Math.round(crop.h * S);
 
-      // Get raw cropped data
+      // Get raw cropped data at native resolution
       const imageData = ctx.getImageData(cx, cy, cw, ch);
 
       // Put on temp canvas
@@ -237,27 +307,14 @@ export default function CropImagePage() {
       octx.imageSmoothingQuality = 'high';
       octx.drawImage(exportCanvas, 0, 0, outCanvas.width, outCanvas.height);
 
-      let finalBlob: Blob;
-      if (aspect === 'circle') {
-        const masked = document.createElement('canvas');
-        masked.width = outCanvas.width;
-        masked.height = outCanvas.height;
-        const mctx = masked.getContext('2d');
-        if (!mctx) throw new Error('no_mask_ctx');
-        mctx.imageSmoothingEnabled = true;
-        mctx.imageSmoothingQuality = 'high';
-        mctx.beginPath();
-        const r = Math.min(masked.width, masked.height) / 2;
-        mctx.arc(masked.width / 2, masked.height / 2, r, 0, Math.PI * 2);
-        mctx.clip();
-        mctx.drawImage(outCanvas, 0, 0);
-        // Use PNG to preserve transparency round corners
-        finalBlob = await new Promise((resolve, reject) => masked.toBlob(b => b ? resolve(b) : reject(new Error('blob_fail')), 'image/png')) as Blob;
-      } else {
-        finalBlob = await new Promise((resolve, reject) => outCanvas.toBlob(b => b ? resolve(b) : reject(new Error('blob_fail')), 'image/jpeg', 0.85)) as Blob;
-      }
+      // The Avatar component already clips to a circle via CSS
+      // (border-radius: 9999px + overflow-hidden), so a client-side
+      // circular PNG mask serves no visual purpose and only bloats the
+      // upload (a transparent PNG runs 4-8x larger than an equivalent
+      // JPEG for a photographic image). JPEG for both aspects.
+      const finalBlob = await new Promise((resolve, reject) => outCanvas.toBlob(b => b ? resolve(b) : reject(new Error('blob_fail')), 'image/jpeg', 0.85)) as Blob;
       const fd = new FormData();
-      fd.append('image', finalBlob, aspect === 'circle' ? 'avatar.png' : 'avatar.jpg');
+      fd.append('image', finalBlob, 'avatar.jpg');
       const res = await apiRequest('POST', '/api/v1/auth/user/avatar', fd);
       const updated = await res.json();
       queryClient.setQueryData(["/api/v1/auth/user"], updated);
@@ -302,7 +359,12 @@ export default function CropImagePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div ref={containerRef} className="relative">
                 <canvas ref={editorCanvasRef} width={canvasSize.w} height={canvasSize.h} className="w-full h-auto rounded border border-border touch-none" aria-label="Image editor canvas" />
-                <div className="absolute inset-0">
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded">
+                    <i className="fas fa-spinner fa-spin text-2xl text-muted-foreground"></i>
+                  </div>
+                )}
+                <div className="absolute inset-0 touch-none">
                   <div className="absolute border-2 border-blue-400 touch-none" style={{ left: crop.x, top: crop.y, width: crop.w, height: crop.h, borderRadius: aspect === 'circle' ? '9999px' : '0' }}>
                     <div className="absolute -left-2 -top-2 w-8 h-8 -ml-2 -mt-2 bg-blue-400/50 rounded-full cursor-nw-resize flex items-center justify-center touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('nw'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>
                     <div className="absolute -right-2 -top-2 w-8 h-8 -mr-2 -mt-2 bg-blue-400/50 rounded-full cursor-ne-resize flex items-center justify-center touch-none" onPointerDown={(e) => { e.preventDefault(); setDragHandle('ne'); setDragging(true); setStartPt({ x: e.clientX, y: e.clientY }); setStartCrop(crop); }}></div>

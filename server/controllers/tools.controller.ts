@@ -184,6 +184,46 @@ export const weatherProxy = async (req: Request, res: Response, next: NextFuncti
     }
 };
 
+// Hostnames this proxy will fetch on the user's behalf. Deliberately an
+// allowlist, not a blocklist — the client only ever needs this for known
+// OAuth-avatar CDNs (Google, GitHub), and an open proxy on an
+// authenticated route is an SSRF vector into internal/cloud-metadata
+// addresses otherwise.
+const PROXY_IMAGE_ALLOWED_HOSTS = new Set([
+    "lh3.googleusercontent.com",
+    "avatars.githubusercontent.com",
+]);
+
+export const proxyImage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const raw = String(req.query.url || "");
+        if (!raw) throw new BadRequestError("url is required");
+
+        let target: URL;
+        try {
+            target = new URL(raw);
+        } catch {
+            throw new BadRequestError("Invalid url");
+        }
+
+        if (target.protocol !== "https:") throw new BadRequestError("Only https URLs are allowed");
+        if (!PROXY_IMAGE_ALLOWED_HOSTS.has(target.hostname)) throw new BadRequestError("Host not allowed");
+
+        const response = await fetch(target.toString(), { redirect: "error" });
+        if (!response.ok) throw new BadRequestError("Failed to fetch image");
+
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.startsWith("image/")) throw new BadRequestError("Upstream did not return an image");
+
+        const buffer = await response.arrayBuffer();
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        res.send(Buffer.from(buffer));
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getProactiveInsights = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const destination = String(req.query.destination || req.query.city || '');
