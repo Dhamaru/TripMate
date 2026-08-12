@@ -6,7 +6,7 @@ import { buildSystemPrompt } from './systemPrompt';
 import { TRIPMATE_TOOLS } from './tools/definitions';
 import { executeTool, type ExecutorDeps } from './tools/executor';
 import { calculateFormalConfidence } from './confidence';
-import { isProviderOpen, recordSuccess, recordFailure } from './providerHealth';
+import { isProviderOpen, recordSuccess, recordFailure, hasTokenBudget, recordTokenUsage, estimateTokens } from './providerHealth';
 import { TripModel } from '../../shared/schema';
 import { config } from '../config';
 
@@ -44,6 +44,10 @@ const MODEL_KEYS = [
     config.NVIDIA_API_KEY_2,
 ];
 
+// Computed once — TRIPMATE_TOOLS is static, no need to re-stringify it on
+// every single iteration of every request just to estimate its token cost.
+const toolsTokenEstimate = estimateTokens(JSON.stringify(TRIPMATE_TOOLS));
+
 /**
  * Classifies whether a provider error is worth falling back to the next
  * model for (quota/rate-limit, timeout/connection, or a stale-resource 410),
@@ -79,7 +83,14 @@ async function summarizeIfNeeded(
         return sum + Math.ceil(content.length / 4)
     }, 0)
 
-    if (estimatedTokens < 4000) return messages
+    // Was 4000 — lowered so long conversations get compressed sooner,
+    // directly cutting the resent-history cost on every subsequent turn
+    // against Groq's measured 12k-tokens/minute ceiling. The summarization
+    // call itself costs tokens too (though a small, fixed amount — 300
+    // max_tokens, short prompt), so this isn't free, but summarizing a bit
+    // earlier is cheaper than resending an ever-growing raw history on
+    // every single turn of a long conversation.
+    if (estimatedTokens < 2500) return messages
 
     const systemMsg = messages.find(m => m.role === 'system')
     const recentMessages = messages.slice(-4)
@@ -193,6 +204,24 @@ export async function runAgentLoop(
 
     let currentModelIndex = 0;
 
+    // Fail fast instead of fail slow: if every provider is simultaneously
+    // circuit-open (recent failures) or out of tracked token budget, the
+    // request is going to fail no matter what — the only question is
+    // whether the user waits ~25s to find that out or gets told
+    // immediately. Checked once, up front, before spending anything
+    // (including the summarization call below) on a doomed request.
+    const preflightEstimate = estimateTokens(JSON.stringify(messages)) + toolsTokenEstimate + 1024;
+    const allProvidersExhausted = MODELS.every((_, i) => isProviderOpen(i) || !hasTokenBudget(i, preflightEstimate));
+    if (allProvidersExhausted) {
+        console.warn('[Atlas:Loop] All providers circuit-open or over token budget — failing fast instead of a doomed attempt.');
+        return {
+            message: "Atlas is handling a lot of requests right now and needs a moment to catch up — please try again in about a minute.",
+            toolsUsed: [],
+            confidence: { score: 0.1, level: 'low' },
+            tokensUsed: 0,
+        };
+    }
+
     try {
         // Summarize old messages if context window is getting too long. This
         // always calls NVIDIA directly (hardcoded model, no fallback chain)
@@ -215,14 +244,30 @@ export async function runAgentLoop(
             // row without spending its 25s timeout on a request it's very
             // likely to fail again — this is what actually caused the ~30s
             // reply latency during an outage where every provider was down.
-            // If every remaining provider is open, fall through and try the
-            // current one anyway (best effort beats a hard refusal).
-            while (isProviderOpen(currentModelIndex) && currentModelIndex < MODELS.length - 1) {
-                console.warn(`[Atlas:Loop] Skipping ${MODELS[currentModelIndex]} — circuit open (repeated recent failures)`);
+            //
+            // Token-budget admission control: skip a provider that DOESN'T
+            // have a hard failure yet but almost certainly will — Groq's
+            // real 12k-tokens/minute ceiling (measured via its own
+            // x-ratelimit headers) means a request can be predictably over
+            // budget before it's even sent. Checking this ourselves turns a
+            // guaranteed-slow 429 round-trip into an immediate correct
+            // routing decision instead.
+            //
+            // If every remaining provider is open/over-budget, fall through
+            // and try the current one anyway — best effort beats a hard
+            // refusal.
+            const estimatedRequestTokens = estimateTokens(JSON.stringify(messages)) + toolsTokenEstimate + 1024;
+            while (
+                currentModelIndex < MODELS.length - 1 &&
+                (isProviderOpen(currentModelIndex) || !hasTokenBudget(currentModelIndex, estimatedRequestTokens))
+            ) {
+                const why = isProviderOpen(currentModelIndex) ? 'circuit open (repeated recent failures)' : 'insufficient token budget in current window';
+                console.warn(`[Atlas:Loop] Skipping ${MODELS[currentModelIndex]} — ${why}`);
                 currentModelIndex++;
             }
 
             let stream;
+            let iterationTokens = 0;
             try {
                 stream = await (deps.openai ?? clientsByModel[currentModelIndex]).chat.completions.create({
                     model: MODELS[currentModelIndex],
@@ -261,6 +306,7 @@ export async function runAgentLoop(
                 for await (const chunk of stream) {
                     if ((chunk as any).usage) {
                         totalTokens += (chunk as any).usage.total_tokens;
+                        iterationTokens += (chunk as any).usage.total_tokens;
                     }
                     const delta = chunk.choices[0]?.delta;
                     if (delta?.content) {
@@ -312,6 +358,7 @@ export async function runAgentLoop(
             }
 
             recordSuccess(currentModelIndex);
+            recordTokenUsage(currentModelIndex, iterationTokens);
 
             const message = {
                 role: 'assistant' as const,
