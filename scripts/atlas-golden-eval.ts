@@ -66,7 +66,18 @@ async function main() {
     let pass = 0;
     let fail = 0;
 
+    // Groq's free tier is a hard 12,000-tokens/minute ceiling shared across
+    // the whole app, not just this eval. Firing all 13 cases back-to-back
+    // burns through it in the first 2-3 requests, then every case after
+    // that instantly fails via the app's own (correct) admission-control
+    // fail-fast — a burst pattern no real user produces, so it was
+    // reporting "Atlas is broken" when the actual issue was the eval
+    // DoS-ing its own shared quota. Spacing requests out keeps each rolling
+    // 60s window under the ceiling so the eval measures real behavior.
+    const CASE_DELAY_MS = 8_000;
+
     for (const c of CASES) {
+        if (pass + fail > 0) await new Promise((resolve) => setTimeout(resolve, CASE_DELAY_MS));
         const start = Date.now();
         try {
             const res = await fetch(`${BASE_URL}/api/v1/agent/chat`, {
