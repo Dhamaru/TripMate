@@ -195,7 +195,7 @@ export default function JournalDetail() {
         <div className=" pb-20">
             <div className="max-w-4xl mx-auto px-4 py-6">
                 {/* Top Navigation */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
                     <Button
                         variant="ghost"
                         onClick={() => navigate("/app/journal")}
@@ -205,7 +205,7 @@ export default function JournalDetail() {
                         Back to Journal
                     </Button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         {!isEditing && (
                             <>
                                 <Button
