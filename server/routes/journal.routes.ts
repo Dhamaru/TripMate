@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createEntry, getEntries, updateEntry, deleteEntry } from "../controllers/journal.controller";
+import { createEntry, getEntries, getEntry, updateEntry, deleteEntry } from "../controllers/journal.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import multer from "multer";
 import path from "path";
@@ -30,6 +30,7 @@ router.use(requireAuth);
 
 router.post("/journal", upload.array("photos", 10), createEntry);
 router.get("/journal", getEntries);
+router.get("/journal/:id", getEntry);
 router.put("/journal/:id", upload.array("photos", 10), updateEntry);
 router.delete("/journal/:id", deleteEntry);
 

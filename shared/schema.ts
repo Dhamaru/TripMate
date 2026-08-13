@@ -344,6 +344,8 @@ export interface IJournalEntry extends Document {
   latitude?: number;
   longitude?: number;
   dayIndex?: number; // Auto-contextualized day of trip
+  contextConfidence?: string;
+  contextReasoning?: string;
   isRecap?: boolean; // Fix 15: AI Journey Recap Cards
   recapMeta?: {
     title: string;
@@ -368,6 +370,8 @@ const journalEntrySchema = new Schema<IJournalEntry>(
     latitude: { type: Number, min: -90, max: 90 },
     longitude: { type: Number, min: -180, max: 180 },
     dayIndex: { type: Number, min: 0 },
+    contextConfidence: { type: String },
+    contextReasoning: { type: String },
     isRecap: { type: Boolean, default: false },
     recapMeta: { type: Schema.Types.Mixed },
   },

@@ -90,11 +90,11 @@ export const contextualizeEntry = async (req: Request, res: Response, next: Next
         const updated = await JournalEntryModel.findByIdAndUpdate(
             entry._id,
             {
-                assignedDayIndex: parsed.dayIndex,
+                dayIndex: parsed.dayIndex,
                 contextConfidence: parsed.confidence,
                 contextReasoning: parsed.reasoning,
             },
-            { new: true }
+            { new: true, runValidators: true }
         );
 
         logger.info(`[journal] Contextualized entry ${entry._id} → day ${parsed.dayIndex}`);
@@ -199,7 +199,7 @@ export const generateRecap = async (req: Request, res: Response, next: NextFunct
         const entriesMapped = entries.map(e => ({
             text: e.content ?? (e as any).text ?? "",
             entryDate: (e.createdAt ? new Date(e.createdAt) : new Date()).toISOString(),
-            assignedDayIndex: (e as any).assignedDayIndex,
+            assignedDayIndex: e.dayIndex,
         }));
 
         const prompt = buildRecapPrompt(entriesMapped, {
@@ -228,8 +228,8 @@ export const generateRecap = async (req: Request, res: Response, next: NextFunct
         const recapEntry = await JournalEntryModel.create({
             userId,
             tripId,
+            title: parsed.title,
             content: parsed.summary,
-            entryDate: new Date(),
             isRecap: true,
             recapMeta: { 
                 title: parsed.title, 

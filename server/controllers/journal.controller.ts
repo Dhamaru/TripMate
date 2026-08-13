@@ -70,8 +70,42 @@ export const getEntries = async (req: Request, res: Response, next: NextFunction
             query = { userId };
         }
 
-        const entries = await JournalEntryModel.find(query).sort({ createdAt: -1 });
+        let entriesQuery = JournalEntryModel.find(query).sort({ createdAt: -1 });
+        if (req.query.light === "true") {
+            entriesQuery = entriesQuery.select("title location photos createdAt updatedAt userId tripId isRecap dayIndex");
+        }
+        const entries = await entriesQuery;
         res.json(entries);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getEntry = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?._id || req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const entry = await JournalEntryModel.findById(req.params.id);
+        if (!entry) throw new NotFoundError("Entry not found");
+
+        if (entry.userId !== userId.toString()) {
+            if (entry.tripId) {
+                const trip = await TripModel.findOne({
+                    _id: entry.tripId,
+                    $or: [
+                        { userId },
+                        { "collaborators.userId": userId }
+                    ]
+                });
+                if (!trip) throw new ForbiddenError("Insufficient permissions");
+            } else {
+                throw new ForbiddenError("Insufficient permissions");
+            }
+        }
+
+        res.json(entry);
     } catch (error) {
         next(error);
     }
@@ -110,10 +144,23 @@ export const updateEntry = async (req: Request, res: Response, next: NextFunctio
         try { keptPhotos = JSON.parse(req.body.existingPhotos || "[]"); } catch { }
         const allPhotos = [...keptPhotos, ...uploadedPhotos];
 
+        // Allowlist only — spreading req.body directly let a client pass
+        // userId/tripId in the multipart form and reassign ownership of an
+        // entry they only have edit access to. Photos always set (not just
+        // when non-empty) so removing every photo actually clears the field
+        // instead of silently leaving the old array in place.
+        const update: Record<string, unknown> = { photos: allPhotos };
+        if (req.body.title !== undefined) update.title = req.body.title;
+        if (req.body.content !== undefined) update.content = req.body.content;
+        if (req.body.location !== undefined) update.location = req.body.location;
+        if (req.body.latitude !== undefined) update.latitude = req.body.latitude;
+        if (req.body.longitude !== undefined) update.longitude = req.body.longitude;
+        if (req.body.dayIndex !== undefined) update.dayIndex = req.body.dayIndex;
+
         const updatedEntry = await JournalEntryModel.findByIdAndUpdate(
             entryId,
-            { ...req.body, ...(allPhotos.length > 0 ? { photos: allPhotos } : {}) },
-            { new: true }
+            update,
+            { new: true, runValidators: true }
         );
 
         if (updatedEntry?.tripId) {
@@ -129,12 +176,11 @@ export const updateEntry = async (req: Request, res: Response, next: NextFunctio
 export const deleteEntry = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.user?._id || req.user?.id;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
         const entryId = req.params.id;
 
         const entry = await JournalEntryModel.findById(entryId);
         if (!entry) throw new NotFoundError("Entry not found");
-
-        if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
         if (entry.userId !== userId.toString()) {
             if (entry.tripId) {
