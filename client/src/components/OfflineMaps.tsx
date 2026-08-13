@@ -297,7 +297,17 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
     });
 
-    const map = L.map(mapContainerRef.current, { zoomControl: true }).setView([20, 0], 2);
+    // Leaflet wraps the world horizontally by default — at low zoom on a
+    // wide viewport (exactly the container/breakpoint this component runs
+    // at) that renders as multiple repeated copies of the world map side
+    // by side instead of one. maxBounds + noWrap on the tile layer confine
+    // it to a single instance of the world.
+    const worldBounds: L.LatLngBoundsExpression = [[-90, -180], [90, 180]];
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: true,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+    }).setView([20, 0], 2);
 
     const darkUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
     const lightUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
@@ -305,6 +315,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const layer = L.tileLayer(darkMode ? darkUrl : lightUrl, {
       attribution: '&copy; CARTO',
       maxZoom: 18,
+      noWrap: true,
     }).addTo(map);
 
     tileLayerRef.current = layer;
