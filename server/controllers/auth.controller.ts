@@ -324,7 +324,11 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 export const uploadAvatar = async (req: Request, res: Response, next: NextFunction) => {
   try {
     let avatarUrl = req.body.avatar as string | undefined;
-    if (req.file) avatarUrl = `/uploads/${req.file.filename}`;
+    // Stored as a data URI directly in the User document — see the multer
+    // memoryStorage comment in auth.routes.ts for why this isn't written
+    // to disk. <img src> renders a data: URI exactly like a normal URL, no
+    // client changes needed.
+    if (req.file) avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     if (!avatarUrl) throw new BadRequestError("No avatar provided");
 
     // Two fields have historically tracked the user's picture: `avatar`

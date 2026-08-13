@@ -8,30 +8,21 @@ import { signInSchema, signUpSchema } from "../schemas/auth.schemas";
 import passport from "passport";
 import { config as appConfig } from "../config";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { UserModel, SessionModel } from "@shared/schema";
 import { imageFileFilter } from "../middleware/imageUpload";
 
 const router = Router();
 
-// Configure multer for avatar uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = path.join(process.cwd(), "server", "uploads");
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, `avatar-${(req.user as any)?._id || 'guest'}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`);
-    }
-});
-
+// Avatars are stored as a base64 data URI directly on the User document
+// (see uploadAvatar in auth.controller.ts) rather than written to disk —
+// Render's web service filesystem is ephemeral, wiped on every redeploy
+// and on spin-down after 15 minutes idle (the free/standard tier's normal
+// behavior), so a disk-backed avatar reliably vanished on the next deploy
+// or after any period of inactivity. MongoDB is the one thing in this
+// stack that's actually persistent. memoryStorage keeps the upload in
+// req.file.buffer instead of writing it anywhere.
 const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: imageFileFilter,
 });
