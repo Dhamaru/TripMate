@@ -70,7 +70,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, throwIfResNotOk, getCsrfToken } from "@/lib/queryClient";
 import { IPackingListItem, PackingList, Trip } from "@shared/schema";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -211,6 +211,34 @@ export default function PackingChecklist() {
         return () => clearTimeout(timer);
     }, [localItems, isDirty]);
 
+    // A checkbox toggled right before a reload/navigation-away could lose
+    // its 1s debounce window entirely — the timer above never fires because
+    // the page is gone. Flush via a keepalive fetch (survives page unload,
+    // unlike a normal fetch, and — unlike sendBeacon — can carry the PUT
+    // method and CSRF header this endpoint requires) as a last-chance save;
+    // the normal debounced path still handles everything else.
+    useEffect(() => {
+        const flush = () => {
+            if (!isDirty) return;
+            const currentId = currentList ? getId(currentList) : '';
+            if (currentId && !currentId.startsWith("optimistic-")) {
+                const csrfToken = getCsrfToken();
+                fetch(`/api/v1/packing-lists/${currentId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+                    body: JSON.stringify({ items: localItems }),
+                    credentials: 'include',
+                    keepalive: true,
+                }).catch(() => { });
+            }
+        };
+        window.addEventListener('beforeunload', flush);
+        return () => {
+            window.removeEventListener('beforeunload', flush);
+            flush();
+        };
+    }, [isDirty, localItems, currentList]);
+
     const items = localItems;
 
     const createListMutation = useMutation({
@@ -226,6 +254,13 @@ export default function PackingChecklist() {
                 tripId: tripId,
                 items: newItems,
             });
+            // apiRequest never throws on non-2xx — without this, a rejected
+            // save (expired session, permission error) still resolved as
+            // "success", showed a "List Saved" toast, and the optimistic
+            // update was then silently overwritten by the real server state
+            // on the next invalidateQueries refetch — the checkbox appeared
+            // to revert with no visible error.
+            await throwIfResNotOk(res);
             return res.json();
         },
         onMutate: async (newItems) => {
@@ -264,6 +299,7 @@ export default function PackingChecklist() {
     const updateListMutation = useMutation({
         mutationFn: async ({ id, newItems }: { id: string; newItems: IPackingListItem[] }) => {
             const res = await apiRequest("PUT", `/api/v1/packing-lists/${id}`, { items: newItems });
+            await throwIfResNotOk(res);
             return res.json();
         },
         onMutate: async ({ id, newItems }) => {

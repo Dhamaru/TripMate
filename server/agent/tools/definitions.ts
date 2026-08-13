@@ -48,7 +48,7 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
         type: 'function',
         function: {
             name: 'translate_text',
-            description: 'Translate text between languages.',
+            description: 'Translate text between languages. ALWAYS call this for any translation request, even a simple phrase you already know — never translate from memory.',
             parameters: {
                 type: 'object',
                 properties: {

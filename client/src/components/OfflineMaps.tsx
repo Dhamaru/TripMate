@@ -926,46 +926,52 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               </div>
             )}
 
-            {!sheetExpanded && (
-              <Button
-                onClick={() => {
-                  navigator.geolocation.getCurrentPosition(p => {
-                    const map = mapInstanceRef.current;
-                    if (!map) return;
-                    const { latitude, longitude } = p.coords;
-                    map.flyTo([latitude, longitude], 15);
+            <Button
+              onClick={() => {
+                // getCurrentPosition with no options has no default timeout
+                // (spec allows Infinity) — on a device with no GPS/network
+                // fallback (e.g. desktop offline) this could hang forever
+                // with no visible feedback. getCurrentLocationOnce() already
+                // has the correct high-accuracy-then-fallback timeout
+                // handling (used by Get Route); reuse it here too.
+                getCurrentLocationOnce().then(({ lat, lon }) => {
+                  const map = mapInstanceRef.current;
+                  if (!map) return;
+                  map.flyTo([lat, lon], 15);
 
-                    // Add marker only when locating
-                    if (userMarkerRef.current) userMarkerRef.current.remove();
-                    userMarkerRef.current = L.marker([latitude, longitude])
-                      .addTo(map)
-                      .bindPopup("You are here")
-                      .openPopup();
+                  // Add marker only when locating
+                  if (userMarkerRef.current) userMarkerRef.current.remove();
+                  userMarkerRef.current = L.marker([lat, lon])
+                    .addTo(map)
+                    .bindPopup("You are here")
+                    .openPopup();
 
-                    // Feed the same location into Get Route so users who've
-                    // already located themselves here don't have to trigger a
-                    // second, separate geolocation request from the Navigation tab.
-                    setUserLocation({ lat: latitude, lon: longitude });
-                  }, () => {
-                    toast({ title: "Location unavailable", description: "Couldn't get your position.", variant: "destructive" });
-                  });
-                }}
-                variant="secondary"
-                size="icon"
-                // z-[400] doesn't help against the sheet's z-[500] here — the
-                // isolate div this button lives in is its own stacking
-                // context, so its z-index only competes within that context,
-                // never against the sheet in the outer one. Real fix is
-                // geometric: sit clear above the peek bar's top edge (peek
-                // bar occupies 76-132px from the container bottom), not
-                // "under" it with a lower z-index.
-                className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border shadow-lg"
-                style={{ bottom: 140 }}
-                title="Locate Me"
-              >
-                <i className="fas fa-crosshairs"></i>
-              </Button>
-            )}
+                  // Feed the same location into Get Route so users who've
+                  // already located themselves here don't have to trigger a
+                  // second, separate geolocation request from the Navigation tab.
+                  setUserLocation({ lat, lon });
+                }).catch(() => {
+                  toast({ title: "Location unavailable", description: "Couldn't get your position.", variant: "destructive" });
+                });
+              }}
+              variant="secondary"
+              size="icon"
+              // z-[400] doesn't help against the sheet's z-[500] here — the
+              // isolate div this button lives in is its own stacking
+              // context, so its z-index only competes within that context,
+              // never against the sheet in the outer one. Real fix is
+              // geometric: sit clear above the peek bar's top edge (peek
+              // bar occupies 76-132px from the container bottom), not
+              // "under" it with a lower z-index. Previously hidden entirely
+              // while the sheet was expanded (no way to re-center without
+              // collapsing it first) — now stays visible and just moves
+              // higher to clear the expanded sheet instead.
+              className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border shadow-lg transition-all"
+              style={{ bottom: sheetExpanded ? 200 : 140 }}
+              title="Locate Me"
+            >
+              <i className="fas fa-crosshairs"></i>
+            </Button>
           </div>
 
           {/* Bottom sheet — an overlay on top of the map (absolute, not a

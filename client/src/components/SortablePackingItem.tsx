@@ -17,6 +17,13 @@ export function SortablePackingItem({ item, handleToggle, handleDelete, handleQu
     const [isPressing, setIsPressing] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const startPosRef = useRef<{ x: number; y: number } | null>(null);
+    // isPressing flips to false the moment a drag starts (so the "pressed"
+    // border/scale styling stops), but the click handler used that same
+    // flag to decide whether a toggle should fire — so releasing the
+    // pointer after a drag always toggled the item too. Track drag state
+    // separately so a completed drag can suppress the click without
+    // affecting the visual pressed state.
+    const isDraggingRef = useRef(false);
 
     const handlePointerDown = (e: React.PointerEvent) => {
         if (e.button !== 0) return;
@@ -24,7 +31,7 @@ export function SortablePackingItem({ item, handleToggle, handleDelete, handleQu
         setIsPressing(true);
         timeoutRef.current = setTimeout(() => {
             if (navigator.vibrate) navigator.vibrate(50);
-            try { controls.start(e); } catch (err) { console.error("Failed to start drag:", err); }
+            try { controls.start(e); isDraggingRef.current = true; } catch (err) { console.error("Failed to start drag:", err); }
             setIsPressing(false);
         }, 2000);
     };
@@ -51,7 +58,10 @@ export function SortablePackingItem({ item, handleToggle, handleDelete, handleQu
                 onPointerUp={cancelPress}
                 onPointerLeave={cancelPress}
                 onPointerMove={handlePointerMove}
-                onClick={() => { if (!isPressing) handleToggle(); }}
+                onClick={() => {
+                    if (isDraggingRef.current) { isDraggingRef.current = false; return; }
+                    if (!isPressing) handleToggle();
+                }}
             >
                 <div className="mr-3 text-muted-foreground">
                     <GripVertical className={`w-5 h-5 ${isPressing ? "text-[#163F73]" : ""}`} />

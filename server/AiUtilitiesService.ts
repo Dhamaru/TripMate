@@ -7,6 +7,12 @@ import { PlanValidator } from "./services/PlanValidator";
 
 type CacheEntry<T> = { data: T; expiresAt: number };
 
+// MyMemory's anonymous quota is 100 requests/day; a registered `de` email
+// param raises that to 10,000 words/day at no cost. Only used as the last
+// fallback (GPT-4o-mini and NVIDIA are tried first) but real usage was
+// hitting the anonymous ceiling under light load.
+const MYMEMORY_CONTACT_EMAIL = 'kasivasi2005@gmail.com';
+
 function sanitize(input: string, max = 2000): string {
   const trimmed = (input || "").toString().trim();
   const safe = trimmed.replace(/[\u0000-\u001F\u007F]/g, "");
@@ -281,21 +287,35 @@ export class AiUtilitiesService {
         }
       } catch { /* fall through to MyMemory */ }
 
-      // Fallback 2: MyMemory free translation API (no key required)
+      // Fallback 2: MyMemory free translation API (no key required). The
+      // `de` param registers requests against a real email, raising the
+      // rate ceiling from 100 req/day (anonymous) to 10,000 words/day —
+      // without it, real usage burns through the anonymous quota quickly
+      // and MyMemory starts returning its error text as if it were a
+      // translation.
       try {
         const langPair = `${from === 'auto' ? 'en' : from}|${to}`;
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=${encodeURIComponent(langPair)}`;
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=${encodeURIComponent(langPair)}&de=${encodeURIComponent(MYMEMORY_CONTACT_EMAIL)}`;
         const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/2.0.0' } });
         if (r.ok) {
           const json = await r.json();
-          const translated = String(json?.responseData?.translatedText || t);
-          const result = { translatedText: translated, pronunciation: undefined };
-          return this.setCached(key, result);
+          // Previously fell back to `t` (the original input) when MyMemory
+          // returned an empty translatedText — that made a blank/quota
+          // response look like a real, successful translation of the input
+          // back to itself, indistinguishable from success. Fall through to
+          // the last-resort error instead.
+          const translated = String(json?.responseData?.translatedText || '');
+          if (translated) {
+            const result = { translatedText: translated, pronunciation: undefined };
+            return this.setCached(key, result);
+          }
         }
       } catch { /* fall through */ }
-      // Last resort: return original text with note
-      const result = { translatedText: t, pronunciation: 'Translation unavailable' };
-      return this.setCached(key, result);
+      // All three backends failed — surface this as a real error instead of
+      // silently echoing the user's own input back as if it were a
+      // translation (previously done here, with only a small italic
+      // "Translation unavailable" pronunciation note as the only signal).
+      throw new Error('Translation unavailable — all providers failed');
     }
   }
 

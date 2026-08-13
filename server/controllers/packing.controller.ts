@@ -91,25 +91,33 @@ export const generatePackingList = async (req: Request, res: Response, next: Nex
 
         const packingData = packingAgentResult.data as any;
 
+        // PackingAgent's output shape (categories[].items[] with
+        // label/checked/essential) doesn't match PackingListModel's schema
+        // (a flat items[] with required name/packed/is_mandatory) — under
+        // Mongoose strict mode, writing the agent's shape directly silently
+        // dropped every field and left the required `name` unset, so the
+        // saved list was always empty. Flatten to the schema's real shape.
+        const items = (packingData.categories || []).flatMap((cat: any) =>
+            (cat.items || []).map((item: any) => ({
+                name: item.label,
+                quantity: item.quantity ?? 1,
+                packed: item.checked || false,
+                category: cat.name,
+                is_mandatory: item.essential || false,
+            }))
+        );
+
         const packingList = await PackingListModel.findOneAndUpdate(
-            { tripId, userId: trip.userId }, // Keep it under the owner's userId or allow shared? 
-            // For now, let's keep it linked to the trip and the original owner to avoid duplicates, 
+            { tripId, userId: trip.userId }, // Keep it under the owner's userId or allow shared?
+            // For now, let's keep it linked to the trip and the original owner to avoid duplicates,
             // but allow collaborators to see/edit it via tripId.
             {
                 tripId,
                 userId: trip.userId,
-                categories: packingData.categories.map((cat: any) => ({
-                    ...cat,
-                    items: cat.items.map((item: any) => ({ 
-                        ...item, 
-                        packed: item.checked || false,
-                        name: item.label
-                    })),
-                })),
-                weatherNote: packingData.weatherNote,
-                totalItems: packingData.totalItems,
+                name: `${trip.destination} Packing List`,
+                items,
             },
-            { upsert: true, new: true }
+            { upsert: true, new: true, runValidators: true }
         );
 
         logger.info(`[packing] Generated packing list via Orchestrator for trip ${tripId}`);
@@ -316,9 +324,25 @@ export const togglePackingItem = async (req: Request, res: Response, next: NextF
     try {
         const { id: listId, itemId } = req.params;
         const userId = req.user?._id || req.user?.id;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        const list = await PackingListModel.findOne({ _id: listId, userId });
+        const list = await PackingListModel.findById(listId);
         if (!list) throw new NotFoundError("Packing list not found");
+
+        // Same permission model as updatePackingItem/updatePackingList: owner
+        // of the list, or an editor collaborator on the trip it's attached
+        // to. The previous owner-only query 404'd for any collaborator.
+        if (list.userId !== userId.toString()) {
+            if (list.tripId) {
+                const trip = await TripModel.findOne({
+                    _id: list.tripId,
+                    collaborators: { $elemMatch: { userId, role: "editor" } }
+                });
+                if (!trip) throw new ForbiddenError("Insufficient permissions");
+            } else {
+                throw new ForbiddenError("Insufficient permissions");
+            }
+        }
 
         const item = (list.items as any).id(itemId);
         if (!item) throw new NotFoundError("Item not found");
