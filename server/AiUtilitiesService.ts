@@ -107,7 +107,7 @@ export class AiUtilitiesService {
   // but this service's other text-generation methods only ever fell back to
   // Gemini then OpenAI. When both of those are quota-exhausted, those
   // methods have no working provider left even though NVIDIA is reachable.
-  private async generateWithNvidia(prompt: string, systemPrompt?: string): Promise<string> {
+  private async generateWithNvidia(prompt: string, systemPrompt?: string, temperature = 0.3): Promise<string> {
     const nvidiaKey = config.NVIDIA_API_KEY;
     if (!nvidiaKey) throw new Error('nvidia_disabled');
 
@@ -121,7 +121,7 @@ export class AiUtilitiesService {
       body: JSON.stringify({
         model: 'meta/llama-3.1-8b-instruct',
         messages,
-        temperature: 0.3,
+        temperature,
       }),
     });
 
@@ -293,10 +293,41 @@ export class AiUtilitiesService {
         // not Telugu script at all) — spell out the language name and
         // explicitly require native script to stop it from transliterating.
         const langName = (code: string) => LANGUAGE_NAMES[code] || code;
-        const prompt = `Translate the following text from ${langName(from)} to ${langName(to)}. Write the translation in the native script of ${langName(to)} (not a Romanized transliteration). Reply with ONLY the translated text, no explanation, no quotes.`;
-        const nvidiaText = await this.generateWithNvidia(t, prompt);
-        if (nvidiaText && nvidiaText.trim()) {
-          const result = { translatedText: nvidiaText.trim(), pronunciation: undefined, source: 'nvidia' as const };
+        // A small generic instruct model's single most common failure mode
+        // on real user reports was swapping the grammatical subject —
+        // "who are you?" translated to mean "who am I?", "what is your
+        // name?" to mean "what are you?". Forcing the model to name the
+        // subject BEFORE translating (and parsing only the line after it)
+        // makes it externalize that reasoning step instead of silently
+        // pattern-matching straight to an answer — a known mitigation for
+        // this exact error class in small LLMs. temperature 0 (not the
+        // 0.3 default used elsewhere in this file) for deterministic,
+        // literal output rather than creative variance.
+        const prompt = `You are a precise translator. Follow these steps internally, then output in exactly this two-line format:
+SUBJECT: <who or what the sentence is about — the speaker ("I"/"we"), the person addressed ("you"), or a third thing ("this"/"it"/"he"/"she")>
+TRANSLATION: <the translation only>
+
+Never swap "I" and "you" or "this" and "you" between the SUBJECT line and the TRANSLATION.
+
+Examples:
+Source (English): "Who are you?"
+SUBJECT: you (the person being addressed)
+TRANSLATION: आप कौन हैं?
+
+Source (English): "What is your name?"
+SUBJECT: you (the person being addressed)
+TRANSLATION: आपका नाम क्या है?
+
+Source (English): "This is my bag."
+SUBJECT: this (a third thing)
+TRANSLATION: यह मेरा बैग है।
+
+Now translate the following text from ${langName(from)} to ${langName(to)}, in the native script of ${langName(to)} (not a Romanized transliteration).`;
+        const nvidiaRaw = await this.generateWithNvidia(t, prompt, 0);
+        const translationLine = nvidiaRaw.split('\n').find(l => /^TRANSLATION:/i.test(l.trim()));
+        const nvidiaText = translationLine ? translationLine.replace(/^TRANSLATION:/i, '').trim() : nvidiaRaw.trim();
+        if (nvidiaText) {
+          const result = { translatedText: nvidiaText, pronunciation: undefined, source: 'nvidia' as const };
           return this.setCached(key, result);
         }
       } catch { /* fall through to MyMemory */ }
