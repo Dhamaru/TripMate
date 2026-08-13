@@ -1,5 +1,5 @@
 import { SortablePackingItem } from "@/components/SortablePackingItem";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Reorder } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,14 @@ function getId(obj: any): string {
 
 const SEASONS = ["Summer", "Winter", "Spring", "Autumn"] as const;
 type Season = typeof SEASONS[number];
+
+// Mandatory documents (passport, IDs, insurance) don't change with the
+// season — whether you've got your passport ready has nothing to do with
+// whether it's Summer or Winter. Stored in one dedicated season-independent
+// list (season: "Documents", never a per-trip list) instead of being
+// duplicated inside every season's own list, which used to mean checking
+// off "Passport" in Summer didn't carry over to Winter at all.
+const DOCUMENTS_SEASON = "Documents";
 
 const MANDATORY_ITEMS = [
     { name: "Aadhaar Card", is_mandatory: true },
@@ -181,39 +189,106 @@ export default function PackingChecklist() {
         return (list.season === activeSeason || list.name.includes(activeSeason)) && !list.tripId;
     });
 
-    const [localItems, setLocalItems] = useState<PackingItem[]>([]);
-    const [isDirty, setIsDirty] = useState(false);
+    // One global, season/trip-independent Documents list — see
+    // DOCUMENTS_SEASON above for why.
+    const documentsList = packingLists?.find((list) => list.season === DOCUMENTS_SEASON && !list.tripId);
 
-    // Sync local state with server state when switching lists/seasons. Must
-    // NOT run while there are unsaved edits (isDirty) — currentList comes
-    // from React Query and gets a new object identity on every background
-    // refetch (window refocus, socket-triggered invalidation, etc.), and
-    // this effect used to unconditionally overwrite localItems and reset
-    // isDirty whenever that happened, silently discarding pending checkbox
-    // toggles the user hadn't saved yet — worse now that saving is
-    // click-only, since isDirty can stay true for as long as the user is
-    // reading the list before deciding to save.
+    const [localDocItems, setLocalDocItems] = useState<PackingItem[]>([]);
+    const [isDirtyDocs, setIsDirtyDocs] = useState(false);
+    const [localGearItems, setLocalGearItems] = useState<PackingItem[]>([]);
+    const [isDirtyGear, setIsDirtyGear] = useState(false);
+
+    // "Which season/trip am I looking at" — switching this must always show
+    // that context's own gear list, never leave the previous context's
+    // (possibly unsaved) items on screen. A draft cache keyed by this means
+    // switching away and back restores exactly what was there, saved or
+    // not — no data is ever silently lost by tab-switching mid-edit.
+    const contextKey = selectedTripId !== "none" ? `trip:${selectedTripId}` : `season:${activeSeason}`;
+    const gearDraftsRef = useRef<Record<string, { items: PackingItem[]; dirty: boolean }>>({});
+    const prevContextKeyRef = useRef<string | null>(null);
+
     useEffect(() => {
-        if (isDirty) return;
-        if (currentList) {
-            setLocalItems(currentList.items);
-        } else if (!isLoading) {
-            // Load defaults if no list exists
-            const defaults = [
-                ...MANDATORY_ITEMS.map(i => ({ ...i, quantity: 1, packed: false, category: "Documents", is_mandatory: true })),
-                ...SEASONAL_DEFAULTS[activeSeason].map(i => ({ ...i, quantity: 1, packed: false })),
-            ];
-            setLocalItems(defaults as PackingItem[]);
+        const prevKey = prevContextKeyRef.current;
+        if (prevKey === contextKey) return;
+        if (prevKey !== null) {
+            gearDraftsRef.current[prevKey] = { items: localGearItems, dirty: isDirtyGear };
         }
-    }, [currentList, activeSeason, isLoading, selectedTripId, isDirty]);
+        const cached = gearDraftsRef.current[contextKey];
+        if (cached) {
+            setLocalGearItems(cached.items);
+            setIsDirtyGear(cached.dirty);
+        } else if (currentList) {
+            setLocalGearItems(currentList.items.filter((i: any) => !i.is_mandatory));
+            setIsDirtyGear(false);
+        } else if (!isLoading) {
+            setLocalGearItems(SEASONAL_DEFAULTS[activeSeason].map(i => ({ ...i, quantity: 1, packed: false })) as PackingItem[]);
+            setIsDirtyGear(false);
+        }
+        prevContextKeyRef.current = contextKey;
+        // Only re-run on an actual context switch — currentList/isLoading
+        // changes for the *same* context are handled by the effect below.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [contextKey]);
+
+    // Sync gear with server state for the CURRENT context (initial load, or
+    // a refetch after this exact list was saved). Must NOT run while there
+    // are unsaved edits (isDirtyGear) — currentList comes from React Query
+    // and gets a new object identity on every background refetch (window
+    // refocus, socket-triggered invalidation, etc.), and this used to
+    // unconditionally overwrite localGearItems and reset the dirty flag
+    // whenever that happened, silently discarding pending checkbox toggles
+    // the user hadn't saved yet.
+    useEffect(() => {
+        if (isDirtyGear) return;
+        if (currentList) {
+            setLocalGearItems(currentList.items.filter((i: any) => !i.is_mandatory));
+        } else if (!isLoading) {
+            setLocalGearItems(SEASONAL_DEFAULTS[activeSeason].map(i => ({ ...i, quantity: 1, packed: false })) as PackingItem[]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentList, isLoading, isDirtyGear]);
+
+    // Documents never depend on season or trip — one list, always in sync
+    // regardless of which tab is active.
+    useEffect(() => {
+        if (isDirtyDocs) return;
+        if (documentsList) {
+            setLocalDocItems(documentsList.items);
+        } else if (!isLoading) {
+            // First time this account gets a Documents list: carry forward
+            // packed state from any pre-existing per-season list that
+            // already had these items embedded (the old, pre-split data
+            // shape), rather than resetting every user's already-checked
+            // documents back to unpacked.
+            const priorMandatory = (packingLists || []).flatMap((l: any) => (l.items || []).filter((i: any) => i.is_mandatory));
+            setLocalDocItems(MANDATORY_ITEMS.map(i => {
+                const prior = priorMandatory.find((m: any) => m.name === i.name && m.packed);
+                return { ...i, quantity: 1, packed: !!prior, category: "Government / ID Documents", is_mandatory: true };
+            }) as PackingItem[]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documentsList, isLoading, isDirtyDocs]);
 
     // Saving is manual-only — the Save button is the single source of
     // truth for when a write happens. No debounced autosave and no
-    // save-on-unload/navigate-away: isDirty only drives the button's visual
-    // state (see the `isDirty ? 'text-blue-400...' : ...` styling below),
-    // it never triggers a network request on its own.
+    // save-on-unload/navigate-away: isDirtyDocs/isDirtyGear only drive the
+    // button's visual state, never trigger a network request on their own.
 
-    const items = localItems;
+    // Merged view for rendering/search/filter/reorder — documents first,
+    // then this season's gear. Every mutation (toggle/quantity/delete/
+    // reorder/paste/template-load) operates on this combined array and
+    // passes the result to updateLocalItems, which resplits it back into
+    // the two underlying buckets by is_mandatory.
+    const items = [...localDocItems, ...localGearItems];
+
+    const updateLocalItems = (newItems: PackingItem[]) => {
+        const docs = newItems.filter(i => i.is_mandatory);
+        const gear = newItems.filter(i => !i.is_mandatory);
+        setLocalDocItems(docs);
+        setIsDirtyDocs(true);
+        setLocalGearItems(gear);
+        setIsDirtyGear(true);
+    };
 
     const createListMutation = useMutation({
         mutationFn: async (newItems: IPackingListItem[]) => {
@@ -259,7 +334,7 @@ export default function PackingChecklist() {
             return { previousLists };
         },
         onSuccess: () => {
-            setIsDirty(false);
+            setIsDirtyGear(false);
             toast({ title: "List Saved", description: "Your packing list has been saved successfully.", className: "bg-green-600 text-white border-none" });
         },
         onError: (err, newItems, context) => {
@@ -286,12 +361,73 @@ export default function PackingChecklist() {
             return { previousLists };
         },
         onSuccess: () => {
-            setIsDirty(false);
+            setIsDirtyGear(false);
             toast({ title: "List Saved", description: "Your packing list has been updated successfully.", className: "bg-green-600 text-white border-none" });
         },
         onError: (err, variables, context) => {
             queryClient.setQueryData(["/api/v1/packing-lists"], context?.previousLists);
             toast({ title: "Error", description: "Failed to update packing list", variant: "destructive" });
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["/api/v1/packing-lists"] });
+        },
+    });
+
+    // Documents list is a single global list (no season/tripId), saved
+    // independently of whichever season's gear list is currently active.
+    const createDocsListMutation = useMutation({
+        mutationFn: async (newItems: IPackingListItem[]) => {
+            const res = await apiRequest("POST", "/api/v1/packing-lists", {
+                name: "Travel Documents",
+                season: DOCUMENTS_SEASON,
+                items: newItems,
+            });
+            await throwIfResNotOk(res);
+            return res.json();
+        },
+        onMutate: async (newItems) => {
+            await queryClient.cancelQueries({ queryKey: ["/api/v1/packing-lists"] });
+            const previousLists = queryClient.getQueryData<PackingList[]>(["/api/v1/packing-lists"]);
+            const optimisticList: PackingList = {
+                _id: "optimistic-docs-" + Date.now(),
+                name: "Travel Documents",
+                season: DOCUMENTS_SEASON,
+                items: newItems,
+                userId: "current-user",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            } as PackingList;
+            queryClient.setQueryData<PackingList[]>(["/api/v1/packing-lists"], (old) => old ? [...old, optimisticList] : [optimisticList]);
+            return { previousLists };
+        },
+        onSuccess: () => { setIsDirtyDocs(false); },
+        onError: (err, newItems, context) => {
+            queryClient.setQueryData(["/api/v1/packing-lists"], context?.previousLists);
+            toast({ title: "Error", description: "Failed to save documents", variant: "destructive" });
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["/api/v1/packing-lists"] });
+        },
+    });
+
+    const updateDocsListMutation = useMutation({
+        mutationFn: async ({ id, newItems }: { id: string; newItems: IPackingListItem[] }) => {
+            const res = await apiRequest("PUT", `/api/v1/packing-lists/${id}`, { items: newItems });
+            await throwIfResNotOk(res);
+            return res.json();
+        },
+        onMutate: async ({ id, newItems }) => {
+            await queryClient.cancelQueries({ queryKey: ["/api/v1/packing-lists"] });
+            const previousLists = queryClient.getQueryData<PackingList[]>(["/api/v1/packing-lists"]);
+            queryClient.setQueryData<PackingList[]>(["/api/v1/packing-lists"], (old) =>
+                old?.map(list => (getId(list) === id ? { ...list, items: newItems } as PackingList : list)) || []
+            );
+            return { previousLists };
+        },
+        onSuccess: () => { setIsDirtyDocs(false); },
+        onError: (err, variables, context) => {
+            queryClient.setQueryData(["/api/v1/packing-lists"], context?.previousLists);
+            toast({ title: "Error", description: "Failed to save documents", variant: "destructive" });
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["/api/v1/packing-lists"] });
@@ -375,18 +511,25 @@ export default function PackingChecklist() {
         }
     });
 
-    const handleSave = (newItems: IPackingListItem[]) => {
-        const currentId = currentList ? getId(currentList) : '';
-        if (currentId && !currentId.startsWith("optimistic-")) {
-            updateListMutation.mutate({ id: currentId, newItems });
-        } else {
-            createListMutation.mutate(newItems);
+    // Documents and gear are two separate underlying lists — Save writes
+    // whichever one(s) actually have unsaved changes.
+    const handleSave = () => {
+        if (isDirtyGear) {
+            const currentId = currentList ? getId(currentList) : '';
+            if (currentId && !currentId.startsWith("optimistic-")) {
+                updateListMutation.mutate({ id: currentId, newItems: localGearItems });
+            } else {
+                createListMutation.mutate(localGearItems);
+            }
         }
-    };
-
-    const updateLocalItems = (newItems: PackingItem[]) => {
-        setLocalItems(newItems);
-        setIsDirty(true);
+        if (isDirtyDocs) {
+            const docsId = documentsList ? getId(documentsList) : '';
+            if (docsId && !docsId.startsWith("optimistic-")) {
+                updateDocsListMutation.mutate({ id: docsId, newItems: localDocItems });
+            } else {
+                createDocsListMutation.mutate(localDocItems);
+            }
+        }
     };
 
     const handleQuantityChange = (index: number, newQty: number) => {
@@ -667,8 +810,8 @@ export default function PackingChecklist() {
                             variant="outline"
                             size="icon"
                             title="Save List"
-                            onClick={() => handleSave(items)}
-                            className={`border hover:bg-muted/50 ${isDirty ? 'text-blue-400 border-blue-400' : 'text-muted-foreground'}`}
+                            onClick={handleSave}
+                            className={`border hover:bg-muted/50 ${(isDirtyGear || isDirtyDocs) ? 'text-blue-400 border-blue-400' : 'text-muted-foreground'}`}
                         >
                             <Save className="w-4 h-4" />
                         </Button>
