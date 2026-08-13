@@ -323,16 +323,16 @@ SUBJECT: this (a third thing)
 TRANSLATION: यह मेरा बैग है।
 
 Now translate the following text from ${langName(from)} to ${langName(to)}, in the native script of ${langName(to)} (not a Romanized transliteration).`;
-        // A live re-check after the subject-identification prompt above
-        // still showed the 8B model getting simple WH-word translations
-        // wrong ("who are you?" -> a Gujarati phrase meaning "what are
-        // you?") — that's a different failure than the I/you subject
-        // confusion the prompt targets, and prompt engineering alone
-        // didn't fix it. Using a larger model for this specific call only
-        // (other generateWithNvidia callers keep the smaller/faster
-        // default) as the next real attempt before falling back to a
-        // dedicated translation API.
-        const nvidiaRaw = await this.generateWithNvidia(t, prompt, 0, 'mistralai/mistral-large-2-instruct');
+        // Tried mistralai/mistral-large-2-instruct here as a stronger
+        // model — it's not available on this NIM API key's catalog, so
+        // every call hard-failed and silently fell through to MyMemory,
+        // which is worse (confirmed live: "Thank you" -> a phrase meaning
+        // "I am a Tamil girl", the exact failure mode already documented
+        // below). Reverted to the known-working default model; the
+        // subject-identification prompt and temperature 0 above are kept
+        // since they're still real improvements even though they don't
+        // fully fix the WH-word confusion on this smaller model.
+        const nvidiaRaw = await this.generateWithNvidia(t, prompt, 0);
         const translationLine = nvidiaRaw.split('\n').find(l => /^TRANSLATION:/i.test(l.trim()));
         const nvidiaText = translationLine ? translationLine.replace(/^TRANSLATION:/i, '').trim() : nvidiaRaw.trim();
         if (nvidiaText) {
