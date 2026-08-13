@@ -7,6 +7,26 @@ import { AiUtilitiesService } from "../AiUtilitiesService";
 
 const startTime = Date.now();
 
+// TEMPORARY diagnostic — remove once the "translate always falls to NVIDIA"
+// investigation is closed. requireAuth-gated (wired in routes) so it's not
+// a public probe of the API key.
+export const debugOpenAI = async (_req: Request, res: Response) => {
+  try {
+    const key = config.OPENAI_API_KEY;
+    if (!key) return res.json({ hasKey: false });
+    const OpenAI = (await import("openai")).default;
+    const client = new OpenAI({ apiKey: key });
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      messages: [{ role: "user", content: "Say OK" }],
+    });
+    res.json({ hasKey: true, ok: true, reply: completion.choices?.[0]?.message?.content });
+  } catch (err: any) {
+    res.json({ hasKey: !!config.OPENAI_API_KEY, ok: false, error: err?.message, status: err?.status, code: err?.code, type: err?.type });
+  }
+};
+
 // ─── Public endpoints (no auth) ───────────────────────────────────────────────
 
 export const health = async (_req: Request, res: Response) => {
