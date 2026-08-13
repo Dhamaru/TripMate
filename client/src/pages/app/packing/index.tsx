@@ -70,7 +70,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { apiRequest, throwIfResNotOk, getCsrfToken } from "@/lib/queryClient";
+import { apiRequest, throwIfResNotOk } from "@/lib/queryClient";
 import { IPackingListItem, PackingList, Trip } from "@shared/schema";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -199,45 +199,11 @@ export default function PackingChecklist() {
         setIsDirty(false);
     }, [currentList, activeSeason, isLoading, selectedTripId]);
 
-    // Debounced Save
-    useEffect(() => {
-        if (!isDirty) return;
-
-        const timer = setTimeout(() => {
-            handleSave(localItems);
-            setIsDirty(false);
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [localItems, isDirty]);
-
-    // A checkbox toggled right before a reload/navigation-away could lose
-    // its 1s debounce window entirely — the timer above never fires because
-    // the page is gone. Flush via a keepalive fetch (survives page unload,
-    // unlike a normal fetch, and — unlike sendBeacon — can carry the PUT
-    // method and CSRF header this endpoint requires) as a last-chance save;
-    // the normal debounced path still handles everything else.
-    useEffect(() => {
-        const flush = () => {
-            if (!isDirty) return;
-            const currentId = currentList ? getId(currentList) : '';
-            if (currentId && !currentId.startsWith("optimistic-")) {
-                const csrfToken = getCsrfToken();
-                fetch(`/api/v1/packing-lists/${currentId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
-                    body: JSON.stringify({ items: localItems }),
-                    credentials: 'include',
-                    keepalive: true,
-                }).catch(() => { });
-            }
-        };
-        window.addEventListener('beforeunload', flush);
-        return () => {
-            window.removeEventListener('beforeunload', flush);
-            flush();
-        };
-    }, [isDirty, localItems, currentList]);
+    // Saving is manual-only — the Save button is the single source of
+    // truth for when a write happens. No debounced autosave and no
+    // save-on-unload/navigate-away: isDirty only drives the button's visual
+    // state (see the `isDirty ? 'text-blue-400...' : ...` styling below),
+    // it never triggers a network request on its own.
 
     const items = localItems;
 
