@@ -115,13 +115,13 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
         } catch { }
         return data;
-      } catch {
-        const now = new Date();
-        const month = now.getMonth();
-        const base = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
-        const current = { temperature: Math.round(base), condition: base >= 30 ? 'Sunny' : base >= 25 ? 'Partly Cloudy' : 'Cloudy', humidity: 60, windSpeed: 10 };
-        const forecast = Array.from({ length: 7 }, (_, i) => ({ day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`, high: Math.round(base + (i % 3) - 1), low: Math.round(base - 5 + (i % 2)), condition: i % 4 === 0 ? 'Sunny' : i % 4 === 1 ? 'Partly Cloudy' : i % 4 === 2 ? 'Cloudy' : 'Rain' }));
-        return { current, forecast, summary: loc ? `Estimated conditions for ${loc}` : 'Estimated conditions', source: 'fallback' } as WeatherData;
+      } catch (e) {
+        // Previously fabricated month-indexed placeholder temperatures here
+        // (e.g. always 33°C in August regardless of location) and returned
+        // them as if real, with no indication in the UI that the data was
+        // fake. Let the error surface instead — the error/retry state below
+        // already handles this correctly, same as WeatherCard.tsx.
+        throw e;
       }
     },
   });
@@ -196,6 +196,15 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
             Weather Today
           </CardTitle>
           <div className="flex items-center gap-2">
+            {weather.source === 'ai' && (
+              <span
+                className="px-2 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-100 text-xs"
+                title="No live weather provider configured — this forecast is an AI estimate from typical seasonal patterns, not real data"
+                data-testid="weather-estimated-badge"
+              >
+                Estimated
+              </span>
+            )}
             <button onClick={toggleUnit} className="px-3 py-1 rounded-full bg-white/20 border border-white/30 text-white text-xs hover:bg-white/30 backdrop-blur-sm transition-colors" aria-label="Toggle units">°{unit}</button>
           </div>
         </div>

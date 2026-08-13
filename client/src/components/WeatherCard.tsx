@@ -269,6 +269,15 @@ export function WeatherCard({ destination }: { destination?: string }) {
           {/* Right: label + day + condition */}
           <div className="text-right flex-shrink-0">
             <div className="flex items-center justify-end gap-1.5 mb-1">
+              {weather?.source === 'ai' && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300"
+                  title="No live weather provider configured — this forecast is an AI estimate from typical seasonal patterns, not real data"
+                  data-testid="weather-estimated-badge"
+                >
+                  Estimated
+                </span>
+              )}
               {offline && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">offline</span>}
               {revalidating && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">updating…</span>}
             </div>
