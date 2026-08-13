@@ -242,12 +242,12 @@ export class AiUtilitiesService {
     return plan;
   }
 
-  async translate(text: string, sourceLang: string, targetLang: string): Promise<{ translatedText: string; pronunciation?: string }> {
+  async translate(text: string, sourceLang: string, targetLang: string): Promise<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'nvidia' | 'mymemory' }> {
     const t = sanitize(text);
     const from = sanitize(sourceLang, 32);
     const to = sanitize(targetLang, 32);
     const key = `translate:${from}:${to}:${t}`;
-    const cached = this.getCached<{ translatedText: string; pronunciation?: string }>(key);
+    const cached = this.getCached<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'nvidia' | 'mymemory' }>(key);
     if (cached) return cached;
 
     try {
@@ -264,7 +264,13 @@ export class AiUtilitiesService {
       });
       const content = completion.choices?.[0]?.message?.content?.trim() || "{}";
       const json = this.parseJson(content);
-      const result = { translatedText: String(json.translatedText || ""), pronunciation: json.pronunciation ? String(json.pronunciation) : undefined };
+      const translatedText = String(json.translatedText || "");
+      // A malformed/differently-shaped JSON reply (wrong key name, empty
+      // object) previously became a "successful" result with an empty
+      // translatedText — no exception was thrown, so the NVIDIA/MyMemory
+      // fallbacks below never ran. Treat an empty result as a real failure.
+      if (!translatedText) throw new Error('empty_gpt_translation');
+      const result = { translatedText, pronunciation: json.pronunciation ? String(json.pronunciation) : undefined, source: 'openai' as const };
       return this.setCached(key, result);
     } catch {
       // Fallback 1: NVIDIA (reliable LLM translation). MyMemory's free
@@ -282,7 +288,7 @@ export class AiUtilitiesService {
         const prompt = `Translate the following text from ${langName(from)} to ${langName(to)}. Write the translation in the native script of ${langName(to)} (not a Romanized transliteration). Reply with ONLY the translated text, no explanation, no quotes.`;
         const nvidiaText = await this.generateWithNvidia(t, prompt);
         if (nvidiaText && nvidiaText.trim()) {
-          const result = { translatedText: nvidiaText.trim(), pronunciation: undefined };
+          const result = { translatedText: nvidiaText.trim(), pronunciation: undefined, source: 'nvidia' as const };
           return this.setCached(key, result);
         }
       } catch { /* fall through to MyMemory */ }
@@ -306,7 +312,7 @@ export class AiUtilitiesService {
           // the last-resort error instead.
           const translated = String(json?.responseData?.translatedText || '');
           if (translated) {
-            const result = { translatedText: translated, pronunciation: undefined };
+            const result = { translatedText: translated, pronunciation: undefined, source: 'mymemory' as const };
             return this.setCached(key, result);
           }
         }

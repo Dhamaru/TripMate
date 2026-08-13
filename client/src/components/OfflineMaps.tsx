@@ -1013,12 +1013,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             >
               <div className="absolute left-1/2 -translate-x-1/2 top-1.5 w-10 h-1 rounded-full bg-border" />
               <div className="flex items-center gap-2 min-w-0 mt-1.5">
-                <i className="fas fa-hdd text-muted-foreground text-sm"></i>
+                <i className="fas fa-sliders-h text-muted-foreground text-sm"></i>
                 <span className="text-sm font-medium text-foreground truncate">
                   <span className="font-mono">{formatBytes(totalSize)}</span> / <span className="font-mono">2 GB</span> used
                 </span>
               </div>
-              <i className={`fas fa-chevron-up text-muted-foreground text-xs transition-transform mt-1.5 ${sheetExpanded ? 'rotate-180' : ''}`}></i>
+              {/* Bouncing while collapsed — a static chevron reads as
+                  decoration; motion is what actually signals "more content,
+                  tap or drag to reveal" for a sheet that isn't obviously
+                  interactive at a glance. */}
+              <i
+                className={`fas fa-chevron-up text-muted-foreground text-xs transition-transform mt-1.5 ${sheetExpanded ? 'rotate-180' : 'animate-bounce'}`}
+                aria-hidden="true"
+              ></i>
             </button>
 
             {sheetExpanded && (

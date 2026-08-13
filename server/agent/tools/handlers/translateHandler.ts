@@ -38,6 +38,7 @@ export async function translateHandler(args: {
                 sourceLang,
                 targetLang,
                 pronunciation: result.pronunciation,
+                source: result.source,
             },
             durationMs: Date.now() - start,
         };
