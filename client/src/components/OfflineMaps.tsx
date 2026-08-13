@@ -250,7 +250,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     customPins.forEach(pin => {
       const icon = L.divIcon({
         className: 'custom-pin-icon',
-        html: `<div style="background-color: ${pin.color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+        html: `<div style="background-color: ${pin.color}; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white;"></div>`,
         iconSize: [20, 20]
       });
 
@@ -402,17 +402,20 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             // Update User Marker
             if (userMarkerRef.current) userMarkerRef.current.remove();
 
-            // Navigation Arrow Icon
+            // Navigation Arrow Icon — #1D4E89 is the customs-blue design
+            // token (DESIGN.md); hardcoded here because Leaflet divIcons
+            // render outside the CSS/Tailwind pipeline, so it can't reference
+            // the token directly. Keep in sync with DESIGN.md if that value
+            // ever changes.
             const arrowHtml = `
               <div style="
-                transform: rotate(${heading || 0}deg); 
+                transform: rotate(${heading || 0}deg);
                 transition: transform 0.3s ease;
-                width: 0; 
-                height: 0; 
+                width: 0;
+                height: 0;
                 border-left: 10px solid transparent;
                 border-right: 10px solid transparent;
                 border-bottom: 20px solid #1D4E89;
-                filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
               "></div>`;
 
             const navIcon = L.divIcon({
@@ -748,30 +751,32 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     <div className={`relative h-full w-full flex flex-col overflow-hidden ${className}`}>
       {/* Slim top bar — tabs + offline/dark-mode state, not a full page header */}
       <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card">
-        <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+        <div className="flex space-x-1 bg-muted p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('explore')}
-            className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-[#163F73] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Explore
           </button>
           <button
             onClick={() => setActiveTab('navigation')}
-            className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'navigation' ? 'bg-[#163F73] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Navigation
           </button>
           <button
             onClick={() => setActiveTab('saved')}
-            className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#1D4E89] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === 'saved' ? 'bg-[#163F73] text-white shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Saved Pins
           </button>
         </div>
         {offlineModeRegion ? (
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-green-400 min-w-0">
-            <span className="truncate">Offline: {offlineModeRegion.name}</span>
-            <Button variant="ghost" size="sm" onClick={exitOfflineMap} className="h-6 w-6 p-0 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50 flex items-center justify-center flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[10px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[#3D9467] bg-[#3D9467]/10 text-[#3D9467] rotate-[-2deg] truncate max-w-[140px] sm:max-w-none">
+              Offline: {offlineModeRegion.name}
+            </span>
+            <Button variant="ghost" size="sm" onClick={exitOfflineMap} className="h-6 w-6 p-0 rounded-full bg-[#B3261E]/10 hover:bg-[#B3261E]/20 text-[#B3261E] border border-[#B3261E]/50 flex items-center justify-center flex-shrink-0">
               <i className="fas fa-times text-xs"></i>
             </Button>
           </div>
@@ -800,11 +805,15 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
             {/* Navigation Overlay Controls */}
             {activeTab === 'navigation' && (
-              <div className="absolute top-2 left-2 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-lg border border-border shadow-xl space-y-3 sm:w-64">
+              <div className="absolute top-2 left-12 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-xl border border-border space-y-3 sm:w-64">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-foreground font-semibold text-sm">Live Navigation</h4>
+                  <h4 className="text-foreground font-serif font-bold text-sm">Live Navigation</h4>
                   <div className="sm:hidden flex items-center gap-2">
-                    {isNavigating && <span className="text-green-400 text-[10px] animate-pulse">Live</span>}
+                    {isNavigating && (
+                      <span className="text-[10px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[#3D9467] bg-[#3D9467]/10 text-[#3D9467] rotate-[-2deg] animate-pulse">
+                        Live
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -814,7 +823,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     role="switch"
                     aria-checked={isNavigating}
                     aria-label="Live tracking"
-                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? 'bg-green-500' : 'bg-muted'}`}
+                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? 'bg-[#3D9467]' : 'bg-muted'}`}
                     onClick={() => setIsNavigating(!isNavigating)}
                   >
                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isNavigating ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -822,7 +831,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 </div>
 
                 <div className="border-t border-border pt-3">
-                  <h4 className="text-foreground font-semibold text-sm mb-2">Route</h4>
+                  <h4 className="text-foreground font-serif font-bold text-sm mb-2">Route</h4>
                   <div className="space-y-2 relative">
                     <input
                       type="text"
@@ -855,7 +864,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       className="w-full bg-muted border border-border rounded px-2 py-1 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-[#163F73]"
                     />
                     {showNavDestSuggestions && (navDestLoading || navDestSuggestions.length > 0) && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border border-border rounded shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl max-h-48 overflow-y-auto">
                         {navDestLoading && (
                           <div className="px-2 py-1.5 text-[11px] text-muted-foreground">Searching...</div>
                         )}
@@ -874,13 +883,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     )}
                     {selectedPlace && <p className="text-[10px] text-[#163F73] truncate">→ {selectedPlace.name}</p>}
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={handleCalculateRoute}>
+                      <Button size="sm" variant="outline" className="flex-1 text-xs border-[#163F73] text-[#163F73] hover:bg-[#163F73] hover:text-white" onClick={handleCalculateRoute}>
                         Get Route
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 text-xs border-red-500/50 text-red-400 hover:bg-red-500/10"
+                        className="flex-1 text-xs border-[#B3261E]/50 text-[#B3261E] hover:bg-[#B3261E]/10"
                         onClick={() => {
                           if (routePolylineRef.current) {
                             routePolylineRef.current.remove();
@@ -917,7 +926,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       setPinDialogOpen(true);
                     }
                   }}
-                  className="bg-[#1D4E89] text-white shadow-lg text-xs sm:text-sm"
+                  className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-xl text-xs sm:text-sm"
                 >
                   <i className="fas fa-plus mr-1 sm:mr-2"></i>
                   <span className="hidden xs:inline">Add Pin</span>
@@ -966,7 +975,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               // while the sheet was expanded (no way to re-center without
               // collapsing it first) — now stays visible and just moves
               // higher to clear the expanded sheet instead.
-              className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border shadow-lg transition-all"
+              className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border transition-all"
               style={{ bottom: sheetExpanded ? 200 : 140 }}
               title="Locate Me"
             >
@@ -980,7 +989,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               md:bottom-0 because the desktop sidebar layout has no bottom nav
               to clear. */}
           <motion.div
-            className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-[500] bg-card border-t border-border rounded-t-2xl shadow-[0_-4px_24px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden"
+            className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-[500] bg-card border-t border-[#163F73]/40 rounded-t-2xl flex flex-col overflow-hidden"
             animate={{ height: sheetExpanded ? '65%' : 56 }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             style={{ maxHeight: '80%' }}
@@ -994,7 +1003,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               <div className="absolute left-1/2 -translate-x-1/2 top-1.5 w-10 h-1 rounded-full bg-border" />
               <div className="flex items-center gap-2 min-w-0 mt-1.5">
                 <i className="fas fa-hdd text-muted-foreground text-sm"></i>
-                <span className="text-sm font-medium text-foreground truncate">{formatBytes(totalSize)} / 2 GB used</span>
+                <span className="text-sm font-medium text-foreground truncate">
+                  <span className="font-mono">{formatBytes(totalSize)}</span> / <span className="font-mono">2 GB</span> used
+                </span>
               </div>
               <i className={`fas fa-chevron-up text-muted-foreground text-xs transition-transform mt-1.5 ${sheetExpanded ? 'rotate-180' : ''}`}></i>
             </button>
@@ -1021,7 +1032,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 }}
                 className="bg-muted border-border text-foreground flex-1"
               />
-              <Button onClick={() => fetchPlaces(searchQuery)} disabled={placesLoading} className="bg-[#1D4E89] w-full sm:w-auto">
+              <Button onClick={() => fetchPlaces(searchQuery)} disabled={placesLoading} className="bg-[#163F73] hover:bg-[#0F2C52] rounded-xl w-full sm:w-auto">
                 {placesLoading ? 'Searching...' : 'Search'}
               </Button>
             </div>
@@ -1065,7 +1076,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       <div className="text-xs text-muted-foreground truncate">{p.displayName}</div>
                       {p.category && (
                         <div className="mt-1">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#1D4E89]/10 text-[#1D4E89] dark:text-blue-400 capitalize">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-[3px] border border-[#1D4E89] rotate-[-2deg] text-[10px] font-mono uppercase tracking-[0.05em] bg-[#1D4E89]/10 text-[#1D4E89]">
                             {p.category.replace(/_/g, ' ')}
                           </span>
                         </div>
@@ -1088,7 +1099,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <CardTitle className="text-foreground text-base">Storage Usage</CardTitle>
-            <span className="text-xs text-muted-foreground">{formatBytes(totalSize)} / 2 GB</span>
+            <span className="text-xs text-muted-foreground font-mono">{formatBytes(totalSize)} / 2 GB</span>
           </div>
         </CardHeader>
         <CardContent>
@@ -1111,38 +1122,42 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {mapRegions.map(r => (
                 <div key={r.id} className="bg-muted rounded-xl overflow-hidden border border-border group relative">
-                  {/* Fake Map Preview Header */}
-                  <div className="h-24 bg-gradient-to-br from-gray-800 to-gray-900 relative">
-                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#9ca3af 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
+                  {/* Region header — solid ink-navy surface, not a gradient
+                      placeholder standing in for a real map thumbnail. */}
+                  <div className="h-24 bg-[#0D1B2E] relative">
                     <div className="absolute bottom-2 left-3">
-                      <h3 className="font-bold text-lg text-foreground leading-tight">{r.name}</h3>
-                      <p className="text-xs text-muted-foreground">{r.country}</p>
+                      <h3 className="font-serif font-bold text-lg text-white leading-tight">{r.name}</h3>
+                      <p className="text-xs text-white/60">{r.country}</p>
                     </div>
-                    {r.downloaded && <div className="absolute top-2 right-2 bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full border border-green-500/50">SAVED</div>}
+                    {r.downloaded && (
+                      <div className="absolute top-2 right-2 text-[10px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[#3D9467] bg-[#3D9467]/10 text-[#3D9467] rotate-[-2deg]">
+                        Saved
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-3">
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-xs text-muted-foreground font-mono-data">{r.downloaded ? formatBytes(r.bytes) : `~${formatBytes(estimateRegionBytes())}`}</span>
-                      <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-400/10" onClick={() => deleteMap(r.id)}>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-[#B3261E] hover:text-[#B3261E] hover:bg-[#B3261E]/10" onClick={() => deleteMap(r.id)}>
                         <i className="fas fa-trash text-xs"></i>
                       </Button>
                     </div>
 
                     {r.downloaded ? (
-                      <Button size="sm" variant="secondary" onClick={() => openOfflineMap(r)} className="w-full bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-600/50 transition-all font-semibold shadow-sm hover:shadow-green-900/20">
+                      <Button size="sm" variant="secondary" onClick={() => openOfflineMap(r)} className="w-full rounded-xl bg-[#3D9467]/10 text-[#3D9467] hover:bg-[#3D9467]/20 border border-[#3D9467]/60 transition-all font-semibold">
                         <i className="fas fa-map-marked-alt mr-2"></i> Open Map
                       </Button>
                     ) : r.downloading ? (
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] text-blue-400">
+                        <div className="flex justify-between text-[10px] font-mono text-[#1D4E89]">
                           <span>Saving...</span>
                           <span>{Math.round(r.progress)}%</span>
                         </div>
                         <Progress value={r.progress} className="h-1.5" />
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" className="w-full border-[#1D4E89] text-[#1D4E89] dark:text-blue-400 hover:bg-[#1D4E89] hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
+                      <Button size="sm" variant="outline" className="w-full rounded-xl border-[#1D4E89] text-[#1D4E89] hover:bg-[#1D4E89] hover:text-white transition-colors" onClick={() => downloadMap(r.id)}>
                         <i className="fas fa-download mr-1"></i> Download
                       </Button>
                     )}
@@ -1171,7 +1186,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             lat: pendingPinCenter.lat,
             lng: pendingPinCenter.lng,
             name,
-            color: '#ef4444'
+            color: '#B3261E' // stamp-red — DESIGN.md's "marked" ink role
           };
           setCustomPins(prev => [...prev, newPin]);
         }}
