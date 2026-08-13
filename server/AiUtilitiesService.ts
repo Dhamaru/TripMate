@@ -107,7 +107,7 @@ export class AiUtilitiesService {
   // but this service's other text-generation methods only ever fell back to
   // Gemini then OpenAI. When both of those are quota-exhausted, those
   // methods have no working provider left even though NVIDIA is reachable.
-  private async generateWithNvidia(prompt: string, systemPrompt?: string, temperature = 0.3): Promise<string> {
+  private async generateWithNvidia(prompt: string, systemPrompt?: string, temperature = 0.3, model = 'meta/llama-3.1-8b-instruct'): Promise<string> {
     const nvidiaKey = config.NVIDIA_API_KEY;
     if (!nvidiaKey) throw new Error('nvidia_disabled');
 
@@ -119,7 +119,7 @@ export class AiUtilitiesService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${nvidiaKey}` },
       body: JSON.stringify({
-        model: 'meta/llama-3.1-8b-instruct',
+        model,
         messages,
         temperature,
       }),
@@ -323,7 +323,16 @@ SUBJECT: this (a third thing)
 TRANSLATION: यह मेरा बैग है।
 
 Now translate the following text from ${langName(from)} to ${langName(to)}, in the native script of ${langName(to)} (not a Romanized transliteration).`;
-        const nvidiaRaw = await this.generateWithNvidia(t, prompt, 0);
+        // A live re-check after the subject-identification prompt above
+        // still showed the 8B model getting simple WH-word translations
+        // wrong ("who are you?" -> a Gujarati phrase meaning "what are
+        // you?") — that's a different failure than the I/you subject
+        // confusion the prompt targets, and prompt engineering alone
+        // didn't fix it. Using a larger model for this specific call only
+        // (other generateWithNvidia callers keep the smaller/faster
+        // default) as the next real attempt before falling back to a
+        // dedicated translation API.
+        const nvidiaRaw = await this.generateWithNvidia(t, prompt, 0, 'mistralai/mistral-large-2-instruct');
         const translationLine = nvidiaRaw.split('\n').find(l => /^TRANSLATION:/i.test(l.trim()));
         const nvidiaText = translationLine ? translationLine.replace(/^TRANSLATION:/i, '').trim() : nvidiaRaw.trim();
         if (nvidiaText) {
