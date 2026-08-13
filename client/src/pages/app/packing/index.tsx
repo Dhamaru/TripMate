@@ -184,8 +184,17 @@ export default function PackingChecklist() {
     const [localItems, setLocalItems] = useState<PackingItem[]>([]);
     const [isDirty, setIsDirty] = useState(false);
 
-    // Sync local state with server state when switching lists/seasons
+    // Sync local state with server state when switching lists/seasons. Must
+    // NOT run while there are unsaved edits (isDirty) — currentList comes
+    // from React Query and gets a new object identity on every background
+    // refetch (window refocus, socket-triggered invalidation, etc.), and
+    // this effect used to unconditionally overwrite localItems and reset
+    // isDirty whenever that happened, silently discarding pending checkbox
+    // toggles the user hadn't saved yet — worse now that saving is
+    // click-only, since isDirty can stay true for as long as the user is
+    // reading the list before deciding to save.
     useEffect(() => {
+        if (isDirty) return;
         if (currentList) {
             setLocalItems(currentList.items);
         } else if (!isLoading) {
@@ -196,8 +205,7 @@ export default function PackingChecklist() {
             ];
             setLocalItems(defaults as PackingItem[]);
         }
-        setIsDirty(false);
-    }, [currentList, activeSeason, isLoading, selectedTripId]);
+    }, [currentList, activeSeason, isLoading, selectedTripId, isDirty]);
 
     // Saving is manual-only — the Save button is the single source of
     // truth for when a write happens. No debounced autosave and no
@@ -251,6 +259,7 @@ export default function PackingChecklist() {
             return { previousLists };
         },
         onSuccess: () => {
+            setIsDirty(false);
             toast({ title: "List Saved", description: "Your packing list has been saved successfully.", className: "bg-green-600 text-white border-none" });
         },
         onError: (err, newItems, context) => {
@@ -277,6 +286,7 @@ export default function PackingChecklist() {
             return { previousLists };
         },
         onSuccess: () => {
+            setIsDirty(false);
             toast({ title: "List Saved", description: "Your packing list has been updated successfully.", className: "bg-green-600 text-white border-none" });
         },
         onError: (err, variables, context) => {

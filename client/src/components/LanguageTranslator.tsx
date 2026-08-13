@@ -29,7 +29,7 @@ const LANGUAGES = [
 interface TranslationResult {
   translatedText: string;
   pronunciation?: string;
-  meaning?: string;
+  source?: 'openai' | 'nvidia' | 'mymemory';
 }
 
 async function runTranslate(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult> {
@@ -46,7 +46,7 @@ async function runTranslate(text: string, sourceLang: string, targetLang: string
   return {
     translatedText: String(data?.translatedText || ''),
     pronunciation: String(data?.pronunciation || ''),
-    meaning: String(data?.meaning || '')
+    source: data?.source,
   };
 }
 
@@ -164,16 +164,21 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
           <Skeleton className="w-full h-20" />
         ) : translation?.translatedText ? (
           <div className="p-3 border rounded bg-muted">
-            <strong className="text-[#1D4E89] dark:text-blue-400">Result:</strong>
+            <div className="flex items-center justify-between gap-2">
+              <strong className="text-[#1D4E89] dark:text-blue-400">Result:</strong>
+              {translation.source && translation.source !== 'openai' && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300"
+                  title="Our primary translation engine is temporarily unavailable — this came from a backup source and may be less accurate for uncommon phrases."
+                >
+                  Backup source
+                </span>
+              )}
+            </div>
             <p className="text-emerald-600 dark:text-emerald-400 mt-1 text-lg">{translation.translatedText}</p>
             {translation.pronunciation && (
               <p className="text-muted-foreground mt-2 text-sm italic border-t pt-1">
                 Pronunciation: {translation.pronunciation}
-              </p>
-            )}
-            {translation.meaning && (
-              <p className="text-muted-foreground mt-1 text-sm border-t pt-1">
-                Meaning: {translation.meaning}
               </p>
             )}
           </div>

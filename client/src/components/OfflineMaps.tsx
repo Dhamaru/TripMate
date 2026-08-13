@@ -10,6 +10,7 @@ import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { computeTileUrls, downloadTiles, deleteTiles, formatBytes } from "@/lib/offlineTiles";
+import { apiRequest } from "@/lib/queryClient";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -130,13 +131,46 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     toast({ title: "Exited Offline View", description: "Showing world map." });
   }
 
-  // Custom Pins State
-  const [customPins, setCustomPins] = useState<CustomPin[]>(() => {
-    try {
-      const raw = localStorage.getItem(PINS_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  });
+  // Custom Pins State — backed by the server (userId-scoped) so pins sync
+  // across devices/browsers instead of living only in this browser's
+  // localStorage, which silently lost pins on clearing site data, a
+  // private window, or switching devices.
+  const [customPins, setCustomPins] = useState<CustomPin[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiRequest('GET', '/api/v1/map-pins');
+        if (!res.ok) return;
+        const serverPins: CustomPin[] = await res.json();
+
+        if (serverPins.length === 0) {
+          // One-time migration: a pre-existing localStorage-only user might
+          // have real pins that predate this backend. Upload them once,
+          // then stop reading from localStorage entirely.
+          let localPins: CustomPin[] = [];
+          try {
+            const raw = localStorage.getItem(PINS_STORAGE_KEY);
+            localPins = raw ? JSON.parse(raw) : [];
+          } catch { /* ignore */ }
+          if (localPins.length > 0) {
+            const migrated: CustomPin[] = [];
+            for (const p of localPins) {
+              try {
+                const r = await apiRequest('POST', '/api/v1/map-pins', { lat: p.lat, lng: p.lng, name: p.name, note: p.note, color: p.color });
+                if (r.ok) migrated.push(await r.json());
+              } catch { /* skip pins that fail to migrate */ }
+            }
+            setCustomPins(migrated);
+            localStorage.removeItem(PINS_STORAGE_KEY);
+            return;
+          }
+        }
+        setCustomPins(serverPins);
+      } catch { /* offline or request failed — leave pins empty for this session */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Tile URLs belonging to regions that just aged past STALE_AFTER_MS on this
   // load — stashed here so a mount-time effect can actually evict them from
@@ -232,7 +266,6 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   }, [mapRegions]);
 
   useEffect(() => {
-    try { localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(customPins)); } catch { }
     refreshPinMarkers();
   }, [customPins]);
 
@@ -273,9 +306,15 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       deleteBtn.style.color = 'red';
       deleteBtn.style.fontSize = '10px';
       deleteBtn.style.marginTop = '4px';
-      deleteBtn.addEventListener('click', () => {
-        setCustomPins(prev => prev.filter(p => p.id !== pin.id));
-        toast({ title: "Pin Deleted" });
+      deleteBtn.addEventListener('click', async () => {
+        try {
+          const r = await apiRequest('DELETE', `/api/v1/map-pins/${pin.id}`);
+          if (!r.ok) throw new Error('delete_failed');
+          setCustomPins(prev => prev.filter(p => p.id !== pin.id));
+          toast({ title: "Pin Deleted" });
+        } catch {
+          toast({ title: "Couldn't delete pin", description: "Try again.", variant: "destructive" });
+        }
       });
       popupEl.appendChild(deleteBtn);
 
@@ -1197,16 +1236,21 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         defaultValue="New Location"
         confirmLabel="Add Pin"
         onOpenChange={setPinDialogOpen}
-        onConfirm={(name) => {
+        onConfirm={async (name) => {
           if (!pendingPinCenter) return;
-          const newPin: CustomPin = {
-            id: Date.now().toString(),
-            lat: pendingPinCenter.lat,
-            lng: pendingPinCenter.lng,
-            name,
-            color: '#B3261E' // stamp-red — DESIGN.md's "marked" ink role
-          };
-          setCustomPins(prev => [...prev, newPin]);
+          try {
+            const res = await apiRequest('POST', '/api/v1/map-pins', {
+              lat: pendingPinCenter.lat,
+              lng: pendingPinCenter.lng,
+              name,
+              color: '#B3261E', // stamp-red — DESIGN.md's "marked" ink role
+            });
+            if (!res.ok) throw new Error('create_failed');
+            const saved: CustomPin = await res.json();
+            setCustomPins(prev => [...prev, saved]);
+          } catch {
+            toast({ title: "Couldn't save pin", description: "Try again.", variant: "destructive" });
+          }
         }}
       />
     </div>

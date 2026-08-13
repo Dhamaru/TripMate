@@ -215,9 +215,6 @@ router.get("/weather/tiles/:layer/:z/:x/:y", requireAuth, toolsController.weathe
  */
 router.get("/proxy-image", requireAuth, toolsController.proxyImage);
 
-// TEMPORARY — remove alongside the debugOpenAI controller once diagnosed.
-router.get("/debug-openai", requireAuth, toolsController.debugOpenAI);
-
 /**
  * @swagger
  * /translate:

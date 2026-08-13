@@ -39,6 +39,7 @@ import emergencyRoutes from "./routes/emergency.routes";
 import weatherRoutes from "./routes/weather.routes";
 import crowdRoutes from "./routes/crowd.routes";
 import logsRoutes from "./routes/logs.routes";
+import mapPinsRoutes from "./routes/mapPins.routes";
 import { socketService } from "./services/SocketService";
 
 const app = express();
@@ -87,6 +88,7 @@ app.use("/api/v1", toolsRoutes);
 app.use("/api/v1", logsRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/trips", tripsRoutes);
+app.use("/api/v1/map-pins", mapPinsRoutes);
 app.use("/api/v1/places", placesRoutes);
 app.use("/api/v1/emergency", emergencyRoutes);
 app.use("/api/v1/weather", weatherRoutes);

@@ -665,6 +665,38 @@ const notificationSchema = new Schema<INotification>(
 export const NotificationModel: Model<INotification> = mongoose.model<INotification>("Notification", notificationSchema);
 export type Notification = INotification;
 
+// Custom map pins — previously localStorage-only (client/src/components/
+// OfflineMaps.tsx), meaning a signed-in user's saved pins didn't sync
+// across devices/browsers and were lost on clearing site data or in a
+// private window. Backed by the DB now so they persist per-account.
+export interface IMapPin extends Document {
+  userId: string;
+  lat: number;
+  lng: number;
+  name: string;
+  note?: string;
+  color: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const mapPinSchema = new Schema<IMapPin>(
+  {
+    userId: { type: String, required: true, ref: "User", index: true },
+    lat: { type: Number, required: true, min: -90, max: 90 },
+    lng: { type: Number, required: true, min: -180, max: 180 },
+    name: { type: String, required: true },
+    note: { type: String },
+    color: { type: String, required: true },
+  },
+  { timestamps: true, toJSON: baseToJSON, versionKey: false }
+);
+
+mapPinSchema.index({ userId: 1, createdAt: -1 });
+
+export const MapPinModel: Model<IMapPin> = mongoose.model<IMapPin>("MapPin", mapPinSchema);
+export type MapPin = IMapPin;
+
 export async function connectMongo(uri: string) {
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(uri, {

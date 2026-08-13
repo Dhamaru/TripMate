@@ -253,10 +253,16 @@ export class AiUtilitiesService {
     try {
       if (!this.openai) throw new Error('ai_disabled');
       const client = this.openai!;
-      const prompt = `Translate the following text from ${LANGUAGE_NAMES[from] || from} to ${LANGUAGE_NAMES[to] || to}. Write the translation in the native script of ${LANGUAGE_NAMES[to] || to} (not a Romanized transliteration). Return only the translated text and optional pronunciation in a JSON format.`;
+      // Pin the exact JSON shape explicitly (key name, no prose) and force
+      // response_format: json_object — without both, gpt-4o-mini sometimes
+      // returns the translation under a different key ("translation",
+      // "text") or wrapped in prose, which silently produced an empty
+      // translatedText below.
+      const prompt = `Translate the following text from ${LANGUAGE_NAMES[from] || from} to ${LANGUAGE_NAMES[to] || to}. Write the translation in the native script of ${LANGUAGE_NAMES[to] || to} (not a Romanized transliteration). Respond with ONLY a JSON object of the exact shape {"translatedText": string, "pronunciation": string | null} — no other keys, no prose.`;
       const completion = await client.chat.completions.create({
         model: "gpt-4o-mini",
         temperature: 0,
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: prompt },
           { role: "user", content: t },
@@ -264,7 +270,9 @@ export class AiUtilitiesService {
       });
       const content = completion.choices?.[0]?.message?.content?.trim() || "{}";
       const json = this.parseJson(content);
-      const translatedText = String(json.translatedText || "");
+      // Accept a few key-name variants defensively, in case the model still
+      // deviates from the requested shape despite response_format.
+      const translatedText = String(json.translatedText || json.translation || json.text || "");
       // A malformed/differently-shaped JSON reply (wrong key name, empty
       // object) previously became a "successful" result with an empty
       // translatedText — no exception was thrown, so the NVIDIA/MyMemory
