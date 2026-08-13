@@ -29,7 +29,7 @@ const LANGUAGES = [
 interface TranslationResult {
   translatedText: string;
   pronunciation?: string;
-  source?: 'openai' | 'nvidia' | 'mymemory';
+  source?: 'openai' | 'google' | 'nvidia' | 'mymemory';
 }
 
 async function runTranslate(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult> {
@@ -166,7 +166,7 @@ export function LanguageTranslator({ className = '' }: { className?: string }) {
           <div className="p-3 border rounded bg-muted">
             <div className="flex items-center justify-between gap-2">
               <strong className="text-[#1D4E89] dark:text-blue-400">Result:</strong>
-              {translation.source && translation.source !== 'openai' && (
+              {translation.source && translation.source !== 'openai' && translation.source !== 'google' && (
                 <span
                   className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300"
                   title="Our primary translation engine is temporarily unavailable — this came from a backup source and may be less accurate for uncommon phrases."

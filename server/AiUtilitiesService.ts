@@ -242,12 +242,12 @@ export class AiUtilitiesService {
     return plan;
   }
 
-  async translate(text: string, sourceLang: string, targetLang: string): Promise<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'nvidia' | 'mymemory' }> {
+  async translate(text: string, sourceLang: string, targetLang: string): Promise<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'google' | 'nvidia' | 'mymemory' }> {
     const t = sanitize(text);
     const from = sanitize(sourceLang, 32);
     const to = sanitize(targetLang, 32);
     const key = `translate:${from}:${to}:${t}`;
-    const cached = this.getCached<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'nvidia' | 'mymemory' }>(key);
+    const cached = this.getCached<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'google' | 'nvidia' | 'mymemory' }>(key);
     if (cached) return cached;
 
     try {
@@ -281,7 +281,31 @@ export class AiUtilitiesService {
       const result = { translatedText, pronunciation: json.pronunciation ? String(json.pronunciation) : undefined, source: 'openai' as const };
       return this.setCached(key, result);
     } catch {
-      // Fallback 1: NVIDIA (reliable LLM translation). MyMemory's free
+      // Fallback 1: Google Cloud Translation — a dedicated NMT engine, not
+      // an improvising LLM, so it doesn't have the small-instruct-model
+      // failure mode below (confusing "who"/"what", swapping "I"/"you").
+      // Reuses the same GOOGLE_API_KEY already provisioned for Places —
+      // Cloud Translation just needs to be enabled + allowlisted in that
+      // key's API restrictions on the same GCP project.
+      try {
+        const googleKey = config.GOOGLE_API_KEY;
+        if (!googleKey) throw new Error('google_translate_disabled');
+        const res = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${googleKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: t, source: from === 'auto' ? undefined : from, target: to, format: 'text' }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const translated = String(json?.data?.translations?.[0]?.translatedText || '');
+          if (translated) {
+            const result = { translatedText: translated, pronunciation: undefined, source: 'google' as const };
+            return this.setCached(key, result);
+          }
+        }
+      } catch { /* fall through to NVIDIA */ }
+
+      // Fallback 2: NVIDIA (reliable LLM translation). MyMemory's free
       // crowd-sourced translation memory can return confidently wrong
       // results even for common phrases — e.g. "Thank you" -> a sentence
       // about reciting a poem, with match:1 (max confidence). NVIDIA gives
@@ -341,7 +365,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         }
       } catch { /* fall through to MyMemory */ }
 
-      // Fallback 2: MyMemory free translation API (no key required). The
+      // Fallback 3: MyMemory free translation API (no key required). The
       // `de` param registers requests against a real email, raising the
       // rate ceiling from 100 req/day (anonymous) to 10,000 words/day —
       // without it, real usage burns through the anonymous quota quickly
