@@ -1292,7 +1292,7 @@ export default function TripDetail() {
                     destination={trip.destination}
                     entryCount={tripJournalEntries.length}
                     onRecapSaved={() => queryClient.invalidateQueries({ queryKey: ['/api/v1/journal'] })}
-                    recapJournalEntry={tripJournalEntries.find(e => e.type === 'recap')}
+                    recapJournalEntry={tripJournalEntries.find(e => e.isRecap === true)}
                   />
                   <Link href="/app/journal">
                     <Button variant="outline" size="sm" className="bg-muted/50 border text-foreground hover:bg-card">

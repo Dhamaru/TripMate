@@ -226,12 +226,26 @@ export default function Journal() {
     }
   };
 
-  const handleEdit = (entry: JournalEntry) => {
+  const handleEdit = async (entry: JournalEntry) => {
+    // The list this entry came from is fetched with ?light=true, which
+    // omits `content` to keep the list response small — editing directly
+    // from that data left the textarea permanently blank (and crashed
+    // handleSubmit's `.content.trim()` on an undefined value). Fetch the
+    // full entry before opening the edit form.
     setEditingEntry(entry);
-    setEntryForm({ title: entry.title, content: entry.content, location: entry.location || "", latitude: entry.latitude?.toString() || "", longitude: entry.longitude?.toString() || "" });
+    setEntryForm({ title: entry.title, content: entry.content || "", location: entry.location || "", latitude: entry.latitude?.toString() || "", longitude: entry.longitude?.toString() || "" });
     setKeptPhotos(entry.photos || []);
     setPhotos(null);
     setIsCreateDialogOpen(true);
+    try {
+      const res = await apiRequest("GET", `/api/v1/journal/${entry.id}`);
+      if (res.ok) {
+        const full = await res.json();
+        setEntryForm(prev => ({ ...prev, content: full.content || "" }));
+        setEditingEntry(full);
+        setKeptPhotos(full.photos || []);
+      }
+    } catch { /* keep the light-list fallback already set above */ }
   };
 
   const handleDelete = (id: string) => {

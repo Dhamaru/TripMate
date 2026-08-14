@@ -235,11 +235,21 @@ export const getProactiveInsights = async (req: Request, res: Response, next: Ne
         next(error);
     }
 };
+const CURRENCY_CODE_RE = /^[A-Z]{3}$/;
+
 export const latestCurrency = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const from = String(req.query.from || req.query.base || 'USD').toUpperCase();
         const to = req.query.to ? String(req.query.to).toUpperCase() : (req.query.symbols ? String(req.query.symbols).toUpperCase() : undefined);
         const amount = parseFloat(req.query.amount as string) || 1;
+
+        // Frankfurter returns an error body (not caught as a normal JSON
+        // response) for an unrecognized code, which previously surfaced as
+        // a generic 500 "Internal server error" instead of a real 400 for
+        // what is actually bad user input.
+        if (!CURRENCY_CODE_RE.test(from) || (to && !CURRENCY_CODE_RE.test(to))) {
+            throw new BadRequestError("Currency codes must be 3-letter ISO codes (e.g. USD, INR)");
+        }
 
         if (to) {
             const url = `https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
@@ -396,7 +406,12 @@ export const getEmergencyContacts = async (req: Request, res: Response, next: Ne
                 name: s.name,
                 type: s.type,
                 address: s.address || '',
-                phone: s.phone || sos.police,
+                // Google Places Nearby Search doesn't return phone numbers,
+                // so this used to default to the country's police
+                // emergency number for every hospital/embassy/service
+                // without one — a user tapping "Call" on a hospital with no
+                // listed number would have called the police instead.
+                phone: s.phone || '',
                 distance: '—',
                 latitude: s.coordinates?.lat || 0,
                 longitude: s.coordinates?.lon || 0,

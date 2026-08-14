@@ -164,6 +164,11 @@ export interface JournalEntry {
     entryDate: string
     assignedDayIndex?: number
     contextualizationConfidence?: 'High' | 'Medium' | 'Low'
-    type?: 'entry' | 'recap'
+    // The server schema (shared/schema.ts IJournalEntry) only ever sets
+    // `isRecap: boolean` — there is no `type` field in the real API
+    // response. A `type: 'entry' | 'recap'` field was declared here but
+    // never actually populated by the server, which made
+    // `e.type === 'recap'` in TripDetail.tsx silently always false.
+    isRecap?: boolean
     createdAt: string
 }

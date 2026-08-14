@@ -16,15 +16,20 @@ interface WeatherData {
     condition: string;
     humidity: number;
     windSpeed: number;
+    wind_kph?: number;
     windDeg?: number;
     windDir?: string;
     icon?: string;
     isDay?: boolean;
-    uvi?: number;
+    uv_index?: number;
     visibility?: number;
     pressure?: number;
-    sunrise?: number;
-    sunset?: number;
+    // Server sends these pre-formatted (e.g. "6:30 AM"), not Unix
+    // timestamps — a `new Date(sunrise * 1000)` on the client silently
+    // produced "Invalid Date" for every real (non-fallback) weather
+    // response.
+    sunrise?: string;
+    sunset?: string;
   };
   forecast: Array<{
     day: string;
@@ -34,7 +39,12 @@ interface WeatherData {
     icon?: string;
   }>;
   hourly?: Array<{ hour: string; temp: number; condition: string; icon?: string }>;
-  summary?: string;
+  // The server (AiUtilitiesService.weather()) never actually sends a
+  // `summary` field — only `recommendations`. The block that used to key
+  // off `summary` was permanently dead, which meant the one context line
+  // meant to accompany a fallback estimate (e.g. "Weather data unavailable
+  // — shown estimate only") never rendered anywhere.
+  recommendations?: string[];
   source?: 'openweather' | 'ai' | 'fallback' | 'fallback-route';
 }
 
@@ -185,7 +195,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
   }
 
   const bgClass = getBackgroundGradient(weather.current.condition, weather.current.temperature, weather.current.isDay !== false);
-  const clothing = getClothingSuggestions(weather.current.temperature, weather.current.condition, weather.current.uvi);
+  const clothing = getClothingSuggestions(weather.current.temperature, weather.current.condition, weather.current.uv_index);
 
   return (
     <Card className={`border-none shadow-lg overflow-hidden transition-all duration-500 ${bgClass} ${className}`} data-testid="weather-widget">
@@ -196,10 +206,10 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
             Weather Today
           </CardTitle>
           <div className="flex items-center gap-2">
-            {weather.source === 'ai' && (
+            {(weather.source === 'ai' || weather.source === 'fallback') && (
               <span
                 className="px-2 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-100 text-xs"
-                title="No live weather provider configured — this forecast is an AI estimate from typical seasonal patterns, not real data"
+                title="No live weather provider configured — this forecast is an estimate from typical seasonal patterns, not real data for this location"
                 data-testid="weather-estimated-badge"
               >
                 Estimated
@@ -210,9 +220,9 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
         </div>
       </CardHeader>
       <CardContent>
-        {weather.summary && (
+        {weather.recommendations && weather.recommendations.length > 0 && (
           <div className="mb-6 bg-black/20 p-3 rounded-lg backdrop-blur-sm" data-testid="weather-summary">
-            <p className="text-sm text-white/90 leading-relaxed max-w-lg">{weather.summary}</p>
+            <p className="text-sm text-white/90 leading-relaxed max-w-lg">{weather.recommendations.join(' · ')}</p>
           </div>
         )}
 
@@ -254,7 +264,10 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm">
             <i className="fas fa-wind text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">Wind</p>
-            <p className="text-sm font-bold text-white">{weather.current.windSpeed} km/h</p>
+            {/* windSpeed is m/s from OpenWeather; wind_kph is the already-
+                converted value. Reading windSpeed under a "km/h" label
+                understated real wind speed by ~3.6x. */}
+            <p className="text-sm font-bold text-white">{weather.current.wind_kph ?? weather.current.windSpeed} km/h</p>
           </div>
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm">
             <i className="fas fa-tint text-white/60 mb-1"></i>
@@ -264,29 +277,31 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm">
             <i className="fas fa-sun text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">UV Index</p>
-            <p className="text-sm font-bold text-white">{weather.current.uvi ?? 'N/A'}</p>
+            <p className="text-sm font-bold text-white">{weather.current.uv_index ?? 'N/A'}</p>
           </div>
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm hidden sm:block">
             <i className="fas fa-eye text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">Visibility</p>
-            <p className="text-sm font-bold text-white">{(weather.current.visibility || 0) / 1000} km</p>
+            {/* Server already converts meters -> km; dividing by 1000 again
+                here displayed e.g. 0.01 km instead of 10 km. */}
+            <p className="text-sm font-bold text-white">{weather.current.visibility ?? 0} km</p>
           </div>
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm hidden md:block">
             <i className="fas fa-arrow-up text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">Sunrise</p>
-            <p className="text-sm font-bold text-white">{weather.current.sunrise ? new Date(weather.current.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</p>
+            <p className="text-sm font-bold text-white">{weather.current.sunrise || '--'}</p>
           </div>
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm hidden md:block">
             <i className="fas fa-arrow-down text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">Sunset</p>
-            <p className="text-sm font-bold text-white">{weather.current.sunset ? new Date(weather.current.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}</p>
+            <p className="text-sm font-bold text-white">{weather.current.sunset || '--'}</p>
           </div>
         </div>
 
         {/* Forecast */}
         <div className="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
           <p className="text-xs font-semibold text-white/80 mb-3 uppercase tracking-wider">7-Day Forecast</p>
-          <div className="grid grid-cols-7 gap-1 text-xs text-center">
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 text-xs text-center">
             {weather.forecast.map((day, index) => (
               <div key={index} data-testid={`weather-forecast-${index}`} aria-live="polite" className="flex flex-col items-center">
                 <p className="text-white/70 mb-1">{

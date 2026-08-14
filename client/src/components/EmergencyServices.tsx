@@ -154,6 +154,18 @@ export function EmergencyServices({ location = "Current Location", coords: propC
   };
 
   const handleCallService = (service: EmergencyService) => {
+    // Google Places doesn't return phone numbers for most results — this
+    // used to silently default to the country's police number, so tapping
+    // "Call" on a hospital with no listed number actually called the
+    // police. An empty number now shows the real limitation instead.
+    if (!service.phone) {
+      toast({
+        title: "No phone number available",
+        description: `${service.name} doesn't have a listed number. Try Directions instead.`,
+        variant: "destructive",
+      });
+      return;
+    }
     toast({
       title: "Calling Service",
       description: `Calling ${service.name}...`,
