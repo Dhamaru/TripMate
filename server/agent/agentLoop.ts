@@ -28,8 +28,14 @@ const MAX_ITERATIONS = 10;
 // (9-11s under load) AND correct (clean greeting, no hallucinated tool
 // calls) on either key, so it fills both NVIDIA slots. No billing change —
 // this only corrects which models our own config points at.
+// Groq removed every Llama model from their catalog (confirmed live via
+// GET /v1/models — llama-3.3-70b-versatile now 404s "does not exist").
+// openai/gpt-oss-120b verified live with the real system prompt + full
+// tool schema before swapping in: correctly calls tools when needed
+// (weather, currency, list_trips with the "my trips" rule present) and
+// correctly does NOT call a tool for plain questions/greetings.
 export const MODELS = [
-    'llama-3.3-70b-versatile',
+    'openai/gpt-oss-120b',
     'deepseek-ai/deepseek-v4-flash-0731',
     'deepseek-ai/deepseek-v4-flash-0731',
 ];

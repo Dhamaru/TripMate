@@ -215,7 +215,10 @@ export class MasterOrchestrator {
 
         try {
             const response = await this.groq.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
+                // llama-3.3-70b-versatile no longer exists on Groq's
+                // catalog (confirmed live, 404) — see agentLoop.ts for the
+                // full investigation.
+                model: 'openai/gpt-oss-120b',
                 messages: [
                     { 
                         role: 'system', 
