@@ -167,9 +167,7 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
             description: "List the user's trips. Call when they say 'my trips'/'current trips' with no trip already open.",
             parameters: {
                 type: 'object',
-                properties: {
-                    userId: { type: 'string' },
-                },
+                properties: {},
                 required: [],
             },
         },
@@ -183,7 +181,6 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
                 type: 'object',
                 properties: {
                     tripId: { type: 'string' },
-                    userId: { type: 'string' },
                 },
                 required: [],
             },
@@ -198,7 +195,6 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
                 type: 'object',
                 properties: {
                     tripId: { type: 'string' },
-                    userId: { type: 'string' },
                     itinerary: {
                         type: 'array',
                         items: {
@@ -295,7 +291,7 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
             description: 'Get traveler profile: home city, dietary needs, transport, interests.',
             parameters: {
                 type: 'object',
-                properties: { userId: { type: 'string' } },
+                properties: {},
                 required: [],
             },
         },
@@ -308,7 +304,6 @@ export const TRIPMATE_TOOLS: ChatCompletionTool[] = [
             parameters: {
                 type: 'object',
                 properties: {
-                    userId: { type: 'string' },
                     homeCity: { type: 'string' },
                     dietaryPreferences: { type: 'array', items: { type: 'string' } },
                     preferredTransport: { type: 'string' },
