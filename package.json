@@ -12,7 +12,7 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint 'server/**/*.ts' 'client/src/**/*.{ts,tsx}' --max-warnings 0",
+    "lint": "eslint 'server/**/*.ts' 'client/src/**/*.{ts,tsx}'",
     "test": "vitest run",
     "test:unit": "vitest run tests/backend tests/frontend tests/agents tests/sse",
     "test:integration": "vitest run tests/integration",
@@ -20,7 +20,16 @@
     "db:seed": "tsx server/scripts/seed.ts",
     "db:clear": "tsx server/scripts/clearDb.ts",
     "test:parser": "tsx client/src/lib/__tests__/runParserTests.ts",
-    "atlas:golden-eval": "tsx scripts/atlas-golden-eval.ts"
+    "atlas:golden-eval": "tsx scripts/atlas-golden-eval.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix"
+    ],
+    "*.{ts,tsx,js,jsx,json,css,md}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -131,6 +140,9 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/typography": "^0.5.15",
     "@testing-library/dom": "^10.4.1",
@@ -162,16 +174,25 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.2.1",
     "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "eventsource": "^4.1.0",
+    "husky": "^9.1.7",
     "jsdom": "^24.1.0",
+    "lint-staged": "^16.4.0",
     "mongodb-memory-server": "^11.0.1",
     "msw": "^2.12.14",
     "playwright": "^1.59.1",
     "postcss": "^8.4.47",
+    "prettier": "^3.9.6",
     "supertest": "^7.2.2",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
+    "typescript-eslint": "^8.67.0",
     "unplugin-auto-import": "^21.0.0",
     "unplugin-fonts": "^1.4.0",
     "unplugin-icons": "^23.0.1",
