@@ -89,7 +89,32 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        // Previously one ~1.7MB chunk with no vendor separation — every
+        // deploy invalidated the browser's cache for the entire app,
+        // including third-party code that never changes between our own
+        // releases. A single vendor/app split fixes that cache-busting
+        // problem safely.
+        //
+        // Tried splitting vendor further by package group (react-vendor,
+        // radix-vendor, motion-vendor, etc.) first — it broke at runtime
+        // ("Cannot set properties of undefined (setting 'Children')"),
+        // caught by an actual browser load, not the build or type-check.
+        // Nearly every heavy dependency here (Radix, framer-motion,
+        // recharts, react-leaflet) shares React's module singleton at
+        // import time; isolating react-dom into its own chunk broke the
+        // load-order guarantee those packages depend on. One vendor chunk
+        // preserves Rollup's natural intra-chunk ordering and still gets
+        // the real win: vendor code (which rarely changes) stays cached
+        // separately from app code (which changes every deploy).
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          return "vendor";
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
   },
   server: {
     proxy: {
