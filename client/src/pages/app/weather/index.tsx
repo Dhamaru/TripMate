@@ -16,7 +16,9 @@ export default function WeatherPage() {
   const [displayName, setDisplayName] = useState<string>(""); // human label shown in UI
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
-  const [suggestions, setSuggestions] = useState<Array<{ name: string; lat: number; lon: number }>>([]);
+  const [suggestions, setSuggestions] = useState<Array<{ name: string; lat: number; lon: number }>>(
+    [],
+  );
   const [activeIndex, setActiveIndex] = useState<number>(-1);
   const debounceRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -29,9 +31,13 @@ export default function WeatherPage() {
 
   useEffect(() => {
     // Auto-load user's location weather on mount
-    useMyLocation();
+    locateMe();
 
-    return () => { mountedRef.current = false; if (debounceRef.current) window.clearTimeout(debounceRef.current); if (abortRef.current) abortRef.current.abort(); };
+    return () => {
+      mountedRef.current = false;
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, []);
 
   function parseGeocodeResponse(json: any) {
@@ -45,7 +51,9 @@ export default function WeatherPage() {
         lat,
         lon,
         displayName:
-          (first.name ? `${first.name}${first.state ? ", " + first.state : ""}${first.country ? ", " + first.country : ""}` : null) ||
+          (first.name
+            ? `${first.name}${first.state ? ", " + first.state : ""}${first.country ? ", " + first.country : ""}`
+            : null) ||
           first.display_name ||
           `${lat},${lon}`,
       };
@@ -59,8 +67,13 @@ export default function WeatherPage() {
         lon,
         displayName:
           json.display_name ??
-          (json.address && (json.address.city || json.address.town || json.address.village || json.address.state)) ??
-          (json.name ?? ""),
+          (json.address &&
+            (json.address.city ||
+              json.address.town ||
+              json.address.village ||
+              json.address.state)) ??
+          json.name ??
+          "",
       };
     }
     // Custom shape { lat, lon, displayName }
@@ -88,7 +101,10 @@ export default function WeatherPage() {
 
   useEffect(() => {
     // cleanup any running fetch
-    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
 
     if (skipNextSuggestFetchRef.current) {
@@ -97,7 +113,11 @@ export default function WeatherPage() {
     }
 
     const q = searchLocation.trim();
-    if (!q || q.length < 3) { setSuggestions([]); setActiveIndex(-1); return; }
+    if (!q || q.length < 3) {
+      setSuggestions([]);
+      setActiveIndex(-1);
+      return;
+    }
 
     abortRef.current = new AbortController();
     debounceRef.current = window.setTimeout(async () => {
@@ -109,24 +129,35 @@ export default function WeatherPage() {
         let arr: Array<any> = [];
         if (Array.isArray(j)) arr = j;
         else if (Array.isArray(j?.results)) arr = j.results;
-        const mapped = arr.slice(0, 5).map((it: any) => ({
-          name: it.name ? `${it.name}${it.state ? ", " + it.state : ""}${it.country ? ", " + it.country : ""}` : (it.display_name || ""),
-          lat: Number(it.lat ?? it.latitude ?? it.latitude ?? it.lat),
-          lon: Number(it.lon ?? it.longitude ?? it.longitude ?? it.lon),
-        })).filter((s) => s.name && !Number.isNaN(s.lat) && !Number.isNaN(s.lon));
+        const mapped = arr
+          .slice(0, 5)
+          .map((it: any) => ({
+            name: it.name
+              ? `${it.name}${it.state ? ", " + it.state : ""}${it.country ? ", " + it.country : ""}`
+              : it.display_name || "",
+            lat: Number(it.lat ?? it.latitude ?? it.latitude ?? it.lat),
+            lon: Number(it.lon ?? it.longitude ?? it.longitude ?? it.lon),
+          }))
+          .filter((s) => s.name && !Number.isNaN(s.lat) && !Number.isNaN(s.lon));
         setSuggestions(mapped);
         setActiveIndex(-1);
       } catch (err: any) {
-        if (err?.name === 'AbortError') return;
+        if (err?.name === "AbortError") return;
         setSuggestions([]);
         setActiveIndex(-1);
       }
     }, 300);
 
-    return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; } };
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+    };
   }, [searchLocation]);
 
-  async function useMyLocation() {
+  async function locateMe() {
     if (!("geolocation" in navigator)) {
       setMessage("Geolocation not supported.");
       return;
@@ -137,9 +168,15 @@ export default function WeatherPage() {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         const t = setTimeout(() => reject(new Error("Geolocation timed out")), 10000);
         navigator.geolocation.getCurrentPosition(
-          (p) => { clearTimeout(t); resolve(p); },
-          (err) => { clearTimeout(t); reject(err); },
-          { enableHighAccuracy: false, timeout: 10000 }
+          (p) => {
+            clearTimeout(t);
+            resolve(p);
+          },
+          (err) => {
+            clearTimeout(t);
+            reject(err);
+          },
+          { enableHighAccuracy: false, timeout: 10000 },
         );
       });
 
@@ -220,7 +257,9 @@ export default function WeatherPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">Weather Insights</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">7-day forecasts and travel weather recommendations</p>
+        <p className="text-muted-foreground text-sm mt-0.5">
+          7-day forecasts and travel weather recommendations
+        </p>
       </div>
 
       <div className="bg-card rounded-2xl border border p-4 max-w-2xl">
@@ -244,29 +283,57 @@ export default function WeatherPage() {
                   handleSearch();
                 }
               }
-              if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, Math.max(0, suggestions.length - 1))); }
-              if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, -1)); }
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveIndex((i) => Math.min(i + 1, Math.max(0, suggestions.length - 1)));
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveIndex((i) => Math.max(i - 1, -1));
+              }
             }}
             placeholder="Search location (e.g., Goa, Tokyo)"
             className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#163F73]/30"
             data-testid="input-weather-location"
           />
-          <Button type="button" onClick={() => handleSearch()} className="bg-[#163F73] hover:bg-[#0F2C52] text-white" data-testid="button-weather-search" disabled={loading}>
-            {loading ? <span className="flex items-center gap-1"><i className="fas fa-spinner animate-spin" />Searching</span> : "Search"}
+          <Button
+            type="button"
+            onClick={() => handleSearch()}
+            className="bg-[#163F73] hover:bg-[#0F2C52] text-white"
+            data-testid="button-weather-search"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="flex items-center gap-1">
+                <i className="fas fa-spinner animate-spin" />
+                Searching
+              </span>
+            ) : (
+              "Search"
+            )}
           </Button>
-          <Button type="button" variant="outline" onClick={() => useMyLocation()} className="border text-foreground hover:bg-muted">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => locateMe()}
+            className="border text-foreground hover:bg-muted"
+          >
             My Location
           </Button>
         </div>
 
         {suggestions.length > 0 && (
-          <div role="listbox" aria-label="Location suggestions" className="mt-2 bg-card border border rounded-xl shadow-md">
+          <div
+            role="listbox"
+            aria-label="Location suggestions"
+            className="mt-2 bg-card border border rounded-xl shadow-md"
+          >
             {suggestions.map((s, idx) => (
               <button
                 key={`${s.name}-${idx}`}
                 role="option"
                 aria-selected={activeIndex === idx}
-                className={`w-full text-left px-3 py-2 text-sm text-foreground rounded-xl ${activeIndex === idx ? 'bg-muted' : 'hover:bg-muted'}`}
+                className={`w-full text-left px-3 py-2 text-sm text-foreground rounded-xl ${activeIndex === idx ? "bg-muted" : "hover:bg-muted"}`}
                 onMouseEnter={() => setActiveIndex(idx)}
                 onClick={() => {
                   setCoords({ lat: s.lat, lon: s.lon });
@@ -284,12 +351,27 @@ export default function WeatherPage() {
           </div>
         )}
 
-        <div className="text-center text-sm text-muted-foreground mt-3" role="status" aria-live="polite">
-          {loading ? "Searching…" : coords ? `Showing weather for ${displayName}` : message || (location ? `Showing weather for ${location}` : "Search a location to view weather")}
+        <div
+          className="text-center text-sm text-muted-foreground mt-3"
+          role="status"
+          aria-live="polite"
+        >
+          {loading
+            ? "Searching…"
+            : coords
+              ? `Showing weather for ${displayName}`
+              : message ||
+                (location
+                  ? `Showing weather for ${location}`
+                  : "Search a location to view weather")}
         </div>
       </div>
 
-      <WeatherWidget location={coords ? undefined : location} coords={coords} className="max-w-2xl" />
+      <WeatherWidget
+        location={coords ? undefined : location}
+        coords={coords}
+        className="max-w-2xl"
+      />
     </div>
   );
 }

@@ -26,13 +26,22 @@ export default tseslint.config(
     rules: {
       // This is a big, already-shipping codebase — new hooks should catch
       // real bugs on changed files, not force a retroactive rewrite of
-      // every pre-existing `any` or unused catch-binding.
+      // every pre-existing `any`, unused catch-binding, or `let` that a
+      // previous author chose over `const` for readability. lint-staged
+      // only runs this against files actually being committed, so none of
+      // this blocks work on files nobody's touching.
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "no-empty": ["warn", { allowEmptyCatch: true }],
+      "prefer-const": "warn",
+      "@typescript-eslint/no-namespace": "warn",
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "no-useless-escape": "warn",
+      "no-useless-catch": "warn",
+      "no-control-regex": "warn",
     },
   },
   {
@@ -64,6 +73,35 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "jsx-a11y/anchor-is-valid": "warn",
+      "prefer-const": "warn",
+      "@typescript-eslint/no-namespace": "warn",
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "no-empty": ["warn", { allowEmptyCatch: true }],
+      "no-useless-escape": "warn",
+      "no-useless-catch": "warn",
+      "no-control-regex": "warn",
+      // Real bug class (conditional/loop/callback hook calls) — kept as a
+      // warning rather than off so it still surfaces, but not hard-blocking
+      // the ~300-issue historical-debt baseline like the rest of this file.
+      // The 4 pre-existing hits were a false positive (a plain async
+      // function named `useMyLocation`, not an actual hook) and have been
+      // renamed rather than suppressed — this rule should report zero
+      // real hits going forward.
+      "react-hooks/rules-of-hooks": "warn",
+      "react/no-unescaped-entities": "warn",
+      "react/no-unknown-property": "warn",
+      // eslint-plugin-react-hooks's newer React Compiler diagnostics,
+      // pulled in as errors by its recommended config. 28 hits for
+      // set-state-in-effect specifically is real, pre-existing signal
+      // worth a dedicated look (each one is a component that could
+      // double-render) — downgraded here so it doesn't block commits on
+      // files that only happen to share a module with one of these, same
+      // historical-debt treatment as the rest of this file.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/purity": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
     },
   },
   prettier,

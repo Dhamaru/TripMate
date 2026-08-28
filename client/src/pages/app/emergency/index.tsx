@@ -18,7 +18,7 @@ export default function EmergencyPage() {
   const [message, setMessage] = useState<string>("");
 
   useEffect(() => {
-    useMyLocation();
+    locateMe();
   }, []);
 
   // helper to parse geocode response (supports array or single object)
@@ -32,13 +32,16 @@ export default function EmergencyPage() {
         lat: Number(first.lat ?? first.latitude ?? first.lat),
         lon: Number(first.lon ?? first.longitude ?? first.lon),
         displayName:
-          first.display_name ?? first.name ?? [first.locality, first.state, first.country]
-            .filter(Boolean)
-            .join(", "),
+          first.display_name ??
+          first.name ??
+          [first.locality, first.state, first.country].filter(Boolean).join(", "),
         shortName: shortName || first.name || "",
       };
     }
-    if (typeof json === "object" && (json.lat || json.lat === 0 || json.latitude || json.lon || json.longitude)) {
+    if (
+      typeof json === "object" &&
+      (json.lat || json.lat === 0 || json.latitude || json.lon || json.longitude)
+    ) {
       shortName = json.name ?? json.city ?? json.town ?? "";
       return {
         lat: Number(json.lat ?? json.latitude),
@@ -61,7 +64,7 @@ export default function EmergencyPage() {
     }
   }
 
-  async function useMyLocation() {
+  async function locateMe() {
     if (!navigator.geolocation) {
       setMessage("Geolocation not supported in this browser.");
       return;
@@ -97,7 +100,7 @@ export default function EmergencyPage() {
             }
           },
           (error) => reject(error),
-          { enableHighAccuracy: false, timeout: 10000 }
+          { enableHighAccuracy: false, timeout: 10000 },
         );
       });
     } catch (err: any) {
@@ -140,7 +143,9 @@ export default function EmergencyPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">Emergency Services</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Locate nearby hospitals, police, and embassies</p>
+        <p className="text-muted-foreground text-sm mt-0.5">
+          Locate nearby hospitals, police, and embassies
+        </p>
       </div>
 
       <div className="bg-card rounded-2xl border border p-4 max-w-2xl">
@@ -149,21 +154,45 @@ export default function EmergencyPage() {
             type="text"
             value={searchLocation}
             onChange={(e) => setSearchLocation(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
             placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
             className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#163F73]/30"
             data-testid="input-emergency-location"
           />
-          <Button onClick={() => handleSearch()} className="bg-[#163F73] hover:bg-[#0F2C52] text-white" data-testid="button-emergency-search" disabled={loading}>
-            {loading ? <span className="flex items-center gap-1"><i className="fas fa-spinner animate-spin" />Searching</span> : "Search"}
+          <Button
+            onClick={() => handleSearch()}
+            className="bg-[#163F73] hover:bg-[#0F2C52] text-white"
+            data-testid="button-emergency-search"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="flex items-center gap-1">
+                <i className="fas fa-spinner animate-spin" />
+                Searching
+              </span>
+            ) : (
+              "Search"
+            )}
           </Button>
-          <Button onClick={() => useMyLocation()} variant="outline" className="border text-foreground hover:bg-muted" title="Use my location" disabled={loading}>
+          <Button
+            onClick={() => locateMe()}
+            variant="outline"
+            className="border text-foreground hover:bg-muted"
+            title="Use my location"
+            disabled={loading}
+          >
             <i className="fas fa-location-arrow text-[#163F73]" />
           </Button>
         </div>
         {message && <p className="text-red-500 mt-2 text-sm">{message}</p>}
         <div className="text-sm text-muted-foreground mt-2">
-          {loading ? "Searching…" : coords ? `Emergency services near ${displayName}` : "Search a location to find nearby emergency services"}
+          {loading
+            ? "Searching…"
+            : coords
+              ? `Emergency services near ${displayName}`
+              : "Search a location to find nearby emergency services"}
         </div>
       </div>
 

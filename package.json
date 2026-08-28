@@ -13,6 +13,7 @@
     "check": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint 'server/**/*.ts' 'client/src/**/*.{ts,tsx}'",
+    "format": "prettier --write .",
     "test": "vitest run",
     "test:unit": "vitest run tests/backend tests/frontend tests/agents tests/sse",
     "test:integration": "vitest run tests/integration",
