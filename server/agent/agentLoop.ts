@@ -95,9 +95,23 @@ function classifyFallbackError(err: any): { shouldFallback: boolean; reason: str
     err?.name === "APIConnectionError" ||
     /timeout|timed out|econnreset|econnrefused|etimedout|aborted/i.test(msg);
   const isGone = err?.status === 410;
+  // OpenRouter (added as MODELS[0]) surfaces upstream-provider failures in
+  // shapes the checks above never anticipated — "Provider returned an
+  // empty response", "520 Provider returned error" — neither matches
+  // 429/410/timeout, so this used to fall through to shouldFallback:false
+  // and kill the whole request on a single transient OpenRouter hiccup
+  // instead of trying Groq/NVIDIA, live-confirmed for the empty-response
+  // case (currency-conversion golden-eval case failed outright rather
+  // than cascading). Any 5xx, or OpenRouter's own "provider returned"
+  // phrasing regardless of status code, is exactly the "try the next one"
+  // signal — treat it that way.
+  const isUpstreamProviderError =
+    (typeof err?.status === "number" && err.status >= 500 && err.status < 600) ||
+    /provider returned|empty response|bad gateway|service unavailable/i.test(msg);
   if (isQuotaOrRateLimit) return { shouldFallback: true, reason: "Quota/rate-limit" };
   if (isGone) return { shouldFallback: true, reason: "410 Gone" };
   if (isTimeoutOrConnection) return { shouldFallback: true, reason: "Timeout" };
+  if (isUpstreamProviderError) return { shouldFallback: true, reason: "Upstream provider error" };
   return { shouldFallback: false, reason: "" };
 }
 
