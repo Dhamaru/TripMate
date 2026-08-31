@@ -1,9 +1,25 @@
 import { TripMateLogo } from "@/components/TripMateLogo";
 import {
-  Route, BookOpen, CloudSun, Languages, Banknote, Shield,
-  Mountain, Armchair, Landmark, Utensils,
-  Menu, X, Lightbulb, Code, MapPin, Users, ArrowRight,
-  Check
+  Route,
+  BookOpen,
+  CloudSun,
+  Languages,
+  Banknote,
+  Shield,
+  Mountain,
+  Armchair,
+  Landmark,
+  Utensils,
+  Menu,
+  X,
+  Lightbulb,
+  Code,
+  MapPin,
+  Users,
+  ArrowRight,
+  Check,
+  Bot,
+  WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
@@ -15,7 +31,8 @@ const features = [
   {
     icon: Route,
     title: "Smart Trip Planner",
-    description: "AI-powered itinerary generation based on your preferences, budget, and travel style.",
+    description:
+      "AI-powered itinerary generation based on your preferences, budget, and travel style.",
     tag: "AI-Powered",
     iconBg: "bg-[#F7F0DD]",
     iconColor: "text-[#163F73]",
@@ -23,9 +40,21 @@ const features = [
     accentColor: "group-hover:border-[#163F73]/30",
   },
   {
+    icon: Bot,
+    title: "Atlas AI Assistant",
+    description:
+      "A 24/7 AI travel agent built into every page — ask it to check weather, convert currency, translate a phrase, or replan your itinerary, all by chat.",
+    tag: "24/7 AI",
+    iconBg: "bg-indigo-50",
+    iconColor: "text-indigo-500",
+    tagColor: "text-indigo-500 bg-indigo-50",
+    accentColor: "group-hover:border-indigo-200",
+  },
+  {
     icon: BookOpen,
     title: "Travel Journal",
-    description: "Capture memories with photos, notes, and stories. Create beautiful travel recaps.",
+    description:
+      "Capture memories with photos, notes, and stories. Create beautiful travel recaps.",
     tag: "Memories",
     iconBg: "bg-blue-50",
     iconColor: "text-blue-500",
@@ -35,7 +64,8 @@ const features = [
   {
     icon: CloudSun,
     title: "Weather Insights",
-    description: "7-day forecasts, weather alerts, and packing recommendations for any destination.",
+    description:
+      "7-day forecasts, weather alerts, and packing recommendations for any destination.",
     tag: "Real-time",
     iconBg: "bg-sky-50",
     iconColor: "text-sky-500",
@@ -71,6 +101,17 @@ const features = [
     iconColor: "text-red-500",
     tagColor: "text-red-500 bg-red-50",
     accentColor: "group-hover:border-red-200",
+  },
+  {
+    icon: WifiOff,
+    title: "Offline Maps",
+    description:
+      "Download any region before you fly and keep navigating, searching, and dropping pins with zero signal — no data plan needed abroad.",
+    tag: "No Signal Needed",
+    iconBg: "bg-teal-50",
+    iconColor: "text-teal-500",
+    tagColor: "text-teal-500 bg-teal-50",
+    accentColor: "group-hover:border-teal-200",
   },
 ];
 
@@ -127,27 +168,45 @@ export default function Landing() {
   // Debounced geocode fetch for suggestions
   useEffect(() => {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
     const q = destination.trim();
-    if (q.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    if (q.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
     debounceRef.current = window.setTimeout(async () => {
       abortRef.current = new AbortController();
       try {
-        const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`, { signal: abortRef.current.signal });
+        const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`, {
+          signal: abortRef.current.signal,
+        });
         const json = await res.json().catch(() => []);
-        const arr: any[] = Array.isArray(json) ? json : (Array.isArray(json?.results) ? json.results : []);
-        const mapped = arr.slice(0, 6).map((it: any) => ({
-          name: it.name || it.display_name?.split(',')[0] || '',
-          country: it.country || it.display_name?.split(',').slice(-1)[0]?.trim() || '',
-        })).filter((s) => s.name);
+        const arr: any[] = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.results)
+            ? json.results
+            : [];
+        const mapped = arr
+          .slice(0, 6)
+          .map((it: any) => ({
+            name: it.name || it.display_name?.split(",")[0] || "",
+            country: it.country || it.display_name?.split(",").slice(-1)[0]?.trim() || "",
+          }))
+          .filter((s) => s.name);
         setSuggestions(mapped);
         setShowSuggestions(mapped.length > 0);
         setActiveIndex(-1);
       } catch (e: any) {
-        if (e?.name !== 'AbortError') setSuggestions([]);
+        if (e?.name !== "AbortError") setSuggestions([]);
       }
     }, 280);
-    return () => { if (debounceRef.current) window.clearTimeout(debounceRef.current); };
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
   }, [destination]);
 
   useEffect(() => {
@@ -158,11 +217,14 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white text-[#16283F] font-sans-clean">
-
       {/* ── Navigation ─────────────────────────────────── */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
-        scrolled ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-[#ebebeb]" : "bg-transparent"
-      }`}>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+          scrolled
+            ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-[#ebebeb]"
+            : "bg-transparent"
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <TripMateLogo size="md" />
@@ -249,24 +311,46 @@ export default function Landing() {
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Decorative background */}
         <div className="absolute inset-0 -z-10 pointer-events-none" aria-hidden="true">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-70" style={{ background: 'radial-gradient(ellipse at center, #F7F0DD 0%, rgba(254,243,199,0.4) 50%, transparent 100%)' }} />
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-70"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, #F7F0DD 0%, rgba(254,243,199,0.4) 50%, transparent 100%)",
+            }}
+          />
           <div className="absolute top-20 left-[10%] w-48 h-48 bg-[#163F73]/5 rounded-full blur-3xl" />
           <div className="absolute top-40 right-[12%] w-64 h-64 bg-[#1D4E89]/5 rounded-full blur-3xl" />
           {/* Floating destination chips */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.6 }}
-            className="absolute top-36 left-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.6 }}
+            className="absolute top-36 left-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
+          >
             🗼 Paris, France
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0, duration: 0.6 }}
-            className="absolute top-52 right-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.0, duration: 0.6 }}
+            className="absolute top-52 right-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
+          >
             🏯 Kyoto, Japan
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 0.6 }}
-            className="absolute top-72 left-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.2, duration: 0.6 }}
+            className="absolute top-72 left-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
+          >
             🏔️ Kedarnath, India
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4, duration: 0.6 }}
-            className="absolute top-80 right-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.4, duration: 0.6 }}
+            className="absolute top-80 right-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
+          >
             🗽 New York, USA
           </motion.div>
         </div>
@@ -284,29 +368,49 @@ export default function Landing() {
               AI-Powered Travel Planning
             </div>
 
-            <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-[#16283F] leading-[1.05] tracking-tight mb-6 animate-fade-up animate-fade-up-delay-1" data-testid="hero-title">
-              Your AI Travel<br />
+            <h1
+              className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-[#16283F] leading-[1.05] tracking-tight mb-6 animate-fade-up animate-fade-up-delay-1"
+              data-testid="hero-title"
+            >
+              Your AI Travel
+              <br />
               <span className="text-gradient">Companion</span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-[#6a6a6a] mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-up animate-fade-up-delay-2" data-testid="hero-description">
+            <p
+              className="text-lg sm:text-xl text-[#6a6a6a] mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-up animate-fade-up-delay-2"
+              data-testid="hero-description"
+            >
               Plan, explore, and experience the world with TripMate's intelligent travel assistant.
               From itinerary generation to real-time guidance — your entire journey, handled.
             </p>
 
             {/* Hero search bar with autocomplete */}
-            <div className="max-w-2xl mx-auto mb-8 relative animate-fade-up animate-fade-up-delay-3" ref={searchRef}>
+            <div
+              className="max-w-2xl mx-auto mb-8 relative animate-fade-up animate-fade-up-delay-3"
+              ref={searchRef}
+            >
               <div className="flex items-center bg-white border border-[#dddddd] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] px-6 py-4 gap-4">
                 <MapPin className="w-5 h-5 text-[#163F73] flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="Where do you want to go?"
                   value={destination}
-                  onChange={(e) => { setDestination(e.target.value); }}
-                  onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                  onChange={(e) => {
+                    setDestination(e.target.value);
+                  }}
+                  onFocus={() => {
+                    if (suggestions.length > 0) setShowSuggestions(true);
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, suggestions.length - 1)); }
-                    if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, -1)); }
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+                    }
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveIndex((i) => Math.max(i - 1, -1));
+                    }
                     if (e.key === "Enter") {
                       if (activeIndex >= 0 && suggestions[activeIndex]) {
                         setDestination(suggestions[activeIndex].name);
@@ -345,14 +449,19 @@ export default function Landing() {
                       <button
                         key={idx}
                         type="button"
-                        className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${activeIndex === idx ? 'bg-[#F7F0DD]' : 'hover:bg-[#f7f7f7]'}`}
+                        className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${activeIndex === idx ? "bg-[#F7F0DD]" : "hover:bg-[#f7f7f7]"}`}
                         onMouseEnter={() => setActiveIndex(idx)}
-                        onClick={() => { setDestination(s.name); setShowSuggestions(false); }}
+                        onClick={() => {
+                          setDestination(s.name);
+                          setShowSuggestions(false);
+                        }}
                       >
                         <MapPin className="w-4 h-4 text-[#163F73] flex-shrink-0" />
                         <div>
                           <span className="text-sm font-medium text-[#16283F]">{s.name}</span>
-                          {s.country && <span className="text-xs text-[#929292] ml-2">{s.country}</span>}
+                          {s.country && (
+                            <span className="text-xs text-[#929292] ml-2">{s.country}</span>
+                          )}
                         </div>
                       </button>
                     ))}
@@ -402,11 +511,19 @@ export default function Landing() {
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">Features</p>
-            <h2 className="text-3xl md:text-5xl font-bold text-[#16283F] mb-4" data-testid="features-title">
+            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">
+              Features
+            </p>
+            <h2
+              className="text-3xl md:text-5xl font-bold text-[#16283F] mb-4"
+              data-testid="features-title"
+            >
               Everything You <span className="text-gradient">Need</span>
             </h2>
-            <p className="text-[#6a6a6a] text-lg max-w-2xl mx-auto" data-testid="features-description">
+            <p
+              className="text-[#6a6a6a] text-lg max-w-2xl mx-auto"
+              data-testid="features-description"
+            >
               Comprehensive travel tools powered by AI to make your journey seamless and memorable.
             </p>
           </div>
@@ -422,12 +539,16 @@ export default function Landing() {
                 className={`bg-white border border-[#ebebeb] rounded-3xl p-6 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 group ${feature.accentColor}`}
                 data-testid={`feature-card-${i}`}
               >
-                <div className={`w-12 h-12 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
+                <div
+                  className={`w-12 h-12 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
+                >
                   <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
                 </div>
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-base font-semibold text-[#16283F]">{feature.title}</h3>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${feature.tagColor}`}>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${feature.tagColor}`}
+                  >
                     {feature.tag}
                   </span>
                 </div>
@@ -442,20 +563,37 @@ export default function Landing() {
       <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 bg-[#f7f7f7]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">How It Works</p>
+            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">
+              How It Works
+            </p>
             <h2 className="text-3xl md:text-5xl font-bold text-[#16283F] mb-4">
               Plan Your <span className="text-gradient">Perfect Trip</span>
             </h2>
-            <p className="text-[#6a6a6a] text-lg max-w-xl mx-auto" data-testid="planner-description">
+            <p
+              className="text-[#6a6a6a] text-lg max-w-xl mx-auto"
+              data-testid="planner-description"
+            >
               Tell us your preferences and let AI create a personalized itinerary just for you.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { step: "01", title: "Set Your Preferences", desc: "Enter your destination, budget, travel style, and trip duration." },
-              { step: "02", title: "AI Builds Your Plan", desc: "Our multi-agent AI researches, drafts, and validates your itinerary against real-world constraints." },
-              { step: "03", title: "Travel & Adjust", desc: "Track expenses, write journal entries, and let Atlas AI answer questions on the go." },
+              {
+                step: "01",
+                title: "Set Your Preferences",
+                desc: "Enter your destination, budget, travel style, and trip duration.",
+              },
+              {
+                step: "02",
+                title: "AI Builds Your Plan",
+                desc: "Our multi-agent AI researches, drafts, and validates your itinerary against real-world constraints.",
+              },
+              {
+                step: "03",
+                title: "Travel & Adjust",
+                desc: "Track expenses, write journal entries, and let Atlas AI answer questions on the go.",
+              },
             ].map((item) => (
               <div key={item.step} className="bg-white border border-[#ebebeb] rounded-3xl p-6">
                 <div className="text-3xl font-bold text-[#163F73] mb-3 font-mono">{item.step}</div>
@@ -486,7 +624,8 @@ export default function Landing() {
               Ready to travel smarter?
             </h2>
             <p className="text-[#929292] text-lg mb-8 max-w-xl mx-auto">
-              Join thousands of travelers who plan faster, spend smarter, and explore deeper with TripMate.
+              Join thousands of travelers who plan faster, spend smarter, and explore deeper with
+              TripMate.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
               <button
@@ -515,21 +654,37 @@ export default function Landing() {
       </section>
 
       {/* ── Footer ─────────────────────────────────────── */}
-      <footer id="support" className="border-t border-[#ebebeb] py-14 px-4 sm:px-6 lg:px-8 bg-white">
+      <footer
+        id="support"
+        className="border-t border-[#ebebeb] py-14 px-4 sm:px-6 lg:px-8 bg-white"
+      >
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             <div className="md:col-span-2">
               <TripMateLogo size="md" className="mb-4" />
               <p className="text-sm text-[#6a6a6a] max-w-xs leading-relaxed">
-                Your intelligent travel companion powered by AI. Plan smarter, travel better, and create unforgettable memories.
+                Your intelligent travel companion powered by AI. Plan smarter, travel better, and
+                create unforgettable memories.
               </p>
             </div>
 
             <div>
               <h3 className="text-[#16283F] font-semibold text-sm mb-4">Features</h3>
               <ul className="space-y-2.5 text-sm text-[#6a6a6a]">
-                {["Trip Planner", "Travel Journal", "Weather Forecast", "Language Translator", "Emergency Services"].map((f) => (
-                  <li key={f}><a href="#features" className="hover:text-[#16283F] transition-colors">{f}</a></li>
+                {[
+                  "Trip Planner",
+                  "Atlas AI Assistant",
+                  "Travel Journal",
+                  "Offline Maps",
+                  "Weather Forecast",
+                  "Language Translator",
+                  "Emergency Services",
+                ].map((f) => (
+                  <li key={f}>
+                    <a href="#features" className="hover:text-[#16283F] transition-colors">
+                      {f}
+                    </a>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -537,10 +692,26 @@ export default function Landing() {
             <div>
               <h3 className="text-[#16283F] font-semibold text-sm mb-4">Support</h3>
               <ul className="space-y-2.5 text-sm text-[#6a6a6a]">
-                <li><a href="/app/feedback" className="hover:text-[#16283F] transition-colors">Help Center</a></li>
-                <li><a href="/privacy" className="hover:text-[#16283F] transition-colors">Privacy Policy</a></li>
-                <li><a href="/terms" className="hover:text-[#16283F] transition-colors">Terms of Service</a></li>
-                <li><a href="/app/feedback" className="hover:text-[#16283F] transition-colors">Contact Us</a></li>
+                <li>
+                  <a href="/app/feedback" className="hover:text-[#16283F] transition-colors">
+                    Help Center
+                  </a>
+                </li>
+                <li>
+                  <a href="/privacy" className="hover:text-[#16283F] transition-colors">
+                    Privacy Policy
+                  </a>
+                </li>
+                <li>
+                  <a href="/terms" className="hover:text-[#16283F] transition-colors">
+                    Terms of Service
+                  </a>
+                </li>
+                <li>
+                  <a href="/app/feedback" className="hover:text-[#16283F] transition-colors">
+                    Contact Us
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
@@ -567,8 +738,13 @@ export default function Landing() {
                   iconColor: "text-[#00a699]",
                 },
               ].map((member) => (
-                <div key={member.name} className="flex items-start gap-4 bg-[#f7f7f7] rounded-3xl p-5">
-                  <div className={`w-10 h-10 ${member.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                <div
+                  key={member.name}
+                  className="flex items-start gap-4 bg-[#f7f7f7] rounded-3xl p-5"
+                >
+                  <div
+                    className={`w-10 h-10 ${member.color} rounded-xl flex items-center justify-center flex-shrink-0`}
+                  >
                     <member.icon className={`w-5 h-5 ${member.iconColor}`} />
                   </div>
                   <div>

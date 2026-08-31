@@ -1,40 +1,64 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useAuthStore, useTripStore } from "@/store";
+import { useAuthStore, useTripStore, useAgentStore } from "@/store";
 import { Link, useLocation } from "wouter";
-import { Compass, Plus, Map, BookOpen, Grid, ArrowRight, Sparkles, Clock, Users, Wallet } from "lucide-react";
+import {
+  Compass,
+  Plus,
+  Map,
+  BookOpen,
+  Grid,
+  ArrowRight,
+  Sparkles,
+  Clock,
+  Users,
+  Wallet,
+  Bot,
+  WifiOff,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { logError } from "@/lib/logger";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 const STYLE_LABELS: Record<string, string> = {
-  adventure: "Adventure", Adventure: "Adventure",
-  cultural: "Culture & History", Cultural: "Culture & History",
-  relaxed: "Rest & Relax", Relaxed: "Rest & Relax",
-  budget: "Budget Travel", Budget: "Budget Travel",
-  luxury: "Luxury", Luxury: "Luxury",
-  family: "Family Trip", Family: "Family Trip",
+  adventure: "Adventure",
+  Adventure: "Adventure",
+  cultural: "Culture & History",
+  Cultural: "Culture & History",
+  relaxed: "Rest & Relax",
+  Relaxed: "Rest & Relax",
+  budget: "Budget Travel",
+  Budget: "Budget Travel",
+  luxury: "Luxury",
+  Luxury: "Luxury",
+  family: "Family Trip",
+  Family: "Family Trip",
 };
 
 const quickActions = [
-  { title: "Plan Trip",  icon: Plus,     href: "/app/planner", tint: "icon-tint-amber" },
-  { title: "Journal",   icon: BookOpen,  href: "/app/journal", tint: "icon-tint-blue" },
-  { title: "Tools",     icon: Grid,      href: "/app/tools",   tint: "icon-tint-purple" },
-  { title: "Maps",      icon: Map,       href: "/app/maps",    tint: "icon-tint-orange" },
+  { title: "Plan Trip", icon: Plus, href: "/app/planner", tint: "icon-tint-amber" },
+  { title: "Journal", icon: BookOpen, href: "/app/journal", tint: "icon-tint-blue" },
+  { title: "Tools", icon: Grid, href: "/app/tools", tint: "icon-tint-purple" },
+  { title: "Maps", icon: Map, href: "/app/maps", tint: "icon-tint-orange" },
 ];
 
 export default function Home() {
   const { user } = useAuthStore();
   const { trips, fetchTrips, isLoading: tripsLoading, error } = useTripStore();
+  const toggleAtlasChat = useAgentStore((s) => s.toggleChat);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  useEffect(() => { fetchTrips(); }, [fetchTrips]);
+  useEffect(() => {
+    fetchTrips();
+  }, [fetchTrips]);
 
   useEffect(() => {
     if (error) {
       toast({ title: "Error", description: error, variant: "destructive" });
-      try { logError("home_trips_error", { message: error }); } catch {}
+      try {
+        logError("home_trips_error", { message: error });
+      } catch {}
     }
   }, [error, toast]);
 
@@ -45,16 +69,20 @@ export default function Home() {
 
   return (
     <div className="space-y-9">
-
       {/* ── Welcome ──────────────────────────────────── */}
       <div className="animate-fade-up">
         <p className="label-xs text-[hsl(var(--muted-foreground))] mb-1">{greeting}</p>
         <h1 className="font-display text-4xl font-bold text-[hsl(var(--foreground))] leading-tight">
           {user?.firstName || "Explorer"}
-          {!trips || trips.length === 0
-            ? <span className="block text-[hsl(var(--muted-foreground))] text-2xl font-normal italic mt-0.5">where to next?</span>
-            : <span className="block text-[hsl(var(--muted-foreground))] text-2xl font-normal italic mt-0.5">welcome back.</span>
-          }
+          {!trips || trips.length === 0 ? (
+            <span className="block text-[hsl(var(--muted-foreground))] text-2xl font-normal italic mt-0.5">
+              where to next?
+            </span>
+          ) : (
+            <span className="block text-[hsl(var(--muted-foreground))] text-2xl font-normal italic mt-0.5">
+              welcome back.
+            </span>
+          )}
         </h1>
       </div>
 
@@ -101,7 +129,9 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
                 <Wallet className="w-3.5 h-3.5" />
-                <span className="text-xs font-mono-data">₹{currentTrip.budget?.toLocaleString()}</span>
+                <span className="text-xs font-mono-data">
+                  ₹{currentTrip.budget?.toLocaleString()}
+                </span>
               </div>
             </div>
             <button className="flex items-center gap-1 text-[var(--amber)] text-xs font-semibold hover:gap-2 transition-all duration-150 font-sans-clean">
@@ -118,13 +148,57 @@ export default function Home() {
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
               <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] p-5 flex flex-col items-start gap-3 card-hover-glow cursor-pointer group">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${action.tint} group-hover:scale-110 transition-transform duration-200`}>
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${action.tint} group-hover:scale-110 transition-transform duration-200`}
+                >
                   <action.icon className="w-5 h-5" />
                 </div>
-                <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] font-sans-clean">{action.title}</span>
+                <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] font-sans-clean">
+                  {action.title}
+                </span>
               </div>
             </Link>
           ))}
+        </div>
+      </div>
+
+      {/* ── Spotlight: Atlas AI + Offline Maps ────────── */}
+      <div className="animate-fade-up animate-fade-up-delay-2">
+        <p className="label-xs text-[hsl(var(--muted-foreground))] mb-4">Built for the road</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={toggleAtlasChat}
+            className="text-left bg-[hsl(var(--card))] rounded-2xl border border-[hsl(var(--border))] p-5 flex items-start gap-4 card-hover-glow cursor-pointer group"
+          >
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center icon-tint-green flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-[hsl(var(--foreground))] font-sans-clean">
+                Ask Atlas anything
+              </p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 leading-relaxed font-sans-clean">
+                Your AI travel agent — weather, translations, budgets, and itinerary changes, all by
+                chat.
+              </p>
+            </div>
+          </button>
+
+          <Link href="/app/maps">
+            <div className="bg-[hsl(var(--card))] rounded-2xl border border-[hsl(var(--border))] p-5 flex items-start gap-4 card-hover-glow cursor-pointer group">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center icon-tint-orange flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                <WifiOff className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-[hsl(var(--foreground))] font-sans-clean">
+                  Download maps for offline
+                </p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 leading-relaxed font-sans-clean">
+                  Save any region before you fly — navigate, search, and drop pins with zero signal.
+                </p>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
 
@@ -147,7 +221,7 @@ export default function Home() {
                 <Link key={t.id} href={`/app/trips/${t.id}`}>
                   <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] px-4 py-3 flex items-center gap-3 card-hover-glow cursor-pointer group">
                     <span className="text-[11px] text-[hsl(var(--muted-foreground))] w-5 text-right font-display italic flex-shrink-0">
-                      {String(idx + 1).padStart(2, '0')}
+                      {String(idx + 1).padStart(2, "0")}
                     </span>
                     <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#0F2C52] flex-shrink-0">
                       {t.imageUrl ? (
@@ -168,14 +242,22 @@ export default function Home() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[hsl(var(--foreground))] truncate text-sm font-sans-clean">{t.destination}</p>
-                      <p className="text-[hsl(var(--muted-foreground))] text-xs capitalize font-sans-clean">{t.travelStyle}</p>
+                      <p className="font-semibold text-[hsl(var(--foreground))] truncate text-sm font-sans-clean">
+                        {t.destination}
+                      </p>
+                      <p className="text-[hsl(var(--muted-foreground))] text-xs capitalize font-sans-clean">
+                        {t.travelStyle}
+                      </p>
                     </div>
-                    <span className={`status-badge ${
-                      t.status === "completed" ? "status-completed" :
-                      t.status === "active"    ? "status-active"    :
-                                                 "status-planning"
-                    }`}>
+                    <span
+                      className={`status-badge ${
+                        t.status === "completed"
+                          ? "status-completed"
+                          : t.status === "active"
+                            ? "status-active"
+                            : "status-planning"
+                      }`}
+                    >
                       {t.status}
                     </span>
                   </div>
@@ -191,7 +273,9 @@ export default function Home() {
           <div className="w-14 h-14 icon-tint-amber rounded-2xl flex items-center justify-center mb-5">
             <Plus className="w-7 h-7" />
           </div>
-          <h2 className="font-display text-2xl font-bold text-[hsl(var(--foreground))] mb-2">No adventures yet</h2>
+          <h2 className="font-display text-2xl font-bold text-[hsl(var(--foreground))] mb-2">
+            No adventures yet
+          </h2>
           <p className="text-[hsl(var(--muted-foreground))] text-sm max-w-xs mb-7 font-sans-clean">
             Your first great journey is one plan away. Let Atlas craft your itinerary.
           </p>

@@ -1,12 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 import AppRoutes from "@/components/AppRoutes";
-import { useAuthStore } from './store';
-import { AgentOverlayPanel } from './components/agent/AgentOverlayPanel';
-import { AtlasTriggerButton } from './components/agent/AtlasTriggerButton';
-import { useLocation } from 'wouter';
+import { useAuthStore, useAgentStore } from "./store";
+import { AgentOverlayPanel } from "./components/agent/AgentOverlayPanel";
+import { AtlasTriggerButton } from "./components/agent/AtlasTriggerButton";
+import { useLocation } from "wouter";
 
 function App() {
   const { checkSession, isAuthenticated } = useAuthStore();
+  const isChatOpen = useAgentStore((s) => s.isChatOpen);
   const [location] = useLocation();
 
   useEffect(() => {
@@ -14,7 +15,7 @@ function App() {
   }, [checkSession]);
 
   // Only show Atlas on authenticated app pages.
-  const showAtlas = isAuthenticated && location.startsWith('/app');
+  const showAtlas = isAuthenticated && location.startsWith("/app");
   // /app/maps runs its own full-bleed "focus mode" layout with a bottom
   // sheet that already occupies the same bottom-right zone the floating
   // trigger button would float in — hide just the button there. The panel
@@ -23,7 +24,10 @@ function App() {
   // mounted — gating it the same way as the button silently broke the
   // keyboard shortcut on /app/maps entirely, contradicting the "still
   // reachable via Ctrl+K" this exclusion was meant to preserve.
-  const showAtlasButton = showAtlas && !location.startsWith('/app/maps');
+  // Hidden while the chat panel itself is open — the panel already has its
+  // own close (X) control, and the trigger otherwise sits fixed on top of
+  // the panel's own send button in the same bottom-right corner.
+  const showAtlasButton = showAtlas && !location.startsWith("/app/maps") && !isChatOpen;
 
   return (
     <main id="main">
