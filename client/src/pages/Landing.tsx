@@ -49,6 +49,7 @@ const features = [
     iconColor: "text-indigo-500",
     tagColor: "text-indigo-500 bg-indigo-50",
     accentColor: "group-hover:border-indigo-200",
+    span: "lg:col-span-2 lg:row-span-2",
   },
   {
     icon: BookOpen,
@@ -112,6 +113,7 @@ const features = [
     iconColor: "text-teal-500",
     tagColor: "text-teal-500 bg-teal-50",
     accentColor: "group-hover:border-teal-200",
+    span: "lg:col-span-2",
   },
 ];
 
@@ -128,6 +130,37 @@ const navLinks = [
   { name: "Support", href: "#support" },
 ];
 
+function DestinationCard({
+  d,
+}: {
+  d: { destination: string; imageUrl: string; tripCount: number };
+}) {
+  // Some stored trip images point at an expired/rotated API key or a
+  // since-invalidated Google photo_reference (live-confirmed on real data)
+  // — hide that one card on load failure rather than showing a broken
+  // image icon in a public showcase.
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div className="relative flex-shrink-0 w-64 h-40 rounded-2xl overflow-hidden group shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)]">
+      <img
+        src={d.imageUrl}
+        alt={d.destination}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+      <div className="absolute bottom-3.5 left-4 right-4">
+        <p className="text-white font-semibold text-sm truncate">{d.destination}</p>
+        <p className="text-white/70 text-xs mt-0.5">
+          {d.tripCount} {d.tripCount === 1 ? "trip" : "trips"} planned
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const { isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
@@ -141,10 +174,33 @@ export default function Landing() {
   const debounceRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const [stats, setStats] = useState<{
+    tripsPlanned: number;
+    destinationsPlanned: number;
+    travelers: number;
+  } | null>(null);
+  const [topDestinations, setTopDestinations] = useState<
+    Array<{ destination: string; imageUrl: string; tripCount: number }>
+  >([]);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) navigate("/app/home");
   }, [isAuthenticated, isLoading, navigate]);
+
+  // Real numbers, not marketing copy — both endpoints already exclude
+  // QA/guest accounts and leftover scratch data server-side. Fails
+  // silently (row/strip just doesn't render) rather than showing a
+  // loading spinner or a fake placeholder number.
+  useEffect(() => {
+    fetch("/api/v1/public/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data && setStats(data))
+      .catch(() => {});
+    fetch("/api/v1/public/top-destinations")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data?.destinations && setTopDestinations(data.destinations))
+      .catch(() => {});
+  }, []);
 
   const goToSignup = () => {
     const params = new URLSearchParams();
@@ -507,6 +563,52 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Live stats bar ─────────────────────────────── */}
+      {stats && (
+        <section className="border-y border-[#ebebeb] bg-[#f7f7f7] py-8 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto grid grid-cols-3 gap-4 text-center">
+            {[
+              { value: stats.tripsPlanned, label: "Trips planned" },
+              { value: stats.destinationsPlanned, label: "Destinations" },
+              { value: stats.travelers, label: "Travelers" },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p className="font-display text-3xl sm:text-4xl font-bold text-[#16283F] tabular-nums">
+                  {stat.value.toLocaleString()}
+                  <span className="text-[#163F73]">+</span>
+                </p>
+                <p className="text-[#6a6a6a] text-xs sm:text-sm mt-1 uppercase tracking-wide">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Destination showcase ───────────────────────── */}
+      {topDestinations.length > 0 && (
+        <section className="py-16 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 text-center">
+            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">
+              Where travelers are going
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#16283F]">
+              Real trips, <span className="text-gradient">real destinations</span>
+            </h2>
+          </div>
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-white to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-white to-transparent z-10" />
+            <div className="flex gap-4 w-max animate-marquee">
+              {[...topDestinations, ...topDestinations].map((d, i) => (
+                <DestinationCard key={`${d.destination}-${i}`} d={d} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Features ───────────────────────────────────── */}
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
@@ -528,33 +630,50 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((feature, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.35, delay: i * 0.05 }}
-                className={`bg-white border border-[#ebebeb] rounded-3xl p-6 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 group ${feature.accentColor}`}
-                data-testid={`feature-card-${i}`}
-              >
-                <div
-                  className={`w-12 h-12 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
+          {/* Bento grid: Atlas AI (2x2) and Offline Maps (2x1) — the two
+              differentiators a generic travel app doesn't have — anchor the
+              grid as bigger tiles; row-dense packing lets the six 1x1 cards
+              fill in around them regardless of array order. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 lg:grid-flow-row-dense gap-5">
+            {features.map((feature, i) => {
+              const isLarge = Boolean(feature.span);
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.35, delay: i * 0.05 }}
+                  className={`bg-white border border-[#ebebeb] rounded-3xl p-6 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 group flex flex-col ${isLarge ? "lg:p-8 lg:justify-center" : ""} ${feature.span ?? ""} ${feature.accentColor}`}
+                  data-testid={`feature-card-${i}`}
                 >
-                  <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
-                </div>
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-base font-semibold text-[#16283F]">{feature.title}</h3>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${feature.tagColor}`}
+                  <div
+                    className={`${isLarge ? "w-16 h-16 lg:w-20 lg:h-20" : "w-12 h-12"} ${feature.iconBg} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
                   >
-                    {feature.tag}
-                  </span>
-                </div>
-                <p className="text-sm text-[#6a6a6a] leading-relaxed">{feature.description}</p>
-              </motion.div>
-            ))}
+                    <feature.icon
+                      className={`${isLarge ? "w-8 h-8 lg:w-10 lg:h-10" : "w-6 h-6"} ${feature.iconColor}`}
+                    />
+                  </div>
+                  <div className="flex items-start justify-between mb-2">
+                    <h3
+                      className={`font-semibold text-[#16283F] ${isLarge ? "text-xl lg:text-2xl" : "text-base"}`}
+                    >
+                      {feature.title}
+                    </h3>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${feature.tagColor}`}
+                    >
+                      {feature.tag}
+                    </span>
+                  </div>
+                  <p
+                    className={`text-[#6a6a6a] leading-relaxed ${isLarge ? "text-base lg:text-lg" : "text-sm"}`}
+                  >
+                    {feature.description}
+                  </p>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>

@@ -33,6 +33,47 @@ router.get("/atlas/health", toolsController.atlasHealth);
 
 /**
  * @swagger
+ * /public/stats:
+ *   get:
+ *     tags: [Public]
+ *     summary: Real, live platform stats for the landing page (trips planned, destinations, travelers) — QA/guest accounts excluded
+ *     responses:
+ *       200:
+ *         description: stats object
+ */
+router.get("/public/stats", toolsController.getPublicStats);
+
+/**
+ * @swagger
+ * /public/top-destinations:
+ *   get:
+ *     tags: [Public]
+ *     summary: Most-planned real destinations with a representative trip image, for the landing page showcase
+ *     responses:
+ *       200:
+ *         description: destinations array
+ */
+router.get("/public/top-destinations", toolsController.getTopDestinations);
+
+/**
+ * @swagger
+ * /public/destination-image:
+ *   get:
+ *     tags: [Public]
+ *     summary: Same-origin proxy for a top-destination's photo — keeps the upstream Google Places URL (and its embedded API key) off the public client
+ *     parameters:
+ *       - in: query
+ *         name: d
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: image bytes
+ */
+router.get("/public/destination-image", toolsController.getDestinationImage);
+
+/**
+ * @swagger
  * /ping:
  *   get:
  *     tags: [Health]
