@@ -38,8 +38,14 @@ but unfunded. Deployed on Render: https://tripmate-ylt6.onrender.com
 
 - None currently tracked as open. (Update this section as new ones surface; remove entries once fixed and delete instead of leaving a stale "fixed" note — git history has the record.)
 
+## Non-obvious facts (cont.)
+
+- **`Object.entries(req.body)` / `Object.assign(doc, req.body)` into a Mongo `$set` or a Mongoose document is a recurring vulnerability pattern in this codebase** — found 4 times (updateExpense, updateActivity, createPackingList, updatePackingList) before all were fixed with an explicit field allowlist. Grep for `Object.entries(` / `Object.assign(` near a `.save()` or `$set` before adding a new mutation route.
+- **`validate.ts` now actually strips unknown body/query/param keys** (fixed 2026-09-01) — previously it ran `schema.parseAsync()` for its side effect of throwing on bad input but discarded the parsed result, so every Zod-validated route in the app accepted arbitrary extra keys through validation. If a controller ever seems to need a field the schema doesn't declare, add it to the schema — don't work around this middleware.
+
 ## Recent work log (most recent first — trim entries older than ~4-6 weeks)
 
+- **2026-09-01**: Fresh 2-agent security audit found 5 more real vulnerabilities: `validate.ts` not stripping unknown keys (app-wide), `updateExpense`/`updateActivity` unconstrained `$set` field injection, `createPackingList` IDOR (attach a list to any trip), `updatePackingList` ownership-hijack via `Object.assign`, `UserMemoryModel` missing from account-deletion cascade. All fixed and live-verified against dev DB. Commit `d638cf9`.
 - **2026-09-01**: Fixed collaborative-edit race condition on Trip itinerary/expenses (see "Non-obvious facts" above). Live-verified against dev MongoDB: 10 concurrent writes, no lost updates, no duplicate day entries. Commit `9144e4b`.
 - **2026-08-31**: Brought README/ARCHITECTURE/AGENT_PROMPTS/API/PROJECT_RULES docs up to date with real system (was describing a fictional 4-stage agent pipeline, Groq-only LLM claim, `DATABASE_URL` instead of `MONGODB_URI`, disk-based uploads). Commit `f33adc2`.
 - **2026-08-31**: Found and fixed a live `GOOGLE_API_KEY` leak in `trips.controller.ts` (`fetchImageForTrip`, `mapGooglePlace`) during production verification — 2 more instances of a pattern already fixed once elsewhere. Migrated 3 already-affected production trips. Commit `48dd1e3`.
