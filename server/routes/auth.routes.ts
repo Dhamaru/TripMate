@@ -4,7 +4,12 @@ import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { getCsrfToken } from "../middleware/csrf.middleware";
 import { authLimiter } from "../middleware/rateLimit.middleware";
-import { signInSchema, signUpSchema } from "../schemas/auth.schemas";
+import {
+  signInSchema,
+  signUpSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from "../schemas/auth.schemas";
 import passport from "passport";
 import { config as appConfig } from "../config";
 import multer from "multer";
@@ -22,9 +27,9 @@ const router = Router();
 // stack that's actually persistent. memoryStorage keeps the upload in
 // req.file.buffer instead of writing it anywhere.
 const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    fileFilter: imageFileFilter,
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: imageFileFilter,
 });
 
 // Public routes
@@ -33,8 +38,18 @@ router.post("/signup", authLimiter, validate(signUpSchema), authController.signu
 router.post("/signin", authLimiter, validate(signInSchema), authController.signin);
 router.post("/guest", authLimiter, authController.guestSignin);
 router.post("/signout", authController.signout);
-router.post("/forgot-password", authLimiter, authController.forgotPassword);
-router.post("/reset-password", authLimiter, authController.resetPassword);
+router.post(
+  "/forgot-password",
+  authLimiter,
+  validate(forgotPasswordSchema),
+  authController.forgotPassword,
+);
+router.post(
+  "/reset-password",
+  authLimiter,
+  validate(resetPasswordSchema),
+  authController.resetPassword,
+);
 
 router.get("/providers", (_req, res) => {
   res.json({ google: !!(appConfig.GOOGLE_CLIENT_ID && appConfig.GOOGLE_CLIENT_SECRET) });
@@ -52,9 +67,12 @@ router.get(
     if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
       return res.redirect("/signin?error=google_not_configured");
     }
-    passport.authenticate("google", { session: false, failureRedirect: "/signin?error=auth_failed" })(req, res, next);
+    passport.authenticate("google", {
+      session: false,
+      failureRedirect: "/signin?error=auth_failed",
+    })(req, res, next);
   },
-  authController.googleCallback
+  authController.googleCallback,
 );
 
 // Protected routes
@@ -75,7 +93,7 @@ router.post("/google/disconnect", requireAuth, async (req, res, next) => {
     const user = await UserModel.findByIdAndUpdate(
       userId,
       { $unset: { googleId: 1 }, $set: { googleConnected: false } },
-      { new: true }
+      { new: true },
     );
     res.json(user);
   } catch (err) {
@@ -102,15 +120,17 @@ router.get("/sessions", requireAuth, async (req, res) => {
       expiresAt: { $gt: new Date() },
     }).sort({ createdAt: -1 });
 
-    res.json(sessions.map((s) => ({
-      id: s.sessionId,
-      userAgent: s.userAgent || null,
-      ip: s.ip || null,
-      device: s.device || null,
-      expiresAt: s.expiresAt.toISOString(),
-      createdAt: s.createdAt.toISOString(),
-      isCurrent: s.sessionId === currentSid,
-    })));
+    res.json(
+      sessions.map((s) => ({
+        id: s.sessionId,
+        userAgent: s.userAgent || null,
+        ip: s.ip || null,
+        device: s.device || null,
+        expiresAt: s.expiresAt.toISOString(),
+        createdAt: s.createdAt.toISOString(),
+        isCurrent: s.sessionId === currentSid,
+      })),
+    );
   } catch {
     res.status(500).json({ error: "Failed to fetch sessions" });
   }

@@ -1,8 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import {
-  UserModel, SessionModel, TripModel, JournalEntryModel,
-  PackingListModel, PackingListTemplateModel, AtlasConversationModel,
-  NotificationModel, FeedbackModel,
+  UserModel,
+  SessionModel,
+  TripModel,
+  JournalEntryModel,
+  PackingListModel,
+  PackingListTemplateModel,
+  AtlasConversationModel,
+  NotificationModel,
+  FeedbackModel,
 } from "@shared/schema";
 import { BadRequestError, UnauthorizedError, NotFoundError, TooManyRequestsError } from "../errors";
 import { hashPassword, comparePasswords } from "../auth";
@@ -17,15 +23,21 @@ const JWT_EXPIRY = "7d";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 const ALLOWED_PROFILE_FIELDS = new Set([
-  "firstName", "lastName", "phoneNumber", "homeCity",
-  "dietaryPreferences", "interests", "preferredTransport", "travelStyle",
+  "firstName",
+  "lastName",
+  "phoneNumber",
+  "homeCity",
+  "dietaryPreferences",
+  "interests",
+  "preferredTransport",
+  "travelStyle",
   "mutedNotificationTypes",
 ]);
 
 function setAuthCookie(req: Request, res: Response, token: string) {
-  const isLocalhost = req.hostname === 'localhost' || req.hostname === '127.0.0.1';
+  const isLocalhost = req.hostname === "localhost" || req.hostname === "127.0.0.1";
   const isSecure = config.NODE_ENV === "production" && !isLocalhost;
-  
+
   res.cookie("token", token, {
     httpOnly: true,
     secure: isSecure,
@@ -39,8 +51,14 @@ function clearAuthCookie(res: Response) {
   res.clearCookie("token", { path: "/" });
 }
 
+function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 function signToken(userId: string, sessionId: string, extra: Record<string, unknown> = {}) {
-  return jwt.sign({ sub: userId, sid: sessionId, ...extra }, config.JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  return jwt.sign({ sub: userId, sid: sessionId, ...extra }, config.JWT_SECRET, {
+    expiresIn: JWT_EXPIRY,
+  });
 }
 
 /** Issues a token AND its backing SessionModel row in one call — every
@@ -79,7 +97,12 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       // already uses instead — it proves the caller controls the inbox
       // before any password is set.
       const resetToken = crypto.randomBytes(32).toString("hex");
-      existingUser.resetPasswordToken = resetToken;
+      // The raw token only ever needs to exist in the emailed URL — storing
+      // it verbatim in Mongo means any DB read (backup, snapshot, breach)
+      // hands over a working account-takeover token for every pending
+      // reset. Store its hash instead, same pattern SessionModel.tokenHash
+      // already uses.
+      existingUser.resetPasswordToken = hashResetToken(resetToken);
       existingUser.resetPasswordExpires = new Date(Date.now() + 3_600_000);
       await existingUser.save();
       const { sendPasswordResetEmail } = await import("../email");
@@ -137,7 +160,9 @@ export const signin = async (req: Request, res: Response, next: NextFunction) =>
     const user = await UserModel.findOne({ email: normalizedEmail });
 
     // Return same error for both "not found" and "wrong password" — prevents user enumeration
-    const invalidCreds = () => { throw new UnauthorizedError("Invalid credentials"); };
+    const invalidCreds = () => {
+      throw new UnauthorizedError("Invalid credentials");
+    };
 
     if (!user || !user.password) return invalidCreds();
 
@@ -178,13 +203,17 @@ export const signout = async (req: Request, res: Response, next: NextFunction) =
   try {
     const token = req.cookies?.token;
     if (token) {
-      const decoded = jwt.decode(token) as { sid?: string } | null;
+      // jwt.decode() doesn't check the signature — a forged/tampered cookie
+      // with an arbitrary sid would still get its target session revoked.
+      // jwt.verify() only proceeds for a token this server actually signed.
+      const decoded = jwt.verify(token, config.JWT_SECRET) as { sid?: string };
       if (decoded?.sid) {
         await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
       }
     }
   } catch {
-    // Non-fatal — logging out should still succeed even if revocation lookup fails
+    // Non-fatal — logging out should still succeed even if the cookie is
+    // missing, expired, or fails verification
   }
   clearAuthCookie(res);
   req.logout((err) => {
@@ -217,13 +246,15 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
   try {
     const { email } = req.body;
     // Always return the same response — prevents email enumeration
-    const genericResponse = { message: "If this email is registered, a password reset link has been sent." };
+    const genericResponse = {
+      message: "If this email is registered, a password reset link has been sent.",
+    };
 
     const user = await UserModel.findOne({ email: email.toLowerCase().trim() });
     if (!user) return res.json(genericResponse);
 
     const token = crypto.randomBytes(32).toString("hex");
-    user.resetPasswordToken = token;
+    user.resetPasswordToken = hashResetToken(token);
     user.resetPasswordExpires = new Date(Date.now() + 3_600_000); // 1 hour
     await user.save();
 
@@ -240,7 +271,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
   try {
     const { token, password } = req.body;
     const user = await UserModel.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: hashResetToken(token),
       resetPasswordExpires: { $gt: new Date() },
     });
 
@@ -278,7 +309,7 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
   try {
     // Only allow safe profile fields — prevent privilege escalation
     const updates = Object.fromEntries(
-      Object.entries(req.body).filter(([key]) => ALLOWED_PROFILE_FIELDS.has(key))
+      Object.entries(req.body).filter(([key]) => ALLOWED_PROFILE_FIELDS.has(key)),
     );
 
     if (Object.keys(updates).length === 0) {
@@ -288,7 +319,7 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     const user = await UserModel.findByIdAndUpdate(
       req.user!._id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     res.json(user);
   } catch (error) {
@@ -328,7 +359,8 @@ export const uploadAvatar = async (req: Request, res: Response, next: NextFuncti
     // memoryStorage comment in auth.routes.ts for why this isn't written
     // to disk. <img src> renders a data: URI exactly like a normal URL, no
     // client changes needed.
-    if (req.file) avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    if (req.file)
+      avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     if (!avatarUrl) throw new BadRequestError("No avatar provided");
 
     // Two fields have historically tracked the user's picture: `avatar`
@@ -340,7 +372,7 @@ export const uploadAvatar = async (req: Request, res: Response, next: NextFuncti
     const user = await UserModel.findByIdAndUpdate(
       req.user!._id,
       { avatar: avatarUrl, profileImageUrl: avatarUrl },
-      { new: true }
+      { new: true },
     );
     res.json(user);
   } catch (error) {
@@ -352,17 +384,27 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
   try {
     const userId = req.user!._id;
 
-    const [user, trips, journalEntries, packingLists, packingListTemplates, atlasConversations, notifications, feedback] =
-      await Promise.all([
-        UserModel.findById(userId).select("-password -resetPasswordToken -resetPasswordExpires").lean(),
-        TripModel.find({ userId }).lean(),
-        JournalEntryModel.find({ userId }).lean(),
-        PackingListModel.find({ userId }).lean(),
-        PackingListTemplateModel.find({ userId }).lean(),
-        AtlasConversationModel.find({ userId }).lean(),
-        NotificationModel.find({ userId }).lean(),
-        FeedbackModel.find({ userId }).lean(),
-      ]);
+    const [
+      user,
+      trips,
+      journalEntries,
+      packingLists,
+      packingListTemplates,
+      atlasConversations,
+      notifications,
+      feedback,
+    ] = await Promise.all([
+      UserModel.findById(userId)
+        .select("-password -resetPasswordToken -resetPasswordExpires")
+        .lean(),
+      TripModel.find({ userId }).lean(),
+      JournalEntryModel.find({ userId }).lean(),
+      PackingListModel.find({ userId }).lean(),
+      PackingListTemplateModel.find({ userId }).lean(),
+      AtlasConversationModel.find({ userId }).lean(),
+      NotificationModel.find({ userId }).lean(),
+      FeedbackModel.find({ userId }).lean(),
+    ]);
 
     if (!user) throw new NotFoundError("User not found");
 
@@ -405,8 +447,24 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
       }
     }
 
-    await UserModel.findByIdAndDelete(req.user!._id);
-    await SessionModel.deleteMany({ userId: req.user!._id });
+    // Previously only User + Session rows were removed — every trip, journal
+    // entry, packing list, Atlas conversation, notification, and feedback
+    // row the account owned was left behind permanently (a GDPR right-to-
+    // erasure gap, and orphaned data that could resurface elsewhere, e.g. a
+    // deleted user's old trip still matching a collaborator-list query).
+    // Same model list exportUserData aggregates, cascaded instead of read.
+    const deletedUserId = req.user!._id;
+    await Promise.all([
+      TripModel.deleteMany({ userId: deletedUserId }),
+      JournalEntryModel.deleteMany({ userId: deletedUserId }),
+      PackingListModel.deleteMany({ userId: deletedUserId }),
+      PackingListTemplateModel.deleteMany({ userId: deletedUserId }),
+      AtlasConversationModel.deleteMany({ userId: deletedUserId }),
+      NotificationModel.deleteMany({ userId: deletedUserId }),
+      FeedbackModel.deleteMany({ userId: deletedUserId }),
+      SessionModel.deleteMany({ userId: deletedUserId }),
+    ]);
+    await UserModel.findByIdAndDelete(deletedUserId);
     clearAuthCookie(res);
     req.session.destroy(() => res.json({ message: "Account deleted successfully" }));
   } catch (error) {
