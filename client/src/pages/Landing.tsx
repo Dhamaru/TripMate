@@ -114,9 +114,17 @@ function DestinationCard({
   // — hide that one card on load failure rather than showing a broken
   // image icon in a public showcase.
   const [failed, setFailed] = useState(false);
+  const [, navigate] = useLocation();
   if (failed) return null;
   return (
-    <div className="relative flex-shrink-0 w-64 h-40 rounded-2xl overflow-hidden group border border-[hsl(var(--border))]">
+    <button
+      // A real destination someone already planned for is a stronger
+      // signup prompt than a generic CTA — clicking one carries it
+      // straight into the signup destination field, same as typing it
+      // into the hero search.
+      onClick={() => navigate(`/signup?destination=${encodeURIComponent(d.destination.trim())}`)}
+      className="stamp-press relative flex-shrink-0 w-64 h-40 rounded-2xl overflow-hidden group border border-[hsl(var(--border))] text-left hover:-translate-y-1 hover:border-[var(--amber)]/50 transition-[transform,border-color] duration-300"
+    >
       <img
         src={d.imageUrl}
         alt={d.destination}
@@ -131,7 +139,7 @@ function DestinationCard({
           {d.tripCount} {d.tripCount === 1 ? "trip" : "trips"} planned
         </p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -170,6 +178,8 @@ function HeroCardStack() {
     >
       <motion.div
         style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
         className="relative w-full h-full"
       >
         {/* back: Atlas chat exchange */}
@@ -373,7 +383,7 @@ export default function Landing() {
             <div className="hidden md:flex items-center gap-3">
               <button
                 onClick={() => navigate("/signin")}
-                className="text-[hsl(var(--foreground))] text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
+                className="stamp-press text-[hsl(var(--foreground))] text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
               >
                 Sign In
               </button>
@@ -418,7 +428,7 @@ export default function Landing() {
                 <div className="pt-2 flex flex-col gap-3">
                   <button
                     onClick={() => navigate("/signin")}
-                    className="w-full border border-[hsl(var(--border))] text-[hsl(var(--foreground))] py-3 rounded-lg text-sm font-semibold hover:bg-[hsl(var(--muted))] transition-colors"
+                    className="stamp-press w-full border border-[hsl(var(--border))] text-[hsl(var(--foreground))] py-3 rounded-lg text-sm font-semibold hover:bg-[hsl(var(--muted))] transition-colors"
                   >
                     Sign In
                   </button>
@@ -551,7 +561,7 @@ export default function Landing() {
                 <button
                   key={style.name}
                   onClick={() => setSelectedStyle(style.name === selectedStyle ? null : style.name)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                  className={`stamp-press flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
                     selectedStyle === style.name
                       ? "bg-[var(--amber)] border-[var(--amber)] text-white"
                       : "bg-transparent border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:border-[var(--amber)]"
@@ -573,7 +583,7 @@ export default function Landing() {
               </button>
               <button
                 onClick={() => navigate("/signin")}
-                className="bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] px-8 py-4 rounded-lg text-base font-semibold hover:bg-[hsl(var(--muted))] transition-colors"
+                className="stamp-press bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] px-8 py-4 rounded-lg text-base font-semibold hover:bg-[hsl(var(--muted))] transition-colors"
               >
                 Sign In
               </button>
@@ -587,7 +597,13 @@ export default function Landing() {
       {/* ── Destination showcase ───────────────────────── */}
       {topDestinations.length > 0 && (
         <section className="py-16 overflow-hidden border-t border-[hsl(var(--border))]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8"
+          >
             <h2 className="text-2xl md:text-3xl font-bold text-[hsl(var(--foreground))] mb-2">
               Real trips, real destinations
             </h2>
@@ -607,7 +623,7 @@ export default function Landing() {
                 travelers — and counting.
               </p>
             )}
-          </div>
+          </motion.div>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-[hsl(var(--background))] to-transparent z-10" />
             <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-[hsl(var(--background))] to-transparent z-10" />
@@ -626,31 +642,42 @@ export default function Landing() {
         className="py-20 px-4 sm:px-6 lg:px-8 border-t border-[hsl(var(--border))]"
       >
         <div className="max-w-4xl mx-auto">
-          <h2
-            className="text-3xl md:text-5xl font-bold text-[hsl(var(--foreground))] mb-4"
-            style={{ textWrap: "balance" }}
-            data-testid="features-title"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            Everything one trip needs
-          </h2>
-          <p
-            className="text-[hsl(var(--muted-foreground))] text-lg max-w-xl mb-4"
-            data-testid="features-description"
-          >
-            Nine tools that would otherwise be nine separate apps — planning, budget, packing,
-            memories, and an AI agent that knows your trip.
-          </p>
+            <h2
+              className="text-3xl md:text-5xl font-bold text-[hsl(var(--foreground))] mb-4"
+              style={{ textWrap: "balance" }}
+              data-testid="features-title"
+            >
+              Everything one trip needs
+            </h2>
+            <p
+              className="text-[hsl(var(--muted-foreground))] text-lg max-w-xl mb-4"
+              data-testid="features-description"
+            >
+              Nine tools that would otherwise be nine separate apps — planning, budget, packing,
+              memories, and an AI agent that knows your trip.
+            </p>
+          </motion.div>
 
           <div>
             {features.map((feature, i) => (
-              <div
+              <motion.div
                 key={feature.title}
-                className={`flex flex-col items-start sm:flex-row gap-4 sm:gap-8 py-6 ${i > 0 ? "perforated-edge" : ""}`}
+                initial={{ opacity: 0, x: -16 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: (i % 4) * 0.06 }}
+                className={`flex flex-col items-start sm:flex-row gap-4 sm:gap-8 py-6 group ${i > 0 ? "perforated-edge" : ""}`}
                 data-testid={`feature-row-${i}`}
               >
                 <div className="flex items-center gap-4 sm:w-64 flex-shrink-0">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${feature.tint} flex-shrink-0`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${feature.tint} flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}
                   >
                     <feature.icon className="w-5 h-5" />
                   </div>
@@ -664,7 +691,7 @@ export default function Landing() {
                 <span className="stamp text-[10px] flex-shrink-0" style={{ color: "var(--amber)" }}>
                   {feature.tag}
                 </span>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -676,18 +703,25 @@ export default function Landing() {
         className="py-20 px-4 sm:px-6 lg:px-8 border-t border-[hsl(var(--border))]"
       >
         <div className="max-w-5xl mx-auto">
-          <h2
-            className="text-3xl md:text-5xl font-bold text-[hsl(var(--foreground))] mb-4"
-            style={{ textWrap: "balance" }}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            Plan your perfect trip
-          </h2>
-          <p
-            className="text-[hsl(var(--muted-foreground))] text-lg max-w-xl mb-14"
-            data-testid="planner-description"
-          >
-            Tell us your preferences and let AI create a personalized itinerary just for you.
-          </p>
+            <h2
+              className="text-3xl md:text-5xl font-bold text-[hsl(var(--foreground))] mb-4"
+              style={{ textWrap: "balance" }}
+            >
+              Plan your perfect trip
+            </h2>
+            <p
+              className="text-[hsl(var(--muted-foreground))] text-lg max-w-xl mb-14"
+              data-testid="planner-description"
+            >
+              Tell us your preferences and let AI create a personalized itinerary just for you.
+            </p>
+          </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3">
             {[
@@ -707,8 +741,12 @@ export default function Landing() {
                 desc: "Track expenses, write journal entries, and let Atlas AI answer questions on the go.",
               },
             ].map((item, i) => (
-              <div
+              <motion.div
                 key={item.step}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: i * 0.12 }}
                 className={`pt-6 pr-6 ${i > 0 ? "md:border-l md:border-[hsl(var(--border))] md:pl-8" : ""} border-t-2 border-[var(--amber)]`}
               >
                 <div className="font-mono-data text-sm text-[var(--amber)] mb-3">{item.step}</div>
@@ -718,7 +756,7 @@ export default function Landing() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))] leading-relaxed">
                   {item.desc}
                 </p>
-              </div>
+              </motion.div>
             ))}
           </div>
 
@@ -738,7 +776,13 @@ export default function Landing() {
       {/* ── Ready to travel smarter ─────────────────────── */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 border-t border-[hsl(var(--border))]">
         <div className="max-w-5xl mx-auto">
-          <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-3xl p-10 md:p-16 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-3xl p-10 md:p-16 text-center"
+          >
             <h2 className="text-3xl md:text-4xl font-bold text-[hsl(var(--foreground))] mb-4">
               Ready to travel smarter?
             </h2>
@@ -754,7 +798,7 @@ export default function Landing() {
               </button>
               <button
                 onClick={() => navigate("/signin")}
-                className="bg-transparent hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] border border-[hsl(var(--border))] px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="stamp-press bg-transparent hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] border border-[hsl(var(--border))] px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Sign In
               </button>
@@ -767,7 +811,7 @@ export default function Landing() {
                 </span>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -870,10 +914,14 @@ export default function Landing() {
                   bio: "Architected and implemented the entire technical infrastructure, from backend systems to deployment.",
                   tint: "icon-tint-green",
                 },
-              ].map((member) => (
-                <div
+              ].map((member, i) => (
+                <motion.div
                   key={member.name}
-                  className="flex items-start gap-4 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl p-5"
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: i * 0.1 }}
+                  className="flex items-start gap-4 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl p-5 hover:border-[var(--amber)]/40 hover:-translate-y-0.5 transition-[transform,border-color] duration-300"
                 >
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${member.tint}`}
@@ -891,7 +939,7 @@ export default function Landing() {
                       {member.bio}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
