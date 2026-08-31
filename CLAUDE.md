@@ -2,6 +2,21 @@
 
 These override default behavior. Follow exactly.
 
+## 0. Read CONTEXT.md first, every task
+
+Before grepping/exploring the codebase or reading multiple source files to
+orient on a task, read `CONTEXT.md` at the repo root. It's a maintained
+summary (stack, file map, non-obvious gotchas, known open issues, recent
+work log) written specifically to save the token cost of re-discovering
+things every session. Only fall back to scanning actual files/docs when
+`CONTEXT.md` doesn't answer the question, or when verifying something it
+claims (it can go stale).
+
+At the end of any task that changes architecture, fixes a real bug, or
+learns something non-obvious, update `CONTEXT.md` — edit the relevant
+section in place, don't just append. Add one line to the work log, and
+trim log entries older than ~4-6 weeks so the file stays cheap to read.
+
 ## 1. Mobile + tablet layout — check automatically, every UI change
 
 Any change touching a page, component, or shared style must be checked at mobile and tablet breakpoints automatically, without being asked. Don't wait for the user to say "check mobile." Use the project's actual breakpoints (see `tailwind.config`/`index.css`), not arbitrary widths. At minimum: a small phone width (~375px), a large phone (~430px), and a tablet width (~768–1024px). Check both portrait orientations where relevant (e.g. drawers, modals, bottom nav).
@@ -9,6 +24,7 @@ Any change touching a page, component, or shared style must be checked at mobile
 ## 2. Page checks must cover logical + technical + visual, and a real-user pass
 
 When checking a specific page or feature (bug investigation, "is this working," pre-ship verification), don't stop at reading the code or a single layer:
+
 - **Logical**: does the behavior make sense end-to-end (data flow, state, edge cases)?
 - **Technical**: does it actually run — typecheck, build, no console/network errors?
 - **Visual**: does it render correctly — no layout breaks, clipped text, wrong colors/spacing, broken responsive behavior?
