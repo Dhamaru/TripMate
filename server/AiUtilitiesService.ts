@@ -920,6 +920,91 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     }
   }
 
+  // National emergency dial codes rarely change and are the same nationwide,
+  // so a static table is more reliable here than an AI guess or a Places
+  // lookup (Places only returns physical hospital/police-station addresses,
+  // never the number you'd actually dial). Matched by substring against the
+  // country name — "Rome, Italy" and "Italy" both resolve to "italy".
+  private static readonly NATIONAL_EMERGENCY_NUMBERS: Record<
+    string,
+    { police: string; ambulance: string; fire: string; general?: string }
+  > = {
+    italy: { police: "113", ambulance: "118", fire: "115", general: "112 (EU-wide)" },
+    "united kingdom": { police: "999", ambulance: "999", fire: "999", general: "112" },
+    uk: { police: "999", ambulance: "999", fire: "999", general: "112" },
+    england: { police: "999", ambulance: "999", fire: "999", general: "112" },
+    france: { police: "17", ambulance: "15", fire: "18", general: "112" },
+    germany: { police: "110", ambulance: "112", fire: "112", general: "112" },
+    spain: { police: "091", ambulance: "112", fire: "112", general: "112" },
+    portugal: { police: "112", ambulance: "112", fire: "112", general: "112" },
+    "united states": { police: "911", ambulance: "911", fire: "911" },
+    usa: { police: "911", ambulance: "911", fire: "911" },
+    canada: { police: "911", ambulance: "911", fire: "911" },
+    mexico: { police: "911", ambulance: "911", fire: "911" },
+    japan: { police: "110", ambulance: "119", fire: "119" },
+    china: { police: "110", ambulance: "120", fire: "119" },
+    "south korea": { police: "112", ambulance: "119", fire: "119" },
+    india: { police: "100", ambulance: "102", fire: "101", general: "112" },
+    thailand: { police: "191", ambulance: "1669", fire: "199" },
+    vietnam: { police: "113", ambulance: "115", fire: "114" },
+    indonesia: { police: "110", ambulance: "118", fire: "113" },
+    bali: { police: "110", ambulance: "118", fire: "113" },
+    singapore: { police: "999", ambulance: "995", fire: "995" },
+    malaysia: { police: "999", ambulance: "999", fire: "994" },
+    philippines: { police: "911", ambulance: "911", fire: "911" },
+    australia: { police: "000", ambulance: "000", fire: "000" },
+    "new zealand": { police: "111", ambulance: "111", fire: "111" },
+    "united arab emirates": { police: "999", ambulance: "998", fire: "997" },
+    uae: { police: "999", ambulance: "998", fire: "997" },
+    dubai: { police: "999", ambulance: "998", fire: "997" },
+    turkey: { police: "155", ambulance: "112", fire: "110" },
+    greece: { police: "100", ambulance: "166", fire: "199", general: "112" },
+    netherlands: { police: "112", ambulance: "112", fire: "112" },
+    switzerland: { police: "117", ambulance: "144", fire: "118", general: "112" },
+    austria: { police: "133", ambulance: "144", fire: "122", general: "112" },
+    ireland: { police: "999", ambulance: "999", fire: "999", general: "112" },
+    iceland: { police: "112", ambulance: "112", fire: "112" },
+    norway: { police: "112", ambulance: "113", fire: "110" },
+    sweden: { police: "112", ambulance: "112", fire: "112" },
+    denmark: { police: "112", ambulance: "112", fire: "112" },
+    finland: { police: "112", ambulance: "112", fire: "112" },
+    egypt: { police: "122", ambulance: "123", fire: "180" },
+    "south africa": { police: "10111", ambulance: "10177", fire: "10177" },
+    brazil: { police: "190", ambulance: "192", fire: "193" },
+    argentina: { police: "911", ambulance: "911", fire: "911" },
+    peru: { police: "105", ambulance: "106", fire: "116" },
+    russia: { police: "102", ambulance: "103", fire: "101", general: "112" },
+    morocco: { police: "19", ambulance: "15", fire: "15" },
+  };
+
+  private getNationalEmergencyNumber(location: string): {
+    name: string;
+    type: string;
+    phone: string;
+    safetyNotes: string;
+  } | null {
+    const normalized = location.toLowerCase();
+    for (const [country, numbers] of Object.entries(
+      AiUtilitiesService.NATIONAL_EMERGENCY_NUMBERS,
+    )) {
+      if (normalized.includes(country)) {
+        const parts = [
+          `Police: ${numbers.police}`,
+          `Ambulance: ${numbers.ambulance}`,
+          `Fire: ${numbers.fire}`,
+        ];
+        if (numbers.general) parts.push(`General/EU-wide: ${numbers.general}`);
+        return {
+          name: "National Emergency Numbers",
+          type: "general",
+          phone: numbers.general || numbers.police,
+          safetyNotes: parts.join(" · "),
+        };
+      }
+    }
+    return null;
+  }
+
   async emergency(location: string): Promise<
     Array<{
       name: string;
@@ -943,6 +1028,8 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       }>
     >(key);
     if (cached) return cached;
+
+    const nationalEntry = this.getNationalEmergencyNumber(loc);
 
     try {
       if (!this.openai) throw new Error("ai_disabled");
@@ -970,7 +1057,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
             : undefined,
         safetyNotes: i.safetyNotes ? String(i.safetyNotes) : undefined,
       }));
-      return this.setCached(key, normalized);
+      return this.setCached(key, nationalEntry ? [nationalEntry, ...normalized] : normalized);
     } catch {
       const types = ["hospital", "police", "embassy", "pharmacy"];
       const results: Array<{
@@ -1045,7 +1132,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         }
       }
 
-      return this.setCached(key, results);
+      return this.setCached(key, nationalEntry ? [nationalEntry, ...results] : results);
     }
   }
 
