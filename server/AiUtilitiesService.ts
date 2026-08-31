@@ -11,7 +11,7 @@ type CacheEntry<T> = { data: T; expiresAt: number };
 // param raises that to 10,000 words/day at no cost. Only used as the last
 // fallback (GPT-4o-mini and NVIDIA are tried first) but real usage was
 // hitting the anonymous ceiling under light load.
-const MYMEMORY_CONTACT_EMAIL = 'kasivasi2005@gmail.com';
+const MYMEMORY_CONTACT_EMAIL = "kasivasi2005@gmail.com";
 
 function sanitize(input: string, max = 2000): string {
   const trimmed = (input || "").toString().trim();
@@ -23,10 +23,21 @@ function sanitize(input: string, max = 2000): string {
 // small instruct models translate far more reliably from a spelled-out
 // language name than a bare ISO code.
 const LANGUAGE_NAMES: Record<string, string> = {
-  auto: 'the detected language',
-  en: 'English', hi: 'Hindi', ta: 'Tamil', te: 'Telugu', kn: 'Kannada',
-  ml: 'Malayalam', gu: 'Gujarati', mr: 'Marathi', pa: 'Punjabi',
-  bn: 'Bengali', ur: 'Urdu', fr: 'French', de: 'German', es: 'Spanish',
+  auto: "the detected language",
+  en: "English",
+  hi: "Hindi",
+  ta: "Tamil",
+  te: "Telugu",
+  kn: "Kannada",
+  ml: "Malayalam",
+  gu: "Gujarati",
+  mr: "Marathi",
+  pa: "Punjabi",
+  bn: "Bengali",
+  ur: "Urdu",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
 };
 
 export class AiUtilitiesService {
@@ -42,45 +53,45 @@ export class AiUtilitiesService {
 
   // Fallback map for major cities to ensure transit calculation never fails
   private readonly CITIES_COORD_MAP: Record<string, { lat: number; lon: number }> = {
-    'delhi': { lat: 28.6139, lon: 77.2090 },
-    'new delhi': { lat: 28.6139, lon: 77.2090 },
-    'mumbai': { lat: 19.0760, lon: 72.8777 },
-    'bangalore': { lat: 12.9716, lon: 77.5946 },
-    'hyderabad': { lat: 17.3850, lon: 78.4867 },
-    'chennai': { lat: 13.0827, lon: 80.2707 },
-    'kolkata': { lat: 22.5726, lon: 88.3639 },
-    'jaipur': { lat: 26.9124, lon: 75.7873 },
-    'lucknow': { lat: 26.8467, lon: 80.9462 },
-    'agra': { lat: 27.1767, lon: 78.0081 },
-    'goa': { lat: 15.2993, lon: 74.1240 },
-    'pune': { lat: 18.5204, lon: 73.8567 },
-    'bengaluru': { lat: 12.9716, lon: 77.5946 },
-    'ahmedabad': { lat: 23.0225, lon: 72.5714 },
-    'london': { lat: 51.5074, lon: -0.1278 },
-    'new york': { lat: 40.7128, lon: -74.0060 },
-    'paris': { lat: 48.8566, lon: 2.3522 },
-    'tokyo': { lat: 35.6762, lon: 139.6503 },
-    'singapore': { lat: 1.3521, lon: 103.8198 },
-    'dubai': { lat: 25.2048, lon: 55.2708 },
-    'bangkok': { lat: 13.7563, lon: 100.5018 },
+    delhi: { lat: 28.6139, lon: 77.209 },
+    "new delhi": { lat: 28.6139, lon: 77.209 },
+    mumbai: { lat: 19.076, lon: 72.8777 },
+    bangalore: { lat: 12.9716, lon: 77.5946 },
+    hyderabad: { lat: 17.385, lon: 78.4867 },
+    chennai: { lat: 13.0827, lon: 80.2707 },
+    kolkata: { lat: 22.5726, lon: 88.3639 },
+    jaipur: { lat: 26.9124, lon: 75.7873 },
+    lucknow: { lat: 26.8467, lon: 80.9462 },
+    agra: { lat: 27.1767, lon: 78.0081 },
+    goa: { lat: 15.2993, lon: 74.124 },
+    pune: { lat: 18.5204, lon: 73.8567 },
+    bengaluru: { lat: 12.9716, lon: 77.5946 },
+    ahmedabad: { lat: 23.0225, lon: 72.5714 },
+    london: { lat: 51.5074, lon: -0.1278 },
+    "new york": { lat: 40.7128, lon: -74.006 },
+    paris: { lat: 48.8566, lon: 2.3522 },
+    tokyo: { lat: 35.6762, lon: 139.6503 },
+    singapore: { lat: 1.3521, lon: 103.8198 },
+    dubai: { lat: 25.2048, lon: 55.2708 },
+    bangkok: { lat: 13.7563, lon: 100.5018 },
   };
 
   private async generateWithGemini(prompt: string, systemPrompt?: string): Promise<string> {
     const geminiKey = config.GEMINI_API_KEY;
-    if (!geminiKey) throw new Error('gemini_disabled');
+    if (!geminiKey) throw new Error("gemini_disabled");
 
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: fullPrompt }] }]
-          })
-        }
+            contents: [{ parts: [{ text: fullPrompt }] }],
+          }),
+        },
       );
 
       if (!response.ok) {
@@ -90,10 +101,13 @@ export class AiUtilitiesService {
       const json = await response.json();
       if (json.error) throw new Error(`Gemini API Error: ${json.error.message}`);
 
-      let text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      let text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
       // Clean markdown if present
-      if (text.startsWith('```')) {
-        text = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+      if (text.startsWith("```")) {
+        text = text
+          .replace(/```json?\n?/g, "")
+          .replace(/```/g, "")
+          .trim();
       }
       return text;
     } catch (error) {
@@ -107,17 +121,25 @@ export class AiUtilitiesService {
   // but this service's other text-generation methods only ever fell back to
   // Gemini then OpenAI. When both of those are quota-exhausted, those
   // methods have no working provider left even though NVIDIA is reachable.
-  private async generateWithNvidia(prompt: string, systemPrompt?: string, temperature = 0.3, model = 'meta/llama-3.1-8b-instruct'): Promise<string> {
+  private async generateWithNvidia(
+    prompt: string,
+    systemPrompt?: string,
+    temperature = 0.3,
+    model = "meta/llama-3.1-8b-instruct",
+  ): Promise<string> {
     const nvidiaKey = config.NVIDIA_API_KEY;
-    if (!nvidiaKey) throw new Error('nvidia_disabled');
+    if (!nvidiaKey) throw new Error("nvidia_disabled");
 
     const messages = systemPrompt
-      ? [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }]
-      : [{ role: 'user', content: prompt }];
+      ? [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ]
+      : [{ role: "user", content: prompt }];
 
-    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${nvidiaKey}` },
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaKey}` },
       body: JSON.stringify({
         model,
         messages,
@@ -131,7 +153,7 @@ export class AiUtilitiesService {
 
     const json = await response.json();
     const text = json.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error('NVIDIA returned an empty response');
+    if (!text) throw new Error("NVIDIA returned an empty response");
     return text;
   }
 
@@ -150,14 +172,21 @@ export class AiUtilitiesService {
   /**
    * Calculates the Haversine distance between two points in kilometers.
    */
-  private calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private calculateHaversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -185,13 +214,16 @@ export class AiUtilitiesService {
         const activity = day.activities[i];
 
         // Fatigue check: Flag major attractions
-        if (['sightseeing', 'museum', 'temple'].includes(activity.type)) {
+        if (["sightseeing", "museum", "temple"].includes(activity.type)) {
           majorAttractionCount++;
         }
 
         // Resolve coordinates if missing (some grounded places might not have them)
         if (activity.lat === undefined || activity.lon === undefined) {
-          const coords = await this.resolveCoordinates(activity.placeName || activity.title, destination);
+          const coords = await this.resolveCoordinates(
+            activity.placeName || activity.title,
+            destination,
+          );
           if (coords) {
             activity.lat = coords.lat;
             activity.lon = coords.lon;
@@ -201,31 +233,42 @@ export class AiUtilitiesService {
         // Calculate route from previous
         if (i > 0) {
           const prev = day.activities[i - 1];
-          if (prev.lat !== undefined && prev.lon !== undefined && activity.lat !== undefined && activity.lon !== undefined) {
-            const distance = this.calculateHaversineDistance(prev.lat, prev.lon, activity.lat, activity.lon);
+          if (
+            prev.lat !== undefined &&
+            prev.lon !== undefined &&
+            activity.lat !== undefined &&
+            activity.lon !== undefined
+          ) {
+            const distance = this.calculateHaversineDistance(
+              prev.lat,
+              prev.lon,
+              activity.lat,
+              activity.lon,
+            );
             const travelTime = Math.round((distance / avgSpeedKph) * 60) + 15; // +15 min overhead
 
             activity.routeFromPrevious = {
-              mode: distance < 0.8 ? 'walk' : 'taxi',
+              mode: distance < 0.8 ? "walk" : "taxi",
               distance_km: parseFloat(distance.toFixed(2)),
               travel_time_minutes: travelTime,
               from: prev.title || prev.placeName,
-              to: activity.title || activity.placeName
+              to: activity.title || activity.placeName,
             };
 
             // Explainability note
             if (travelTime > 60) {
-              plan.notes = (plan.notes || '') + ` | Long travel alert on Day ${day.day} to ${activity.title}`;
+              plan.notes =
+                (plan.notes || "") + ` | Long travel alert on Day ${day.day} to ${activity.title}`;
             }
           }
         } else {
           // First activity of the day (start from hotel/center)
           activity.routeFromPrevious = activity.routeFromPrevious || {
-            mode: 'taxi',
+            mode: "taxi",
             distance_km: 5,
             travel_time_minutes: 20,
-            from: 'Hotel',
-            to: activity.title || activity.placeName
+            from: "Hotel",
+            to: activity.title || activity.placeName,
           };
         }
 
@@ -235,23 +278,37 @@ export class AiUtilitiesService {
 
       // Add fatigue warning if too many major spots
       if (majorAttractionCount > 3) {
-        plan.notes = (plan.notes || '') + ` | Fatigue alert: Day ${day.day} is very busy. Consider local transport for recovery.`;
+        plan.notes =
+          (plan.notes || "") +
+          ` | Fatigue alert: Day ${day.day} is very busy. Consider local transport for recovery.`;
       }
     }
 
     return plan;
   }
 
-  async translate(text: string, sourceLang: string, targetLang: string): Promise<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'google' | 'nvidia' | 'mymemory' }> {
+  async translate(
+    text: string,
+    sourceLang: string,
+    targetLang: string,
+  ): Promise<{
+    translatedText: string;
+    pronunciation?: string;
+    source?: "openai" | "google" | "nvidia" | "mymemory";
+  }> {
     const t = sanitize(text);
     const from = sanitize(sourceLang, 32);
     const to = sanitize(targetLang, 32);
     const key = `translate:${from}:${to}:${t}`;
-    const cached = this.getCached<{ translatedText: string; pronunciation?: string; source?: 'openai' | 'google' | 'nvidia' | 'mymemory' }>(key);
+    const cached = this.getCached<{
+      translatedText: string;
+      pronunciation?: string;
+      source?: "openai" | "google" | "nvidia" | "mymemory";
+    }>(key);
     if (cached) return cached;
 
     try {
-      if (!this.openai) throw new Error('ai_disabled');
+      if (!this.openai) throw new Error("ai_disabled");
       const client = this.openai!;
       // Pin the exact JSON shape explicitly (key name, no prose) and force
       // response_format: json_object — without both, gpt-4o-mini sometimes
@@ -277,8 +334,12 @@ export class AiUtilitiesService {
       // object) previously became a "successful" result with an empty
       // translatedText — no exception was thrown, so the NVIDIA/MyMemory
       // fallbacks below never ran. Treat an empty result as a real failure.
-      if (!translatedText) throw new Error('empty_gpt_translation');
-      const result = { translatedText, pronunciation: json.pronunciation ? String(json.pronunciation) : undefined, source: 'openai' as const };
+      if (!translatedText) throw new Error("empty_gpt_translation");
+      const result = {
+        translatedText,
+        pronunciation: json.pronunciation ? String(json.pronunciation) : undefined,
+        source: "openai" as const,
+      };
       return this.setCached(key, result);
     } catch {
       // Fallback 1: Google Cloud Translation — a dedicated NMT engine, not
@@ -289,21 +350,35 @@ export class AiUtilitiesService {
       // key's API restrictions on the same GCP project.
       try {
         const googleKey = config.GOOGLE_API_KEY;
-        if (!googleKey) throw new Error('google_translate_disabled');
-        const res = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${googleKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: t, source: from === 'auto' ? undefined : from, target: to, format: 'text' }),
-        });
+        if (!googleKey) throw new Error("google_translate_disabled");
+        const res = await fetch(
+          `https://translation.googleapis.com/language/translate/v2?key=${googleKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              q: t,
+              source: from === "auto" ? undefined : from,
+              target: to,
+              format: "text",
+            }),
+          },
+        );
         if (res.ok) {
           const json = await res.json();
-          const translated = String(json?.data?.translations?.[0]?.translatedText || '');
+          const translated = String(json?.data?.translations?.[0]?.translatedText || "");
           if (translated) {
-            const result = { translatedText: translated, pronunciation: undefined, source: 'google' as const };
+            const result = {
+              translatedText: translated,
+              pronunciation: undefined,
+              source: "google" as const,
+            };
             return this.setCached(key, result);
           }
         }
-      } catch { /* fall through to NVIDIA */ }
+      } catch {
+        /* fall through to NVIDIA */
+      }
 
       // Fallback 2: NVIDIA (reliable LLM translation). MyMemory's free
       // crowd-sourced translation memory can return confidently wrong
@@ -357,13 +432,21 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         // since they're still real improvements even though they don't
         // fully fix the WH-word confusion on this smaller model.
         const nvidiaRaw = await this.generateWithNvidia(t, prompt, 0);
-        const translationLine = nvidiaRaw.split('\n').find(l => /^TRANSLATION:/i.test(l.trim()));
-        const nvidiaText = translationLine ? translationLine.replace(/^TRANSLATION:/i, '').trim() : nvidiaRaw.trim();
+        const translationLine = nvidiaRaw.split("\n").find((l) => /^TRANSLATION:/i.test(l.trim()));
+        const nvidiaText = translationLine
+          ? translationLine.replace(/^TRANSLATION:/i, "").trim()
+          : nvidiaRaw.trim();
         if (nvidiaText) {
-          const result = { translatedText: nvidiaText, pronunciation: undefined, source: 'nvidia' as const };
+          const result = {
+            translatedText: nvidiaText,
+            pronunciation: undefined,
+            source: "nvidia" as const,
+          };
           return this.setCached(key, result);
         }
-      } catch { /* fall through to MyMemory */ }
+      } catch {
+        /* fall through to MyMemory */
+      }
 
       // Fallback 3: MyMemory free translation API (no key required). The
       // `de` param registers requests against a real email, raising the
@@ -372,9 +455,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       // and MyMemory starts returning its error text as if it were a
       // translation.
       try {
-        const langPair = `${from === 'auto' ? 'en' : from}|${to}`;
+        const langPair = `${from === "auto" ? "en" : from}|${to}`;
         const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=${encodeURIComponent(langPair)}&de=${encodeURIComponent(MYMEMORY_CONTACT_EMAIL)}`;
-        const r = await fetch(url, { headers: { 'User-Agent': 'TripMate/2.0.0' } });
+        const r = await fetch(url, { headers: { "User-Agent": "TripMate/2.0.0" } });
         if (r.ok) {
           const json = await r.json();
           // Previously fell back to `t` (the original input) when MyMemory
@@ -382,22 +465,33 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           // response look like a real, successful translation of the input
           // back to itself, indistinguishable from success. Fall through to
           // the last-resort error instead.
-          const translated = String(json?.responseData?.translatedText || '');
+          const translated = String(json?.responseData?.translatedText || "");
           if (translated) {
-            const result = { translatedText: translated, pronunciation: undefined, source: 'mymemory' as const };
+            const result = {
+              translatedText: translated,
+              pronunciation: undefined,
+              source: "mymemory" as const,
+            };
             return this.setCached(key, result);
           }
         }
-      } catch { /* fall through */ }
+      } catch {
+        /* fall through */
+      }
       // All three backends failed — surface this as a real error instead of
       // silently echoing the user's own input back as if it were a
       // translation (previously done here, with only a small italic
       // "Translation unavailable" pronunciation note as the only signal).
-      throw new Error('Translation unavailable — all providers failed');
+      throw new Error("Translation unavailable — all providers failed");
     }
   }
 
-  async weather(city: string): Promise<{ current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback-route' | 'fallback' }> {
+  async weather(city: string): Promise<{
+    current: any;
+    forecast: any[];
+    recommendations: any[];
+    source?: "openweather" | "ai" | "fallback-route" | "fallback";
+  }> {
     const c = sanitize(city, 128);
     const key = `weather:${c}`;
     const cached = this.getCached<{ current: any; forecast: any[]; recommendations: any[] }>(key);
@@ -414,30 +508,45 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           : null;
         let currentJson: any;
         const currentRes = coordMatch
-          ? await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${coordMatch[1]}&lon=${coordMatch[2]}&units=metric&appid=${owKey}`)
-          : await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c)}&units=metric&appid=${owKey}`);
+          ? await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?lat=${coordMatch[1]}&lon=${coordMatch[2]}&units=metric&appid=${owKey}`,
+            )
+          : await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c)}&units=metric&appid=${owKey}`,
+            );
         currentJson = await currentRes.json();
         if (!currentRes.ok) {
-          const geoRes = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(c)}&limit=1&appid=${owKey}`);
+          const geoRes = await fetch(
+            `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(c)}&limit=1&appid=${owKey}`,
+          );
           const geoJson = await geoRes.json();
           if (Array.isArray(geoJson) && geoJson.length > 0) {
             coord = { lat: geoJson[0].lat, lon: geoJson[0].lon };
-            const currentByCoordRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`);
+            const currentByCoordRes = await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`,
+            );
             currentJson = await currentByCoordRes.json();
-            if (!currentByCoordRes.ok) throw new Error(String(currentJson?.message || 'Weather fetch failed'));
+            if (!currentByCoordRes.ok)
+              throw new Error(String(currentJson?.message || "Weather fetch failed"));
           } else {
-            throw new Error(String(currentJson?.message || 'Weather fetch failed'));
+            throw new Error(String(currentJson?.message || "Weather fetch failed"));
           }
         } else {
-          coord = currentJson?.coord ? { lat: currentJson.coord.lat, lon: currentJson.coord.lon } : null;
+          coord = currentJson?.coord
+            ? { lat: currentJson.coord.lat, lon: currentJson.coord.lon }
+            : null;
         }
 
         let forecastJson: any = { list: [] };
         let uvIndex: number | null = null;
         if (coord) {
           const [forecastRes, uvRes] = await Promise.all([
-            fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`),
-            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coord.lat}&longitude=${coord.lon}&current=uv_index&timezone=auto`),
+            fetch(
+              `https://api.openweathermap.org/data/2.5/forecast?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`,
+            ),
+            fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${coord.lat}&longitude=${coord.lon}&current=uv_index&timezone=auto`,
+            ),
           ]);
           forecastJson = await forecastRes.json();
           if (uvRes.ok) {
@@ -446,20 +555,24 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           }
         }
         const iconMap: Record<string, string> = {
-          Clear: 'fas fa-sun',
-          Clouds: 'fas fa-cloud',
-          Rain: 'fas fa-cloud-rain',
-          Drizzle: 'fas fa-cloud-rain',
-          Thunderstorm: 'fas fa-bolt',
-          Snow: 'fas fa-snowflake',
-          Mist: 'fas fa-smog',
-          Fog: 'fas fa-smog',
-          Wind: 'fas fa-wind',
+          Clear: "fas fa-sun",
+          Clouds: "fas fa-cloud",
+          Rain: "fas fa-cloud-rain",
+          Drizzle: "fas fa-cloud-rain",
+          Thunderstorm: "fas fa-bolt",
+          Snow: "fas fa-snowflake",
+          Mist: "fas fa-smog",
+          Fog: "fas fa-smog",
+          Wind: "fas fa-wind",
         };
-        const cond = currentJson.weather?.[0]?.main || 'Clear';
+        const cond = currentJson.weather?.[0]?.main || "Clear";
         const fmtTime = (unix: number | undefined) => {
-          if (!unix) return '';
-          return new Date(unix * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+          if (!unix) return "";
+          return new Date(unix * 1000).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          });
         };
         // OpenWeather's own icon code carries a day/night suffix ("01d" vs
         // "01n") based on the queried location's actual local sunrise/sunset
@@ -467,16 +580,17 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         // correct signal for "is it night at this destination right now."
         // Previously ignored entirely: a sunny-at-night result always showed
         // the sun icon and the bright daytime gradient.
-        const isDay = !String(currentJson.weather?.[0]?.icon || '').endsWith('n');
+        const isDay = !String(currentJson.weather?.[0]?.icon || "").endsWith("n");
         const current = {
           temperature: Math.round(currentJson.main?.temp ?? 22),
           condition: cond,
           humidity: Math.round(currentJson.main?.humidity ?? 60),
           windSpeed: Math.round(currentJson.wind?.speed ?? 10),
           wind_kph: Math.round((currentJson.wind?.speed ?? 0) * 3.6),
-          icon: (cond === 'Clear' && !isDay) ? 'fas fa-moon' : (iconMap[cond] || 'fas fa-cloud'),
+          icon: cond === "Clear" && !isDay ? "fas fa-moon" : iconMap[cond] || "fas fa-cloud",
           isDay,
-          visibility: currentJson.visibility != null ? Math.round(currentJson.visibility / 100) / 10 : null,
+          visibility:
+            currentJson.visibility != null ? Math.round(currentJson.visibility / 100) / 10 : null,
           sunrise: fmtTime(currentJson.sys?.sunrise),
           sunset: fmtTime(currentJson.sys?.sunset),
           uv_index: uvIndex,
@@ -484,10 +598,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const byDate: Record<string, { high: number; low: number; main: string }> = {};
         const list = Array.isArray(forecastJson.list) ? forecastJson.list : [];
         for (const item of list) {
-          const d = item.dt_txt?.slice(0, 10) || '';
+          const d = item.dt_txt?.slice(0, 10) || "";
           const tMax = item.main?.temp_max;
           const tMin = item.main?.temp_min;
-          const main = item.weather?.[0]?.main || 'Clear';
+          const main = item.weather?.[0]?.main || "Clear";
           if (!byDate[d]) {
             byDate[d] = { high: tMax, low: tMin, main } as any;
           } else {
@@ -496,125 +610,225 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           }
         }
         const now = new Date();
-        const forecast: Array<{ day: string; high: number; low: number; condition: string; icon?: string }> = [];
+        const forecast: Array<{
+          day: string;
+          high: number;
+          low: number;
+          condition: string;
+          icon?: string;
+        }> = [];
         for (let i = 0; i < 7; i++) {
-          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i).toISOString().slice(0, 10);
-          const label = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i).toLocaleDateString('en-US', { weekday: 'short' });
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
+            .toISOString()
+            .slice(0, 10);
+          const label = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate() + i,
+          ).toLocaleDateString("en-US", { weekday: "short" });
           const entry = byDate[d];
           if (entry) {
-            forecast.push({ day: label, high: Math.round(entry.high), low: Math.round(entry.low), condition: entry.main, icon: iconMap[entry.main] || 'fas fa-cloud' });
+            forecast.push({
+              day: label,
+              high: Math.round(entry.high),
+              low: Math.round(entry.low),
+              condition: entry.main,
+              icon: iconMap[entry.main] || "fas fa-cloud",
+            });
           } else {
-            forecast.push({ day: label, high: current.temperature, low: Math.max(0, current.temperature - 5), condition: current.condition, icon: current.icon });
+            forecast.push({
+              day: label,
+              high: current.temperature,
+              low: Math.max(0, current.temperature - 5),
+              condition: current.condition,
+              icon: current.icon,
+            });
           }
         }
         const recommendations: string[] = [];
-        if (current.temperature >= 30) recommendations.push('Stay hydrated');
-        if (current.condition.includes('Rain')) recommendations.push('Carry a raincoat');
-        recommendations.push('Use sunscreen during midday');
-        const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback-route' | 'fallback' } = { current, forecast, recommendations, source: 'openweather' };
+        if (current.temperature >= 30) recommendations.push("Stay hydrated");
+        if (current.condition.includes("Rain")) recommendations.push("Carry a raincoat");
+        recommendations.push("Use sunscreen during midday");
+        const result: {
+          current: any;
+          forecast: any[];
+          recommendations: any[];
+          source?: "openweather" | "ai" | "fallback-route" | "fallback";
+        } = { current, forecast, recommendations, source: "openweather" };
         return this.setCached(key, result);
       }
-      if (!this.openai) throw new Error('ai_disabled');
-      const client = this.openai!;
       const prompt = `Provide the current weather and 7-day forecast for ${c}. If exact realtime data is unavailable, provide best predictive estimation based on known climate patterns, season, geography, altitude, and historical averages. Always return JSON with: { current: {}, forecast: [7 items], recommendations: [] }.`;
-      const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0,
-        messages: [
-          { role: "system", content: prompt },
-          { role: "user", content: c },
-        ],
-      });
-      const content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+      let content: string;
+      if (this.openai) {
+        const completion = await this.openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          temperature: 0,
+          messages: [
+            { role: "system", content: prompt },
+            { role: "user", content: c },
+          ],
+        });
+        content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+      } else {
+        content = await this.generateWithGemini(c, prompt);
+      }
       const json = this.parseJson(content);
       const current = json.current || {};
       const forecast = Array.isArray(json.forecast) ? json.forecast.slice(0, 7) : [];
       const recommendations = Array.isArray(json.recommendations) ? json.recommendations : [];
-      const result: { current: any; forecast: any[]; recommendations: any[]; source?: 'openweather' | 'ai' | 'fallback-route' | 'fallback' } = { current, forecast, recommendations, source: 'ai' };
+      const result: {
+        current: any;
+        forecast: any[];
+        recommendations: any[];
+        source?: "openweather" | "ai" | "fallback-route" | "fallback";
+      } = { current, forecast, recommendations, source: "ai" };
       return this.setCached(key, result);
     } catch {
       // Try Open-Meteo (free, no API key) via Nominatim geocoding
       try {
         let lat: string, lon: string;
         if (coordMatch) {
-          lat = coordMatch[1]; lon = coordMatch[2];
+          lat = coordMatch[1];
+          lon = coordMatch[2];
         } else {
           const geoRes = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(c)}&limit=1`,
-            { headers: { 'User-Agent': 'TripMate/2.0.0' } }
+            { headers: { "User-Agent": "TripMate/2.0.0" } },
           );
-          if (!geoRes.ok) throw new Error('geo_fail');
+          if (!geoRes.ok) throw new Error("geo_fail");
           const geoJson = await geoRes.json();
-          if (!Array.isArray(geoJson) || geoJson.length === 0) throw new Error('geo_no_results');
-          lat = geoJson[0].lat; lon = geoJson[0].lon;
+          if (!Array.isArray(geoJson) || geoJson.length === 0) throw new Error("geo_no_results");
+          lat = geoJson[0].lat;
+          lon = geoJson[0].lon;
         }
         {
-            const meteoRes = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&forecast_days=7&timezone=auto`
-            );
-            if (meteoRes.ok) {
-              const meteo = await meteoRes.json();
-              const wc = meteo.current_weather?.weathercode ?? 0;
-              const condMap = (code: number) => {
-                if (code === 0) return 'Clear';
-                if (code <= 3) return 'Clouds';
-                if (code <= 49) return 'Mist';
-                if (code <= 69) return 'Rain';
-                if (code <= 79) return 'Snow';
-                if (code <= 99) return 'Thunderstorm';
-                return 'Clouds';
+          const meteoRes = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&forecast_days=7&timezone=auto`,
+          );
+          if (meteoRes.ok) {
+            const meteo = await meteoRes.json();
+            const wc = meteo.current_weather?.weathercode ?? 0;
+            const condMap = (code: number) => {
+              if (code === 0) return "Clear";
+              if (code <= 3) return "Clouds";
+              if (code <= 49) return "Mist";
+              if (code <= 69) return "Rain";
+              if (code <= 79) return "Snow";
+              if (code <= 99) return "Thunderstorm";
+              return "Clouds";
+            };
+            const iconMap: Record<string, string> = {
+              Clear: "fas fa-sun",
+              Clouds: "fas fa-cloud",
+              Rain: "fas fa-cloud-rain",
+              Snow: "fas fa-snowflake",
+              Thunderstorm: "fas fa-bolt",
+              Mist: "fas fa-smog",
+            };
+            const cond = condMap(wc);
+            const temp = Math.round(meteo.current_weather?.temperature ?? 20);
+            // Open-Meteo's current_weather already reports is_day (0/1) at
+            // no extra cost — same day/night fix as the primary OWM path.
+            const isDay = meteo.current_weather?.is_day !== 0;
+            const current = {
+              temperature: temp,
+              condition: cond,
+              humidity: 60,
+              windSpeed: Math.round(meteo.current_weather?.windspeed ?? 10),
+              icon: cond === "Clear" && !isDay ? "fas fa-moon" : iconMap[cond] || "fas fa-cloud",
+              isDay,
+            };
+            const daily = meteo.daily || {};
+            const forecast = Array.from({ length: 7 }, (_, i) => {
+              const hi = Math.round(daily.temperature_2m_max?.[i] ?? temp);
+              const lo = Math.round(daily.temperature_2m_min?.[i] ?? temp - 5);
+              const dc = condMap(daily.weathercode?.[i] ?? 0);
+              const now2 = new Date();
+              const dayLabel = new Date(
+                now2.getFullYear(),
+                now2.getMonth(),
+                now2.getDate() + i,
+              ).toLocaleDateString("en-US", { weekday: "short" });
+              return {
+                day: dayLabel,
+                high: hi,
+                low: lo,
+                condition: dc,
+                icon: iconMap[dc] || "fas fa-cloud",
               };
-              const iconMap: Record<string, string> = { Clear: 'fas fa-sun', Clouds: 'fas fa-cloud', Rain: 'fas fa-cloud-rain', Snow: 'fas fa-snowflake', Thunderstorm: 'fas fa-bolt', Mist: 'fas fa-smog' };
-              const cond = condMap(wc);
-              const temp = Math.round(meteo.current_weather?.temperature ?? 20);
-              // Open-Meteo's current_weather already reports is_day (0/1) at
-              // no extra cost — same day/night fix as the primary OWM path.
-              const isDay = meteo.current_weather?.is_day !== 0;
-              const current = { temperature: temp, condition: cond, humidity: 60, windSpeed: Math.round(meteo.current_weather?.windspeed ?? 10), icon: (cond === 'Clear' && !isDay) ? 'fas fa-moon' : (iconMap[cond] || 'fas fa-cloud'), isDay };
-              const daily = meteo.daily || {};
-              const forecast = Array.from({ length: 7 }, (_, i) => {
-                const hi = Math.round(daily.temperature_2m_max?.[i] ?? temp);
-                const lo = Math.round(daily.temperature_2m_min?.[i] ?? temp - 5);
-                const dc = condMap(daily.weathercode?.[i] ?? 0);
-                const now2 = new Date();
-                const dayLabel = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate() + i).toLocaleDateString('en-US', { weekday: 'short' });
-                return { day: dayLabel, high: hi, low: lo, condition: dc, icon: iconMap[dc] || 'fas fa-cloud' };
-              });
-              const recommendations: string[] = temp < 10 ? ['Dress warmly — cold temperatures expected', 'Check road conditions'] : temp >= 30 ? ['Stay hydrated', 'Use sunscreen'] : ['Comfortable weather — light layers recommended'];
-              const result = { current, forecast, recommendations, source: 'fallback-route' as const };
-              return this.setCached(key, result);
-            }
+            });
+            const recommendations: string[] =
+              temp < 10
+                ? ["Dress warmly — cold temperatures expected", "Check road conditions"]
+                : temp >= 30
+                  ? ["Stay hydrated", "Use sunscreen"]
+                  : ["Comfortable weather — light layers recommended"];
+            const result = {
+              current,
+              forecast,
+              recommendations,
+              source: "fallback-route" as const,
+            };
+            return this.setCached(key, result);
+          }
         }
-      } catch { /* fall through to generic */ }
+      } catch {
+        /* fall through to generic */
+      }
 
       // Last resort: generic month-based estimate (clearly labelled)
       const now = new Date();
       const month = now.getMonth();
       const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
-      const current = { temperature: Math.round(baseTemp), humidity: 60, windSpeed: 10, condition: baseTemp >= 30 ? "Sunny" : baseTemp >= 25 ? "Partly Cloudy" : "Cloudy" };
+      const current = {
+        temperature: Math.round(baseTemp),
+        humidity: 60,
+        windSpeed: 10,
+        condition: baseTemp >= 30 ? "Sunny" : baseTemp >= 25 ? "Partly Cloudy" : "Cloudy",
+      };
       const fallbackNow = new Date();
       const forecast = Array.from({ length: 7 }, (_, i) => ({
-        day: new Date(fallbackNow.getFullYear(), fallbackNow.getMonth(), fallbackNow.getDate() + i).toLocaleDateString('en-US', { weekday: 'short' }),
+        day: new Date(
+          fallbackNow.getFullYear(),
+          fallbackNow.getMonth(),
+          fallbackNow.getDate() + i,
+        ).toLocaleDateString("en-US", { weekday: "short" }),
         high: Math.round(baseTemp + (i % 3) - 1),
         low: Math.round(baseTemp - 5 + (i % 2)),
-        condition: i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",
+        condition:
+          i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",
       }));
-      const result = { current, forecast, recommendations: ["Weather data unavailable — shown estimate only"], source: 'fallback' as const };
+      const result = {
+        current,
+        forecast,
+        recommendations: ["Weather data unavailable — shown estimate only"],
+        source: "fallback" as const,
+      };
       return this.setCached(key, result);
     }
   }
 
-  async currency(amount: number, fromCurrency: string, toCurrency: string, todayIso: string): Promise<{ rate: number; convertedAmount: number; currencyName: string; disclaimer: string }> {
+  async currency(
+    amount: number,
+    fromCurrency: string,
+    toCurrency: string,
+    todayIso: string,
+  ): Promise<{ rate: number; convertedAmount: number; currencyName: string; disclaimer: string }> {
     const amt = Number.isFinite(amount) ? amount : 0;
     const from = sanitize(fromCurrency, 8).toUpperCase();
     const to = sanitize(toCurrency, 8).toUpperCase();
     const today = sanitize(todayIso, 64);
     const key = `currency:${from}:${to}:${amt}:${today}`;
-    const cached = this.getCached<{ rate: number; convertedAmount: number; currencyName: string; disclaimer: string }>(key);
+    const cached = this.getCached<{
+      rate: number;
+      convertedAmount: number;
+      currencyName: string;
+      disclaimer: string;
+    }>(key);
     if (cached) return cached;
 
     try {
-      if (!this.openai) throw new Error('ai_disabled');
+      if (!this.openai) throw new Error("ai_disabled");
       const client = this.openai!;
       const prompt = `Convert ${amt} from ${from} to ${to} using approximate real market exchange rates as of ${today}. Return JSON: { rate, convertedAmount, currencyName, disclaimer }.`;
       const completion = await client.chat.completions.create({
@@ -637,11 +851,18 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       // Fallback: Use free API (Frankfurter)
       try {
         if (from === to) {
-          return this.setCached(key, { rate: 1, convertedAmount: amt, currencyName: to, disclaimer: "1:1 Conversion" });
+          return this.setCached(key, {
+            rate: 1,
+            convertedAmount: amt,
+            currencyName: to,
+            disclaimer: "1:1 Conversion",
+          });
         }
         // Frankfurter doesn't support all currencies, but supports major ones.
         // It uses EUR as base.
-        const r = await fetch(`https://api.frankfurter.app/latest?amount=${amt}&from=${from}&to=${to}`);
+        const r = await fetch(
+          `https://api.frankfurter.app/latest?amount=${amt}&from=${from}&to=${to}`,
+        );
         if (r.ok) {
           const j = await r.json();
           const rate = j.rates[to];
@@ -649,19 +870,46 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
             rate: rate / amt,
             convertedAmount: rate,
             currencyName: to,
-            disclaimer: "Real-time rate from Frankfurter API"
+            disclaimer: "Real-time rate from Frankfurter API",
           });
         }
       } catch (e) {
-        console.warn('Currency API fallback failed', e);
+        console.warn("Currency API fallback failed", e);
       }
 
       // Final Fallback mock rates
       const exchangeRates: Record<string, Record<string, number>> = {
-        USD: { EUR: 0.95, GBP: 0.79, JPY: 150, INR: 84, CAD: 1.40, AUD: 1.54, CHF: 0.88, CNY: 7.25 },
-        EUR: { USD: 1.05, GBP: 0.83, JPY: 158, INR: 89, CAD: 1.48, AUD: 1.62, CHF: 0.93, CNY: 7.63 },
-        GBP: { USD: 1.26, EUR: 1.20, JPY: 190, INR: 106, CAD: 1.77, AUD: 1.94, CHF: 1.11, CNY: 9.16 },
-        INR: { USD: 0.012, EUR: 0.011, GBP: 0.009, JPY: 1.78, CAD: 0.017, AUD: 0.018, CHF: 0.010, CNY: 0.086 },
+        USD: { EUR: 0.95, GBP: 0.79, JPY: 150, INR: 84, CAD: 1.4, AUD: 1.54, CHF: 0.88, CNY: 7.25 },
+        EUR: {
+          USD: 1.05,
+          GBP: 0.83,
+          JPY: 158,
+          INR: 89,
+          CAD: 1.48,
+          AUD: 1.62,
+          CHF: 0.93,
+          CNY: 7.63,
+        },
+        GBP: {
+          USD: 1.26,
+          EUR: 1.2,
+          JPY: 190,
+          INR: 106,
+          CAD: 1.77,
+          AUD: 1.94,
+          CHF: 1.11,
+          CNY: 9.16,
+        },
+        INR: {
+          USD: 0.012,
+          EUR: 0.011,
+          GBP: 0.009,
+          JPY: 1.78,
+          CAD: 0.017,
+          AUD: 0.018,
+          CHF: 0.01,
+          CNY: 0.086,
+        },
       };
       const rate = exchangeRates[from]?.[to] || 1;
       const convertedAmount = amt * rate;
@@ -672,14 +920,32 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     }
   }
 
-  async emergency(location: string): Promise<Array<{ name: string; type: string; phone?: string; address?: string; coordinates?: { lat: number; lon: number }; safetyNotes?: string }>> {
+  async emergency(location: string): Promise<
+    Array<{
+      name: string;
+      type: string;
+      phone?: string;
+      address?: string;
+      coordinates?: { lat: number; lon: number };
+      safetyNotes?: string;
+    }>
+  > {
     const loc = sanitize(location, 128);
     const key = `emergency:${loc}`;
-    const cached = this.getCached<Array<{ name: string; type: string; phone?: string; address?: string; coordinates?: { lat: number; lon: number }; safetyNotes?: string }>>(key);
+    const cached = this.getCached<
+      Array<{
+        name: string;
+        type: string;
+        phone?: string;
+        address?: string;
+        coordinates?: { lat: number; lon: number };
+        safetyNotes?: string;
+      }>
+    >(key);
     if (cached) return cached;
 
     try {
-      if (!this.openai) throw new Error('ai_disabled');
+      if (!this.openai) throw new Error("ai_disabled");
       const client = this.openai!;
       const prompt = `Provide the most likely major hospitals, emergency services, police contact numbers, and embassy information for the location ${loc}. Return JSON with name, type, phone, address, coordinates (approx), and safety notes.`;
       const completion = await client.chat.completions.create({
@@ -692,19 +958,29 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       });
       const content = completion.choices?.[0]?.message?.content?.trim() || "[]";
       const json = this.parseJson(content);
-      const arr = Array.isArray(json) ? json : (Array.isArray(json.items) ? json.items : []);
+      const arr = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
       const normalized = arr.map((i: any) => ({
         name: String(i.name || ""),
         type: String(i.type || ""),
         phone: i.phone ? String(i.phone) : undefined,
         address: i.address ? String(i.address) : undefined,
-        coordinates: i.coordinates && typeof i.coordinates === 'object' ? { lat: Number(i.coordinates.lat || 0), lon: Number(i.coordinates.lon || 0) } : undefined,
+        coordinates:
+          i.coordinates && typeof i.coordinates === "object"
+            ? { lat: Number(i.coordinates.lat || 0), lon: Number(i.coordinates.lon || 0) }
+            : undefined,
         safetyNotes: i.safetyNotes ? String(i.safetyNotes) : undefined,
       }));
       return this.setCached(key, normalized);
     } catch {
-      const types = ['hospital', 'police', 'embassy', 'pharmacy'];
-      const results: Array<{ name: string; type: string; phone?: string; address?: string; coordinates?: { lat: number; lon: number }; safetyNotes?: string }> = [];
+      const types = ["hospital", "police", "embassy", "pharmacy"];
+      const results: Array<{
+        name: string;
+        type: string;
+        phone?: string;
+        address?: string;
+        coordinates?: { lat: number; lon: number };
+        safetyNotes?: string;
+      }> = [];
 
       // Geocode the location first, then search by proximity. Uses Google
       // Places (Text Search + Nearby Search) rather than Nominatim/Overpass —
@@ -723,7 +999,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const key2 = config.GOOGLE_API_KEY;
         if (key2) {
           try {
-            const geoRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(loc)}&key=${key2}`);
+            const geoRes = await fetch(
+              `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(loc)}&key=${key2}`,
+            );
             const geoJson = await geoRes.json();
             const loc2 = geoJson?.results?.[0]?.geometry?.location;
             if (loc2) center = { lat: loc2.lat, lon: loc2.lng };
@@ -740,10 +1018,11 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           const radius = 5000; // meters
           for (const t of types) {
             try {
-              const params = t === 'embassy'
-                ? `keyword=embassy&radius=${radius}`
-                : `type=${t}&radius=${radius}`;
-              const r = await fetch(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&${params}&key=${key2}`);
+              const params =
+                t === "embassy" ? `keyword=embassy&radius=${radius}` : `type=${t}&radius=${radius}`;
+              const r = await fetch(
+                `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&${params}&key=${key2}`,
+              );
               if (!r.ok) continue;
               const json = await r.json();
               const items = Array.isArray(json?.results) ? json.results.slice(0, 3) : [];
@@ -753,7 +1032,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
                   type: t,
                   phone: undefined,
                   address: p.vicinity || undefined,
-                  coordinates: p.geometry?.location ? { lat: p.geometry.location.lat, lon: p.geometry.location.lng } : undefined,
+                  coordinates: p.geometry?.location
+                    ? { lat: p.geometry.location.lat, lon: p.geometry.location.lng }
+                    : undefined,
                   safetyNotes: undefined,
                 });
               }
@@ -784,10 +1065,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const totalDays = trip.days || 1;
     const expenses = trip.expenses || [];
     const itinerary = trip.itinerary || [];
-    const currency = trip.currency || 'INR';
+    const currency = trip.currency || "INR";
 
     // 1. Calculate Manual Spent
-    const manualSpent = expenses.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+    const manualSpent = expenses.reduce(
+      (acc: number, curr: any) => acc + (Number(curr.amount) || 0),
+      0,
+    );
 
     // 2. Calculate Planned Itinerary Cost (Activities)
     let itineraryCost = 0;
@@ -795,7 +1079,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       itinerary.forEach((day: any) => {
         if (Array.isArray(day.activities)) {
           day.activities.forEach((act: any) => {
-            itineraryCost += (Number(act.cost || act.entryFee || 0));
+            itineraryCost += Number(act.cost || act.entryFee || 0);
           });
         }
       });
@@ -803,7 +1087,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     // 3. Estimate Fixed Costs (Accommodation/Transit if not in expenses)
     const breakdown = trip.costBreakdown || {};
-    const estimatedAccommodation = Number(breakdown.accommodation || breakdown.accommodationINR || 0);
+    const estimatedAccommodation = Number(
+      breakdown.accommodation || breakdown.accommodationINR || 0,
+    );
     const estimatedTransit = Number(breakdown.transport || breakdown.transportINR || 0);
 
     const totalSpent = manualSpent + itineraryCost;
@@ -820,7 +1106,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       currentDay = Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
       currentDay = Math.min(totalDays, Math.max(1, currentDay));
     }
-    
+
     const daysRemaining = Math.max(0, totalDays - currentDay);
     const expectedDailyBudget = budget / totalDays;
     const actualDailySpent = totalSpent / currentDay;
@@ -831,26 +1117,36 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const pivots: string[] = [];
 
     if (burnRate > 1.2) {
-      alerts.push(`Critical Burn Rate: You are spending ${Math.round((burnRate - 1) * 100)}% faster than planned.`);
+      alerts.push(
+        `Critical Burn Rate: You are spending ${Math.round((burnRate - 1) * 100)}% faster than planned.`,
+      );
       pivots.push("Switch to public transport (Metro/Buses) for the next 48 hours.");
       pivots.push("Prioritize free sightseeing spots or city parks for the next two days.");
     } else if (burnRate > 1.05) {
       alerts.push("Moderate Overspending: Careful, you might exceed the budget by the trip's end.");
-      pivots.push("Limit dining to local 'Hidden Gems' or street food hubs instead of fine dining.");
+      pivots.push(
+        "Limit dining to local 'Hidden Gems' or street food hubs instead of fine dining.",
+      );
     }
 
-    if (manualSpent > (budget * 0.7) && currentDay < (totalDays / 2)) {
-      alerts.push("Resource Exhaustion: You've used 70% of your budget in less than half the trip.");
+    if (manualSpent > budget * 0.7 && currentDay < totalDays / 2) {
+      alerts.push(
+        "Resource Exhaustion: You've used 70% of your budget in less than half the trip.",
+      );
     }
 
-    if (!isOverBudget && remainingBudget < (expectedDailyBudget * 0.5) && daysRemaining > 1) {
-      alerts.push("Low Liquidity: Remaining funds are insufficient for your current daily spending habits.");
+    if (!isOverBudget && remainingBudget < expectedDailyBudget * 0.5 && daysRemaining > 1) {
+      alerts.push(
+        "Low Liquidity: Remaining funds are insufficient for your current daily spending habits.",
+      );
     }
 
     // Generic helpful advice if doing well
     if (burnRate < 0.8 && totalSpent > 0) {
       alerts.push("Excellent Budget Management: You are well within your financial limits!");
-      pivots.push("Consider upgrading to a premium experience or a unique local activity on your final day.");
+      pivots.push(
+        "Consider upgrading to a premium experience or a unique local activity on your final day.",
+      );
     }
 
     return {
@@ -860,7 +1156,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       remainingBudget,
       daysRemaining,
       alerts,
-      pivots
+      pivots,
     };
   }
 
@@ -874,23 +1170,68 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     travelMedium: string;
     existingItinerary?: any[];
   }): Promise<
-    | { destination: string; days: number; persons: number; totalEstimatedCost: number; currency: string; costBreakdown: { accommodationINR: number; foodINR: number; transportINR: number; activitiesINR: number; miscINR: number; totalINR: number }; itinerary: Array<{ day: number; activities: Array<{ time: string; title: string; placeName?: string; address: string; type: 'sightseeing' | 'restaurant' | 'cafe' | 'market' | 'museum' | 'temple' | 'park'; entryFeeINR: number; duration_minutes: number; localFoodRecommendations: string[]; routeFromPrevious: { mode: string; distance_km: number; travel_time_minutes: number; from: string; to: string } }> }>; packingList: string[]; safetyTips: string[]; notes: string }
-    | { error: 'invalid_model_output' | 'providers_unavailable'; message: string }
+    | {
+        destination: string;
+        days: number;
+        persons: number;
+        totalEstimatedCost: number;
+        currency: string;
+        costBreakdown: {
+          accommodationINR: number;
+          foodINR: number;
+          transportINR: number;
+          activitiesINR: number;
+          miscINR: number;
+          totalINR: number;
+        };
+        itinerary: Array<{
+          day: number;
+          activities: Array<{
+            time: string;
+            title: string;
+            placeName?: string;
+            address: string;
+            type: "sightseeing" | "restaurant" | "cafe" | "market" | "museum" | "temple" | "park";
+            entryFeeINR: number;
+            duration_minutes: number;
+            localFoodRecommendations: string[];
+            routeFromPrevious: {
+              mode: string;
+              distance_km: number;
+              travel_time_minutes: number;
+              from: string;
+              to: string;
+            };
+          }>;
+        }>;
+        packingList: string[];
+        safetyTips: string[];
+        notes: string;
+      }
+    | { error: "invalid_model_output" | "providers_unavailable"; message: string }
   > {
-    const { 
-        destination: rawDestination, days: rawDays, persons: rawPersons, 
-        budget: rawBudget, currency: rawCurrency, typeOfTrip: rawTypeOfTrip, 
-        travelMedium: rawTravelMedium, existingItinerary 
+    const {
+      destination: rawDestination,
+      days: rawDays,
+      persons: rawPersons,
+      budget: rawBudget,
+      currency: rawCurrency,
+      typeOfTrip: rawTypeOfTrip,
+      travelMedium: rawTravelMedium,
+      existingItinerary,
     } = input;
 
     const destination = sanitize(rawDestination, 128);
     const days = Number.isFinite(rawDays) ? Math.max(1, Math.floor(rawDays)) : 1;
     const persons = Number.isFinite(rawPersons) ? Math.max(1, Math.floor(rawPersons)) : 1;
-    const budget = typeof rawBudget === 'number' && Number.isFinite(rawBudget) ? Math.max(0, rawBudget) : undefined;
-    const currency = sanitize(rawCurrency || 'INR', 3).toUpperCase();
+    const budget =
+      typeof rawBudget === "number" && Number.isFinite(rawBudget)
+        ? Math.max(0, rawBudget)
+        : undefined;
+    const currency = sanitize(rawCurrency || "INR", 3).toUpperCase();
     const typeOfTrip = sanitize(rawTypeOfTrip, 64);
     const travelMedium = sanitize(rawTravelMedium, 64);
-    const key = `planTrip:${destination}:${days}:${persons}:${budget ?? 'x'}:${currency}:${typeOfTrip}:${travelMedium}:${existingItinerary ? 'opt' : 'fresh'}`;
+    const key = `planTrip:${destination}:${days}:${persons}:${budget ?? "x"}:${currency}:${typeOfTrip}:${travelMedium}:${existingItinerary ? "opt" : "fresh"}`;
     const cached = this.getCached<any>(key);
     if (cached) return cached;
     if (this.inflight.has(key)) {
@@ -901,7 +1242,15 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       // Validate destination
       if (!this.validateDestination(destination)) {
         console.warn(`[planTrip] Invalid destination: "${destination}", using fallback generator`);
-        return await this.generateFallbackTrip({ destination, days, persons, budget, currency, typeOfTrip, travelMedium });
+        return await this.generateFallbackTrip({
+          destination,
+          days,
+          persons,
+          budget,
+          currency,
+          typeOfTrip,
+          travelMedium,
+        });
       }
 
       // Initialize Agentic Services
@@ -913,7 +1262,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         openai: this.openai,
         geminiHelper: this.generateWithGemini.bind(this),
         places: { getPointsOfInterest: this.getPointsOfInterest.bind(this) },
-        weather: { getWeatherForLocation: this.getWeatherForLocation.bind(this) }
+        weather: { getWeatherForLocation: this.getWeatherForLocation.bind(this) },
       });
 
       const zTripPlan = z.object({
@@ -930,50 +1279,85 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           misc: z.number().int().optional().or(z.number()),
           total: z.number().int().optional().or(z.number()),
         }),
-        itinerary: z.array(z.object({
-          day: z.number(),
-          activities: z.array(z.object({
-            time: z.string(),
-            title: z.string(),
-            placeName: z.string().optional(),
-            address: z.string(),
-            type: z.enum(["sightseeing", "restaurant", "cafe", "market", "museum", "temple", "park"]),
-            entryFee: z.number(),
-            cost: z.number().optional(),
-            duration_minutes: z.number(),
-            localFoodRecommendations: z.array(z.string()).default([]),
-            routeFromPrevious: z.object({ mode: z.string(), distance_km: z.number(), travel_time_minutes: z.number(), from: z.string(), to: z.string() })
-          })).min(3),
-          reasoning: z.string().optional(),
-          confidenceScore: z.enum(['high', 'medium', 'low']).optional()
-        })),
+        itinerary: z.array(
+          z.object({
+            day: z.number(),
+            activities: z
+              .array(
+                z.object({
+                  time: z.string(),
+                  title: z.string(),
+                  placeName: z.string().optional(),
+                  address: z.string(),
+                  type: z.enum([
+                    "sightseeing",
+                    "restaurant",
+                    "cafe",
+                    "market",
+                    "museum",
+                    "temple",
+                    "park",
+                  ]),
+                  entryFee: z.number(),
+                  cost: z.number().optional(),
+                  duration_minutes: z.number(),
+                  localFoodRecommendations: z.array(z.string()).default([]),
+                  routeFromPrevious: z.object({
+                    mode: z.string(),
+                    distance_km: z.number(),
+                    travel_time_minutes: z.number(),
+                    from: z.string(),
+                    to: z.string(),
+                  }),
+                }),
+              )
+              .min(3),
+            reasoning: z.string().optional(),
+            confidenceScore: z.enum(["high", "medium", "low"]).optional(),
+          }),
+        ),
         packingList: z.array(z.string()).min(1),
         safetyTips: z.array(z.string()).min(1),
         notes: z.string(),
-        explainability: z.object({
-          reasoning: z.string().optional(),
-          confidenceScore: z.number().optional(),
-          degradedConstraints: z.array(z.string()).optional(),
-          telemetry: z.object({
-            latencySeconds: z.number(),
-            iterations: z.number(),
-            models: z.array(z.string())
-          }).optional()
-        }).optional()
+        explainability: z
+          .object({
+            reasoning: z.string().optional(),
+            confidenceScore: z.number().optional(),
+            degradedConstraints: z.array(z.string()).optional(),
+            telemetry: z
+              .object({
+                latencySeconds: z.number(),
+                iterations: z.number(),
+                models: z.array(z.string()),
+              })
+              .optional(),
+          })
+          .optional(),
       });
       try {
         // Orchestrated Cognitive Reasoning Loop replacing single-shot text generation
         const rawPlan = await orchestrator.executeReasoningLoop({
           goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s). It is CRITICAL that you generate EXACTLY ${days} days of itineraries.`,
-          constraints: { budget, days, persons, travelStyle: typeOfTrip, currency, destination, existingItinerary },
-          maxIterations: 3
+          constraints: {
+            budget,
+            days,
+            persons,
+            travelStyle: typeOfTrip,
+            currency,
+            destination,
+            existingItinerary,
+          },
+          maxIterations: 3,
         });
 
         // Zod still checks here for the router response shape
         const parsed = zTripPlan.safeParse(rawPlan);
 
         if (!parsed.success) {
-          console.error("[AiUtilities] Zod Validation Failed:", JSON.stringify(parsed.error.format(), null, 2));
+          console.error(
+            "[AiUtilities] Zod Validation Failed:",
+            JSON.stringify(parsed.error.format(), null, 2),
+          );
           throw new Error("Schema Validation Failed after reasoning loop");
         }
 
@@ -981,28 +1365,44 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
         try {
           // GROUNDING STEP: Verify results against Google Places with timeout
-          const groundingPromise = this.groundItineraryWithRealPlaces(finalPlan, currency || 'INR');
+          const groundingPromise = this.groundItineraryWithRealPlaces(finalPlan, currency || "INR");
           finalPlan = await this.withTimeout(
             groundingPromise,
             20000,
             finalPlan, // Fallback to raw AI plan if grounding takes too long
-            `Grounding: ${destination}`
+            `Grounding: ${destination}`,
           );
 
           // DETERMINISTIC CONSTRAINT ENGINE (Stage 5 Architecture)
           finalPlan = await this.enforceTransitConstraints(finalPlan);
         } catch (postProcessingError: any) {
-          console.error(`[AiUtilities] Grounding or Constraint enforcement failed for ${destination}, falling back to pristine AI plan:`, postProcessingError.message);
+          console.error(
+            `[AiUtilities] Grounding or Constraint enforcement failed for ${destination}, falling back to pristine AI plan:`,
+            postProcessingError.message,
+          );
           // If grounding fails, we intentionally swallow the error and use the pristine AI plan.
         }
 
         // Final explainability tag
-        finalPlan.notes = (finalPlan.notes || '') + " | Cognitive Validator applied: Multi-Agent architecture active.";
+        finalPlan.notes =
+          (finalPlan.notes || "") +
+          " | Cognitive Validator applied: Multi-Agent architecture active.";
 
         return this.setCached(key, finalPlan);
       } catch (genError: any) {
-        console.error(`[AiUtilities] planTrip failed for ${destination}, using fallback:`, genError.message);
-        const fallback = await this.generateFallbackTrip({ destination, days, persons, budget, currency, typeOfTrip, travelMedium });
+        console.error(
+          `[AiUtilities] planTrip failed for ${destination}, using fallback:`,
+          genError.message,
+        );
+        const fallback = await this.generateFallbackTrip({
+          destination,
+          days,
+          persons,
+          budget,
+          currency,
+          typeOfTrip,
+          travelMedium,
+        });
         return this.setCached(key, fallback);
       }
     })();
@@ -1019,7 +1419,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
    * PROACTIVE TRAVEL OPTIMIZER (Stage 5 Architecture)
    * Cross-references weather forecasts with itinerary to suggest proactive adjustments.
    */
-  async getProactiveInsights(destination: string, itinerary: any[]): Promise<{ insights: string[]; suggestedPackingItems: string[] }> {
+  async getProactiveInsights(
+    destination: string,
+    itinerary: any[],
+  ): Promise<{ insights: string[]; suggestedPackingItems: string[] }> {
     try {
       const weatherData = await this.weather(destination);
       const insights: string[] = [];
@@ -1031,23 +1434,33 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
       // Weather-Aware Packing
       if (condition.includes("rain") || condition.includes("drizzle")) {
-        insights.push(`🌧️ Rain expected in ${destination}. Consider moving outdoor sightseeing workshops to afternoon.`);
+        insights.push(
+          `🌧️ Rain expected in ${destination}. Consider moving outdoor sightseeing workshops to afternoon.`,
+        );
         suggestedPackingItems.push("Umbrella", "Raincoat", "Waterproof Shoes");
       }
       if (temperature > 30) {
-        insights.push(`🔥 High heat alert (${temperature}°C). Schedule heavy walking before 11:00 AM or after 4:00 PM.`);
+        insights.push(
+          `🔥 High heat alert (${temperature}°C). Schedule heavy walking before 11:00 AM or after 4:00 PM.`,
+        );
         suggestedPackingItems.push("Sunscreen", "Large Water Bottle", "Breathable Cotton Wear");
       }
       if (temperature < 10) {
-        insights.push(`❄️ Chilly weather expected (${temperature}°C). Layer up for the evening activities.`);
+        insights.push(
+          `❄️ Chilly weather expected (${temperature}°C). Layer up for the evening activities.`,
+        );
         suggestedPackingItems.push("Warm Jacket", "Gloves", "Scarf");
       }
 
       // Logic check: If rain + sightseeing, suggest specific movement
       for (const day of itinerary) {
-        const hasOutdoor = (day.activities || []).some((a: any) => ['sightseeing', 'market', 'park'].includes(a.type));
+        const hasOutdoor = (day.activities || []).some((a: any) =>
+          ["sightseeing", "market", "park"].includes(a.type),
+        );
         if (hasOutdoor && condition.includes("rain")) {
-          insights.push(`💡 Day ${day.day}: Rain might impact outdoor spots. Check for indoor museum alternatives.`);
+          insights.push(
+            `💡 Day ${day.day}: Rain might impact outdoor spots. Check for indoor museum alternatives.`,
+          );
         }
       }
 
@@ -1059,10 +1472,17 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   }
 
   private validateTripPlan(obj: any): { valid: boolean; value?: any } {
-    if (!obj || typeof obj !== 'object') return { valid: false };
-    const isNum = (x: any) => typeof x === 'number' && Number.isFinite(x);
-    const isStr = (x: any) => typeof x === 'string';
-    if (!isStr(obj.destination) || !isNum(obj.days) || !isNum(obj.persons) || !isNum(obj.totalEstimatedCost) || !isStr(obj.currency)) return { valid: false };
+    if (!obj || typeof obj !== "object") return { valid: false };
+    const isNum = (x: any) => typeof x === "number" && Number.isFinite(x);
+    const isStr = (x: any) => typeof x === "string";
+    if (
+      !isStr(obj.destination) ||
+      !isNum(obj.days) ||
+      !isNum(obj.persons) ||
+      !isNum(obj.totalEstimatedCost) ||
+      !isStr(obj.currency)
+    )
+      return { valid: false };
     const itin = obj.itinerary;
     if (!Array.isArray(itin) || itin.length < 1) return { valid: false };
     // Basic validation
@@ -1078,13 +1498,17 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       if (match) s = match[1].trim();
     }
 
-    const firstBrace = s.indexOf('{');
-    const lastBrace = s.lastIndexOf('}');
-    const firstBracket = s.indexOf('[');
-    const lastBracket = s.lastIndexOf(']');
+    const firstBrace = s.indexOf("{");
+    const lastBrace = s.lastIndexOf("}");
+    const firstBracket = s.indexOf("[");
+    const lastBracket = s.lastIndexOf("]");
 
     // Find the outer-most structure (brace or bracket)
-    if (firstBrace !== -1 && lastBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    if (
+      firstBrace !== -1 &&
+      lastBrace !== -1 &&
+      (firstBracket === -1 || firstBrace < firstBracket)
+    ) {
       s = s.slice(firstBrace, lastBrace + 1);
     } else if (firstBracket !== -1 && lastBracket !== -1) {
       s = s.slice(firstBracket, lastBracket + 1);
@@ -1099,8 +1523,17 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   }
 
   async weatherTool(location: string): Promise<
-    | { current: { temperature: number; conditions: string; humidity: number; wind_kph: number; advice: string }; forecast: Array<{ date: string; high: number; low: number; conditions: string }> }
-    | { error: 'invalid_model_output'; message: string }
+    | {
+        current: {
+          temperature: number;
+          conditions: string;
+          humidity: number;
+          wind_kph: number;
+          advice: string;
+        };
+        forecast: Array<{ date: string; high: number; low: number; conditions: string }>;
+      }
+    | { error: "invalid_model_output"; message: string }
   > {
     // ... existing weatherTool implementation is fine, but I must implement it or copy it.
     // To match original file, I will copy meaningful parts.
@@ -1116,13 +1549,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       conditions: w.current.condition,
       humidity: w.current.humidity,
       wind_kph: w.current.windSpeed,
-      advice: w.recommendations[0] || "Check local forecast"
+      advice: w.recommendations[0] || "Check local forecast",
     };
     const forecast = w.forecast.map((f: any) => ({
       date: f.day, // Note: returning label as date for simplicity as per existing logic
       high: f.high,
       low: f.low,
-      conditions: f.condition
+      conditions: f.condition,
     }));
     return this.setCached(key, { current, forecast });
   }
@@ -1139,16 +1572,16 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     promise: Promise<T>,
     timeoutMs: number,
     fallback: T,
-    label: string
+    label: string,
   ): Promise<T> {
     const timeoutPromise = new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout: ${label}`)), timeoutMs)
+      setTimeout(() => reject(new Error(`Timeout: ${label}`)), timeoutMs),
     );
 
     try {
       return await Promise.race([promise, timeoutPromise]);
     } catch (e: any) {
-      console.warn(`[${label}] ${e.message || 'Failed'}, using fallback`);
+      console.warn(`[${label}] ${e.message || "Failed"}, using fallback`);
       return fallback;
     }
   }
@@ -1173,11 +1606,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     return true;
   }
 
-
   private async searchPlaces(query: string, timeoutMs = 10000): Promise<any[]> {
     try {
       if (!config.GOOGLE_API_KEY) {
-        console.warn('[searchPlaces] No Google API key configured');
+        console.warn("[searchPlaces] No Google API key configured");
         return [];
       }
 
@@ -1185,29 +1617,29 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
 
       // Wrap fetch in timeout
-      const fetchPromise = fetch(url).then(res => res.json());
+      const fetchPromise = fetch(url).then((res) => res.json());
       const data = await this.withTimeout(
         fetchPromise,
         timeoutMs,
-        { status: 'TIMEOUT', results: [] },
-        `Google Places API: "${query}"`
+        { status: "TIMEOUT", results: [] },
+        `Google Places API: "${query}"`,
       );
 
-      if (data.status === 'TIMEOUT') {
+      if (data.status === "TIMEOUT") {
         console.warn(`[searchPlaces] Timeout for query "${query}"`);
         return [];
       }
 
-      if (data.status === 'ZERO_RESULTS') {
+      if (data.status === "ZERO_RESULTS") {
         return [];
       }
 
-      if (data.status === 'OVER_QUERY_LIMIT') {
-        console.error('[searchPlaces] Google Places quota exceeded');
+      if (data.status === "OVER_QUERY_LIMIT") {
+        console.error("[searchPlaces] Google Places quota exceeded");
         return [];
       }
 
-      if (data.status === 'OK' && Array.isArray(data.results)) {
+      if (data.status === "OK" && Array.isArray(data.results)) {
         return data.results.map((p: any) => ({
           name: p.name,
           formatted_address: p.formatted_address,
@@ -1215,7 +1647,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           rating: p.rating,
           user_ratings_total: p.user_ratings_total,
           price_level: p.price_level,
-          geometry: p.geometry // Include location data (lat/lng)
+          geometry: p.geometry, // Include location data (lat/lng)
         }));
       }
 
@@ -1227,7 +1659,15 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     }
   }
 
-  private async generateFallbackTrip(input: { destination: string; days: number; persons: number; budget?: number; currency?: string; typeOfTrip: string; travelMedium: string }): Promise<any> {
+  private async generateFallbackTrip(input: {
+    destination: string;
+    days: number;
+    persons: number;
+    budget?: number;
+    currency?: string;
+    typeOfTrip: string;
+    travelMedium: string;
+  }): Promise<any> {
     const { destination, days, persons, budget, currency, typeOfTrip, travelMedium } = input;
     const safeCurrency = currency || "INR";
 
@@ -1238,35 +1678,42 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     // Helper to estimate cost based on price_level (0-4)
     const estimateCost = (place: any, type: string) => {
       const baseRates: Record<string, number> = {
-        'INR': 500, 'USD': 20, 'EUR': 18, 'GBP': 15, 'AUD': 25, 'CAD': 25, 'JPY': 2000, 'CNY': 100
+        INR: 500,
+        USD: 20,
+        EUR: 18,
+        GBP: 15,
+        AUD: 25,
+        CAD: 25,
+        JPY: 2000,
+        CNY: 100,
       };
       const base = baseRates[safeCurrency] || 20; // Default to 20 units
 
-      if (type === 'restaurant') {
-        const multiplier = (place.price_level || 2); // Default to Medium $$
-        return Math.round(base * (0.5 + (multiplier * 0.5)));
+      if (type === "restaurant") {
+        const multiplier = place.price_level || 2; // Default to Medium $$
+        return Math.round(base * (0.5 + multiplier * 0.5));
       }
       return 0; // Sightseeing default free unless known
     };
 
-
-    const safeBudget = budget || (safeCurrency === "USD" ? 100 * days * persons : 5000 * days * persons);
+    const safeBudget =
+      budget || (safeCurrency === "USD" ? 100 * days * persons : 5000 * days * persons);
 
     // Basic cost distribution
     const accommodation = Math.round(safeBudget * 0.4);
     const transport = Math.round(safeBudget * 0.15);
     // Dynamic calculation for food and activities based on items
-    let activitiesCost = 0;
+    const activitiesCost = 0;
     let foodCost = 0;
 
     const itinerary: any[] = [];
     const backupActivities = [
-      { type: 'sightseeing', name: 'Historic City Center', suffix: '' },
-      { type: 'museum', name: 'City Museum', suffix: '' },
-      { type: 'park', name: 'Central Park', suffix: '' },
-      { type: 'market', name: 'Local Market', suffix: '' },
-      { type: 'temple', name: 'Grand Temple', suffix: '' },
-      { type: 'sightseeing', name: 'Scenic Viewpoint', suffix: '' },
+      { type: "sightseeing", name: "Historic City Center", suffix: "" },
+      { type: "museum", name: "City Museum", suffix: "" },
+      { type: "park", name: "Central Park", suffix: "" },
+      { type: "market", name: "Local Market", suffix: "" },
+      { type: "temple", name: "Grand Temple", suffix: "" },
+      { type: "sightseeing", name: "Scenic Viewpoint", suffix: "" },
     ];
 
     for (let i = 1; i <= days; i++) {
@@ -1285,16 +1732,27 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         lat: p1.geometry?.location?.lat,
         lon: p1.geometry?.location?.lng,
         localFoodRecommendations: ["Local Breakfast"],
-        routeFromPrevious: { mode: travelMedium, distance_km: 5, travel_time_minutes: 15, from: "Hotel", to: p1.name || "Site" }
+        routeFromPrevious: {
+          mode: travelMedium,
+          distance_km: 5,
+          travel_time_minutes: 15,
+          from: "Hotel",
+          to: p1.name || "Site",
+        },
       });
 
       // Activity 2: Lunch (Restaurant)
       // Pick a restaurant from the specific search results, cycle through them
-      const pFood = restaurantPlaces.length > 0
-        ? restaurantPlaces[(i - 1) % restaurantPlaces.length]
-        : (realPlaces.find(p => p.types.includes('restaurant') || p.types.includes('food')) || { name: "Local Restaurant", formatted_address: `${destination} Downtown`, price_level: 2 });
+      const pFood =
+        restaurantPlaces.length > 0
+          ? restaurantPlaces[(i - 1) % restaurantPlaces.length]
+          : realPlaces.find((p) => p.types.includes("restaurant") || p.types.includes("food")) || {
+              name: "Local Restaurant",
+              formatted_address: `${destination} Downtown`,
+              price_level: 2,
+            };
 
-      const lunchCost = estimateCost(pFood, 'restaurant');
+      const lunchCost = estimateCost(pFood, "restaurant");
       foodCost += lunchCost * persons;
 
       dailyActivities.push({
@@ -1309,7 +1767,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         lat: pFood.geometry?.location?.lat,
         lon: pFood.geometry?.location?.lng,
         localFoodRecommendations: ["Local Dish"],
-        routeFromPrevious: { mode: "walk", distance_km: 1, travel_time_minutes: 10, from: p1.name || "Site", to: "Restaurant" }
+        routeFromPrevious: {
+          mode: "walk",
+          distance_km: 1,
+          travel_time_minutes: 10,
+          from: p1.name || "Site",
+          to: "Restaurant",
+        },
       });
 
       const p2Index = (i - 1) * 2 + 1;
@@ -1326,7 +1790,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         lat: p2.geometry?.location?.lat,
         lon: p2.geometry?.location?.lng,
         localFoodRecommendations: ["Street Food"],
-        routeFromPrevious: { mode: "taxi", distance_km: 3, travel_time_minutes: 15, from: "Restaurant", to: p2.name || "Park" }
+        routeFromPrevious: {
+          mode: "taxi",
+          distance_km: 3,
+          travel_time_minutes: 15,
+          from: "Restaurant",
+          to: p2.name || "Park",
+        },
       });
 
       itinerary.push({ day: i, activities: dailyActivities });
@@ -1340,7 +1810,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       transport: transport,
       activities: activitiesCost,
       misc: misc,
-      total: accommodation + foodCost + transport + activitiesCost + misc
+      total: accommodation + foodCost + transport + activitiesCost + misc,
     };
 
     return {
@@ -1353,20 +1823,24 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       itinerary,
       packingList: ["Clothes", "Toiletries", "Charger", "ID Proof"],
       safetyTips: ["Stay hydrated", "Keep emergency numbers handy"],
-      notes: "Generated by Smart Fallback (Real Places + Estimated Costs)"
+      notes: "Generated by Smart Fallback (Real Places + Estimated Costs)",
     };
   }
 
   // Use Gemini to get real place names, with fallback to Google Places API
-  private async getRealPlacesFromGemini(destination: string, type: 'restaurants' | 'attractions'): Promise<Array<{ name: string, address?: string, cuisine?: string }>> {
+  private async getRealPlacesFromGemini(
+    destination: string,
+    type: "restaurants" | "attractions",
+  ): Promise<Array<{ name: string; address?: string; cuisine?: string }>> {
     const geminiKey = config.GEMINI_API_KEY;
     const placesKey = config.GOOGLE_API_KEY;
 
     // Try Gemini first
     if (geminiKey) {
-      const prompt = type === 'restaurants'
-        ? `List exactly 15 real, popular, and highly-rated restaurants in ${destination}. Include a mix of local cuisine, cafes, and fine dining. Return ONLY a valid JSON array with objects containing "name" (exact restaurant name), "address" (approximate location/area), and "cuisine" (type of food). No explanations, just the JSON array.`
-        : `List exactly 15 real, popular tourist attractions and landmarks in ${destination}. Include temples, parks, monuments, markets, and museums. Return ONLY a valid JSON array with objects containing "name" (exact place name) and "address" (approximate location/area). No explanations, just the JSON array.`;
+      const prompt =
+        type === "restaurants"
+          ? `List exactly 15 real, popular, and highly-rated restaurants in ${destination}. Include a mix of local cuisine, cafes, and fine dining. Return ONLY a valid JSON array with objects containing "name" (exact restaurant name), "address" (approximate location/area), and "cuisine" (type of food). No explanations, just the JSON array.`
+          : `List exactly 15 real, popular tourist attractions and landmarks in ${destination}. Include temples, parks, monuments, markets, and museums. Return ONLY a valid JSON array with objects containing "name" (exact place name) and "address" (approximate location/area). No explanations, just the JSON array.`;
 
       try {
         const controller = new AbortController();
@@ -1375,14 +1849,14 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
           {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.3 }
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.3 },
             }),
             signal: controller.signal,
-          }
+          },
         );
         clearTimeout(timer);
 
@@ -1394,12 +1868,15 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           throw new Error(`Gemini API Error: ${json.error.message}`);
         }
 
-        const textContent = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const textContent = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
         // Extract JSON from potential markdown code blocks
         let cleanJson = textContent.trim();
-        if (cleanJson.startsWith('```')) {
-          cleanJson = cleanJson.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+        if (cleanJson.startsWith("```")) {
+          cleanJson = cleanJson
+            .replace(/```json?\n?/g, "")
+            .replace(/```/g, "")
+            .trim();
         }
 
         if (cleanJson) {
@@ -1416,19 +1893,25 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     // Fallback to Google Places API
     if (placesKey) {
       try {
-        const query = type === 'restaurants'
-          ? `best restaurants in ${destination}`
-          : `top tourist attractions in ${destination}`;
+        const query =
+          type === "restaurants"
+            ? `best restaurants in ${destination}`
+            : `top tourist attractions in ${destination}`;
 
         const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${placesKey}`;
         const res = await fetch(url);
         const data = await res.json();
 
-        if (data.status === 'OK' && data.results && data.results.length > 0) {
+        if (data.status === "OK" && data.results && data.results.length > 0) {
           return data.results.slice(0, 15).map((p: any) => ({
             name: p.name,
             address: p.formatted_address || p.vicinity,
-            cuisine: type === 'restaurants' ? (p.types?.includes('cafe') ? 'Cafe' : 'Restaurant') : undefined
+            cuisine:
+              type === "restaurants"
+                ? p.types?.includes("cafe")
+                  ? "Cafe"
+                  : "Restaurant"
+                : undefined,
           }));
         }
       } catch (e: any) {
@@ -1441,16 +1924,22 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
   // Verify specific places using Gemini AI for real names
   private async groundItineraryWithRealPlaces(plan: any, currency: string): Promise<any> {
-
     // Get real places from Gemini
     const [realRestaurants, realAttractions] = await Promise.all([
-      this.getRealPlacesFromGemini(plan.destination, 'restaurants'),
-      this.getRealPlacesFromGemini(plan.destination, 'attractions')
+      this.getRealPlacesFromGemini(plan.destination, "restaurants"),
+      this.getRealPlacesFromGemini(plan.destination, "attractions"),
     ]);
 
     // Base rates for cost estimation
     const baseRates: Record<string, number> = {
-      'INR': 500, 'USD': 20, 'EUR': 18, 'GBP': 15, 'AUD': 25, 'CAD': 25, 'JPY': 2000, 'CNY': 100
+      INR: 500,
+      USD: 20,
+      EUR: 18,
+      GBP: 15,
+      AUD: 25,
+      CAD: 25,
+      JPY: 2000,
+      CNY: 100,
     };
     const base = baseRates[currency] || 20;
 
@@ -1461,24 +1950,52 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     let attractionIndex = 0;
 
     // Generic terms that should trigger replacement
-    const genericRestaurantTerms = ["top rated", "local restaurant", "best cafe", "famous", "popular", "restaurant", "cafe", "lunch", "dinner", "breakfast", "eatery"];
-    const genericAttractionTerms = ["tourist spot", "famous place", "landmark", "attraction", "sightseeing", "top place", "city park", "local market"];
+    const genericRestaurantTerms = [
+      "top rated",
+      "local restaurant",
+      "best cafe",
+      "famous",
+      "popular",
+      "restaurant",
+      "cafe",
+      "lunch",
+      "dinner",
+      "breakfast",
+      "eatery",
+    ];
+    const genericAttractionTerms = [
+      "tourist spot",
+      "famous place",
+      "landmark",
+      "attraction",
+      "sightseeing",
+      "top place",
+      "city park",
+      "local market",
+    ];
 
     for (const day of plan.itinerary) {
       if (!day.activities) continue;
 
       for (const activity of day.activities) {
         try {
-          const name = (activity.title || activity.placeName || '').toLowerCase();
-          const activityType = (activity.type || '').toLowerCase();
+          const name = (activity.title || activity.placeName || "").toLowerCase();
+          const activityType = (activity.type || "").toLowerCase();
 
           // Check if this is a restaurant/food activity
-          const isFood = activityType === 'restaurant' || activityType === 'cafe' || activityType === 'bar' ||
-            name.includes('lunch') || name.includes('dinner') || name.includes('breakfast');
+          const isFood =
+            activityType === "restaurant" ||
+            activityType === "cafe" ||
+            activityType === "bar" ||
+            name.includes("lunch") ||
+            name.includes("dinner") ||
+            name.includes("breakfast");
 
           // Check if this is a generic name that needs replacement
-          const isGenericRestaurant = isFood && genericRestaurantTerms.some(term => name.includes(term));
-          const isGenericAttraction = !isFood && genericAttractionTerms.some(term => name.includes(term));
+          const isGenericRestaurant =
+            isFood && genericRestaurantTerms.some((term) => name.includes(term));
+          const isGenericAttraction =
+            !isFood && genericAttractionTerms.some((term) => name.includes(term));
 
           if (isGenericRestaurant && realRestaurants.length > 0) {
             // Pick next real restaurant
@@ -1507,9 +2024,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
             }
           } else if (isFood && !isGenericRestaurant && realRestaurants.length > 0) {
             // Even for non-generic food entries, verify it's a real place
-            const matchingReal = realRestaurants.find(r =>
-              r.name.toLowerCase().includes(name.split(' ')[0]) ||
-              name.includes(r.name.toLowerCase().split(' ')[0])
+            const matchingReal = realRestaurants.find(
+              (r) =>
+                r.name.toLowerCase().includes(name.split(" ")[0]) ||
+                name.includes(r.name.toLowerCase().split(" ")[0]),
             );
             if (!matchingReal && !usedRestaurants.has(activity.title || activity.placeName)) {
               // If we can't verify it, replace with a real one
@@ -1543,14 +2061,15 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       if (!day.activities) continue;
       for (const act of day.activities) {
         const cost = act.entryFee || act.cost || 0;
-        const isFood = (act.type || '').toLowerCase() === 'restaurant' ||
-          (act.type || '').toLowerCase() === 'cafe' ||
-          (act.placeName || '').toLowerCase().includes('lunch') ||
-          (act.placeName || '').toLowerCase().includes('dinner');
+        const isFood =
+          (act.type || "").toLowerCase() === "restaurant" ||
+          (act.type || "").toLowerCase() === "cafe" ||
+          (act.placeName || "").toLowerCase().includes("lunch") ||
+          (act.placeName || "").toLowerCase().includes("dinner");
         if (isFood) {
-          newFoodCost += (cost * (plan.persons || 1));
+          newFoodCost += cost * (plan.persons || 1);
         } else {
-          newActivitiesCost += (cost * (plan.persons || 1));
+          newActivitiesCost += cost * (plan.persons || 1);
         }
       }
     }
@@ -1568,7 +2087,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const calculatedTotal = acc + trans + newFoodCost + newActivitiesCost + misc;
 
     // BUDGET INTEGRITY FIREWALL: Scale down if grounding exceeded budget
-    const targetBudget = (plan.budget || 0);
+    const targetBudget = plan.budget || 0;
     if (targetBudget > 0 && calculatedTotal > targetBudget) {
       const scaleFactor = targetBudget / calculatedTotal;
 
@@ -1592,7 +2111,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           if (act.entryFee) act.entryFee = scale(act.entryFee);
         }
       }
-      plan.costBreakdown.total = plan.costBreakdown.accommodation + plan.costBreakdown.food + plan.costBreakdown.transport + plan.costBreakdown.activities + plan.costBreakdown.misc;
+      plan.costBreakdown.total =
+        plan.costBreakdown.accommodation +
+        plan.costBreakdown.food +
+        plan.costBreakdown.transport +
+        plan.costBreakdown.activities +
+        plan.costBreakdown.misc;
       plan.costBreakdown.totalINR = plan.costBreakdown.total;
     } else {
       plan.costBreakdown.total = calculatedTotal;
@@ -1603,12 +2127,17 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     const restaurantsUsed = usedRestaurants.size;
     const attractionsUsed = usedAttractions.size;
-    plan.notes = (plan.notes || '') + ` | Grounded (${restaurantsUsed} restaurants, ${attractionsUsed} attractions verified)`;
+    plan.notes =
+      (plan.notes || "") +
+      ` | Grounded (${restaurantsUsed} restaurants, ${attractionsUsed} attractions verified)`;
 
     return plan;
   }
 
-  async getTravelHacks(destination: string, typeOfTrip: string = 'relaxed'): Promise<{ hacks: string[]; economicalAlternatives: string[] }> {
+  async getTravelHacks(
+    destination: string,
+    typeOfTrip: string = "relaxed",
+  ): Promise<{ hacks: string[]; economicalAlternatives: string[] }> {
     const key = `hacks:${destination}:${typeOfTrip}`;
     const cached = this.getCached<any>(key);
     if (cached) return cached;
@@ -1634,7 +2163,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     Reply ONLY with valid JSON, no markdown.`;
 
     try {
-      let content = '';
+      let content = "";
       if (this.openai) {
         const aiPromise = this.openai.chat.completions.create({
           model: "gpt-4o-mini",
@@ -1648,18 +2177,21 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const completion: any = await this.withTimeout(
           aiPromise,
           15000,
-          { choices: [{ message: { content: '{}' } }] } as any,
-          `OpenAI Travel Hacks: ${destination}`
+          { choices: [{ message: { content: "{}" } }] } as any,
+          `OpenAI Travel Hacks: ${destination}`,
         );
 
         content = completion.choices?.[0]?.message?.content?.trim() || "{}";
       } else {
-        const geminiPromise = this.generateWithGemini(prompt, "You are a travel expert. Return only valid JSON.");
+        const geminiPromise = this.generateWithGemini(
+          prompt,
+          "You are a travel expert. Return only valid JSON.",
+        );
         content = await this.withTimeout(
           geminiPromise,
           15000,
-          '{}',
-          `Gemini Travel Hacks: ${destination}`
+          "{}",
+          `Gemini Travel Hacks: ${destination}`,
         );
       }
 
@@ -1667,11 +2199,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
       const ensureStringArray = (arr: any): string[] => {
         if (!Array.isArray(arr)) return [];
-        return arr.map(item => {
-          if (typeof item === 'string') return item;
-          if (typeof item === 'object' && item !== null) {
+        return arr.map((item) => {
+          if (typeof item === "string") return item;
+          if (typeof item === "object" && item !== null) {
             // Handle {category, description} or {tip} etc.
-            return item.description || item.tip || item.text || item.content || JSON.stringify(item);
+            return (
+              item.description || item.tip || item.text || item.content || JSON.stringify(item)
+            );
           }
           return String(item);
         });
@@ -1679,15 +2213,23 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
       let result = {
         hacks: ensureStringArray(json.hacks),
-        economicalAlternatives: ensureStringArray(json.economicalAlternatives)
+        economicalAlternatives: ensureStringArray(json.economicalAlternatives),
       };
 
       // If AI failed, use region-aware fallback
-      if (!result.hacks || result.hacks.length === 0 || !result.economicalAlternatives || result.economicalAlternatives.length === 0) {
+      if (
+        !result.hacks ||
+        result.hacks.length === 0 ||
+        !result.economicalAlternatives ||
+        result.economicalAlternatives.length === 0
+      ) {
         const fallback = this.getRegionAwareFallbackHacks(destination);
         result = {
           hacks: result.hacks && result.hacks.length > 0 ? result.hacks : fallback.hacks,
-          economicalAlternatives: result.economicalAlternatives && result.economicalAlternatives.length > 0 ? result.economicalAlternatives : fallback.economicalAlternatives
+          economicalAlternatives:
+            result.economicalAlternatives && result.economicalAlternatives.length > 0
+              ? result.economicalAlternatives
+              : fallback.economicalAlternatives,
         };
       }
 
@@ -1701,14 +2243,25 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   /**
    * Returns region-specific fallback travel hacks based on destination
    */
-  private getRegionAwareFallbackHacks(destination: string): { hacks: string[]; economicalAlternatives: string[] } {
+  private getRegionAwareFallbackHacks(destination: string): {
+    hacks: string[];
+    economicalAlternatives: string[];
+  } {
     const destLower = destination.toLowerCase();
 
     // Detect region
-    const isAsian = /india|china|japan|thailand|vietnam|singapore|malaysia|indonesia|philippines|korea|bangladesh|nepal|sri lanka|cambodia/i.test(destLower);
-    const isEuropean = /europe|france|germany|italy|spain|uk|britain|england|portugal|greece|netherlands|belgium|austria|switzerland|poland|czech/i.test(destLower);
+    const isAsian =
+      /india|china|japan|thailand|vietnam|singapore|malaysia|indonesia|philippines|korea|bangladesh|nepal|sri lanka|cambodia/i.test(
+        destLower,
+      );
+    const isEuropean =
+      /europe|france|germany|italy|spain|uk|britain|england|portugal|greece|netherlands|belgium|austria|switzerland|poland|czech/i.test(
+        destLower,
+      );
     const isMiddleEast = /dubai|uae|qatar|saudi|egypt|turkey|jordan|israel/i.test(destLower);
-    const isAmericas = /usa|america|canada|mexico|brazil|argentina|chile|peru|colombia/i.test(destLower);
+    const isAmericas = /usa|america|canada|mexico|brazil|argentina|chile|peru|colombia/i.test(
+      destLower,
+    );
 
     if (isAsian) {
       return {
@@ -1719,14 +2272,14 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           "Visit temples and cultural sites early morning (6-8 AM) to avoid crowds and heat",
           "Download offline translation apps - Google Translate works offline",
           "Carry small bills - many vendors don't accept large denominations",
-          "Book trains/buses directly from official apps, not tourist agencies"
+          "Book trains/buses directly from official apps, not tourist agencies",
         ],
         economicalAlternatives: [
           "Stay in homestays or guesthouses instead of hotels for authentic local experience",
           "Use sleeper trains/buses for overnight journeys to save on accommodation",
           "Visit free temples and parks instead of paid tourist monuments",
-          "Eat at local 'thali' restaurants or food courts in malls"
-        ]
+          "Eat at local 'thali' restaurants or food courts in malls",
+        ],
       };
     } else if (isEuropean) {
       return {
@@ -1736,14 +2289,14 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           "Visit museums on free entry days (usually first Sunday of month)",
           "Book trains 2-3 months in advance for up to 70% discount",
           "Eat lunch instead of dinner at restaurants - lunch menus are cheaper",
-          "Stay outside city center and use metro - accommodation is 40-60% cheaper"
+          "Stay outside city center and use metro - accommodation is 40-60% cheaper",
         ],
         economicalAlternatives: [
           "Use BlaBlaCar for intercity travel instead of trains",
           "Shop at local supermarkets for picnic supplies instead of restaurants",
           "Walk or rent bikes instead of hop-on-hop-off buses",
-          "Visit free walking tours (tip-based) instead of paid bus tours"
-        ]
+          "Visit free walking tours (tip-based) instead of paid bus tours",
+        ],
       };
     } else if (isMiddleEast) {
       return {
@@ -1753,14 +2306,14 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           "Use metro/public transport - very modern and cheap in Gulf cities",
           "Book desert safaris through local operators, not hotel concierge",
           "Carry water bottle - staying hydrated is critical",
-          "Shop at local souks (markets) and bargain for better prices"
+          "Shop at local souks (markets) and bargain for better prices",
         ],
         economicalAlternatives: [
           "Use Careem or local ride-sharing instead of hotel taxis",
           "Visit public beaches instead of hotel beach clubs",
           "Eat at local shawarma shops and cafeterias instead of restaurants",
-          "Stay in neighboring emirates/areas for cheaper accommodation"
-        ]
+          "Stay in neighboring emirates/areas for cheaper accommodation",
+        ],
       };
     } else {
       // General fallback for other regions
@@ -1772,46 +2325,58 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           "Download offline maps before arriving",
           "Learn basic phrases in the local language for better prices",
           "Book accommodation with free cancellation for flexibility",
-          "Check free walking tour options - great for orientation"
+          "Check free walking tour options - great for orientation",
         ],
         economicalAlternatives: [
           "Use local buses instead of tourist taxis",
           "Eat at local markets instead of touristy restaurants",
           "Stay in neighborhoods where locals live for better prices",
-          "Visit free attractions and parks instead of paid tourist spots"
-        ]
+          "Visit free attractions and parks instead of paid tourist spots",
+        ],
       };
     }
   }
 
-
-  async augmentJournalEntry(content: string, destination?: string): Promise<{ augmentedContent: string; suggestedLabels: string[]; sentiment: string }> {
-    const prompt = `Augment this travel journal entry with a few AI-generated poetic sentences or fun facts related to the context ${destination ? `at ${destination}` : ''}. Also provide 3-5 keywords/labels and the sentiment of the entry. Return JSON with 'augmentedContent', 'suggestedLabels' (string array), and 'sentiment'.`;
+  async augmentJournalEntry(
+    content: string,
+    destination?: string,
+  ): Promise<{ augmentedContent: string; suggestedLabels: string[]; sentiment: string }> {
+    const prompt = `Augment this travel journal entry with a few AI-generated poetic sentences or fun facts related to the context ${destination ? `at ${destination}` : ""}. Also provide 3-5 keywords/labels and the sentiment of the entry. Return JSON with 'augmentedContent', 'suggestedLabels' (string array), and 'sentiment'.`;
 
     try {
-      let rawContent = '';
+      let rawContent = "";
       if (this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: "gpt-4o-mini",
           temperature: 0.7,
           messages: [
-            { role: "system", content: "You are a creative travel journal assistant. Return only valid JSON." },
+            {
+              role: "system",
+              content: "You are a creative travel journal assistant. Return only valid JSON.",
+            },
             { role: "user", content: content + "\n\n" + prompt },
           ],
         });
         rawContent = completion.choices?.[0]?.message?.content?.trim() || "{}";
       } else {
-        rawContent = await this.generateWithGemini(content + "\n\n" + prompt, "You are a creative travel journal assistant. Return only valid JSON.");
+        rawContent = await this.generateWithGemini(
+          content + "\n\n" + prompt,
+          "You are a creative travel journal assistant. Return only valid JSON.",
+        );
       }
 
       const json = this.parseJson(rawContent);
-      const labels = Array.isArray(json.suggestedLabels) ? json.suggestedLabels : ["Travel", "Memories"];
-      const cleanLabels = labels.map((l: any) => typeof l === 'string' ? l : String(l.name || l.text || JSON.stringify(l)));
+      const labels = Array.isArray(json.suggestedLabels)
+        ? json.suggestedLabels
+        : ["Travel", "Memories"];
+      const cleanLabels = labels.map((l: any) =>
+        typeof l === "string" ? l : String(l.name || l.text || JSON.stringify(l)),
+      );
 
       return {
         augmentedContent: String(json.augmentedContent || content),
         suggestedLabels: cleanLabels,
-        sentiment: String(json.sentiment || "Positive")
+        sentiment: String(json.sentiment || "Positive"),
       };
     } catch (e) {
       console.error("[AiUtilities] Failed to augment journal:", e);
@@ -1851,17 +2416,32 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     return null;
   }
 
-  async getQuietPlaceSuggestions(destination: string): Promise<Array<{ name: string; address: string; crowdLevel: string; type: string; bestTime: string; reason: string }>> {
+  async getQuietPlaceSuggestions(destination: string): Promise<
+    Array<{
+      name: string;
+      address: string;
+      crowdLevel: string;
+      type: string;
+      bestTime: string;
+      reason: string;
+    }>
+  > {
     const prompt = `Suggest 3 real, specific, lesser-known or low-crowd places to visit in ${destination} for someone who wants to avoid tourist crowds. Return JSON with a 'spots' array, each item having: 'name' (real place name in ${destination}), 'address' (real neighborhood/area in ${destination}), 'crowdLevel' ('Low' or 'Minimal'), 'type' (e.g. Nature, Heritage, Park, Cafe), 'bestTime' (time range), and 'reason' (one sentence, under 20 words).`;
-    const system = "You are a local travel expert who knows real, specific places. Return only valid JSON, no markdown.";
+    const system =
+      "You are a local travel expert who knows real, specific places. Return only valid JSON, no markdown.";
 
     try {
       const rawContent = this.openai
-        ? (await this.openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            temperature: 0.6,
-            messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
-          })).choices?.[0]?.message?.content?.trim() || "{}"
+        ? (
+            await this.openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              temperature: 0.6,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+            })
+          ).choices?.[0]?.message?.content?.trim() || "{}"
         : await this.generateWithGemini(prompt, system);
 
       const json = this.parseJson(rawContent);
@@ -1878,13 +2458,30 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     } catch (e) {
       console.error("[AiUtilities] Failed to generate quiet place suggestions:", e);
       return [
-        { name: "Local Public Library", address: `${destination} — City Center`, crowdLevel: "Minimal", type: "Education", bestTime: "Morning", reason: "Ideal for remote work or reading in silence." },
-        { name: "Botanical Garden", address: `${destination} — Suburb Area`, crowdLevel: "Low", type: "Nature", bestTime: "Afternoon", reason: "Expansive green space with very few visitors during weekdays." },
+        {
+          name: "Local Public Library",
+          address: `${destination} — City Center`,
+          crowdLevel: "Minimal",
+          type: "Education",
+          bestTime: "Morning",
+          reason: "Ideal for remote work or reading in silence.",
+        },
+        {
+          name: "Botanical Garden",
+          address: `${destination} — Suburb Area`,
+          crowdLevel: "Low",
+          type: "Nature",
+          bestTime: "Afternoon",
+          reason: "Expansive green space with very few visitors during weekdays.",
+        },
       ];
     }
   }
 
-  private async resolveCoordinates(name: string, destination: string): Promise<{ lat: number; lon: number } | null> {
+  private async resolveCoordinates(
+    name: string,
+    destination: string,
+  ): Promise<{ lat: number; lon: number } | null> {
     const key = `resolveCoordinates:${name}:${destination}`;
     const cached = this.getCached<any>(key);
     if (cached) return cached;
@@ -1892,21 +2489,21 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     // 1. Static fallback for performance and reliability
     const nameLower = name.toLowerCase().trim();
     if (this.CITIES_COORD_MAP[nameLower]) {
-        const base = this.CITIES_COORD_MAP[nameLower];
-        // Add a micro-jitter (approx 100-200m) to avoid exact overlaps at city center
-        const jitter = () => (Math.random() - 0.5) * 0.005; 
-        return this.setCached(key, { 
-            lat: base.lat + jitter(), 
-            lon: base.lon + jitter() 
-        });
+      const base = this.CITIES_COORD_MAP[nameLower];
+      // Add a micro-jitter (approx 100-200m) to avoid exact overlaps at city center
+      const jitter = () => (Math.random() - 0.5) * 0.005;
+      return this.setCached(key, {
+        lat: base.lat + jitter(),
+        lon: base.lon + jitter(),
+      });
     }
 
     try {
       const places = await this.searchPlaces(`${name}, ${destination}`);
       if (places && places.length > 0 && places[0].geometry?.location) {
-        const coords = { 
-            lat: places[0].geometry.location.lat, 
-            lon: places[0].geometry.location.lng 
+        const coords = {
+          lat: places[0].geometry.location.lat,
+          lon: places[0].geometry.location.lng,
         };
         return this.setCached(key, coords);
       }
@@ -1924,7 +2521,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     travelStyle: string,
     origin?: string,
     destination?: string,
-    travelMedium?: string
+    travelMedium?: string,
   ): Promise<{
     accommodation: number;
     food: number;
@@ -1944,8 +2541,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
         if (originCoords && destCoords) {
           const distance = this.calculateHaversineDistance(
-            originCoords.lat, originCoords.lon,
-            destCoords.lat, destCoords.lon
+            originCoords.lat,
+            originCoords.lon,
+            destCoords.lat,
+            destCoords.lon,
           );
 
           // Heuristic costs per km in INR
@@ -1954,12 +2553,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
             train: 3,
             bus: 2,
             car: 12,
-            standard: 5
+            standard: 5,
           };
 
-          const perPersonCost = (distance * (costPerKm[travelMedium || 'standard'] || 5)) + 1000; // +1000 base
+          const perPersonCost = distance * (costPerKm[travelMedium || "standard"] || 5) + 1000; // +1000 base
           grandTransit = Math.round(perPersonCost);
-          
+
           // Cap transit at 60% of total budget to keep trip feasible
           grandTransit = Math.min(grandTransit, totalBudget * 0.6);
         }
@@ -1968,25 +2567,25 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       }
     }
 
-    const buffer = totalBudget * 0.10; // 10% Mandatory Safety Buffer
+    const buffer = totalBudget * 0.1; // 10% Mandatory Safety Buffer
     const allocatable = totalBudget - buffer - grandTransit;
 
-    let ratios = { accommodation: 0.35, food: 0.25, transport: 0.20, activities: 0.20 };
+    let ratios = { accommodation: 0.35, food: 0.25, transport: 0.2, activities: 0.2 };
 
     switch (travelStyle.toLowerCase()) {
-      case 'adventure':
-        ratios = { accommodation: 0.25, food: 0.20, transport: 0.30, activities: 0.25 };
+      case "adventure":
+        ratios = { accommodation: 0.25, food: 0.2, transport: 0.3, activities: 0.25 };
         break;
-      case 'luxury':
-        ratios = { accommodation: 0.50, food: 0.20, transport: 0.15, activities: 0.15 };
+      case "luxury":
+        ratios = { accommodation: 0.5, food: 0.2, transport: 0.15, activities: 0.15 };
         break;
-      case 'budget':
-        ratios = { accommodation: 0.20, food: 0.30, transport: 0.30, activities: 0.20 };
+      case "budget":
+        ratios = { accommodation: 0.2, food: 0.3, transport: 0.3, activities: 0.2 };
         break;
-      case 'cultural':
-        ratios = { accommodation: 0.30, food: 0.25, transport: 0.20, activities: 0.25 };
+      case "cultural":
+        ratios = { accommodation: 0.3, food: 0.25, transport: 0.2, activities: 0.25 };
         break;
-      case 'relaxed':
+      case "relaxed":
         ratios = { accommodation: 0.45, food: 0.25, transport: 0.15, activities: 0.15 };
         break;
     }
@@ -1998,11 +2597,20 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       activities: Math.round(allocatable * ratios.activities),
       buffer: Math.round(buffer),
       grandTransit: Math.round(grandTransit),
-      total: totalBudget
+      total: totalBudget,
     };
   }
 
-  async getQuietAlternatives(destination: string): Promise<Array<{ name: string; address: string; reason: string; crowdLevel?: string; bestTime?: string; type?: string }>> {
+  async getQuietAlternatives(destination: string): Promise<
+    Array<{
+      name: string;
+      address: string;
+      reason: string;
+      crowdLevel?: string;
+      bestTime?: string;
+      type?: string;
+    }>
+  > {
     const key = `quiet:v2:${destination}`;
     const cached = this.getCached<any>(key);
     if (cached) return cached;
@@ -2029,13 +2637,17 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     try {
       // Tier 1: AI Generation with timeout
-      let content = '';
+      let content = "";
       if (this.openai) {
         const aiPromise = this.openai.chat.completions.create({
           model: "gpt-4o-mini",
           temperature: 0.5,
           messages: [
-            { role: "system", content: "You are a travel expert specializing in hidden gems. Return only valid JSON." },
+            {
+              role: "system",
+              content:
+                "You are a travel expert specializing in hidden gems. Return only valid JSON.",
+            },
             { role: "user", content: prompt },
           ],
         });
@@ -2043,28 +2655,33 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const completion: any = await this.withTimeout(
           aiPromise,
           15000,
-          { choices: [{ message: { content: '[]' } }] } as any,
-          `OpenAI Quiet Spots: ${destination}`
+          { choices: [{ message: { content: "[]" } }] } as any,
+          `OpenAI Quiet Spots: ${destination}`,
         );
 
         content = completion.choices?.[0]?.message?.content?.trim() || "[]";
       } else {
-        const geminiPromise = this.generateWithGemini(prompt, "You are a travel expert specializing in hidden gems. Return only valid JSON.");
+        const geminiPromise = this.generateWithGemini(
+          prompt,
+          "You are a travel expert specializing in hidden gems. Return only valid JSON.",
+        );
         content = await this.withTimeout(
           geminiPromise,
           15000,
-          '[]',
-          `Gemini Quiet Spots: ${destination}`
+          "[]",
+          `Gemini Quiet Spots: ${destination}`,
         );
       }
 
       const json = this.parseJson(content);
-      let arr = Array.isArray(json) ? json : (Array.isArray(json.spots) ? json.spots : []);
+      let arr = Array.isArray(json) ? json : Array.isArray(json.spots) ? json.spots : [];
 
       // Tier 2: Google Places fallback if AI returned empty
       if (!arr || arr.length === 0) {
         try {
-          const fallbackPlaces = await this.searchPlaces(`hidden gems local favorites ${destination}`);
+          const fallbackPlaces = await this.searchPlaces(
+            `hidden gems local favorites ${destination}`,
+          );
           if (fallbackPlaces.length > 0) {
             arr = fallbackPlaces.slice(0, 5).map((place: any) => ({
               name: place.name,
@@ -2072,7 +2689,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
               reason: `A local favorite known for its authentic atmosphere and fewer crowds.`,
               crowdLevel: "Low",
               bestTime: "Weekday mornings",
-              type: place.types?.includes('restaurant') || place.types?.includes('cafe') ? 'Cafe' : 'Culture'
+              type:
+                place.types?.includes("restaurant") || place.types?.includes("cafe")
+                  ? "Cafe"
+                  : "Culture",
             }));
           }
         } catch (placesError) {
@@ -2095,47 +2715,61 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   /**
    * Returns generic but helpful quiet spot suggestions
    */
-  private getGenericQuietSpots(destination: string): Array<{ name: string; address: string; reason: string; crowdLevel?: string; bestTime?: string; type?: string }> {
+  private getGenericQuietSpots(destination: string): Array<{
+    name: string;
+    address: string;
+    reason: string;
+    crowdLevel?: string;
+    bestTime?: string;
+    type?: string;
+  }> {
     return [
       {
         name: "Local Neighborhood Parks",
         address: destination,
-        reason: "Explore residential parks early in the morning for a peaceful atmosphere. These spots offer a glimpse into local life without tourist crowds.",
+        reason:
+          "Explore residential parks early in the morning for a peaceful atmosphere. These spots offer a glimpse into local life without tourist crowds.",
         crowdLevel: "Very Low",
         bestTime: "Early morning (6-8 AM)",
-        type: "Nature"
+        type: "Nature",
       },
       {
         name: "Public Libraries or Cultural Centers",
         address: destination,
-        reason: "Visit local libraries or community cultural centers for quiet reflection. Often overlooked by tourists, these spaces provide authentic local culture.",
+        reason:
+          "Visit local libraries or community cultural centers for quiet reflection. Often overlooked by tourists, these spaces provide authentic local culture.",
         crowdLevel: "Very Low",
         bestTime: "Weekday afternoons",
-        type: "Culture"
+        type: "Culture",
       },
       {
         name: "Residential Walking Streets",
         address: destination,
-        reason: "Take leisurely walks through residential neighborhoods to discover local markets, cafes, and daily life away from tourist hotspots.",
+        reason:
+          "Take leisurely walks through residential neighborhoods to discover local markets, cafes, and daily life away from tourist hotspots.",
         crowdLevel: "Low",
         bestTime: "Late afternoon",
-        type: "Culture"
+        type: "Culture",
       },
       {
         name: "Local Markets (Non-Tourist)",
         address: destination,
-        reason: "Visit neighborhood markets where locals shop for groceries. These authentic experiences offer cultural immersion without crowds.",
+        reason:
+          "Visit neighborhood markets where locals shop for groceries. These authentic experiences offer cultural immersion without crowds.",
         crowdLevel: "Low",
         bestTime: "Early morning weekdays",
-        type: "Market"
-      }
+        type: "Market",
+      },
     ];
   }
 
   private async getPointsOfInterest(destination: string, style: string): Promise<string[]> {
     const prompt = `List the top 8 real-world tourist attractions and must-visit landmarks for ${destination} that match a ${style} travel style. Return ONLY a JSON array of strings.`;
     try {
-      const result = await this.generateWithGemini(prompt, "You are a professional travel researcher. Format: [\"Spot 1\", \"Spot 2\"]");
+      const result = await this.generateWithGemini(
+        prompt,
+        'You are a professional travel researcher. Format: ["Spot 1", "Spot 2"]',
+      );
       const parsed = JSON.parse(result);
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
@@ -2148,7 +2782,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const key = config.OPENWEATHER_API_KEY;
     if (!key) return null;
     try {
-      const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`);
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`,
+      );
       if (!response.ok) return null;
       return await response.json();
     } catch (e) {
@@ -2189,7 +2825,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     costBreakdown?: Record<string, any>;
     notes?: string;
   }> {
-    const { scheduleText, startDate, groupSize = 1, budget, currency = 'INR' } = input;
+    const { scheduleText, startDate, groupSize = 1, budget, currency = "INR" } = input;
 
     const prompt = `You are a travel itinerary parser. Parse the following travel schedule text into a structured JSON itinerary.
 
@@ -2199,9 +2835,9 @@ ${scheduleText}
 """
 
 Additional info:
-- Start date: ${startDate || 'Not specified'}
+- Start date: ${startDate || "Not specified"}
 - Group size: ${groupSize} person(s)
-- Budget: ${budget ? `${budget} ${currency}` : 'Not specified'}
+- Budget: ${budget ? `${budget} ${currency}` : "Not specified"}
 - Currency: ${currency}
 
 Rules:
@@ -2245,7 +2881,7 @@ Return ONLY valid JSON, no markdown, no explanation:
   "notes": "string or null"
 }`;
 
-    let raw = '';
+    let raw = "";
     try {
       raw = await this.generateWithGemini(prompt);
     } catch (geminiError) {
@@ -2255,21 +2891,26 @@ Return ONLY valid JSON, no markdown, no explanation:
       } catch (nvidiaError) {
         if (this.openai) {
           const res = await this.openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: prompt }],
             temperature: 0.3,
           });
-          raw = res.choices[0]?.message?.content || '{}';
+          raw = res.choices[0]?.message?.content || "{}";
         } else {
-          throw new Error('No AI provider available');
+          throw new Error("No AI provider available");
         }
       }
     }
 
     const parsed = this.parseJson(raw);
 
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.itinerary) || parsed.itinerary.length === 0) {
-      throw new Error('AI could not extract a valid itinerary from the schedule text');
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !Array.isArray(parsed.itinerary) ||
+      parsed.itinerary.length === 0
+    ) {
+      throw new Error("AI could not extract a valid itinerary from the schedule text");
     }
 
     // Ensure each activity has an id and duration

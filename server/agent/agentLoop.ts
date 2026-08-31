@@ -89,7 +89,8 @@ const toolsTokenEstimate = estimateTokens(JSON.stringify(TRIPMATE_TOOLS));
 function classifyFallbackError(err: any): { shouldFallback: boolean; reason: string } {
   const msg = String(err?.message || "");
   const isQuotaOrRateLimit =
-    err?.status === 429 || /resourceexhausted|rate.?limit|quota|too many requests/i.test(msg);
+    err?.status === 429 ||
+    /resourceexhausted|rate.?limit|quota|too many requests|insufficient balance/i.test(msg);
   const isTimeoutOrConnection =
     err?.name === "APIConnectionTimeoutError" ||
     err?.name === "APIConnectionError" ||

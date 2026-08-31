@@ -5,7 +5,7 @@
 // visible here too.
 export const TILE_CACHE_NAME = "map-tiles-cache";
 
-// Rough average size of a CARTO PNG raster tile. Cross-origin tile requests
+// Rough average size of an OSM PNG raster tile. Cross-origin tile requests
 // come back as opaque responses when CORS fails, which have no readable
 // content-length — this is the fallback used for those.
 const ESTIMATED_TILE_BYTES = 15_000;
@@ -14,16 +14,16 @@ function lonLatToTile(lon: number, lat: number, z: number) {
   const n = 2 ** z;
   const x = Math.floor(((lon + 180) / 360) * n);
   const latRad = (lat * Math.PI) / 180;
-  const y = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
-  );
+  const y = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n);
   return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) };
 }
 
-function tileUrl(darkMode: boolean, z: number, x: number, y: number): string {
-  const sub = "abcd"[(x + y) % 4];
-  const style = darkMode ? "dark_all" : "rastertiles/light_all";
-  return `https://${sub}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}.png`;
+// OSM only serves one (light) style — dark mode is a CSS filter applied to
+// the tile pane at render time (see OfflineMaps.tsx), not a different tile
+// set, so darkMode has no effect on which tile gets cached here. Kept as a
+// parameter so cached dark/light "regions" still address the same tiles.
+function tileUrl(_darkMode: boolean, z: number, x: number, y: number): string {
+  return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 }
 
 /** Tile URLs covering a square region centered on (lat, lng), across zoomMin..zoomMax. */
@@ -33,7 +33,7 @@ export function computeTileUrls(
   radiusDeg: number,
   zoomMin: number,
   zoomMax: number,
-  darkMode: boolean
+  darkMode: boolean,
 ): string[] {
   const urls: string[] = [];
   for (let z = zoomMin; z <= zoomMax; z++) {
@@ -50,7 +50,7 @@ export function computeTileUrls(
 
 export async function downloadTiles(
   urls: string[],
-  onProgress: (done: number, total: number, bytes: number) => void
+  onProgress: (done: number, total: number, bytes: number) => void,
 ): Promise<number> {
   if (!("caches" in window)) throw new Error("Cache Storage API unavailable in this browser");
 
