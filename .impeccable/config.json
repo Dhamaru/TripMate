@@ -1,0 +1,74 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "typing-bounce",
+        "createdAt": "2026-08-31T16:52:41.609Z",
+        "reason": "false positive: keyframe uses ease-in-out timing, not elastic/spring math; name-matched only. Standard 3-dot typing indicator (WhatsApp/iMessage pattern), not the dated-bounce cliche the rule targets."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(232, 144, 10, 0.25)",
+        "createdAt": "2026-08-31T16:53:14.954Z",
+        "reason": "pre-existing production hover-glow tint, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "2px",
+        "createdAt": "2026-08-31T16:53:15.056Z",
+        "reason": "pre-existing nav-active-bar indicator radius, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "3px",
+        "createdAt": "2026-08-31T16:53:15.157Z",
+        "reason": "pre-existing stamp/status-badge radius (intentional 'stamped' look per DESIGN.md's own Shapes section), used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#4f82c4",
+        "createdAt": "2026-08-31T16:53:15.252Z",
+        "reason": "pre-existing icon-tint-blue token, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(167, 139, 250, 0.1)",
+        "createdAt": "2026-08-31T16:53:15.356Z",
+        "reason": "pre-existing icon-tint-purple background tint, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#a78bfa",
+        "createdAt": "2026-08-31T16:53:15.451Z",
+        "reason": "pre-existing icon-tint-purple foreground, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(251, 146, 60, 0.1)",
+        "createdAt": "2026-08-31T16:53:15.548Z",
+        "reason": "pre-existing icon-tint-orange background tint, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fb923c",
+        "createdAt": "2026-08-31T16:53:15.641Z",
+        "reason": "pre-existing icon-tint-orange foreground, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#d8453b",
+        "createdAt": "2026-08-31T16:53:15.743Z",
+        "reason": "pre-existing icon-tint-red foreground, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "1rem",
+        "createdAt": "2026-08-31T16:53:15.851Z",
+        "reason": "pre-existing typing-indicator bubble radius (chat-bubble tail shape), used app-wide, predates this session"
+      }
+    ]
+  }
+}
