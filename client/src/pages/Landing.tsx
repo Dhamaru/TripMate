@@ -471,7 +471,7 @@ export default function Landing() {
 
             {/* Hero search bar with autocomplete */}
             <div className="max-w-xl mb-8 relative" ref={searchRef}>
-              <div className="flex items-center bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-full px-6 py-4 gap-4 focus-within:border-[var(--amber)] transition-colors">
+              <div className="flex items-center bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-full px-4 sm:px-6 py-3 sm:py-4 gap-2 sm:gap-4 focus-within:border-[var(--amber)] transition-colors">
                 <MapPin className="w-5 h-5 text-[var(--amber)] flex-shrink-0" />
                 <input
                   type="text"
@@ -502,16 +502,21 @@ export default function Landing() {
                     }
                     if (e.key === "Escape") setShowSuggestions(false);
                   }}
-                  className="flex-1 min-w-0 text-[hsl(var(--foreground))] text-base outline-none bg-transparent placeholder:text-[hsl(var(--muted-foreground))]"
+                  className="flex-1 min-w-0 text-[hsl(var(--foreground))] text-sm sm:text-base outline-none bg-transparent placeholder:text-[hsl(var(--muted-foreground))] placeholder:truncate"
                   data-testid="input-destination"
                   autoComplete="off"
                 />
                 <button
                   onClick={goToSignup}
-                  className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
+                  // "Plan Trip" + icon at full width squeezed the input to
+                  // almost nothing on a narrow phone (live-confirmed: the
+                  // placeholder truncated mid-word). Icon-only below sm,
+                  // full label once there's room for both.
+                  className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white rounded-full w-9 h-9 sm:w-auto sm:h-auto sm:px-5 sm:py-2.5 text-sm font-semibold flex items-center justify-center gap-2 transition-colors flex-shrink-0"
                   data-testid="button-get-started"
+                  aria-label="Plan Trip"
                 >
-                  Plan Trip
+                  <span className="hidden sm:inline">Plan Trip</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
