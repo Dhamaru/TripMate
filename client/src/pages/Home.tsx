@@ -63,6 +63,7 @@ export default function Home() {
   }, [error, toast]);
 
   const currentTrip = trips?.length > 0 ? trips[0] : null;
+  const hasTrips = !!trips && trips.length > 0;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -167,7 +168,12 @@ export default function Home() {
         <p className="label-xs text-[hsl(var(--muted-foreground))] mb-4">Built for the road</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button
-            onClick={toggleAtlasChat}
+            // Atlas can chat with no trip open, but its actually useful
+            // answers — weather, budgets, packing, itinerary edits — are all
+            // scoped to a trip. An empty account clicking this saw an empty
+            // chat panel with nothing to ask about; send them to create a
+            // trip first instead, and only open the chat once one exists.
+            onClick={hasTrips ? toggleAtlasChat : () => navigate("/app/planner")}
             className="text-left bg-[hsl(var(--card))] rounded-2xl border border-[hsl(var(--border))] p-5 flex items-start gap-4 card-hover-glow cursor-pointer group"
           >
             <div className="w-11 h-11 rounded-xl flex items-center justify-center icon-tint-green flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
@@ -175,11 +181,12 @@ export default function Home() {
             </div>
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-[hsl(var(--foreground))] font-sans-clean">
-                Ask Atlas anything
+                {hasTrips ? "Ask Atlas anything" : "Create a trip to unlock Atlas"}
               </p>
               <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 leading-relaxed font-sans-clean">
-                Your AI travel agent — weather, translations, budgets, and itinerary changes, all by
-                chat.
+                {hasTrips
+                  ? "Your AI travel agent — weather, translations, budgets, and itinerary changes, all by chat."
+                  : "Atlas answers weather, budget, and packing questions for a real trip — plan one first and it'll have something to work with."}
               </p>
             </div>
           </button>
