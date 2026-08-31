@@ -9,10 +9,12 @@ import { TripModel, UserModel } from "@shared/schema";
 const startTime = Date.now();
 
 // A throwaway QA account (@example.com, matches the golden-eval/manual-test
-// pattern) or a guest session must never inflate public-facing numbers —
-// same rule already enforced everywhere else real-vs-test accounts are
-// counted in this codebase.
-const QA_EMAIL_RE = /@example\.com$/i;
+// pattern), the persistent Claude Code agent test account (@tripmate.dev,
+// deliberately kept rather than deleted after each verification pass), or
+// a guest session must never inflate public-facing numbers — same rule
+// already enforced everywhere else real-vs-test accounts are counted in
+// this codebase.
+const QA_EMAIL_RE = /@(example\.com|tripmate\.dev)$/i;
 
 let publicStatsCache: { data: any; expiresAt: number } | null = null;
 const PUBLIC_STATS_TTL_MS = 5 * 60 * 1000;
