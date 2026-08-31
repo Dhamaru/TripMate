@@ -8,7 +8,6 @@ import {
   PackingListTemplateModel,
   AtlasConversationModel,
   NotificationModel,
-  CrowdDensityModel,
   MapPinModel,
   FeedbackModel,
 } from "@shared/schema";
@@ -409,7 +408,6 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       notifications,
       feedback,
       mapPins,
-      crowdDensityReports,
       agentJobs,
       tripSuggestions,
     ] = await Promise.all([
@@ -424,7 +422,6 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       NotificationModel.find({ userId }).lean(),
       FeedbackModel.find({ userId }).lean(),
       MapPinModel.find({ userId }).lean(),
-      CrowdDensityModel.find({ userId }).lean(),
       AgentJob.find({ userId }).lean(),
       TripSuggestion.find({ userId }).lean(),
     ]);
@@ -442,7 +439,6 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       notifications,
       feedback,
       mapPins,
-      crowdDensityReports,
       agentJobs,
       tripSuggestions,
     };
@@ -493,9 +489,21 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
       FeedbackModel.deleteMany({ userId: deletedUserId }),
       SessionModel.deleteMany({ userId: deletedUserId }),
       MapPinModel.deleteMany({ userId: deletedUserId }),
-      CrowdDensityModel.deleteMany({ userId: deletedUserId }),
+      // CrowdDensityModel deliberately excluded — ICrowdDensity has no
+      // userId field at all (it's anonymous by design: lat/lng/density/
+      // timestamp/placeId/source only), so a userId-keyed delete against it
+      // was a permanent, silent no-op that misrepresented the data model.
       AgentJob.deleteMany({ userId: deletedUserId }),
       TripSuggestion.deleteMany({ userId: deletedUserId }),
+      // TripModel.deleteMany above only removes trips this account owned —
+      // a trip they were invited onto as a collaborator belongs to someone
+      // else and stays, but the deleted account's userId was lingering
+      // forever in that trip's collaborators array (a phantom participant
+      // other real collaborators would still see listed).
+      TripModel.updateMany(
+        { "collaborators.userId": deletedUserId },
+        { $pull: { collaborators: { userId: deletedUserId } } },
+      ),
     ]);
     await UserModel.findByIdAndDelete(deletedUserId);
     clearAuthCookie(res);
