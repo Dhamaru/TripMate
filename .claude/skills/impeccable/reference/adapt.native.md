@@ -26,15 +26,15 @@ Adapt an existing **native** design (`ios` / `android` / `adaptive`) to a differ
 
 Translate idioms; never transplant them:
 
-| iOS | Android |
-|---|---|
-| Tab bar | Navigation bar / rail / drawer |
-| Edge-swipe back, back chevron | Predictive Back gesture / button |
-| Switch, segmented control, system pickers | Material switch, chips, Material pickers |
-| Action sheet | Bottom sheet / Material dialog |
-| SF Symbols, SF Pro, Dynamic Type | Material Symbols, Roboto, sp scaling |
-| Semantic system colors, materials | Material color roles, tonal elevation |
-| System push/sheet transitions | Container transform, shared-axis, fade-through |
+| iOS                                       | Android                                        |
+| ----------------------------------------- | ---------------------------------------------- |
+| Tab bar                                   | Navigation bar / rail / drawer                 |
+| Edge-swipe back, back chevron             | Predictive Back gesture / button               |
+| Switch, segmented control, system pickers | Material switch, chips, Material pickers       |
+| Action sheet                              | Bottom sheet / Material dialog                 |
+| SF Symbols, SF Pro, Dynamic Type          | Material Symbols, Roboto, sp scaling           |
+| Semantic system colors, materials         | Material color roles, tonal elevation          |
+| System push/sheet transitions             | Container transform, shared-axis, fade-through |
 
 Rebuild navigation and controls in the target's vocabulary; carry over the brand's expressive layer (palette intent, type accent, motion personality) through the target's theming system.
 
@@ -48,9 +48,10 @@ Reconform, don't reflow. Replace web navigation with the platform's model, HTML-
 - Respect safe areas and window insets in every new configuration (notch, hinge, status bar, keyboard).
 - Test on simulators for breadth, then real hardware for truth: at least one phone and one tablet per shipped platform, both orientations, split-screen where supported.
 
-When the adaptation feels native to each context, hand off to `$impeccable polish` for the final pass.
+When the adaptation feels native to each context, hand off to `/impeccable polish` for the final pass.
 
 **NEVER**:
+
 - Ship a stretched phone layout on a tablet
 - Port one platform's controls or navigation onto the other
 - Hide core functionality on smaller devices (if it matters, make it work)

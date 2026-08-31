@@ -15,15 +15,15 @@ import {
   Lightbulb,
   Code,
   MapPin,
-  Users,
   ArrowRight,
   Check,
   Bot,
   WifiOff,
+  Clock,
+  Wallet,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 
@@ -34,10 +34,7 @@ const features = [
     description:
       "AI-powered itinerary generation based on your preferences, budget, and travel style.",
     tag: "AI-Powered",
-    iconBg: "bg-[#F7F0DD]",
-    iconColor: "text-[#163F73]",
-    tagColor: "text-[#163F73] bg-[#F7F0DD]",
-    accentColor: "group-hover:border-[#163F73]/30",
+    tint: "icon-tint-amber",
   },
   {
     icon: Bot,
@@ -45,11 +42,7 @@ const features = [
     description:
       "A 24/7 AI travel agent built into every page — ask it to check weather, convert currency, translate a phrase, or replan your itinerary, all by chat.",
     tag: "24/7 AI",
-    iconBg: "bg-indigo-50",
-    iconColor: "text-indigo-500",
-    tagColor: "text-indigo-500 bg-indigo-50",
-    accentColor: "group-hover:border-indigo-200",
-    span: "lg:col-span-2 lg:row-span-2",
+    tint: "icon-tint-green",
   },
   {
     icon: BookOpen,
@@ -57,10 +50,7 @@ const features = [
     description:
       "Capture memories with photos, notes, and stories. Create beautiful travel recaps.",
     tag: "Memories",
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-500",
-    tagColor: "text-blue-500 bg-blue-50",
-    accentColor: "group-hover:border-blue-200",
+    tint: "icon-tint-blue",
   },
   {
     icon: CloudSun,
@@ -68,40 +58,28 @@ const features = [
     description:
       "7-day forecasts, weather alerts, and packing recommendations for any destination.",
     tag: "Real-time",
-    iconBg: "bg-sky-50",
-    iconColor: "text-sky-500",
-    tagColor: "text-sky-500 bg-sky-50",
-    accentColor: "group-hover:border-sky-200",
+    tint: "icon-tint-blue",
   },
   {
     icon: Languages,
     title: "Smart Translator",
     description: "Instant translation for 10+ languages with phonetic pronunciation guides.",
     tag: "Offline",
-    iconBg: "bg-violet-50",
-    iconColor: "text-violet-500",
-    tagColor: "text-violet-500 bg-violet-50",
-    accentColor: "group-hover:border-violet-200",
+    tint: "icon-tint-purple",
   },
   {
     icon: Banknote,
     title: "Currency Converter",
     description: "Real-time exchange rates for 20+ currencies with offline rate caching.",
     tag: "Live Rates",
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-500",
-    tagColor: "text-emerald-500 bg-emerald-50",
-    accentColor: "group-hover:border-emerald-200",
+    tint: "icon-tint-green",
   },
   {
     icon: Shield,
     title: "Emergency Services",
     description: "Locate nearby hospitals, police, and embassies with one-tap SOS calling.",
     tag: "Safety",
-    iconBg: "bg-red-50",
-    iconColor: "text-red-500",
-    tagColor: "text-red-500 bg-red-50",
-    accentColor: "group-hover:border-red-200",
+    tint: "icon-tint-red",
   },
   {
     icon: WifiOff,
@@ -109,11 +87,7 @@ const features = [
     description:
       "Download any region before you fly and keep navigating, searching, and dropping pins with zero signal — no data plan needed abroad.",
     tag: "No Signal Needed",
-    iconBg: "bg-teal-50",
-    iconColor: "text-teal-500",
-    tagColor: "text-teal-500 bg-teal-50",
-    accentColor: "group-hover:border-teal-200",
-    span: "lg:col-span-2",
+    tint: "icon-tint-orange",
   },
 ];
 
@@ -142,7 +116,7 @@ function DestinationCard({
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
-    <div className="relative flex-shrink-0 w-64 h-40 rounded-2xl overflow-hidden group shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)]">
+    <div className="relative flex-shrink-0 w-64 h-40 rounded-2xl overflow-hidden group border border-[hsl(var(--border))]">
       <img
         src={d.imageUrl}
         alt={d.destination}
@@ -150,13 +124,111 @@ function DestinationCard({
         onError={() => setFailed(true)}
         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
       <div className="absolute bottom-3.5 left-4 right-4">
         <p className="text-white font-semibold text-sm truncate">{d.destination}</p>
-        <p className="text-white/70 text-xs mt-0.5">
+        <p className="text-white/70 text-xs mt-0.5 font-mono-data">
           {d.tripCount} {d.tripCount === 1 ? "trip" : "trips"} planned
         </p>
       </div>
+    </div>
+  );
+}
+
+/** Mouse-parallax stack of three real product surfaces (itinerary day, Atlas
+ * chat, budget line) rendered as tilted passport pages — the hero's one
+ * authored motion moment, and evidence rather than decoration (no fabricated
+ * screenshots, just the app's own real components restated in miniature). */
+function HeroCardStack() {
+  const ref = useRef<HTMLDivElement>(null);
+  const rawRotateX = useMotionValue(0);
+  const rawRotateY = useMotionValue(0);
+  const rotateX = useSpring(rawRotateX, { stiffness: 150, damping: 22 });
+  const rotateY = useSpring(rawRotateY, { stiffness: 150, damping: 22 });
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    rawRotateY.set(px * 14);
+    rawRotateX.set(py * -14);
+  }
+  function handleMouseLeave() {
+    rawRotateX.set(0);
+    rawRotateY.set(0);
+  }
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative h-[380px] hidden lg:block"
+      style={{ perspective: 1400 }}
+      aria-hidden="true"
+    >
+      <motion.div
+        style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+        className="relative w-full h-full"
+      >
+        {/* back: Atlas chat exchange */}
+        <div
+          className="absolute top-2 right-2 w-64 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4"
+          style={{ transform: "translateZ(-70px) translateX(10px) rotate(4deg)" }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full icon-tint-green flex items-center justify-center flex-shrink-0">
+              <Bot className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs font-semibold text-[hsl(var(--foreground))]">Atlas</span>
+          </div>
+          <p className="text-xs text-[hsl(var(--muted-foreground))] leading-relaxed mb-2">
+            Weather in Kyoto next Tuesday?
+          </p>
+          <p className="text-xs text-[hsl(var(--foreground))] leading-relaxed bg-[hsl(var(--muted))] rounded-lg px-3 py-2">
+            18°C, light rain after 3pm — pack a compact umbrella for the Fushimi Inari walk.
+          </p>
+        </div>
+
+        {/* mid: budget line */}
+        <div
+          className="absolute top-32 left-0 w-56 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4"
+          style={{ transform: "translateZ(-10px) translateX(-10px) rotate(-3deg)" }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Wallet className="w-3.5 h-3.5 text-[var(--amber)]" />
+            <span className="label-xs text-[hsl(var(--muted-foreground))]">Budget</span>
+          </div>
+          <p className="font-display text-2xl font-bold text-[hsl(var(--foreground))] font-mono-data">
+            ₹42,600
+          </p>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1">
+            of ₹55,000 · 6 days
+          </p>
+        </div>
+
+        {/* front: itinerary day */}
+        <div
+          className="absolute bottom-0 left-10 w-72 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 perforated-edge"
+          style={{ transform: "translateZ(60px) translateX(0px) rotate(2deg)" }}
+        >
+          <p className="label-xs text-[hsl(var(--muted-foreground))] mb-3">Day 3 · Kyoto</p>
+          {[
+            { time: "09:00", title: "Fushimi Inari Shrine" },
+            { time: "13:30", title: "Nishiki Market lunch" },
+            { time: "16:00", title: "Kiyomizu-dera" },
+          ].map((item) => (
+            <div key={item.time} className="flex items-center gap-3 py-1.5">
+              <Clock className="w-3 h-3 text-[hsl(var(--muted-foreground))] flex-shrink-0" />
+              <span className="font-mono-data text-[11px] text-[hsl(var(--muted-foreground))] w-10">
+                {item.time}
+              </span>
+              <span className="text-xs text-[hsl(var(--foreground))]">{item.title}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -189,7 +261,7 @@ export default function Landing() {
 
   // Real numbers, not marketing copy — both endpoints already exclude
   // QA/guest accounts and leftover scratch data server-side. Fails
-  // silently (row/strip just doesn't render) rather than showing a
+  // silently (the sentence just doesn't render) rather than showing a
   // loading spinner or a fake placeholder number.
   useEffect(() => {
     fetch("/api/v1/public/stats")
@@ -272,12 +344,12 @@ export default function Landing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-[#16283F] font-sans-clean">
+    <div className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-sans-clean">
       {/* ── Navigation ─────────────────────────────────── */}
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
           scrolled
-            ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-[#ebebeb]"
+            ? "bg-[hsl(var(--background))]/95 backdrop-blur-md border-b border-[hsl(var(--border))]"
             : "bg-transparent"
         }`}
       >
@@ -291,7 +363,7 @@ export default function Landing() {
                 <a
                   key={link.name}
                   href={link.href}
-                  className="text-[#6a6a6a] hover:text-[#16283F] text-sm font-medium transition-colors"
+                  className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] text-sm font-medium transition-colors"
                 >
                   {link.name}
                 </a>
@@ -301,13 +373,13 @@ export default function Landing() {
             <div className="hidden md:flex items-center gap-3">
               <button
                 onClick={() => navigate("/signin")}
-                className="text-[#16283F] text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#f7f7f7] transition-colors"
+                className="text-[hsl(var(--foreground))] text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
               >
                 Sign In
               </button>
               <button
                 onClick={() => navigate("/signup")}
-                className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+                className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
               >
                 Get Started Free
               </button>
@@ -316,7 +388,7 @@ export default function Landing() {
             {/* Mobile menu toggle */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-[#16283F] hover:bg-[#f7f7f7] rounded-lg transition-colors"
+              className="md:hidden p-2 text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] rounded-lg transition-colors"
             >
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -330,7 +402,7 @@ export default function Landing() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-white border-b border-[#ebebeb] overflow-hidden"
+              className="md:hidden bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] overflow-hidden"
             >
               <div className="px-4 py-6 space-y-4">
                 {navLinks.map((link) => (
@@ -338,7 +410,7 @@ export default function Landing() {
                     key={link.name}
                     href={link.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="block text-base font-medium text-[#16283F] hover:text-[#163F73] transition-colors"
+                    className="block text-base font-medium text-[hsl(var(--foreground))] hover:text-[var(--amber)] transition-colors"
                   >
                     {link.name}
                   </a>
@@ -346,13 +418,13 @@ export default function Landing() {
                 <div className="pt-2 flex flex-col gap-3">
                   <button
                     onClick={() => navigate("/signin")}
-                    className="w-full border border-[#dddddd] text-[#16283F] py-3 rounded-lg text-sm font-semibold hover:bg-[#f7f7f7] transition-colors"
+                    className="w-full border border-[hsl(var(--border))] text-[hsl(var(--foreground))] py-3 rounded-lg text-sm font-semibold hover:bg-[hsl(var(--muted))] transition-colors"
                   >
                     Sign In
                   </button>
                   <button
                     onClick={() => navigate("/signup")}
-                    className="stamp-press w-full bg-[#163F73] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#0F2C52] transition-colors"
+                    className="stamp-press w-full bg-[var(--amber)] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#0F2C52] transition-colors"
                   >
                     Get Started Free
                   </button>
@@ -365,76 +437,22 @@ export default function Landing() {
 
       {/* ── Hero ───────────────────────────────────────── */}
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Decorative background */}
-        <div className="absolute inset-0 -z-10 pointer-events-none" aria-hidden="true">
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-70"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, #F7F0DD 0%, rgba(254,243,199,0.4) 50%, transparent 100%)",
-            }}
-          />
-          <div className="absolute top-20 left-[10%] w-48 h-48 bg-[#163F73]/5 rounded-full blur-3xl" />
-          <div className="absolute top-40 right-[12%] w-64 h-64 bg-[#1D4E89]/5 rounded-full blur-3xl" />
-          {/* Floating destination chips */}
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-center">
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-            className="absolute top-36 left-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
-          >
-            🗼 Paris, France
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.0, duration: 0.6 }}
-            className="absolute top-52 right-[8%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
-          >
-            🏯 Kyoto, Japan
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.2, duration: 0.6 }}
-            className="absolute top-72 left-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
-          >
-            🏔️ Kedarnath, India
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.4, duration: 0.6 }}
-            className="absolute top-80 right-[6%] hidden lg:flex items-center gap-1.5 bg-white border border-[#ebebeb] shadow-md text-[#16283F] text-xs font-medium px-3 py-1.5 rounded-full"
-          >
-            🗽 New York, USA
-          </motion.div>
-        </div>
-
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            className="text-center"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 bg-[#F7F0DD] text-[#163F73] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-[#163F73]/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#163F73]" />
-              AI-Powered Travel Planning
-            </div>
-
             <h1
-              className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-[#16283F] leading-[1.05] tracking-tight mb-6 animate-fade-up animate-fade-up-delay-1"
+              className="font-display text-5xl sm:text-6xl lg:text-6xl font-bold text-[hsl(var(--foreground))] leading-[1.05] tracking-tight mb-6"
+              style={{ textWrap: "balance" }}
               data-testid="hero-title"
             >
-              Your AI Travel
-              <br />
-              <span className="text-gradient">Companion</span>
+              Your AI travel companion
             </h1>
 
             <p
-              className="text-lg sm:text-xl text-[#6a6a6a] mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-up animate-fade-up-delay-2"
+              className="text-lg sm:text-xl text-[hsl(var(--muted-foreground))] mb-10 max-w-xl leading-relaxed"
               data-testid="hero-description"
             >
               Plan, explore, and experience the world with TripMate's intelligent travel assistant.
@@ -442,12 +460,9 @@ export default function Landing() {
             </p>
 
             {/* Hero search bar with autocomplete */}
-            <div
-              className="max-w-2xl mx-auto mb-8 relative animate-fade-up animate-fade-up-delay-3"
-              ref={searchRef}
-            >
-              <div className="flex items-center bg-white border border-[#dddddd] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.05)] px-6 py-4 gap-4">
-                <MapPin className="w-5 h-5 text-[#163F73] flex-shrink-0" />
+            <div className="max-w-xl mb-8 relative" ref={searchRef}>
+              <div className="flex items-center bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-full px-6 py-4 gap-4 focus-within:border-[var(--amber)] transition-colors">
+                <MapPin className="w-5 h-5 text-[var(--amber)] flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="Where do you want to go?"
@@ -477,13 +492,13 @@ export default function Landing() {
                     }
                     if (e.key === "Escape") setShowSuggestions(false);
                   }}
-                  className="flex-1 min-w-0 text-[#16283F] text-base outline-none bg-transparent placeholder:text-[#929292]"
+                  className="flex-1 min-w-0 text-[hsl(var(--foreground))] text-base outline-none bg-transparent placeholder:text-[hsl(var(--muted-foreground))]"
                   data-testid="input-destination"
                   autoComplete="off"
                 />
                 <button
                   onClick={goToSignup}
-                  className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
+                  className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white rounded-full px-5 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
                   data-testid="button-get-started"
                 >
                   Plan Trip
@@ -499,24 +514,28 @@ export default function Landing() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute left-0 right-0 top-full mt-2 bg-white border border-[#dddddd] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden z-50"
+                    className="absolute left-0 right-0 top-full mt-2 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-2xl overflow-hidden z-50"
                   >
                     {suggestions.map((s, idx) => (
                       <button
                         key={idx}
                         type="button"
-                        className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${activeIndex === idx ? "bg-[#F7F0DD]" : "hover:bg-[#f7f7f7]"}`}
+                        className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${activeIndex === idx ? "bg-[hsl(var(--muted))]" : "hover:bg-[hsl(var(--muted))]"}`}
                         onMouseEnter={() => setActiveIndex(idx)}
                         onClick={() => {
                           setDestination(s.name);
                           setShowSuggestions(false);
                         }}
                       >
-                        <MapPin className="w-4 h-4 text-[#163F73] flex-shrink-0" />
+                        <MapPin className="w-4 h-4 text-[var(--amber)] flex-shrink-0" />
                         <div>
-                          <span className="text-sm font-medium text-[#16283F]">{s.name}</span>
+                          <span className="text-sm font-medium text-[hsl(var(--foreground))]">
+                            {s.name}
+                          </span>
                           {s.country && (
-                            <span className="text-xs text-[#929292] ml-2">{s.country}</span>
+                            <span className="text-xs text-[hsl(var(--muted-foreground))] ml-2">
+                              {s.country}
+                            </span>
                           )}
                         </div>
                       </button>
@@ -527,15 +546,15 @@ export default function Landing() {
             </div>
 
             {/* Travel style chips */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+            <div className="flex flex-wrap items-center gap-2 mb-10">
               {travelStyles.map((style) => (
                 <button
                   key={style.name}
                   onClick={() => setSelectedStyle(style.name === selectedStyle ? null : style.name)}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
                     selectedStyle === style.name
-                      ? "bg-[#163F73] border-[#163F73] text-white"
-                      : "bg-white border-[#dddddd] text-[#16283F] hover:border-[#16283F]"
+                      ? "bg-[var(--amber)] border-[var(--amber)] text-white"
+                      : "bg-transparent border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:border-[var(--amber)]"
                   }`}
                 >
                   <style.icon className="w-3.5 h-3.5" />
@@ -545,61 +564,53 @@ export default function Landing() {
             </div>
 
             {/* CTA buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={goToSignup}
-                className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>
               <button
                 onClick={() => navigate("/signin")}
-                className="bg-white border border-[#16283F] text-[#16283F] px-8 py-4 rounded-lg text-base font-semibold hover:bg-[#f7f7f7] transition-colors"
+                className="bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] px-8 py-4 rounded-lg text-base font-semibold hover:bg-[hsl(var(--muted))] transition-colors"
               >
                 Sign In
               </button>
             </div>
           </motion.div>
+
+          <HeroCardStack />
         </div>
       </section>
 
-      {/* ── Live stats bar ─────────────────────────────── */}
-      {stats && (
-        <section className="border-y border-[#ebebeb] bg-[#f7f7f7] py-8 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto grid grid-cols-3 gap-4 text-center">
-            {[
-              { value: stats.tripsPlanned, label: "Trips planned" },
-              { value: stats.destinationsPlanned, label: "Destinations" },
-              { value: stats.travelers, label: "Travelers" },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="font-display text-3xl sm:text-4xl font-bold text-[#16283F] tabular-nums">
-                  {stat.value.toLocaleString()}
-                  <span className="text-[#163F73]">+</span>
-                </p>
-                <p className="text-[#6a6a6a] text-xs sm:text-sm mt-1 uppercase tracking-wide">
-                  {stat.label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* ── Destination showcase ───────────────────────── */}
       {topDestinations.length > 0 && (
-        <section className="py-16 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 text-center">
-            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">
-              Where travelers are going
-            </p>
-            <h2 className="text-2xl md:text-3xl font-bold text-[#16283F]">
-              Real trips, <span className="text-gradient">real destinations</span>
+        <section className="py-16 overflow-hidden border-t border-[hsl(var(--border))]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-[hsl(var(--foreground))] mb-2">
+              Real trips, real destinations
             </h2>
+            {stats && (
+              <p className="text-[hsl(var(--muted-foreground))] text-sm">
+                <span className="font-mono-data text-[hsl(var(--foreground))]">
+                  {stats.tripsPlanned}
+                </span>{" "}
+                trips planned across{" "}
+                <span className="font-mono-data text-[hsl(var(--foreground))]">
+                  {stats.destinationsPlanned}
+                </span>{" "}
+                destinations by{" "}
+                <span className="font-mono-data text-[hsl(var(--foreground))]">
+                  {stats.travelers}
+                </span>{" "}
+                travelers — and counting.
+              </p>
+            )}
           </div>
           <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-white to-transparent z-10" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-white to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-[hsl(var(--background))] to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-[hsl(var(--background))] to-transparent z-10" />
             <div className="flex gap-4 w-max animate-marquee">
               {[...topDestinations, ...topDestinations].map((d, i) => (
                 <DestinationCard key={`${d.destination}-${i}`} d={d} />
@@ -609,123 +620,112 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── Features ───────────────────────────────────── */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">
-              Features
-            </p>
-            <h2
-              className="text-3xl md:text-5xl font-bold text-[#16283F] mb-4"
-              data-testid="features-title"
-            >
-              Everything You <span className="text-gradient">Need</span>
-            </h2>
-            <p
-              className="text-[#6a6a6a] text-lg max-w-2xl mx-auto"
-              data-testid="features-description"
-            >
-              Comprehensive travel tools powered by AI to make your journey seamless and memorable.
-            </p>
-          </div>
+      {/* ── Features — a manifest, not a card grid ─────── */}
+      <section
+        id="features"
+        className="py-20 px-4 sm:px-6 lg:px-8 border-t border-[hsl(var(--border))]"
+      >
+        <div className="max-w-4xl mx-auto">
+          <h2
+            className="text-3xl md:text-5xl font-bold text-[hsl(var(--foreground))] mb-4"
+            style={{ textWrap: "balance" }}
+            data-testid="features-title"
+          >
+            Everything one trip needs
+          </h2>
+          <p
+            className="text-[hsl(var(--muted-foreground))] text-lg max-w-xl mb-4"
+            data-testid="features-description"
+          >
+            Nine tools that would otherwise be nine separate apps — planning, budget, packing,
+            memories, and an AI agent that knows your trip.
+          </p>
 
-          {/* Bento grid: Atlas AI (2x2) and Offline Maps (2x1) — the two
-              differentiators a generic travel app doesn't have — anchor the
-              grid as bigger tiles; row-dense packing lets the six 1x1 cards
-              fill in around them regardless of array order. */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 lg:grid-flow-row-dense gap-5">
-            {features.map((feature, i) => {
-              const isLarge = Boolean(feature.span);
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.35, delay: i * 0.05 }}
-                  className={`bg-white border border-[#ebebeb] rounded-3xl p-6 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 group flex flex-col ${isLarge ? "lg:p-8 lg:justify-center" : ""} ${feature.span ?? ""} ${feature.accentColor}`}
-                  data-testid={`feature-card-${i}`}
-                >
+          <div>
+            {features.map((feature, i) => (
+              <div
+                key={feature.title}
+                className={`flex flex-col items-start sm:flex-row gap-4 sm:gap-8 py-6 ${i > 0 ? "perforated-edge" : ""}`}
+                data-testid={`feature-row-${i}`}
+              >
+                <div className="flex items-center gap-4 sm:w-64 flex-shrink-0">
                   <div
-                    className={`${isLarge ? "w-16 h-16 lg:w-20 lg:h-20" : "w-12 h-12"} ${feature.iconBg} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${feature.tint} flex-shrink-0`}
                   >
-                    <feature.icon
-                      className={`${isLarge ? "w-8 h-8 lg:w-10 lg:h-10" : "w-6 h-6"} ${feature.iconColor}`}
-                    />
+                    <feature.icon className="w-5 h-5" />
                   </div>
-                  <div className="flex items-start justify-between mb-2">
-                    <h3
-                      className={`font-semibold text-[#16283F] ${isLarge ? "text-xl lg:text-2xl" : "text-base"}`}
-                    >
-                      {feature.title}
-                    </h3>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${feature.tagColor}`}
-                    >
-                      {feature.tag}
-                    </span>
-                  </div>
-                  <p
-                    className={`text-[#6a6a6a] leading-relaxed ${isLarge ? "text-base lg:text-lg" : "text-sm"}`}
-                  >
-                    {feature.description}
-                  </p>
-                </motion.div>
-              );
-            })}
+                  <h3 className="text-base font-semibold text-[hsl(var(--foreground))]">
+                    {feature.title}
+                  </h3>
+                </div>
+                <p className="text-sm text-[hsl(var(--muted-foreground))] leading-relaxed flex-1">
+                  {feature.description}
+                </p>
+                <span className="stamp text-[10px] flex-shrink-0" style={{ color: "var(--amber)" }}>
+                  {feature.tag}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* ── How it works ───────────────────────────────── */}
-      <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 bg-[#f7f7f7]">
+      <section
+        id="how-it-works"
+        className="py-20 px-4 sm:px-6 lg:px-8 border-t border-[hsl(var(--border))]"
+      >
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-[#163F73] text-sm font-semibold mb-2 uppercase tracking-wide">
-              How It Works
-            </p>
-            <h2 className="text-3xl md:text-5xl font-bold text-[#16283F] mb-4">
-              Plan Your <span className="text-gradient">Perfect Trip</span>
-            </h2>
-            <p
-              className="text-[#6a6a6a] text-lg max-w-xl mx-auto"
-              data-testid="planner-description"
-            >
-              Tell us your preferences and let AI create a personalized itinerary just for you.
-            </p>
-          </div>
+          <h2
+            className="text-3xl md:text-5xl font-bold text-[hsl(var(--foreground))] mb-4"
+            style={{ textWrap: "balance" }}
+          >
+            Plan your perfect trip
+          </h2>
+          <p
+            className="text-[hsl(var(--muted-foreground))] text-lg max-w-xl mb-14"
+            data-testid="planner-description"
+          >
+            Tell us your preferences and let AI create a personalized itinerary just for you.
+          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3">
             {[
               {
                 step: "01",
-                title: "Set Your Preferences",
+                title: "Set your preferences",
                 desc: "Enter your destination, budget, travel style, and trip duration.",
               },
               {
                 step: "02",
-                title: "AI Builds Your Plan",
+                title: "AI builds your plan",
                 desc: "Our multi-agent AI researches, drafts, and validates your itinerary against real-world constraints.",
               },
               {
                 step: "03",
-                title: "Travel & Adjust",
+                title: "Travel & adjust",
                 desc: "Track expenses, write journal entries, and let Atlas AI answer questions on the go.",
               },
-            ].map((item) => (
-              <div key={item.step} className="bg-white border border-[#ebebeb] rounded-3xl p-6">
-                <div className="text-3xl font-bold text-[#163F73] mb-3 font-mono">{item.step}</div>
-                <h3 className="font-semibold text-[#16283F] mb-2">{item.title}</h3>
-                <p className="text-sm text-[#6a6a6a] leading-relaxed">{item.desc}</p>
+            ].map((item, i) => (
+              <div
+                key={item.step}
+                className={`pt-6 pr-6 ${i > 0 ? "md:border-l md:border-[hsl(var(--border))] md:pl-8" : ""} border-t-2 border-[var(--amber)]`}
+              >
+                <div className="font-mono-data text-sm text-[var(--amber)] mb-3">{item.step}</div>
+                <h3 className="font-semibold text-[hsl(var(--foreground))] mb-2 text-lg">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-[hsl(var(--muted-foreground))] leading-relaxed">
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
 
-          <div className="mt-10 text-center">
+          <div className="mt-14">
             <button
               onClick={() => navigate("/signup")}
-              className="inline-flex items-center gap-2 bg-[#1D4E89] hover:bg-[#163F73] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+              className="stamp-press inline-flex items-center gap-2 bg-[var(--explorer-blue)] hover:bg-[var(--amber)] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               data-testid="button-generate-itinerary"
             >
               Start Planning
@@ -735,35 +735,34 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Why TripMate ───────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* ── Ready to travel smarter ─────────────────────── */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 border-t border-[hsl(var(--border))]">
         <div className="max-w-5xl mx-auto">
-          <div className="bg-[#1D4E89] rounded-3xl p-10 md:p-16 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+          <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-3xl p-10 md:p-16 text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-[hsl(var(--foreground))] mb-4">
               Ready to travel smarter?
             </h2>
-            <p className="text-[#929292] text-lg mb-8 max-w-xl mx-auto">
-              Join thousands of travelers who plan faster, spend smarter, and explore deeper with
-              TripMate.
+            <p className="text-[hsl(var(--muted-foreground))] text-lg mb-8 max-w-xl mx-auto">
+              Plan faster, spend smarter, and explore deeper with TripMate.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
               <button
                 onClick={() => navigate("/signup")}
-                className="stamp-press bg-[#163F73] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Get Started Free
               </button>
               <button
                 onClick={() => navigate("/signin")}
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-8 py-4 rounded-lg text-base font-semibold transition-colors"
+                className="bg-transparent hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] border border-[hsl(var(--border))] px-8 py-4 rounded-lg text-base font-semibold transition-colors"
               >
                 Sign In
               </button>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-4 text-[#929292] text-sm">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-[hsl(var(--muted-foreground))] text-sm">
               {["No credit card required", "Free to start", "Cancel anytime"].map((point) => (
                 <span key={point} className="flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-[#00a699]" />
+                  <Check className="w-3.5 h-3.5 text-[var(--forest)]" />
                   {point}
                 </span>
               ))}
@@ -775,21 +774,21 @@ export default function Landing() {
       {/* ── Footer ─────────────────────────────────────── */}
       <footer
         id="support"
-        className="border-t border-[#ebebeb] py-14 px-4 sm:px-6 lg:px-8 bg-white"
+        className="border-t border-[hsl(var(--border))] py-14 px-4 sm:px-6 lg:px-8"
       >
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             <div className="md:col-span-2">
               <TripMateLogo size="md" className="mb-4" />
-              <p className="text-sm text-[#6a6a6a] max-w-xs leading-relaxed">
+              <p className="text-sm text-[hsl(var(--muted-foreground))] max-w-xs leading-relaxed">
                 Your intelligent travel companion powered by AI. Plan smarter, travel better, and
                 create unforgettable memories.
               </p>
             </div>
 
             <div>
-              <h3 className="text-[#16283F] font-semibold text-sm mb-4">Features</h3>
-              <ul className="space-y-2.5 text-sm text-[#6a6a6a]">
+              <h3 className="text-[hsl(var(--foreground))] font-semibold text-sm mb-4">Features</h3>
+              <ul className="space-y-2.5 text-sm text-[hsl(var(--muted-foreground))]">
                 {[
                   "Trip Planner",
                   "Atlas AI Assistant",
@@ -800,7 +799,10 @@ export default function Landing() {
                   "Emergency Services",
                 ].map((f) => (
                   <li key={f}>
-                    <a href="#features" className="hover:text-[#16283F] transition-colors">
+                    <a
+                      href="#features"
+                      className="hover:text-[hsl(var(--foreground))] transition-colors"
+                    >
                       {f}
                     </a>
                   </li>
@@ -809,25 +811,37 @@ export default function Landing() {
             </div>
 
             <div>
-              <h3 className="text-[#16283F] font-semibold text-sm mb-4">Support</h3>
-              <ul className="space-y-2.5 text-sm text-[#6a6a6a]">
+              <h3 className="text-[hsl(var(--foreground))] font-semibold text-sm mb-4">Support</h3>
+              <ul className="space-y-2.5 text-sm text-[hsl(var(--muted-foreground))]">
                 <li>
-                  <a href="/app/feedback" className="hover:text-[#16283F] transition-colors">
+                  <a
+                    href="/app/feedback"
+                    className="hover:text-[hsl(var(--foreground))] transition-colors"
+                  >
                     Help Center
                   </a>
                 </li>
                 <li>
-                  <a href="/privacy" className="hover:text-[#16283F] transition-colors">
+                  <a
+                    href="/privacy"
+                    className="hover:text-[hsl(var(--foreground))] transition-colors"
+                  >
                     Privacy Policy
                   </a>
                 </li>
                 <li>
-                  <a href="/terms" className="hover:text-[#16283F] transition-colors">
+                  <a
+                    href="/terms"
+                    className="hover:text-[hsl(var(--foreground))] transition-colors"
+                  >
                     Terms of Service
                   </a>
                 </li>
                 <li>
-                  <a href="/app/feedback" className="hover:text-[#16283F] transition-colors">
+                  <a
+                    href="/app/feedback"
+                    className="hover:text-[hsl(var(--foreground))] transition-colors"
+                  >
                     Contact Us
                   </a>
                 </li>
@@ -836,8 +850,10 @@ export default function Landing() {
           </div>
 
           {/* Team */}
-          <div className="border-t border-[#ebebeb] pt-10 mb-10">
-            <h3 className="text-[#16283F] font-semibold text-center mb-6">Meet the Team</h3>
+          <div className="border-t border-[hsl(var(--border))] pt-10 mb-10">
+            <h3 className="text-[hsl(var(--foreground))] font-semibold text-center mb-6">
+              Meet the Team
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
               {[
                 {
@@ -845,38 +861,42 @@ export default function Landing() {
                   name: "Sai Naidu .B",
                   role: "Product Visionary & UX Designer",
                   bio: "Conceptualized the core features and user experience that make TripMate intuitive and powerful.",
-                  color: "bg-[#F7F0DD]",
-                  iconColor: "text-[#163F73]",
+                  tint: "icon-tint-amber",
                 },
                 {
                   icon: Code,
                   name: "Dhamarunath .K",
                   role: "Lead Developer",
                   bio: "Architected and implemented the entire technical infrastructure, from backend systems to deployment.",
-                  color: "bg-[#f0fff4]",
-                  iconColor: "text-[#00a699]",
+                  tint: "icon-tint-green",
                 },
               ].map((member) => (
                 <div
                   key={member.name}
-                  className="flex items-start gap-4 bg-[#f7f7f7] rounded-3xl p-5"
+                  className="flex items-start gap-4 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl p-5"
                 >
                   <div
-                    className={`w-10 h-10 ${member.color} rounded-xl flex items-center justify-center flex-shrink-0`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${member.tint}`}
                   >
-                    <member.icon className={`w-5 h-5 ${member.iconColor}`} />
+                    <member.icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="font-semibold text-[#16283F] text-sm">{member.name}</div>
-                    <div className="text-[#163F73] text-xs font-medium mb-1">{member.role}</div>
-                    <p className="text-xs text-[#6a6a6a] leading-relaxed">{member.bio}</p>
+                    <div className="font-semibold text-[hsl(var(--foreground))] text-sm">
+                      {member.name}
+                    </div>
+                    <div className="text-[var(--amber)] text-xs font-medium mb-1">
+                      {member.role}
+                    </div>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))] leading-relaxed">
+                      {member.bio}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="border-t border-[#ebebeb] pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[#6a6a6a]">
+          <div className="border-t border-[hsl(var(--border))] pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[hsl(var(--muted-foreground))]">
             <p>© {new Date().getFullYear()} TripMate. All rights reserved.</p>
             <p>Made with ❤️ for travelers worldwide.</p>
           </div>

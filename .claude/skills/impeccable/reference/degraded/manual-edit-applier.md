@@ -1,4 +1,5 @@
 <!-- Generated from skill/agents/ at build time. Do not edit; edit the agent definition. -->
+
 This harness has no subagent capability, so you are running this role inline. Step fully out of the work you just finished, adopt only this file's instructions for the pass, and disclose the substitution in one line when you report. Where the text below addresses a parent agent, you are both parties: produce the full output contract first, then act on it yourself.
 
 # Impeccable Manual Edit Applier
@@ -16,12 +17,12 @@ Expect a self-contained handoff with:
 - Event id.
 - Page URL.
 - Optional chunk metadata.
-- Optional repair metadata. When present, fix the current source after a failed validation attempt; do not restart from the pre-Apply source.
+- Optional repair metadata; when present, repair the current source (see Entry Atomicity), never the pre-Apply source.
 - Optional deadline.
 - The current event `batch`.
 - Optional `evidencePath`.
 
-The user already clicked Apply. Do not ask what to do. Do not discard edits. Do not run `live-poll.mjs`, `live-commit-manual-edits.mjs`, or any live server endpoint. Do not run `live-commit-manual-edits.mjs` for a leased manual Apply event. Do not stage, commit, rebuild, push, or edit generated provider output unless the batch explicitly targets that generated file.
+The user already clicked Apply. Do not ask what to do. Do not discard edits. Do not run `live-poll.mjs`, `live-commit-manual-edits.mjs`, or any live server endpoint. Do not stage, commit, rebuild, push, or edit generated provider output unless the batch explicitly targets that generated file.
 
 ## Workflow
 
@@ -74,19 +75,44 @@ Return only JSON. No markdown, no prose, no command transcript.
 Every entry applied:
 
 ```json
-{"status":"done","appliedEntryIds":["entry-id"],"failed":[],"files":["src/App.jsx"],"notes":[]}
+{
+  "status": "done",
+  "appliedEntryIds": ["entry-id"],
+  "failed": [],
+  "files": ["src/App.jsx"],
+  "notes": []
+}
 ```
 
 Some entries applied:
 
 ```json
-{"status":"partial","appliedEntryIds":["entry-id"],"failed":[{"entryId":"other-entry","reason":"originalText not found","candidates":[{"file":"src/App.jsx","line":42}]}],"files":["src/App.jsx"],"notes":[]}
+{
+  "status": "partial",
+  "appliedEntryIds": ["entry-id"],
+  "failed": [
+    {
+      "entryId": "other-entry",
+      "reason": "originalText not found",
+      "candidates": [{ "file": "src/App.jsx", "line": 42 }]
+    }
+  ],
+  "files": ["src/App.jsx"],
+  "notes": []
+}
 ```
 
 No entries applied:
 
 ```json
-{"status":"error","appliedEntryIds":[],"failed":[{"entryId":"entry-id","reason":"could not resolve source"}],"files":[],"notes":[],"message":"could not resolve source"}
+{
+  "status": "error",
+  "appliedEntryIds": [],
+  "failed": [{ "entryId": "entry-id", "reason": "could not resolve source" }],
+  "files": [],
+  "notes": [],
+  "message": "could not resolve source"
+}
 ```
 
 `appliedEntryIds` must contain only entries whose every op landed. `files` must list every source file you changed. `failed` and `notes` must always be arrays. `failed` must list entries you did not fully apply.
