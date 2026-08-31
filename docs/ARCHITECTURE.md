@@ -1,6 +1,6 @@
 # TripMate — System Architecture
 
-> **Stack**: React 18 · Express 4 · MongoDB · Socket.io · OpenAI / Gemini / Groq · PWA
+> **Stack**: React 18 · Express 4 · MongoDB · Socket.io · OpenRouter → Groq → NVIDIA NIM×2 fallback chain (Atlas) + Gemini (utility calls, OpenAI wired but unfunded) · PWA
 
 ---
 
@@ -22,9 +22,9 @@ TripMate is a full-stack AI-driven travel planning platform. Users create trips,
      │              │              │
 ┌────▼────┐  ┌──────▼──────┐  ┌───▼─────────────────────┐
 │ MongoDB │  │  Socket.io  │  │   AI Providers           │
-│Mongoose │  │  (Presence/ │  │ OpenAI · Gemini · Groq   │
-│  ODM    │  │  collab)    │  └─────────────────────────┘
-└─────────┘  └─────────────┘
+│Mongoose │  │  (Presence/ │  │ OpenRouter→Groq→NVIDIA×2 │
+│  ODM    │  │  collab)    │  │ (Atlas) + Gemini (utils) │
+└─────────┘  └─────────────┘  └─────────────────────────┘
 ```
 
 ---
@@ -50,22 +50,23 @@ TripMate/
 │       ├── store/              # Zustand stores
 │       └── main.tsx            # App entry
 ├── server/
-│   ├── services/               # Business logic
-│   │   ├── agents/             # Specialized AI agents
-│   │   │   ├── ResearchAgent.ts
-│   │   │   ├── DraftingAgent.ts
-│   │   │   ├── CriticAgent.ts
-│   │   │   └── FormattingAgent.ts
-│   │   ├── MultiAgentOrchestrator.ts
-│   │   ├── FeasibilityModeler.ts
-│   │   ├── SocketService.ts
-│   │   └── UserMemoryService.ts
-│   ├── auth.ts                 # Passport + JWT setup
-│   ├── db.ts                   # Mongoose connection
-│   ├── index.ts                # Express app + all routes
-│   ├── storage.ts              # IStorage → DatabaseStorage
-│   ├── email.ts                # Nodemailer
-│   └── AiUtilitiesService.ts   # Currency, weather, translate, geocode
+│   ├── agent/
+│   │   ├── agentLoop.ts         # Atlas: OpenRouter→Groq→NVIDIA×2 fallback chain
+│   │   ├── tools/handlers/      # weatherHandler, currencyHandler, placesHandler,
+│   │   │                        # journalToolHandler, modifyItineraryHandler,
+│   │   │                        # expenseToolHandler, collaboratorToolHandler, etc.
+│   │   └── multiAgent/
+│   │       ├── MasterOrchestrator.ts
+│   │       └── agents/          # SuggestionAgent, HeroImageAgent, ItineraryAgent,
+│   │                             # BudgetAgent, MapAgent, PackingAgent, JournalAgent
+│   ├── services/                # Business logic (SocketService, etc.)
+│   ├── auth.ts                  # Passport (Google OAuth only) + JWT setup
+│   ├── db.ts                    # Mongoose connection
+│   ├── index.ts                 # Express app + all routes
+│   ├── storage.ts               # IStorage → DatabaseStorage
+│   ├── email.ts                 # Nodemailer
+│   └── AiUtilitiesService.ts    # Gemini-backed weather/travel-hacks/journal AI,
+│                                 # currency, translate, geocode
 ├── shared/
 │   └── schema.ts               # Zod schemas + Mongoose models (single source of truth)
 ├── .agents/
@@ -111,13 +112,13 @@ Route guards: `ProtectedRoute` (checks JWT), `PublicRoute` (redirects authentica
 
 ### 3.2 State Management
 
-| Store | Responsibility |
-|---|---|
-| `authStore` | User identity, token, loading state |
-| `agentStore` | Atlas chat messages, streaming state |
-| `tripStore` | Active trip, itinerary mutations |
-| `packingStore` | Packing list items, templates |
-| `uiStore` | Sidebar, modals, theme |
+| Store          | Responsibility                       |
+| -------------- | ------------------------------------ |
+| `authStore`    | User identity, token, loading state  |
+| `agentStore`   | Atlas chat messages, streaming state |
+| `tripStore`    | Active trip, itinerary mutations     |
+| `packingStore` | Packing list items, templates        |
+| `uiStore`      | Sidebar, modals, theme               |
 
 Server state lives in **TanStack Query** — trips, journal, collaborators, expenses all fetched & cached via query keys.
 
@@ -160,143 +161,138 @@ errorHandler              → Global async error handler
 ### 4.2 API Surface (`/api/v1`)
 
 **Auth**
-| Method | Path | Description |
-|---|---|---|
-| POST | `/auth/signup` | Register |
-| POST | `/auth/signin` | Login → JWT |
-| POST | `/auth/logout` | Revoke session |
-| POST | `/auth/forgot-password` | Email reset link |
-| POST | `/auth/reset-password` | Consume token |
-| GET | `/auth/google/callback` | OAuth callback |
-| GET | `/auth/me` | Current user |
+
+| Method | Path                        | Description                              |
+| ------ | --------------------------- | ---------------------------------------- |
+| POST   | `/auth/signup`              | Register                                 |
+| POST   | `/auth/signin`              | Login → JWT                              |
+| POST   | `/auth/logout`              | Revoke session                           |
+| POST   | `/auth/forgot-password`     | Email reset link                         |
+| POST   | `/auth/reset-password`      | Consume token                            |
+| GET    | `/auth/google/callback`     | OAuth callback                           |
+| GET    | `/auth/me`                  | Current user                             |
+| GET    | `/auth/sessions`            | List active sessions (per-device)        |
+| POST   | `/auth/sessions/:id/revoke` | Revoke a session                         |
+| GET    | `/auth/user/export`         | Full data export (GDPR)                  |
+| DELETE | `/auth/user`                | Delete account (cascades all owned data) |
 
 **Trips**
-| Method | Path | Description |
-|---|---|---|
-| GET | `/trips` | User's trips (incl. collab) |
-| POST | `/trips` | Create trip |
-| GET | `/trips/:id` | Trip detail |
-| PUT | `/trips/:id` | Update trip |
-| DELETE | `/trips/:id` | Delete trip |
-| POST | `/trips/:id/share` | Toggle public share |
-| GET | `/trips/public/:shareId` | Public view |
-| POST | `/trips/generate-itinerary` | **AI pipeline** |
-| POST | `/trips/parse-schedule` | Parse raw schedule text |
-| GET | `/trips/:id/hacks` | Travel hacks |
-| GET | `/trips/:id/budget-forecast` | AI budget prediction |
+
+| Method | Path                         | Description                 |
+| ------ | ---------------------------- | --------------------------- |
+| GET    | `/trips`                     | User's trips (incl. collab) |
+| POST   | `/trips`                     | Create trip                 |
+| GET    | `/trips/:id`                 | Trip detail                 |
+| PUT    | `/trips/:id`                 | Update trip                 |
+| DELETE | `/trips/:id`                 | Delete trip                 |
+| POST   | `/trips/:id/share`           | Toggle public share         |
+| GET    | `/trips/public/:shareId`     | Public view                 |
+| POST   | `/trips/generate-itinerary`  | **AI pipeline**             |
+| POST   | `/trips/parse-schedule`      | Parse raw schedule text     |
+| GET    | `/trips/:id/hacks`           | Travel hacks                |
+| GET    | `/trips/:id/budget-forecast` | AI budget prediction        |
 
 **Itinerary**
-| Method | Path | Description |
-|---|---|---|
-| POST | `/itinerary/:id/activity` | Add activity |
-| PUT | `/itinerary/:id/activity/:actId` | Edit activity |
+
+| Method | Path                             | Description     |
+| ------ | -------------------------------- | --------------- |
+| POST   | `/itinerary/:id/activity`        | Add activity    |
+| PUT    | `/itinerary/:id/activity/:actId` | Edit activity   |
 | DELETE | `/itinerary/:id/activity/:actId` | Remove activity |
-| PUT | `/itinerary/:id/reorder` | Drag-reorder |
-| POST | `/itinerary/:id/vote` | Vibe vote |
+| PUT    | `/itinerary/:id/reorder`         | Drag-reorder    |
+| POST   | `/itinerary/:id/vote`            | Vibe vote       |
 
 **Atlas Agent**
-| Method | Path | Description |
-|---|---|---|
-| POST | `/agent/chat` | Send message |
-| GET | `/agent/chat/stream` | SSE response stream |
-| GET | `/agent/history/:tripId` | Conversation history |
-| DELETE | `/agent/history/:tripId` | Clear history |
+
+| Method | Path                     | Description          |
+| ------ | ------------------------ | -------------------- |
+| POST   | `/agent/chat`            | Send message         |
+| GET    | `/agent/chat/stream`     | SSE response stream  |
+| GET    | `/agent/history/:tripId` | Conversation history |
+| DELETE | `/agent/history/:tripId` | Clear history        |
 
 **Orchestrator**
-| Method | Path | Description |
-|---|---|---|
-| POST | `/orchestrator/run` | Sync multi-agent run |
-| POST | `/orchestrator/stream` | Streaming run |
-| GET | `/orchestrator/jobs` | Job history |
-| GET | `/orchestrator/jobs/:jobId` | Job status |
+
+| Method | Path                        | Description          |
+| ------ | --------------------------- | -------------------- |
+| POST   | `/orchestrator/run`         | Sync multi-agent run |
+| POST   | `/orchestrator/stream`      | Streaming run        |
+| GET    | `/orchestrator/jobs`        | Job history          |
+| GET    | `/orchestrator/jobs/:jobId` | Job status           |
 
 **Other**
+
 - `/journal` — CRUD + `/journal/:id/ai-enhance`
 - `/packing` — CRUD + duplicate + templates
 - `/expenses` — CRUD on trip
 - `/collaborators` — CRUD on trip
-- `/places` — search, autocomplete, nearby
+- `/places` — search, autocomplete, nearby, `/places/photo` (server-side Google Photos proxy — key never reaches client)
+- `/map-pins` — CRUD custom map pins
+- `/suggestions` — AI-generated trip suggestions (via MasterOrchestrator/SuggestionAgent)
 - `/weather`, `/currency-convert`, `/translate`, `/emergency-contacts`
 - `/crowd` — report + heatmap
 - `/feedback`
+- `/tools/public/stats`, `/tools/public/top-destinations` — landing page live stats (excludes QA/guest accounts)
+- `/notifications` — list, mark-read, mute preferences
 
 ---
 
 ## 5. Multi-Agent AI Pipeline
 
-The core AI system follows a **4-stage sequential pipeline** with a feasibility enforcement layer:
+Two separate systems, both under `server/agent/`:
+
+1. **Atlas chat** (`agentLoop.ts`) — conversational tool-using agent behind `/api/v1/agent/chat`. Provider fallback chain: OpenRouter → Groq → NVIDIA NIM×2, with a circuit breaker (`providerHealth.ts`) and per-provider token-budget admission control. Executes tools via `Tool Executor` (~19 tools), gating destructive ones (expense removal, collaborator changes) behind a `CONFIRM_REQUIRED` step.
+2. **MasterOrchestrator** (`server/agent/multiAgent/MasterOrchestrator.ts`) — a separate, non-chat pipeline that dispatches to specialized domain agents and tracks each run as an `AgentJob` record:
 
 ```
-User Request
+Client request (e.g. generate itinerary, suggest activities)
      │
      ▼
-┌─────────────────┐
-│  ResearchAgent  │  Gathers: destination intel, days, style,
-│                 │  group size, budget envelope, constraints
-└────────┬────────┘
-         │ ResearchContext
-         ▼
-┌─────────────────┐
-│  DraftingAgent  │  Generates initial itinerary draft
-│                 │  with activity clusters per day
-└────────┬────────┘
-         │ DraftPlan
-         ▼
-┌─────────────────┐
-│   CriticAgent   │  Validates: time feasibility, travel distances,
-│                 │  budget alignment, energy curves
-└────────┬────────┘
-         │ CriticFeedback → loops back to DraftingAgent if fails
-         ▼
-┌──────────────────┐
-│ FormattingAgent  │  Structures output to Trip schema format
-│                  │  with confidenceScore per day
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│FeasibilityModeler│  Final constraint enforcement gate
-│                  │  (transit times, distance matrix, cost caps)
-└────────┬─────────┘
-         │
-         ▼
-    Trip.itinerary[]  →  DB + Client
+MasterOrchestrator.run()
+     │  creates AgentJob (status: pending → running)
+     ▼
+Dispatches to one of:
+  SuggestionAgent | HeroImageAgent | ItineraryAgent |
+  BudgetAgent | MapAgent | PackingAgent | JournalAgent
+     │
+     ▼
+AgentJob (status: completed|failed, result stored)  →  DB + Client
 ```
 
-### 5.1 Specialized Domain Agents (server/services/agents/)
+### 5.1 Specialized Domain Agents (server/agent/multiAgent/agents/)
 
-| Agent | Trigger | Responsibility |
-|---|---|---|
-| `ItineraryAgent` | `PLAN_TRIP` / `ENHANCE_ITINERARY` | Day-by-day activity generation |
-| `BudgetAgent` | `GENERATE_BUDGET` | Cost breakdown, forecast |
-| `PackingAgent` | `CREATE_PACKING_LIST` | Context-aware item generation |
-| `SuggestionAgent` | `SUGGEST_ACTIVITIES` | Alternative place suggestions |
-| `JournalAgent` | `ENHANCE_JOURNAL` | Prose enhancement + recap generation |
-| `HeroImageAgent` | Trip creation | Cover image selection |
-| `MapAgent` | Trip view | Route + POI layer generation |
+| Agent             | Responsibility                         |
+| ----------------- | -------------------------------------- |
+| `ItineraryAgent`  | Day-by-day activity generation         |
+| `BudgetAgent`     | Cost breakdown, forecast               |
+| `PackingAgent`    | Context-aware item generation          |
+| `SuggestionAgent` | Alternative place/activity suggestions |
+| `JournalAgent`    | Prose enhancement + recap generation   |
+| `HeroImageAgent`  | Cover image selection                  |
+| `MapAgent`        | Route + POI layer generation           |
 
 ### 5.2 Atlas Tool Ecosystem
 
 Atlas has access to these tools at runtime:
 
-| Tool | Function |
-|---|---|
-| `get_weather` | Forecast for destination |
-| `convert_currency` | Exchange rates |
-| `translate_text` | Real-time translation |
-| `search_places` | POI search via geocoding |
+| Tool                     | Function                      |
+| ------------------------ | ----------------------------- |
+| `get_weather`            | Forecast for destination      |
+| `convert_currency`       | Exchange rates                |
+| `translate_text`         | Real-time translation         |
+| `search_places`          | POI search via geocoding      |
 | `get_emergency_contacts` | Emergency services by country |
-| `get_trip` | Load trip context |
-| `update_itinerary` | Write activity changes |
-| `get_budget` | Fetch expense data |
-| `get_packing_list` | Fetch/update packing items |
-| `get_user_preferences` | Memory + travel style |
+| `get_trip`               | Load trip context             |
+| `update_itinerary`       | Write activity changes        |
+| `get_budget`             | Fetch expense data            |
+| `get_packing_list`       | Fetch/update packing items    |
+| `get_user_preferences`   | Memory + travel style         |
 
 ### 5.3 AiUtilitiesService
 
-Centralizes all external AI/data calls:
-- **Provider fan-out**: OpenAI → Gemini fallback → Groq fallback
-- **Caching**: `node-cache` with TTL (weather: 30min, currency: 1hr)
+Centralizes non-Atlas AI/data calls:
+
+- **Provider fan-out**: OpenAI (if funded) → Gemini fallback (`generateWithGemini`, `gemini-3.5-flash-lite`) for weather AI-estimates, travel hacks, journal enhancement, quiet-place suggestions, schedule parsing. Currency and emergency-contact lookups deliberately stay non-AI (Frankfurter API, Google Places) rather than falling back to an LLM guess.
 - **Deduplication**: Inflight request map prevents duplicate API calls
 - **Geocoding**: Place resolution + Haversine distance calculations
 - **Utilities**: Weather parsing, transit constraint enforcement, emergency lookup
@@ -308,6 +304,7 @@ Centralizes all external AI/data calls:
 All models defined in `shared/schema.ts` (Zod + Mongoose).
 
 ### User
+
 ```
 _id           String (email-based for JWT users)
 email         String (unique, indexed)
@@ -331,6 +328,7 @@ resetPasswordExpires Date
 ```
 
 ### Trip
+
 ```
 userId        ref:User (indexed)
 destination   String (required)
@@ -359,6 +357,7 @@ syncStatus    String
 ```
 
 ### JournalEntry
+
 ```
 userId        ref:User
 tripId        ref:Trip
@@ -374,6 +373,7 @@ recapMeta     { title, highlights[], memorableMoment, travelTip, awards[], visua
 ```
 
 ### PackingList
+
 ```
 userId        ref:User
 tripId        ref:Trip (optional)
@@ -384,6 +384,7 @@ isTemplate    Boolean
 ```
 
 ### AtlasConversation
+
 ```
 tripId        String (indexed)
 userId        String (indexed)
@@ -392,6 +393,7 @@ metadata      { totalToolCalls, toolsUsed[], lastConfidence }
 ```
 
 ### Session
+
 ```
 userId        ref:User
 sessionId     String
@@ -404,16 +406,57 @@ revoked       Boolean
 ```
 
 ### AgentJob
+
 ```
 jobId         String (unique)
-userId        String
+userId        String   (nanoid, matches User._id — NOT ObjectId)
 tripId        String
 status        pending|running|completed|failed
 result        Mixed
 metadata      Mixed
 ```
 
+### TripSuggestion
+
+```
+userId        String (nanoid, matches User._id — NOT ObjectId)
+tripId        String
+type          String
+data          Mixed
+```
+
+### MapPin
+
+```
+userId        ref:User
+tripId        ref:Trip
+latitude      Number
+longitude     Number
+label         String
+category      String
+```
+
+### Notification
+
+```
+userId        ref:User
+type          String
+title         String
+body          String
+read          Boolean
+tripId        ref:Trip (optional)
+```
+
+### Feedback
+
+```
+userId        ref:User
+message       String
+category      String
+```
+
 ### CrowdDensity
+
 ```
 latitude      Number
 longitude     Number
@@ -437,6 +480,7 @@ User leaves              →  socket.leave + presence cleanup
 ```
 
 Events:
+
 - `trip:join` / `trip:leave`
 - `itinerary:update` / `activity:add` / `activity:remove`
 - `presence:update`
@@ -447,35 +491,42 @@ Events:
 ## 8. Authentication & Security
 
 ### Auth Flow
+
 ```
 1. POST /auth/signup  →  hash password (bcrypt 12) → create User + Session
-2. POST /auth/signin  →  verify password → issue JWT (7d expiry) + Session record
-3. Request           →  Authorization: Bearer <token>
-4. requireAuth       →  verify JWT → attach req.user
-5. POST /auth/logout  →  revoke Session record
+2. POST /auth/signin  →  verify password → issue JWT (7d expiry) as an httpOnly
+                          cookie (`token`) + Session record
+3. Request           →  cookie sent automatically by the browser (primary path);
+                          an `Authorization: Bearer <token>` header is also
+                          accepted as a fallback, but the SPA itself never sends one
+4. requireAuth       →  verify JWT → check Session not revoked/expired → attach req.user
+5. POST /auth/logout  →  revoke Session record (jwt.verify, not decode — a forged
+                          token cannot be used to revoke an arbitrary session)
 ```
 
 Google OAuth: Passport `google-oauth20` strategy → upsert User → same JWT flow.
 
 ### Security Layers
-| Layer | Implementation |
-|---|---|
-| Password | bcrypt (12 rounds) |
-| Auth token | JWT (HS256, 7d) |
-| Rate limiting | `express-rate-limit` per IP |
-| CSRF | Token-based middleware |
-| SQL/NoSQL injection | `express-mongo-sanitize` |
-| HTTP headers | `helmet` |
-| Param pollution | `hpp` |
-| Session tracking | `Session` model (per-device, revocable) |
-| Login brute-force | `failedLoginAttempts` + `lockUntil` |
-| File uploads | `multer` + 2MB limit |
+
+| Layer               | Implementation                                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Password            | bcrypt (12 rounds)                                                                                                           |
+| Auth token          | JWT (HS256, 7d)                                                                                                              |
+| Rate limiting       | `express-rate-limit` per IP                                                                                                  |
+| CSRF                | Token-based middleware                                                                                                       |
+| SQL/NoSQL injection | `express-mongo-sanitize`                                                                                                     |
+| HTTP headers        | `helmet`                                                                                                                     |
+| Param pollution     | `hpp`                                                                                                                        |
+| Session tracking    | `Session` model (per-device, revocable)                                                                                      |
+| Login brute-force   | `failedLoginAttempts` + `lockUntil`                                                                                          |
+| File uploads        | `multer` (memory storage) + 2MB limit, avatars stored base64-in-Mongo (Render's disk is ephemeral — no local `/uploads` dir) |
 
 ---
 
 ## 9. Build & Infrastructure
 
 ### Build Pipeline
+
 ```
 npm run dev    →  concurrently: vite dev server + tsx server/index.ts
 npm run build  →  vite build (client) + esbuild (server → dist/index.js)
@@ -484,42 +535,51 @@ npm test       →  vitest
 ```
 
 ### Vite Config Highlights
+
 - PWA via `vite-plugin-pwa` + Workbox
 - Runtime caching: Weather (CacheFirst), Trips (NetworkFirst)
 - Proxy `/api` → `http://127.0.0.1:5000`
 - Path aliases: `@/` → `client/src/`, `@shared/` → `shared/`
 
 ### Environment Variables
+
 ```
 MONGODB_URI          MongoDB connection string
 JWT_SECRET           JWT signing key
-OPENAI_API_KEY       OpenAI
-GOOGLE_GEMINI_KEY    Gemini
-GROQ_API_KEY         Groq
-OPENWEATHER_KEY      Weather API
+SESSION_SECRET       Session signing key
+OPENROUTER_API_KEY   Atlas provider (1st in fallback chain)
+GROQ_API_KEY         Atlas provider (2nd in fallback chain)
+NVIDIA_API_KEY_1/2   Atlas provider (3rd/4th in fallback chain)
+GEMINI_API_KEY       Gemini — must be an AI-Studio-issued key, not a plain
+                      Cloud Console key
+GOOGLE_API_KEY       Places / Maps / Cloud Translation
+OPENAI_API_KEY       Optional; wired but not required (unfunded by default)
+OPENWEATHER_API_KEY  Weather API
 GOOGLE_CLIENT_ID     OAuth
 GOOGLE_CLIENT_SECRET OAuth
 EMAIL_HOST/USER/PASS Nodemailer
 PORT                 Express port (default 5000)
 ```
 
+See `server/config.ts` for the complete, authoritative list.
+
 ---
 
 ## 10. Key Data Flows
 
 ### Trip Creation + AI Itinerary
+
 ```
 PlannerWizard (client)
   → POST /api/v1/trips/generate-itinerary
-  → MultiAgentOrchestrator.run()
-      → ResearchAgent → DraftingAgent → CriticAgent → FormattingAgent
-      → FeasibilityModeler.validate()
+  → MasterOrchestrator.run() → ItineraryAgent (+ BudgetAgent, HeroImageAgent, etc.)
   → Trip saved to MongoDB
   → Response: full itinerary with confidenceScores
   → TripDetail page renders itinerary
 ```
 
 ### Journal AI Enhancement
+
 ```
 JournalEntry edit page
   → POST /api/v1/journal/:id/ai-enhance
@@ -529,6 +589,7 @@ JournalEntry edit page
 ```
 
 ### Real-Time Collab
+
 ```
 User A adds activity (PUT /api/v1/itinerary/:id/activity)
   → DB updated
@@ -542,21 +603,21 @@ User A adds activity (PUT /api/v1/itinerary/:id/activity)
 
 ## 11. Scalability Considerations
 
-| Concern | Current Solution |
-|---|---|
-| AI latency | Streaming SSE responses + fallback providers |
-| DB load | MongoDB indexes on userId, tripId, shareId |
-| API rate limits | Per-IP rate limiting + AI request deduplication |
-| Cold-path caching | `node-cache` TTL for weather/currency |
-| Asset uploads | Multer → local `/uploads` dir |
-| PWA offline | Workbox service worker |
-| Real-time scale | Socket.io room-based (single instance) |
+| Concern         | Current Solution                                               |
+| --------------- | -------------------------------------------------------------- |
+| AI latency      | Streaming SSE responses + fallback providers                   |
+| DB load         | MongoDB indexes on userId, tripId, shareId                     |
+| API rate limits | Per-IP rate limiting + AI request deduplication                |
+| Asset uploads   | Multer (memory) → base64-in-Mongo (Render's disk is ephemeral) |
+| PWA offline     | Workbox service worker                                         |
+| Real-time scale | Socket.io room-based (single instance)                         |
 
 ---
 
 ## 12. Agent Identity (`.agents/rules/`)
 
 All AI responses in TripMate are governed by `prompt-constrains.md`:
+
 - **Identity**: Atlas — cognitive travel intelligence, not a template engine
 - **Mode**: Goal-driven, feasibility-driven, reasoning-driven
 - **Output**: Structured data only (no freeform explanations to UI)
