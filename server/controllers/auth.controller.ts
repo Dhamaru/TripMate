@@ -13,6 +13,7 @@ import {
 } from "@shared/schema";
 import { AgentJob } from "../models/AgentJob";
 import { TripSuggestion } from "../models/TripSuggestion";
+import { UserMemoryModel } from "../services/UserMemoryService";
 import { BadRequestError, UnauthorizedError, NotFoundError, TooManyRequestsError } from "../errors";
 import { hashPassword, comparePasswords } from "../auth";
 import { nanoid } from "nanoid";
@@ -410,6 +411,7 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       mapPins,
       agentJobs,
       tripSuggestions,
+      memory,
     ] = await Promise.all([
       UserModel.findById(userId)
         .select("-password -resetPasswordToken -resetPasswordExpires")
@@ -424,6 +426,7 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       MapPinModel.find({ userId }).lean(),
       AgentJob.find({ userId }).lean(),
       TripSuggestion.find({ userId }).lean(),
+      UserMemoryModel.findOne({ userId }).lean(),
     ]);
 
     if (!user) throw new NotFoundError("User not found");
@@ -441,6 +444,7 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       mapPins,
       agentJobs,
       tripSuggestions,
+      memory,
     };
 
     const filename = `tripmate-export-${new Date().toISOString().slice(0, 10)}.json`;
@@ -495,6 +499,7 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
       // was a permanent, silent no-op that misrepresented the data model.
       AgentJob.deleteMany({ userId: deletedUserId }),
       TripSuggestion.deleteMany({ userId: deletedUserId }),
+      UserMemoryModel.deleteMany({ userId: deletedUserId }),
       // TripModel.deleteMany above only removes trips this account owned —
       // a trip they were invited onto as a collaborator belongs to someone
       // else and stays, but the deleted account's userId was lingering

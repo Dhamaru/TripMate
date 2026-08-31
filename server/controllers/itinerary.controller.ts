@@ -5,6 +5,15 @@ import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
 
+const UPDATABLE_ACTIVITY_FIELDS = [
+  "time",
+  "title",
+  "location",
+  "notes",
+  "latitude",
+  "longitude",
+] as const;
+
 const editorAccessFilter = (tripId: string, userId: string) => ({
   _id: tripId,
   $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
@@ -78,10 +87,9 @@ export const updateActivity = async (req: Request, res: Response, next: NextFunc
     const userId = req.user!._id;
 
     const setFields = Object.fromEntries(
-      Object.entries(data).map(([key, value]) => [
-        `itinerary.$[day].activities.$[act].${key}`,
-        value,
-      ]),
+      Object.entries(data)
+        .filter(([key]) => (UPDATABLE_ACTIVITY_FIELDS as readonly string[]).includes(key))
+        .map(([key, value]) => [`itinerary.$[day].activities.$[act].${key}`, value]),
     );
 
     const trip = await TripModel.findOneAndUpdate(

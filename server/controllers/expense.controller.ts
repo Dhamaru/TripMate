@@ -5,6 +5,8 @@ import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
 
+const UPDATABLE_EXPENSE_FIELDS = ["amount", "currency", "category", "description", "date"] as const;
+
 const editorAccessFilter = (tripId: string, userId: string) => ({
   _id: tripId,
   $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
@@ -55,7 +57,9 @@ export const updateExpense = async (req: Request, res: Response, next: NextFunct
     const updateData = req.body;
 
     const setFields = Object.fromEntries(
-      Object.entries(updateData).map(([key, value]) => [`expenses.$[elem].${key}`, value]),
+      Object.entries(updateData)
+        .filter(([key]) => (UPDATABLE_EXPENSE_FIELDS as readonly string[]).includes(key))
+        .map(([key, value]) => [`expenses.$[elem].${key}`, value]),
     );
 
     const trip = await TripModel.findOneAndUpdate(
@@ -90,11 +94,11 @@ export const deleteExpense = async (req: Request, res: Response, next: NextFunct
     const userId = req.user!._id;
 
     const trip = await TripModel.findOneAndUpdate(
-      editorAccessFilter(tripId, String(userId)),
+      { ...editorAccessFilter(tripId, String(userId)), "expenses.id": expenseId },
       { $pull: { expenses: { id: expenseId } } },
       { new: true },
     );
-    if (!trip) throw new NotFoundError("Trip not found or access denied");
+    if (!trip) throw new NotFoundError("Trip not found, expense not found, or access denied");
 
     socketService.broadcastMutation(
       tripId,
