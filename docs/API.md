@@ -104,10 +104,11 @@ curl -X POST http://localhost:5000/api/v1/auth/signin \
 **Auth**: Required  
 **Response**: full JSON export of the account's data (profile, trips, journal, packing, notifications, etc.), `Content-Disposition: attachment`
 
-### DELETE /auth/user
+### POST /auth/delete-account (also accepts DELETE)
 
 **Auth**: Required  
-**Response**: `{ "success": true }` — deletes the account and cascades all owned data (trips, journal, packing, sessions, notifications, etc.), and removes the user from other people's trip `collaborators` arrays
+**Body**: `{ "password": "string" }` for password accounts, or `{ "confirm": "DELETE" }` for OAuth-only accounts  
+**Response**: `{ "message": "Account deleted successfully" }` — deletes the account and cascades all owned data (trips, journal, packing, sessions, notifications, etc.), and removes the user from other people's trip `collaborators` arrays
 
 ---
 

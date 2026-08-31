@@ -162,19 +162,19 @@ errorHandler              → Global async error handler
 
 **Auth**
 
-| Method | Path                        | Description                              |
-| ------ | --------------------------- | ---------------------------------------- |
-| POST   | `/auth/signup`              | Register                                 |
-| POST   | `/auth/signin`              | Login → JWT                              |
-| POST   | `/auth/logout`              | Revoke session                           |
-| POST   | `/auth/forgot-password`     | Email reset link                         |
-| POST   | `/auth/reset-password`      | Consume token                            |
-| GET    | `/auth/google/callback`     | OAuth callback                           |
-| GET    | `/auth/me`                  | Current user                             |
-| GET    | `/auth/sessions`            | List active sessions (per-device)        |
-| POST   | `/auth/sessions/:id/revoke` | Revoke a session                         |
-| GET    | `/auth/user/export`         | Full data export (GDPR)                  |
-| DELETE | `/auth/user`                | Delete account (cascades all owned data) |
+| Method      | Path                        | Description                              |
+| ----------- | --------------------------- | ---------------------------------------- |
+| POST        | `/auth/signup`              | Register                                 |
+| POST        | `/auth/signin`              | Login → JWT                              |
+| POST        | `/auth/logout`              | Revoke session                           |
+| POST        | `/auth/forgot-password`     | Email reset link                         |
+| POST        | `/auth/reset-password`      | Consume token                            |
+| GET         | `/auth/google/callback`     | OAuth callback                           |
+| GET         | `/auth/me`                  | Current user                             |
+| GET         | `/auth/sessions`            | List active sessions (per-device)        |
+| POST        | `/auth/sessions/:id/revoke` | Revoke a session                         |
+| GET         | `/auth/user/export`         | Full data export (GDPR)                  |
+| POST/DELETE | `/auth/delete-account`      | Delete account (cascades all owned data) |
 
 **Trips**
 
