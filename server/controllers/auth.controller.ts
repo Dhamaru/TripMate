@@ -8,8 +8,12 @@ import {
   PackingListTemplateModel,
   AtlasConversationModel,
   NotificationModel,
+  CrowdDensityModel,
+  MapPinModel,
   FeedbackModel,
 } from "@shared/schema";
+import { AgentJob } from "../models/AgentJob";
+import { TripSuggestion } from "../models/TripSuggestion";
 import { BadRequestError, UnauthorizedError, NotFoundError, TooManyRequestsError } from "../errors";
 import { hashPassword, comparePasswords } from "../auth";
 import { nanoid } from "nanoid";
@@ -341,8 +345,19 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     // keep working after the user thinks they've secured their account.
     const oldToken = req.cookies?.token;
     if (oldToken) {
-      const decoded = jwt.decode(oldToken) as { sid?: string } | null;
-      if (decoded?.sid) await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
+      try {
+        // jwt.decode() doesn't check the signature — the same gap fixed in
+        // signout applies here: a forged cookie's sid would target and
+        // revoke an arbitrary session. Isolated in its own try/catch (unlike
+        // signout, this runs after user.save() already succeeded) so an
+        // expired-but-otherwise-fine old cookie doesn't turn a successful
+        // password change into an error response.
+        const decoded = jwt.verify(oldToken, config.JWT_SECRET) as { sid?: string };
+        if (decoded?.sid)
+          await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
+      } catch {
+        // Non-fatal — the new session issued below still supersedes it
+      }
     }
     const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
@@ -393,6 +408,10 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       atlasConversations,
       notifications,
       feedback,
+      mapPins,
+      crowdDensityReports,
+      agentJobs,
+      tripSuggestions,
     ] = await Promise.all([
       UserModel.findById(userId)
         .select("-password -resetPasswordToken -resetPasswordExpires")
@@ -404,6 +423,10 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       AtlasConversationModel.find({ userId }).lean(),
       NotificationModel.find({ userId }).lean(),
       FeedbackModel.find({ userId }).lean(),
+      MapPinModel.find({ userId }).lean(),
+      CrowdDensityModel.find({ userId }).lean(),
+      AgentJob.find({ userId }).lean(),
+      TripSuggestion.find({ userId }).lean(),
     ]);
 
     if (!user) throw new NotFoundError("User not found");
@@ -418,6 +441,10 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
       atlasConversations,
       notifications,
       feedback,
+      mapPins,
+      crowdDensityReports,
+      agentJobs,
+      tripSuggestions,
     };
 
     const filename = `tripmate-export-${new Date().toISOString().slice(0, 10)}.json`;
@@ -451,8 +478,10 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
     // entry, packing list, Atlas conversation, notification, and feedback
     // row the account owned was left behind permanently (a GDPR right-to-
     // erasure gap, and orphaned data that could resurface elsewhere, e.g. a
-    // deleted user's old trip still matching a collaborator-list query).
-    // Same model list exportUserData aggregates, cascaded instead of read.
+    // deleted user's old trip still matching a collaborator-list query). A
+    // first pass at this cascade matched exportUserData's model list, but
+    // that list itself was incomplete — MapPin, CrowdDensity, AgentJob, and
+    // TripSuggestion all carry a userId field too and were still orphaned.
     const deletedUserId = req.user!._id;
     await Promise.all([
       TripModel.deleteMany({ userId: deletedUserId }),
@@ -463,6 +492,10 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
       NotificationModel.deleteMany({ userId: deletedUserId }),
       FeedbackModel.deleteMany({ userId: deletedUserId }),
       SessionModel.deleteMany({ userId: deletedUserId }),
+      MapPinModel.deleteMany({ userId: deletedUserId }),
+      CrowdDensityModel.deleteMany({ userId: deletedUserId }),
+      AgentJob.deleteMany({ userId: deletedUserId }),
+      TripSuggestion.deleteMany({ userId: deletedUserId }),
     ]);
     await UserModel.findByIdAndDelete(deletedUserId);
     clearAuthCookie(res);

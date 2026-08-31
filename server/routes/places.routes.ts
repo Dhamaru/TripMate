@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { optionalAuth } from "../middleware/auth";
-import { apiProxyLimiter } from "../middleware/rateLimit.middleware";
+import { apiProxyLimiter, placesPhotoLimiter } from "../middleware/rateLimit.middleware";
 import { config } from "../config";
 
 const router = Router();
@@ -14,7 +14,11 @@ router.use(optionalAuth);
 // (live-confirmed: GET /search returns it in plain JSON) let anyone extract
 // and reuse it against TripMate's billing account. Route photos through this
 // server instead, same pattern as tools.controller.ts's getDestinationImage.
-router.get("/photo", async (req, res) => {
+// placesPhotoLimiter on top of the router-wide apiProxyLimiter: this route
+// makes one billed Google call per request on an unauthenticated path, so it
+// gets its own tighter ceiling rather than sharing the general 60/min quota
+// with cheap text-search requests.
+router.get("/photo", placesPhotoLimiter, async (req, res) => {
   try {
     const ref = String(req.query.ref || "");
     if (!ref) return res.status(400).json({ error: "ref is required" });

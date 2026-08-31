@@ -12,7 +12,6 @@ import { JournalAgent } from "./agents/JournalAgent";
 
 import { AgentJob } from "../../models/AgentJob";
 import crypto from "crypto";
-import mongoose from "mongoose";
 import Groq from "groq-sdk";
 import { config } from "../../config";
 
@@ -84,11 +83,14 @@ export class MasterOrchestrator {
     try {
       await AgentJob.create({
         jobId,
-        // User._id is a nanoid String, not a Mongo ObjectId — wrapping
-        // it in ObjectId() throws on every real user (Trip._id IS a
-        // real ObjectId, so that cast stays correct).
+        // User._id is a nanoid String, not a Mongo ObjectId. AgentJob.tripId
+        // is String too (matches Trip._id's real hex form as text) — the
+        // ObjectId() cast this used to have was redundant at best and, for
+        // any caller that ever passes a non-24-hex tripId, throws a
+        // CastError swallowed by the catch below, silently dropping the
+        // job record entirely.
         userId: input.userId,
-        tripId: input.tripId ? new mongoose.Types.ObjectId(input.tripId) : undefined,
+        tripId: input.tripId || undefined,
         trigger: input.trigger,
         status: "running",
         results: [],
