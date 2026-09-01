@@ -179,26 +179,43 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+// Reorder replaces the whole itinerary array — the one mutation in this
+// file that genuinely can't be expressed as a targeted $push/$pull/$set,
+// since the client is sending back a full reordering. It was a bare
+// findOneAndUpdate with no concurrency guard at all: two collaborators
+// reordering at once would silently clobber each other, worse than the
+// arrayFilters-scoped mutations elsewhere in this file. Same
+// optimistic-concurrency pattern as modifyItineraryHandler/toggleVote —
+// read current updatedAt, CAS the write, retry a few times on conflict.
 export const reorderItinerary = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { itinerary } = req.body;
     const tripId = req.params.id;
     const userId = req.user!._id;
+    const accessFilter = editorAccessFilter(tripId, String(userId));
 
-    const trip = await TripModel.findOneAndUpdate(
-      editorAccessFilter(tripId, String(userId)),
-      { itinerary },
-      { new: true },
-    );
-    if (!trip) throw new NotFoundError("Trip not found or access denied");
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const current = await TripModel.findOne(accessFilter, { updatedAt: 1 });
+      if (!current) throw new NotFoundError("Trip not found or access denied");
 
-    socketService.broadcastMutation(
-      tripId,
-      { type: "itinerary-updated", data: trip.itinerary },
-      String(userId),
-    );
+      const trip = await TripModel.findOneAndUpdate(
+        { ...accessFilter, updatedAt: current.updatedAt },
+        { itinerary },
+        { new: true },
+      );
 
-    res.json(trip);
+      if (trip) {
+        socketService.broadcastMutation(
+          tripId,
+          { type: "itinerary-updated", data: trip.itinerary },
+          String(userId),
+        );
+        res.json(trip);
+        return;
+      }
+      // Lost the race — someone else wrote in between. Retry with a fresh read.
+    }
+    throw new BadRequestError("Trip was modified by someone else at the same time. Please retry.");
   } catch (error) {
     next(error);
   }

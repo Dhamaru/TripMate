@@ -34,7 +34,11 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_FROM_EMAIL: z.string().optional(),
-  ADMIN_EMAIL: z.string().optional().default("kasivasi2005@gmail.com"),
+  // No default — a real personal email address was hardcoded here
+  // (kasivasi2005@gmail.com), which meant it lived in tracked source in a
+  // public repo. Set ADMIN_EMAIL in the environment instead; email.ts
+  // already handles it being unset (skips the admin notification).
+  ADMIN_EMAIL: z.string().optional(),
   // Service-to-service secret for the automated feedback-triage routine —
   // deliberately NOT a user login, so no account password ever has to sit
   // in a scheduled cloud-agent's stored config. Unset by default so the

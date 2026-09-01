@@ -79,7 +79,11 @@ const userSchema = new Schema<IUser>(
   },
 );
 
-userSchema.index({ email: 1 }, { unique: false, sparse: true });
+// unique:true closes a TOCTOU gap in signup: two concurrent requests with
+// the same email both pass the controller's findOne-duplicate-check before
+// either write lands, since that check and the create() aren't atomic.
+// Verified no existing duplicate emails in production before adding this.
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 export const UserModel: Model<IUser> = mongoose.model<IUser>("User", userSchema);
 
@@ -667,7 +671,9 @@ const feedbackSchema = new Schema<IFeedback>(
     subject: { type: String, required: true },
     description: { type: String, required: true },
     email: { type: String, required: true },
-    userId: { type: String },
+    // Indexed — the account-deletion cascade does FeedbackModel.deleteMany
+    // ({ userId }), which was a full collection scan without this.
+    userId: { type: String, index: true },
     status: { type: String, default: "open" },
     attachments: { type: [String], default: undefined },
     // Set by the automated feedback-triage routine once it has investigated
@@ -719,6 +725,11 @@ const notificationSchema = new Schema<INotification>(
   },
   { timestamps: true, toJSON: baseToJSON, versionKey: false },
 );
+
+// The real read pattern is always { userId, read: false } (unread-count,
+// the bell popover list) — a compound index makes that a covered index
+// scan instead of intersecting the two individual indexes above.
+notificationSchema.index({ userId: 1, read: 1 });
 
 export const NotificationModel: Model<INotification> = mongoose.model<INotification>(
   "Notification",

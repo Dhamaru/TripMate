@@ -120,8 +120,6 @@ const UPDATABLE_TRIP_FIELDS = new Set([
   "status",
   "startDate",
   "endDate",
-  "itinerary",
-  "expenses",
   "notes",
   "aiPlanMarkdown",
   "isDraft",
@@ -132,7 +130,11 @@ const UPDATABLE_TRIP_FIELDS = new Set([
 export const updateTrip = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id || req.user?.id;
-    if (req.body?.itinerary) ensureActivityIds(req.body.itinerary);
+    // itinerary/expenses were removed from UPDATABLE_TRIP_FIELDS (see comment
+    // above) — this route no longer touches either, so ensureActivityIds
+    // on req.body.itinerary would be a no-op that misleadingly implied
+    // otherwise. Use the dedicated /itinerary/* and /expenses/* endpoints,
+    // which apply their own atomic-op/CAS concurrency protection.
     const updates = Object.fromEntries(
       Object.entries(req.body ?? {}).filter(([key]) => UPDATABLE_TRIP_FIELDS.has(key)),
     );

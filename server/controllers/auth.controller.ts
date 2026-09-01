@@ -116,13 +116,24 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       });
     }
 
-    const user = await UserModel.create({
-      _id: nanoid(),
-      email: normalizedEmail,
-      password: await hashPassword(password),
-      firstName,
-      lastName,
-    });
+    let user;
+    try {
+      user = await UserModel.create({
+        _id: nanoid(),
+        email: normalizedEmail,
+        password: await hashPassword(password),
+        firstName,
+        lastName,
+      });
+    } catch (err: any) {
+      // The findOne check above and this create() aren't atomic — two
+      // concurrent signups with the same email can both pass the check.
+      // The unique index on email (shared/schema.ts) is what actually
+      // closes that race; translate its E11000 into the same user-facing
+      // error the findOne branch above already gives, instead of a raw 500.
+      if (err?.code === 11000) throw new BadRequestError("User already exists");
+      throw err;
+    }
 
     const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);

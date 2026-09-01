@@ -52,6 +52,16 @@ export class AtlasMemoryService {
               ...msg,
               timestamp: new Date(),
             })),
+            // Rolling window — this array previously grew forever. A
+            // long-running Atlas conversation on one trip would eventually
+            // hit Mongo's 16MB document cap, at which point every future
+            // addMessages call throws and that user+trip's Atlas session is
+            // permanently broken with no recovery path. 200 messages covers
+            // real multi-day conversations while keeping the document
+            // safely bounded; agentLoop.ts's own in-memory summarization
+            // already compresses older turns for the model's own context,
+            // this just bounds what gets persisted.
+            $slice: -200,
           },
         },
       };
