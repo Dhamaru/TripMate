@@ -6,11 +6,10 @@ import { apiRequest } from "@/lib/queryClient";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
-
 interface EmergencyService {
   id: string;
   name: string;
-  type: 'hospital' | 'police' | 'embassy' | 'fire' | 'pharmacy';
+  type: "hospital" | "police" | "embassy" | "fire" | "pharmacy";
   address: string;
   phone: string;
   distance: string;
@@ -35,7 +34,11 @@ interface EmergencyServicesProps {
   className?: string;
 }
 
-export function EmergencyServices({ location = "Current Location", coords: propCoords, className = '' }: EmergencyServicesProps) {
+export function EmergencyServices({
+  location = "Current Location",
+  coords: propCoords,
+  className = "",
+}: EmergencyServicesProps) {
   const { toast } = useToast();
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(propCoords || null);
   const [locString, setLocString] = useState<string>(location);
@@ -59,14 +62,19 @@ export function EmergencyServices({ location = "Current Location", coords: propC
             const res = await fetch(`/api/v1/reverse-geocode?lat=${latitude}&lon=${longitude}`);
             const data = await res.json();
             const addr = data.address;
-            const placeName = addr?.city || addr?.town || addr?.village || addr?.county || addr?.suburb;
+            const placeName =
+              addr?.city || addr?.town || addr?.village || addr?.county || addr?.suburb;
             const state = addr?.state || addr?.country;
             if (placeName) {
-              setLocString(`${placeName}${state ? `, ${state}` : ''}`);
+              setLocString(`${placeName}${state ? `, ${state}` : ""}`);
             }
-          } catch { /* silent */ }
+          } catch {
+            /* silent */
+          }
         },
-        () => { /* silent geolocation error */ }
+        () => {
+          /* silent geolocation error */
+        },
       );
     } else if (!propCoords && location !== "Current Location") {
       // If user typed a city manually, we don't have coords yet, reset coords so we don't hold onto old ones
@@ -75,7 +83,7 @@ export function EmergencyServices({ location = "Current Location", coords: propC
   }, [location, propCoords]);
 
   const { data, isLoading, error } = useQuery<EmergencyResponse>({
-    queryKey: ['/api/v1/emergency', locString, coords],
+    queryKey: ["/api/v1/emergency", locString, coords],
     enabled: !!locString || !!coords,
     queryFn: async ({ queryKey }) => {
       const [, loc, c] = queryKey as [string, string, { lat: number; lon: number } | null];
@@ -84,12 +92,16 @@ export function EmergencyServices({ location = "Current Location", coords: propC
       const isCurrentLocation = loc === "Current Location" || loc === "Current location" || !loc;
 
       // If we have precise coords, ALWAYS use them for the "Current location" case
-      const query = (isCurrentLocation && c) ? `${c.lat},${c.lon}` : loc;
+      const query = isCurrentLocation && c ? `${c.lat},${c.lon}` : loc;
 
-      const res = await apiRequest('GET', `/api/v1/emergency/${encodeURIComponent(query)}`);
+      const res = await apiRequest("GET", `/api/v1/emergency/${encodeURIComponent(query)}`);
       const json = await res.json();
       if (Array.isArray(json)) {
-        return { services: json, countryCode: 'Unknown', sosNumbers: { police: '100', medical: '108', fire: '101', common: '112' } };
+        return {
+          services: json,
+          countryCode: "Unknown",
+          sosNumbers: { police: "100", medical: "108", fire: "101", common: "112" },
+        };
       }
       return json;
     },
@@ -97,32 +109,44 @@ export function EmergencyServices({ location = "Current Location", coords: propC
   });
 
   const emergencyServices = data?.services || [];
-  const sosNumbers = data?.sosNumbers || { police: '112', medical: '112', fire: '112', common: '112' };
-  const countryCode = data?.countryCode || 'Unknown';
+  const sosNumbers = data?.sosNumbers || {
+    police: "112",
+    medical: "112",
+    fire: "112",
+    common: "112",
+  };
+  const countryCode = data?.countryCode || "Unknown";
 
   const servicesWithDistance = useMemo(() => {
     const calc = (lat1: number, lon1: number, lat2: number, lon2: number) => {
       const R = 6371;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
     if (!coords) return emergencyServices;
-    return emergencyServices.map(s => ({ ...s, distance: `${calc(coords.lat, coords.lon, s.latitude, s.longitude).toFixed(1)} km` }));
+    return emergencyServices.map((s) => ({
+      ...s,
+      distance: `${calc(coords.lat, coords.lon, s.latitude, s.longitude).toFixed(1)} km`,
+    }));
   }, [coords, emergencyServices]);
 
-  const serviceIcons: Record<EmergencyService['type'], { icon: string; color: string }> = {
-    hospital: { icon: 'fas fa-hospital', color: 'text-red-500' },
-    police: { icon: 'fas fa-shield-alt', color: 'text-[#1D4E89] dark:text-blue-400' },
-    embassy: { icon: 'fas fa-building', color: 'text-[#163F73]' },
-    fire: { icon: 'fas fa-fire-extinguisher', color: 'text-red-500' },
-    pharmacy: { icon: 'fas fa-pills', color: 'text-emerald-500' },
+  const serviceIcons: Record<EmergencyService["type"], { icon: string; color: string }> = {
+    hospital: { icon: "fas fa-hospital", color: "text-red-500" },
+    police: { icon: "fas fa-shield-alt", color: "text-[#1D4E89] dark:text-blue-400" },
+    embassy: { icon: "fas fa-building", color: "text-[#163F73]" },
+    fire: { icon: "fas fa-fire-extinguisher", color: "text-red-500" },
+    pharmacy: { icon: "fas fa-pills", color: "text-emerald-500" },
   };
 
   const handleSOSCall = () => {
-    const sosNumber = sosNumbers.common || '112';
+    const sosNumber = sosNumbers.common || "112";
     toast({
       title: "SOS Call Initiated",
       description: `Dialing local emergency (${sosNumber})...`,
@@ -133,14 +157,14 @@ export function EmergencyServices({ location = "Current Location", coords: propC
 
   const handleShareLocation = async () => {
     const shareText = `Help! I need emergency assistance. My approximate location is ${locString}. Sent from TripMate.`;
-    const shareUrl = coords ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}` : '';
+    const shareUrl = coords ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}` : "";
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Emergency Help Needed',
+          title: "Emergency Help Needed",
           text: shareText,
-          url: shareUrl
+          url: shareUrl,
         });
         toast({ title: "Shared", description: "Location shared successfully" });
       } catch (err) {
@@ -149,7 +173,7 @@ export function EmergencyServices({ location = "Current Location", coords: propC
     } else {
       // Fallback to WhatsApp
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`;
-      window.open(whatsappUrl, '_blank');
+      window.open(whatsappUrl, "_blank");
     }
   };
 
@@ -170,13 +194,13 @@ export function EmergencyServices({ location = "Current Location", coords: propC
       title: "Calling Service",
       description: `Calling ${service.name}...`,
     });
-    const sanitized = service.phone.replace(/[^+\d]/g, '');
+    const sanitized = service.phone.replace(/[^+\d]/g, "");
     window.location.href = `tel:${sanitized}`;
   };
 
   const handleGetDirections = (service: EmergencyService) => {
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${service.latitude},${service.longitude}&travelmode=driving`;
-    window.open(mapsUrl, '_blank');
+    window.open(mapsUrl, "_blank");
     toast({
       title: "Directions Opened",
       description: `Getting directions to ${service.name}`,
@@ -186,20 +210,31 @@ export function EmergencyServices({ location = "Current Location", coords: propC
   return (
     <Card className={`bg-card border ${className}`} data-testid="emergency-services">
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-lg font-bold text-foreground flex items-center">
-            <i className="fas fa-shield-alt text-red-500 mr-2"></i>
-            Emergency Services
-            <span className="ml-2 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">{countryCode === 'Unknown' ? 'Searching...' : countryCode} Mode</span>
+        <div className="flex flex-wrap justify-between items-center gap-2">
+          <CardTitle className="text-lg font-bold text-foreground flex items-center flex-wrap gap-x-2 gap-y-1 min-w-0">
+            <span className="flex items-center whitespace-nowrap">
+              <i className="fas fa-shield-alt text-destructive mr-2"></i>
+              Emergency Services
+            </span>
+            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
+              {countryCode === "Unknown" ? "Searching..." : countryCode} Mode
+            </span>
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={handleShareLocation} className="text-[#1D4E89] dark:text-blue-400 hover:text-blue-600">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleShareLocation}
+            className="text-[#1D4E89] dark:text-blue-400 hover:text-blue-600 flex-shrink-0"
+          >
             <i className="fas fa-share-alt mr-1"></i> Share
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          {(emergencyServices.length > 0 && emergencyServices[0]?.address)
+          {emergencyServices.length > 0 && emergencyServices[0]?.address
             ? `Emergency services near ${emergencyServices[0].address}`
-            : (coords ? "Near your location" : `Near ${locString}`)}
+            : coords
+              ? "Near your location"
+              : `Near ${locString}`}
         </p>
       </CardHeader>
 
@@ -219,58 +254,65 @@ export function EmergencyServices({ location = "Current Location", coords: propC
 
         <div className="space-y-3 mt-0">
           {isLoading && (
-            <div className="text-center py-6 text-muted-foreground" data-testid="emergency-loading">Loading emergency data...</div>
+            <div className="text-center py-6 text-muted-foreground" data-testid="emergency-loading">
+              Loading emergency data...
+            </div>
           )}
           {!isLoading && servicesWithDistance.length === 0 && (
             <div className="text-center py-6 text-muted-foreground">No services found nearby.</div>
           )}
-          {!isLoading && servicesWithDistance.map((service, idx) => (
-            <motion.div
-              key={service.id}
-              className="bg-muted/50 rounded-xl p-4 border"
-              data-testid={`emergency-service-${service.id}`}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: idx * 0.05 }}
-              viewport={{ once: true }}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center space-x-3">
-                  <div className={`text-xl ${serviceIcons[service.type].color} bg-muted p-2 rounded-lg`}>
-                    <i className={serviceIcons[service.type].icon}></i>
+          {!isLoading &&
+            servicesWithDistance.map((service, idx) => (
+              <motion.div
+                key={service.id}
+                className="bg-muted/50 rounded-xl p-4 border"
+                data-testid={`emergency-service-${service.id}`}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: idx * 0.05 }}
+                viewport={{ once: true }}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`text-xl ${serviceIcons[service.type].color} bg-muted p-2 rounded-lg`}
+                    >
+                      <i className={serviceIcons[service.type].icon}></i>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-foreground">{service.name}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-1">
+                        {service.address}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                        <i className="fas fa-map-marker-alt mr-1"></i> {service.distance}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-foreground">{service.name}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-1">{service.address}</p>
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center">
-                      <i className="fas fa-map-marker-alt mr-1"></i> {service.distance}
-                    </p>
-                  </div>
+                  <span className="text-xs text-[#1D4E89] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
+                    {service.type.charAt(0).toUpperCase() + service.type.slice(1)}
+                  </span>
                 </div>
-                <span className="text-xs text-[#1D4E89] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
-                  {service.type.charAt(0).toUpperCase() + service.type.slice(1)}
-                </span>
-              </div>
 
-              <div className="flex space-x-2 mt-3 pt-2 border-t border">
-                <Button
-                  onClick={() => handleCallService(service)}
-                  size="sm"
-                  className="flex-1 bg-green-600 hover:bg-green-700 h-8"
-                >
-                  <i className="fas fa-phone mr-2 text-xs"></i> Call
-                </Button>
-                <Button
-                  onClick={() => handleGetDirections(service)}
-                  size="sm"
-                  variant="secondary"
-                  className="flex-1 bg-muted hover:bg-muted/30 text-white h-8"
-                >
-                  <i className="fas fa-location-arrow mr-2 text-xs"></i> Route
-                </Button>
-              </div>
-            </motion.div>
-          ))}
+                <div className="flex space-x-2 mt-3 pt-2 border-t border">
+                  <Button
+                    onClick={() => handleCallService(service)}
+                    size="sm"
+                    className="flex-1 bg-green-600 hover:bg-green-700 h-8"
+                  >
+                    <i className="fas fa-phone mr-2 text-xs"></i> Call
+                  </Button>
+                  <Button
+                    onClick={() => handleGetDirections(service)}
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1 bg-muted hover:bg-muted/30 text-white h-8"
+                  >
+                    <i className="fas fa-location-arrow mr-2 text-xs"></i> Route
+                  </Button>
+                </div>
+              </motion.div>
+            ))}
         </div>
 
         {/* Local Numbers Reference */}
