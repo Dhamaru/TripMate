@@ -380,14 +380,18 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 
 export const uploadAvatar = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let avatarUrl = req.body.avatar as string | undefined;
+    // req.file only — a JSON-body `avatar` string fallback used to be
+    // accepted here too, but it bypassed multer's imageFileFilter
+    // (MIME/extension check) and 5MB size limit entirely, and neither real
+    // client caller (CropImage.tsx, Profile.tsx) ever sends the field that
+    // way — both always upload real multipart FormData. Removed the dead,
+    // unsafe fallback rather than leave an unused hole in the validation.
+    if (!req.file) throw new BadRequestError("No avatar provided");
     // Stored as a data URI directly in the User document — see the multer
     // memoryStorage comment in auth.routes.ts for why this isn't written
     // to disk. <img src> renders a data: URI exactly like a normal URL, no
     // client changes needed.
-    if (req.file)
-      avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-    if (!avatarUrl) throw new BadRequestError("No avatar provided");
+    const avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
     // Two fields have historically tracked the user's picture: `avatar`
     // (set by this upload flow) and `profileImageUrl` (set at signup, e.g.
