@@ -1,4 +1,5 @@
 // Task 4 — API type definitions matching backend schemas
+import type { IExpense } from "@shared/schema";
 
 // Auth
 export interface SignInRequest {
@@ -126,7 +127,7 @@ export interface Trip {
   days: number;
   budgetBreakdown: BudgetBreakdown;
   itinerary: ItineraryDay[];
-  expenses?: any[]; // Added for BudgetTracker
+  expenses?: IExpense[];
   collaborators?: ICollaborator[];
   createdAt: string | Date;
 }

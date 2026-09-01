@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { logError, logInfo } from "@/lib/logger";
 import { Link, useLocation } from "wouter";
 import { useAuthStore, useTripStore } from "@/store";
 import type { Trip } from "@/types/api.types";
@@ -158,7 +159,7 @@ export default function TripPlanner() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/signin";
+        setLocation("/signin");
       }, 500);
       return;
     }
@@ -315,7 +316,15 @@ export default function TripPlanner() {
           if (parsed && isValidPlanLike(parsed)) return parsed;
           throw new Error("parse_failed");
         }
-      } catch {}
+      } catch (err) {
+        // Falls through to the /api/tools/planTrip retry below, then to the
+        // client-side itinerary builder — this was a bare empty catch, so a
+        // real production failure here (network error, bad JSON, a plan
+        // shape mismatch) left zero trace to debug from.
+        logInfo("[TripPlanner] Primary itinerary generation failed, trying fallback", {
+          error: String(err),
+        });
+      }
 
       try {
         const res2 = await apiRequest("POST", "/api/tools/planTrip", payload);
@@ -327,7 +336,12 @@ export default function TripPlanner() {
           const parsed3 = trySafeParse(data2);
           if (parsed3 && isValidPlanLike(parsed3)) return parsed3;
         }
-      } catch {}
+      } catch (err) {
+        logError(
+          "[TripPlanner] Fallback itinerary generation also failed, using client-side builder",
+          { error: String(err) },
+        );
+      }
       const speedKmH = travelMedium === "walk" ? 4 : travelMedium === "transit" ? 20 : 30;
       const pace =
         typeOfTrip === "relaxed" ? "relaxed" : typeOfTrip === "adventure" ? "fast" : "normal";
@@ -675,7 +689,7 @@ export default function TripPlanner() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/signin";
+          setLocation("/signin");
         }, 500);
         return;
       }
@@ -1535,12 +1549,16 @@ export default function TripPlanner() {
                     </Button>
                   </div>
 
-                  <details className="mt-4">
-                    <summary className="text-muted-foreground">View Raw AI Output</summary>
-                    <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-xl">
-                      {JSON.stringify(planTripMutation.data, null, 2)}
-                    </pre>
-                  </details>
+                  {import.meta.env.DEV && (
+                    <details className="mt-4">
+                      <summary className="text-muted-foreground">
+                        View Raw AI Output (dev only)
+                      </summary>
+                      <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-xl">
+                        {JSON.stringify(planTripMutation.data, null, 2)}
+                      </pre>
+                    </details>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1559,12 +1577,14 @@ export default function TripPlanner() {
               >
                 {planTripMutation.isPending ? "Generating…" : "Regenerate"}
               </Button>
-              <details className="mt-4">
-                <summary className="text-muted-foreground">View Raw AI Output</summary>
-                <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-xl">
-                  {JSON.stringify(planTripMutation.data, null, 2)}
-                </pre>
-              </details>
+              {import.meta.env.DEV && (
+                <details className="mt-4">
+                  <summary className="text-muted-foreground">View Raw AI Output (dev only)</summary>
+                  <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap bg-muted p-3 rounded-xl">
+                    {JSON.stringify(planTripMutation.data, null, 2)}
+                  </pre>
+                </details>
+              )}
             </CardContent>
           </Card>
         )}

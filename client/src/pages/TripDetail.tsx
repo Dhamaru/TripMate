@@ -269,14 +269,18 @@ export default function TripDetail() {
 
   useEffect(() => {
     if (tripForm.destination) {
-      fetch(`/api/v1/geocode?q=${encodeURIComponent(tripForm.destination)}`)
+      // apiRequest (not raw fetch) — attaches credentials + CSRF token the
+      // same as every other data fetch in this file; the raw fetch here
+      // silently dropped the auth cookie in some cross-origin setups and
+      // made this specific coordinates-for-map lookup unreliable.
+      apiRequest("GET", `/api/v1/geocode?q=${encodeURIComponent(tripForm.destination)}`)
         .then((r) => r.json())
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) {
             setCoords({ lat: Number(data[0].lat), lon: Number(data[0].lon) });
           }
         })
-        .catch(() => {});
+        .catch((err) => logError("[TripDetail] geocode lookup failed", err));
     }
   }, [tripForm.destination]);
 
@@ -761,7 +765,10 @@ export default function TripDetail() {
                   {trip.days} {Number(trip.days) === 1 ? "day" : "days"}
                 </span>
                 <span>•</span>
-                <span>₹{trip.budget} budget</span>
+                <span>
+                  {getCurrencySymbol(trip.currency)}
+                  {trip.budget} budget
+                </span>
                 <span>•</span>
                 <span className="capitalize">
                   {String(trip.groupSize || "Solo").replace("-", " ")}

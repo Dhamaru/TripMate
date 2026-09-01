@@ -3,6 +3,7 @@
 
 import type { ToolResult } from "../../types";
 import { PackingListModel, TripModel } from "@shared/schema";
+import { socketService } from "../../../services/SocketService";
 
 export async function packingListToolHandler(args: {
   userId: string;
@@ -79,6 +80,13 @@ export async function packingListToolHandler(args: {
         packed: false,
       } as any);
       await list.save();
+      if (list.tripId) {
+        socketService.broadcastMutation(
+          String(list.tripId),
+          { type: "packing-updated", data: list },
+          userId,
+        );
+      }
       return {
         success: true,
         data: { message: `Added "${args.itemName}" to your packing list.`, items: list.items },
@@ -103,6 +111,13 @@ export async function packingListToolHandler(args: {
     if (args.action === "toggle_packed") {
       (list.items[idx] as any).packed = !(list.items[idx] as any).packed;
       await list.save();
+      if (list.tripId) {
+        socketService.broadcastMutation(
+          String(list.tripId),
+          { type: "packing-updated", data: list },
+          userId,
+        );
+      }
       return {
         success: true,
         data: {
@@ -116,6 +131,13 @@ export async function packingListToolHandler(args: {
       const removed = list.items[idx].name;
       list.items.splice(idx, 1);
       await list.save();
+      if (list.tripId) {
+        socketService.broadcastMutation(
+          String(list.tripId),
+          { type: "packing-updated", data: list },
+          userId,
+        );
+      }
       return {
         success: true,
         data: { message: `Removed "${removed}" from your packing list.` },
