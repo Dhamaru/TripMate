@@ -10,25 +10,29 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import mongoose from "mongoose";
 
-import { corsMiddleware, helmetMiddleware, mongoSanitizeMiddleware, hppMiddleware } from './middleware/security.middleware';
-import { requestIdMiddleware } from './middleware/requestId.middleware';
-import { requestLoggerMiddleware } from './middleware/requestLogger.middleware';
-import { errorHandler } from './middleware/errorHandler.middleware';
-import { generalLimiter } from './middleware/rateLimit.middleware';
-import { csrfMiddleware } from './middleware/csrf.middleware';
-import { initSkills } from './agent/skillsLoader';
-import swaggerUi from 'swagger-ui-express';
-import { swaggerSpec } from './swagger';
+import {
+  corsMiddleware,
+  helmetMiddleware,
+  mongoSanitizeMiddleware,
+  hppMiddleware,
+} from "./middleware/security.middleware";
+import { requestIdMiddleware } from "./middleware/requestId.middleware";
+import { requestLoggerMiddleware } from "./middleware/requestLogger.middleware";
+import { errorHandler } from "./middleware/errorHandler.middleware";
+import { generalLimiter } from "./middleware/rateLimit.middleware";
+import { csrfMiddleware } from "./middleware/csrf.middleware";
+import { initSkills } from "./agent/skillsLoader";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./swagger";
 
 // Routes
 import authRoutes from "./routes/auth.routes";
 import tripsRoutes from "./routes/trips.routes";
 import sharedRoutes from "./routes/shared.routes";
-import atlasRoutes from "./routes/atlas.routes";
 import toolsRoutes from "./routes/tools.routes";
 import plannerRoutes from "./routes/planner.routes";
-import itineraryRoutes from './routes/itinerary.routes';
-import journalRoutes from './routes/journal.routes';
+import itineraryRoutes from "./routes/itinerary.routes";
+import journalRoutes from "./routes/journal.routes";
 import orchestratorRoutes from "./routes/orchestrator.routes";
 import suggestionRoutes from "./routes/suggestion.routes";
 import feedbackRoutes from "./routes/feedback.routes";
@@ -74,14 +78,18 @@ app.use("/api/v1", generalLimiter);
 app.use("/uploads", express.static(path.join(process.cwd(), "server", "uploads")));
 
 // Swagger UI — available at /api/docs
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: 'TripMate API Docs',
+app.use(
+  "/api/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: "TripMate API Docs",
     swaggerOptions: { persistAuthorization: true },
-}));
-app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
+  }),
+);
+app.get("/api/docs.json", (_req, res) => res.json(swaggerSpec));
 
 // 2. Auth Setup (Non-blocking call)
-setupAuth(app).catch(err => console.error("[Server] Auth Setup Error:", err));
+setupAuth(app).catch((err) => console.error("[Server] Auth Setup Error:", err));
 
 // 3. API Routes (Specific routes FIRST to avoid shadowing)
 app.use("/api/v1", toolsRoutes);
@@ -92,7 +100,6 @@ app.use("/api/v1/map-pins", mapPinsRoutes);
 app.use("/api/v1/places", placesRoutes);
 app.use("/api/v1/emergency", emergencyRoutes);
 app.use("/api/v1/weather", weatherRoutes);
-app.use("/api/v1/atlas", atlasRoutes);
 app.use("/api/v1/orchestrator", orchestratorRoutes);
 app.use("/api/v1/suggestions", suggestionRoutes);
 app.use("/api/v1/planner", plannerRoutes);
@@ -144,7 +151,7 @@ async function startServer() {
   }
 
   const server = createServer(app);
-  
+
   console.log("[Server] Initializing Socket Service...");
   socketService.init(server);
   console.log("[Server] Socket Service initialized.");
@@ -157,7 +164,7 @@ async function startServer() {
   // 5. Frontend Middleware (Catch-all)
   console.log(`[Server] Environment: ${app.get("env")}`);
   const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
-  
+
   if (app.get("env") === "development" && !process.env.NO_VITE) {
     console.log("[Server] Setting up Vite dev middleware...");
     await setupVite(app, server);
@@ -186,8 +193,8 @@ async function startServer() {
     setTimeout(() => process.exit(0), 10000);
   };
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 // In tests, this module is imported directly (`import { app } from '../../server/index'`)
@@ -206,14 +213,13 @@ if (!isTestEnv) {
   });
 }
 
-process.on('uncaughtException', (e) => {
-  console.error('[CRITICAL] Uncaught Exception:', e.name, e.message);
+process.on("uncaughtException", (e) => {
+  console.error("[CRITICAL] Uncaught Exception:", e.name, e.message);
   console.error(e.stack);
   if (!isTestEnv) process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
   // We don't exit(1) here to allow the server to survive minor agent failures
 });
-
