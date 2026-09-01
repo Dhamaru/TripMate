@@ -8,9 +8,26 @@ const rateLimitResponse = (retryAfter: number) => ({
   retryAfter,
 });
 
+// express-rate-limit's in-memory store is a per-process singleton, scoped
+// to wherever the limiter object itself was created — but vitest runs many
+// test files inside a shared worker process, and each file's `import {app}
+// from '../../server/index'` resolves to the SAME cached module instance
+// (Node dedupes imports by resolved path within one process). That means
+// every limiter below was accumulating hits across the WHOLE test suite,
+// not per file, and whichever request happened to land on the Nth hit of
+// its window tripped a 429 — a different, seemingly-unrelated test failing
+// almost at random depending on file/test execution order (confirmed live:
+// the same "should delete a trip" request got a 429 with an empty body on
+// a fresh CI run and on repeated local reruns, while the actual route
+// logic was untouched and correct). Multiplying every ceiling way up in
+// test env keeps the header/shape/wiring of each limiter genuinely
+// exercised, without a large shared test suite ever realistically hitting
+// the relaxed ceiling — matching the precedent authLimiter already set.
+const testMultiplier = (max: number) => (config.NODE_ENV === "test" ? max * 100 : max);
+
 export const generalLimiter = rateLimit({
   windowMs: config.RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000,
-  max: config.RATE_LIMIT_MAX ?? 100,
+  max: testMultiplier(config.RATE_LIMIT_MAX ?? 100),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json(rateLimitResponse(15 * 60)),
@@ -28,7 +45,7 @@ export const generalLimiter = rateLimit({
 // Proxy limiter for external API pass-through routes (weather, places)
 export const apiProxyLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: testMultiplier(60),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json(rateLimitResponse(60)),
@@ -48,13 +65,13 @@ export const authLimiter = rateLimit({
 
 export const aiLimiter = rateLimit({
   windowMs: config.AI_RATE_LIMIT_WINDOW_MS ?? 60 * 1000,
-  max: config.AI_RATE_LIMIT_MAX ?? 20,
+  max: testMultiplier(config.AI_RATE_LIMIT_MAX ?? 20),
   handler: (req, res) => res.status(429).json(rateLimitResponse(60)),
 });
 
 export const generationLimiter = rateLimit({
   windowMs: config.GENERATION_RATE_LIMIT_WINDOW_MS ?? 60 * 60 * 1000,
-  max: config.GENERATION_RATE_LIMIT_MAX ?? 5,
+  max: testMultiplier(config.GENERATION_RATE_LIMIT_MAX ?? 5),
   handler: (req, res) => res.status(429).json(rateLimitResponse(60 * 60)),
 });
 
@@ -67,7 +84,7 @@ export const generationLimiter = rateLimit({
 // mount with.
 export const placesPhotoLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  max: testMultiplier(20),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json(rateLimitResponse(60)),

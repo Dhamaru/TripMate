@@ -1,206 +1,249 @@
 import { Request, Response, NextFunction } from "express";
+import path from "path";
 import { JournalEntryModel, TripModel } from "@shared/schema";
 import { NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
 
 function fileUrls(req: Request): string[] {
-    const files = req.files as Express.Multer.File[] | undefined;
-    if (!files || !files.length) return [];
-    return files.map(f => `/uploads/journal/${f.filename}`);
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files || !files.length) return [];
+  // Served through the authenticated proxy below, not the old
+  // unauthenticated /uploads static mount — journal photos are personal
+  // travel photos and were reachable by anyone with the URL, which is
+  // only ~30 bits of entropy (Date.now() + Math.random()*1e9), not truly
+  // private. getJournalPhoto checks the requester actually owns (or
+  // collaborates on) the entry before streaming the file.
+  return files.map((f) => `/api/v1/journal/photo/${f.filename}`);
 }
 
-export const createEntry = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user?._id || req.user?.id;
-        if (!userId) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-        const entryData = req.body;
-        const uploadedPhotos = fileUrls(req);
-
-        // If tripId is provided, verify access
-        if (entryData.tripId) {
-            const trip = await TripModel.findOne({
-                _id: entryData.tripId,
-                $or: [
-                    { userId },
-                    { collaborators: { $elemMatch: { userId, role: "editor" } } }
-                ]
-            });
-            if (!trip) throw new ForbiddenError("Trip access denied");
-        }
-
-        const entry = await JournalEntryModel.create({
-            ...entryData,
-            userId,
-            photos: uploadedPhotos,
-        });
-
-        if (entry.tripId) {
-            socketService.broadcastMutation(entry.tripId.toString(), { type: "journal-updated", data: entry }, String(userId));
-        }
-
-        res.status(201).json(entry);
-    } catch (error) {
-        next(error);
+export const getJournalPhoto = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    const filename = req.params.filename;
+    // Filenames are server-generated (multer's diskStorage callback) —
+    // still defensively reject anything that isn't a plain filename,
+    // since this value flows into a filesystem path below.
+    if (!filename || /[\\/]|\.\./.test(filename)) {
+      throw new NotFoundError("Photo not found");
     }
+
+    const photoUrl = `/api/v1/journal/photo/${filename}`;
+    const entry = await JournalEntryModel.findOne({ photos: photoUrl });
+    if (!entry) throw new NotFoundError("Photo not found");
+
+    if (entry.userId !== String(userId)) {
+      if (!entry.tripId) throw new ForbiddenError("Insufficient permissions");
+      const trip = await TripModel.findOne({
+        _id: entry.tripId,
+        $or: [{ userId }, { "collaborators.userId": userId }],
+      });
+      if (!trip) throw new ForbiddenError("Insufficient permissions");
+    }
+
+    const filePath = path.join(process.cwd(), "server", "uploads", "journal", filename);
+    res.sendFile(filePath, (err) => {
+      if (err && !res.headersSent) next(new NotFoundError("Photo not found"));
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createEntry = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const entryData = req.body;
+    const uploadedPhotos = fileUrls(req);
+
+    // If tripId is provided, verify access
+    if (entryData.tripId) {
+      const trip = await TripModel.findOne({
+        _id: entryData.tripId,
+        $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+      });
+      if (!trip) throw new ForbiddenError("Trip access denied");
+    }
+
+    const entry = await JournalEntryModel.create({
+      ...entryData,
+      userId,
+      photos: uploadedPhotos,
+    });
+
+    if (entry.tripId) {
+      socketService.broadcastMutation(
+        entry.tripId.toString(),
+        { type: "journal-updated", data: entry },
+        String(userId),
+      );
+    }
+
+    res.status(201).json(entry);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const getEntries = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user?._id || req.user?.id;
-        if (!userId) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-        const tripId = req.query.tripId;
-
-        let query: any;
-        if (tripId) {
-            // Check trip access
-            const trip = await TripModel.findOne({
-                _id: tripId,
-                $or: [
-                    { userId },
-                    { "collaborators.userId": userId }
-                ]
-            });
-            if (!trip) throw new ForbiddenError("Trip access denied");
-            query = { tripId };
-        } else {
-            query = { userId };
-        }
-
-        let entriesQuery = JournalEntryModel.find(query).sort({ createdAt: -1 });
-        if (req.query.light === "true") {
-            entriesQuery = entriesQuery.select("title location photos createdAt updatedAt userId tripId isRecap dayIndex");
-        }
-        const entries = await entriesQuery;
-        res.json(entries);
-    } catch (error) {
-        next(error);
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
+    const tripId = req.query.tripId;
+
+    let query: any;
+    if (tripId) {
+      // Check trip access
+      const trip = await TripModel.findOne({
+        _id: tripId,
+        $or: [{ userId }, { "collaborators.userId": userId }],
+      });
+      if (!trip) throw new ForbiddenError("Trip access denied");
+      query = { tripId };
+    } else {
+      query = { userId };
+    }
+
+    let entriesQuery = JournalEntryModel.find(query).sort({ createdAt: -1 });
+    if (req.query.light === "true") {
+      entriesQuery = entriesQuery.select(
+        "title location photos createdAt updatedAt userId tripId isRecap dayIndex",
+      );
+    }
+    const entries = await entriesQuery;
+    res.json(entries);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const getEntry = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user?._id || req.user?.id;
-        if (!userId) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-        const entry = await JournalEntryModel.findById(req.params.id);
-        if (!entry) throw new NotFoundError("Entry not found");
-
-        if (entry.userId !== userId.toString()) {
-            if (entry.tripId) {
-                const trip = await TripModel.findOne({
-                    _id: entry.tripId,
-                    $or: [
-                        { userId },
-                        { "collaborators.userId": userId }
-                    ]
-                });
-                if (!trip) throw new ForbiddenError("Insufficient permissions");
-            } else {
-                throw new ForbiddenError("Insufficient permissions");
-            }
-        }
-
-        res.json(entry);
-    } catch (error) {
-        next(error);
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
+    const entry = await JournalEntryModel.findById(req.params.id);
+    if (!entry) throw new NotFoundError("Entry not found");
+
+    if (entry.userId !== userId.toString()) {
+      if (entry.tripId) {
+        const trip = await TripModel.findOne({
+          _id: entry.tripId,
+          $or: [{ userId }, { "collaborators.userId": userId }],
+        });
+        if (!trip) throw new ForbiddenError("Insufficient permissions");
+      } else {
+        throw new ForbiddenError("Insufficient permissions");
+      }
+    }
+
+    res.json(entry);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const updateEntry = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user?._id || req.user?.id;
-        if (!userId) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-        const entryId = req.params.id;
-
-        const entry = await JournalEntryModel.findById(entryId);
-        if (!entry) throw new NotFoundError("Entry not found");
-
-        // Only author can edit? Or trip owner? Or any editor of the trip?
-        // Let's allow the author OR any editor of the associated trip.
-        if (entry.userId !== userId.toString()) {
-            if (entry.tripId) {
-                const trip = await TripModel.findOne({
-                    _id: entry.tripId,
-                    $or: [
-                        { userId },
-                        { collaborators: { $elemMatch: { userId, role: "editor" } } }
-                    ]
-                });
-                if (!trip) throw new ForbiddenError("Insufficient permissions");
-            } else {
-                throw new ForbiddenError("Insufficient permissions");
-            }
-        }
-
-        const uploadedPhotos = fileUrls(req);
-        let keptPhotos: string[] = [];
-        try { keptPhotos = JSON.parse(req.body.existingPhotos || "[]"); } catch { }
-        const allPhotos = [...keptPhotos, ...uploadedPhotos];
-
-        // Allowlist only — spreading req.body directly let a client pass
-        // userId/tripId in the multipart form and reassign ownership of an
-        // entry they only have edit access to. Photos always set (not just
-        // when non-empty) so removing every photo actually clears the field
-        // instead of silently leaving the old array in place.
-        const update: Record<string, unknown> = { photos: allPhotos };
-        if (req.body.title !== undefined) update.title = req.body.title;
-        if (req.body.content !== undefined) update.content = req.body.content;
-        if (req.body.location !== undefined) update.location = req.body.location;
-        if (req.body.latitude !== undefined) update.latitude = req.body.latitude;
-        if (req.body.longitude !== undefined) update.longitude = req.body.longitude;
-        if (req.body.dayIndex !== undefined) update.dayIndex = req.body.dayIndex;
-
-        const updatedEntry = await JournalEntryModel.findByIdAndUpdate(
-            entryId,
-            update,
-            { new: true, runValidators: true }
-        );
-
-        if (updatedEntry?.tripId) {
-            socketService.broadcastMutation(updatedEntry.tripId.toString(), { type: "journal-updated", data: updatedEntry }, String(userId));
-        }
-
-        res.json(updatedEntry);
-    } catch (error) {
-        next(error);
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
+    const entryId = req.params.id;
+
+    const entry = await JournalEntryModel.findById(entryId);
+    if (!entry) throw new NotFoundError("Entry not found");
+
+    // Only author can edit? Or trip owner? Or any editor of the trip?
+    // Let's allow the author OR any editor of the associated trip.
+    if (entry.userId !== userId.toString()) {
+      if (entry.tripId) {
+        const trip = await TripModel.findOne({
+          _id: entry.tripId,
+          $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+        });
+        if (!trip) throw new ForbiddenError("Insufficient permissions");
+      } else {
+        throw new ForbiddenError("Insufficient permissions");
+      }
+    }
+
+    const uploadedPhotos = fileUrls(req);
+    let keptPhotos: string[] = [];
+    try {
+      keptPhotos = JSON.parse(req.body.existingPhotos || "[]");
+    } catch {}
+    const allPhotos = [...keptPhotos, ...uploadedPhotos];
+
+    // Allowlist only — spreading req.body directly let a client pass
+    // userId/tripId in the multipart form and reassign ownership of an
+    // entry they only have edit access to. Photos always set (not just
+    // when non-empty) so removing every photo actually clears the field
+    // instead of silently leaving the old array in place.
+    const update: Record<string, unknown> = { photos: allPhotos };
+    if (req.body.title !== undefined) update.title = req.body.title;
+    if (req.body.content !== undefined) update.content = req.body.content;
+    if (req.body.location !== undefined) update.location = req.body.location;
+    if (req.body.latitude !== undefined) update.latitude = req.body.latitude;
+    if (req.body.longitude !== undefined) update.longitude = req.body.longitude;
+    if (req.body.dayIndex !== undefined) update.dayIndex = req.body.dayIndex;
+
+    const updatedEntry = await JournalEntryModel.findByIdAndUpdate(entryId, update, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (updatedEntry?.tripId) {
+      socketService.broadcastMutation(
+        updatedEntry.tripId.toString(),
+        { type: "journal-updated", data: updatedEntry },
+        String(userId),
+      );
+    }
+
+    res.json(updatedEntry);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const deleteEntry = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user?._id || req.user?.id;
-        if (!userId) return res.status(401).json({ error: "Unauthorized" });
-        const entryId = req.params.id;
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const entryId = req.params.id;
 
-        const entry = await JournalEntryModel.findById(entryId);
-        if (!entry) throw new NotFoundError("Entry not found");
+    const entry = await JournalEntryModel.findById(entryId);
+    if (!entry) throw new NotFoundError("Entry not found");
 
-        if (entry.userId !== userId.toString()) {
-            if (entry.tripId) {
-                const trip = await TripModel.findById(entry.tripId);
-                if (trip?.userId !== userId.toString()) {
-                    throw new ForbiddenError("Only the author or trip owner can delete this entry");
-                }
-            } else {
-                throw new ForbiddenError("Insufficient permissions");
-            }
+    if (entry.userId !== userId.toString()) {
+      if (entry.tripId) {
+        const trip = await TripModel.findById(entry.tripId);
+        if (trip?.userId !== userId.toString()) {
+          throw new ForbiddenError("Only the author or trip owner can delete this entry");
         }
-
-        await JournalEntryModel.deleteOne({ _id: entryId });
-
-        if (entry.tripId) {
-            socketService.broadcastMutation(entry.tripId.toString(), { type: "journal-deleted", data: { id: entryId } }, String(userId));
-        }
-
-        res.status(204).send();
-    } catch (error) {
-        next(error);
+      } else {
+        throw new ForbiddenError("Insufficient permissions");
+      }
     }
+
+    await JournalEntryModel.deleteOne({ _id: entryId });
+
+    if (entry.tripId) {
+      socketService.broadcastMutation(
+        entry.tripId.toString(),
+        { type: "journal-deleted", data: { id: entryId } },
+        String(userId),
+      );
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
 };

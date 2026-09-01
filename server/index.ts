@@ -67,15 +67,14 @@ app.use(requestLoggerMiddleware);
 app.use(csrfMiddleware);
 app.use("/api/v1", generalLimiter);
 
-// 2. Serve uploads as static files
-// Multer writes uploads (avatars, feedback, journal images) to
-// process.cwd()/server/uploads (see auth.routes.ts, feedback.routes.ts,
-// journal.routes.ts). import.meta.dirname resolves to the bundled dist/
-// directory at runtime, not the source server/ directory, so serving from
-// it here pointed at a directory nothing ever writes to — every uploaded
-// file 404'd into the SPA catch-all instead of loading. Must match the
-// write path exactly.
-app.use("/uploads", express.static(path.join(process.cwd(), "server", "uploads")));
+// Uploads (journal photos, feedback attachments) are served through
+// authenticated/ownership-checked proxy routes now — GET /api/v1/journal/
+// photo/:filename (journal.routes.ts) and GET /api/v1/feedback/attachment/
+// :filename (feedback.routes.ts) — not a public static mount. The old
+// `app.use("/uploads", express.static(...))` here meant anyone with a URL
+// (only ~30 bits of entropy: Date.now() + Math.random()*1e9) could read
+// another user's journal photos with zero authentication. Avatars are
+// base64-in-Mongo, never written to disk, so nothing else needs this mount.
 
 // Swagger UI — available at /api/docs
 app.use(

@@ -1,5 +1,12 @@
 import { Router } from "express";
-import { createEntry, getEntries, getEntry, updateEntry, deleteEntry } from "../controllers/journal.controller";
+import {
+  createEntry,
+  getEntries,
+  getEntry,
+  updateEntry,
+  deleteEntry,
+  getJournalPhoto,
+} from "../controllers/journal.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import multer from "multer";
 import path from "path";
@@ -30,6 +37,9 @@ router.use(requireAuth);
 
 router.post("/journal", upload.array("photos", 10), createEntry);
 router.get("/journal", getEntries);
+// Must be registered before /journal/:id, or Express would match "photo"
+// as the :id param.
+router.get("/journal/photo/:filename", getJournalPhoto);
 router.get("/journal/:id", getEntry);
 router.put("/journal/:id", upload.array("photos", 10), updateEntry);
 router.delete("/journal/:id", deleteEntry);

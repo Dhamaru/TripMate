@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import logger from "../logger";
+import { config } from "../config";
 
 const router = Router();
 
@@ -9,9 +10,14 @@ const router = Router();
 // exists yet to gate behind requireAuth. That does mean anyone can write
 // to server logs; sanitizePayload below bounds the injection/size risk,
 // and this cap (down from 20/min) bounds the flood-storage risk further.
+// Relaxed in test env — express-rate-limit's in-memory store is a
+// per-process singleton shared across every test file in one vitest
+// worker (Node module caching), so a low ceiling here could trip on
+// unrelated test suite volume, same class of issue already fixed in
+// rateLimit.middleware.ts.
 const logsLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: config.NODE_ENV === "test" ? 1000 : 10,
   standardHeaders: true,
   legacyHeaders: false,
 });
