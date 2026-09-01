@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { TripModel } from "@shared/schema";
-import { NotFoundError } from "../errors";
+import { NotFoundError, BadRequestError } from "../errors";
 import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
@@ -91,6 +91,9 @@ export const updateActivity = async (req: Request, res: Response, next: NextFunc
         .filter(([key]) => (UPDATABLE_ACTIVITY_FIELDS as readonly string[]).includes(key))
         .map(([key, value]) => [`itinerary.$[day].activities.$[act].${key}`, value]),
     );
+    if (Object.keys(setFields).length === 0) {
+      throw new BadRequestError("No valid fields to update");
+    }
 
     const trip = await TripModel.findOneAndUpdate(
       {
@@ -137,7 +140,8 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
       { ...editorAccessFilter(tripId, String(userId)), "itinerary.dayIndex": dayIndex },
       { itinerary: { $elemMatch: { dayIndex } } },
     );
-    const removed = before?.itinerary?.[0]?.activities.find((a: any) => a.id === activityId);
+    const beforeDay = before?.itinerary?.[0];
+    const removed = beforeDay?.activities.find((a: any) => a.id === activityId);
 
     const trip = await TripModel.findOneAndUpdate(
       { ...editorAccessFilter(tripId, String(userId)), "itinerary.dayIndex": dayIndex },
@@ -146,7 +150,15 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
     );
     if (!trip) throw new NotFoundError("Trip not found or access denied");
 
-    if (removed) {
+    // Guard against a TOCTOU double-notification: if a concurrent request
+    // already removed this activity between our pre-read and this write,
+    // this request's $pull is a no-op — the day's activity count won't have
+    // dropped from what we saw in `before`, so don't re-fire the broadcast.
+    const afterDay = trip.itinerary?.find((d) => d.dayIndex === dayIndex);
+    const actuallyRemoved =
+      removed && beforeDay && (afterDay?.activities.length ?? 0) < beforeDay.activities.length;
+
+    if (actuallyRemoved) {
       socketService.broadcastMutation(
         tripId,
         { type: "itinerary-updated", data: trip.itinerary },

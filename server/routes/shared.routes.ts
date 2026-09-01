@@ -3,7 +3,12 @@ import * as packingController from "../controllers/packing.controller";
 import * as journalAiController from "../controllers/journal_ai.controller";
 import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
-import { createPackingListSchema, createPackingListTemplateSchema, updatePackingItemSchema } from "../schemas/packing.schemas";
+import {
+  createPackingListSchema,
+  createPackingListTemplateSchema,
+  updatePackingItemSchema,
+  updatePackingListSchema,
+} from "../schemas/packing.schemas";
 import { aiLimiter, generationLimiter } from "../middleware/rateLimit.middleware";
 
 const router = Router();
@@ -14,20 +19,36 @@ router.use(requireAuth);
 // Packing templates — must be registered before the /packing-lists/:id
 // routes below, or Express would match "templates" as the :id param.
 router.get("/packing-lists/templates", packingController.getPackingListTemplates);
-router.post("/packing-lists/templates", validate(createPackingListTemplateSchema), packingController.createPackingListTemplate);
+router.post(
+  "/packing-lists/templates",
+  validate(createPackingListTemplateSchema),
+  packingController.createPackingListTemplate,
+);
 router.delete("/packing-lists/templates/:id", packingController.deletePackingListTemplate);
 
 // Packing Routes
 router.get("/packing", packingController.getPackingLists);
 router.get("/packing-lists", packingController.getPackingLists);
 router.post("/packing", validate(createPackingListSchema), packingController.createPackingList);
-router.post("/packing-lists", validate(createPackingListSchema), packingController.createPackingList);
-router.put("/packing/:id", packingController.updatePackingList);
-router.put("/packing-lists/:id", packingController.updatePackingList);
+router.post(
+  "/packing-lists",
+  validate(createPackingListSchema),
+  packingController.createPackingList,
+);
+router.put("/packing/:id", validate(updatePackingListSchema), packingController.updatePackingList);
+router.put(
+  "/packing-lists/:id",
+  validate(updatePackingListSchema),
+  packingController.updatePackingList,
+);
 router.post("/packing/:id/duplicate", packingController.duplicatePackingList);
 router.post("/packing-lists/:id/duplicate", packingController.duplicatePackingList);
 router.patch("/packing/:id/items/:itemId/toggle", packingController.togglePackingItem);
-router.put("/packing-lists/:id/item/:itemId", validate(updatePackingItemSchema), packingController.updatePackingItem);
+router.put(
+  "/packing-lists/:id/item/:itemId",
+  validate(updatePackingItemSchema),
+  packingController.updatePackingItem,
+);
 router.delete("/packing/:id", packingController.deletePackingList);
 router.delete("/packing-lists/:id", packingController.deletePackingList);
 // Packing AI — generate smart list for a trip

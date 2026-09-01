@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { TripModel } from "@shared/schema";
-import { NotFoundError } from "../errors";
+import { NotFoundError, BadRequestError } from "../errors";
 import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
@@ -61,6 +61,9 @@ export const updateExpense = async (req: Request, res: Response, next: NextFunct
         .filter(([key]) => (UPDATABLE_EXPENSE_FIELDS as readonly string[]).includes(key))
         .map(([key, value]) => [`expenses.$[elem].${key}`, value]),
     );
+    if (Object.keys(setFields).length === 0) {
+      throw new BadRequestError("No valid fields to update");
+    }
 
     const trip = await TripModel.findOneAndUpdate(
       { ...editorAccessFilter(tripId, String(userId)), "expenses.id": expenseId },

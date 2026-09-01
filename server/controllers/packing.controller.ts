@@ -140,7 +140,7 @@ export const generatePackingList = async (req: Request, res: Response, next: Nex
 export const createPackingList = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id || req.user?.id;
-    const { tripId } = req.body;
+    const { tripId, name, season, items, isTemplate } = req.body;
 
     if (tripId) {
       const trip = await TripModel.findOne({
@@ -150,8 +150,15 @@ export const createPackingList = async (req: Request, res: Response, next: NextF
       if (!trip) throw new ForbiddenError("Trip not found or access denied");
     }
 
+    // Explicit field construction, not a req.body spread — mass-assignment
+    // defense-in-depth alongside the Zod schema/validate.ts stripping, so
+    // this stays safe even if a route ever drops its validate() middleware.
     const packingList = await PackingListModel.create({
-      ...req.body,
+      tripId,
+      name,
+      season,
+      items,
+      isTemplate,
       userId,
     });
     res.status(201).json(packingList);
