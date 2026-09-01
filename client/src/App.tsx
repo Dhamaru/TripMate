@@ -18,16 +18,22 @@ function App() {
   const showAtlas = isAuthenticated && location.startsWith("/app");
   // /app/maps runs its own full-bleed "focus mode" layout with a bottom
   // sheet that already occupies the same bottom-right zone the floating
-  // trigger button would float in — hide just the button there. The panel
-  // itself (AgentOverlayPanel) must stay mounted on every authenticated page
-  // regardless, since its Ctrl+K listener only registers while it's
+  // trigger button would float in — hide just the button there. /app/profile
+  // and /app/planner both have real form controls (the email field, the
+  // Group Size dropdown) that a real mobile QA pass found the FAB visually
+  // sitting on top of at 375-430px — same bottom-right-corner collision
+  // class as maps, just with form inputs instead of a bottom sheet. The
+  // panel itself (AgentOverlayPanel) must stay mounted on every authenticated
+  // page regardless, since its Ctrl+K listener only registers while it's
   // mounted — gating it the same way as the button silently broke the
   // keyboard shortcut on /app/maps entirely, contradicting the "still
   // reachable via Ctrl+K" this exclusion was meant to preserve.
   // Hidden while the chat panel itself is open — the panel already has its
   // own close (X) control, and the trigger otherwise sits fixed on top of
   // the panel's own send button in the same bottom-right corner.
-  const showAtlasButton = showAtlas && !location.startsWith("/app/maps") && !isChatOpen;
+  const FAB_EXCLUDED_ROUTES = ["/app/maps", "/app/profile", "/app/planner"];
+  const showAtlasButton =
+    showAtlas && !FAB_EXCLUDED_ROUTES.some((r) => location.startsWith(r)) && !isChatOpen;
 
   return (
     <main id="main">

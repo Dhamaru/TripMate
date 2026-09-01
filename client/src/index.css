@@ -409,6 +409,19 @@
   }
 }
 
+/* ── Leaflet map attribution clearance ───────────────────
+   The Maps page's map canvas fills to the container's bottom edge, but the
+   fixed mobile bottom nav (Layout.tsx) overlays that same zone — Leaflet's
+   default bottom-left attribution control rendered underneath/behind the
+   nav bar at mobile widths, invisible and layered wrong. Push it up above
+   the nav's real footprint (bottom-3 offset + ~64px bar height) on mobile;
+   desktop/tablet have no bottom nav so no clearance is needed there. */
+@media (max-width: 767px) {
+  .leaflet-bottom {
+    bottom: 84px !important;
+  }
+}
+
 /* ── Scrollbar ────────────────────────────────────────── */
 
 ::-webkit-scrollbar {
