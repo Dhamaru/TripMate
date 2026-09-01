@@ -5,6 +5,7 @@ import type { ToolResult } from "../../types";
 import { TripModel } from "@shared/schema";
 import { nanoid } from "nanoid";
 import { FeasibilityModeler } from "../../../services/FeasibilityModeler";
+import { socketService } from "../../../services/SocketService";
 
 export async function modifyItineraryHandler(
   args: {
@@ -229,6 +230,12 @@ export async function modifyItineraryHandler(
         durationMs: Date.now() - start,
       };
     }
+
+    socketService.broadcastMutation(
+      tripId,
+      { type: "itinerary-updated", data: written.itinerary },
+      userId,
+    );
 
     return {
       success: true,

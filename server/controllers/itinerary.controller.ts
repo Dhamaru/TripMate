@@ -204,41 +204,93 @@ export const reorderItinerary = async (req: Request, res: Response, next: NextFu
   }
 };
 
+// `vote` is the caller's DESIRED final state (1 up / -1 down / 0 clear), not
+// a delta — the server is the source of truth for how many net votes an
+// activity has and who cast them (`userVotes`, keyed by userId). Previously
+// the server blindly $inc'd whatever number the client sent, trusting the
+// client's own toggle-diff math; that math lived only in React state, so it
+// reset on every reload/new device/direct-API call and the same user could
+// inflate the count indefinitely (confirmed live: 3 identical "vote: 1"
+// calls in a row produced votes: 3, not 1). `vote: 0` was also a complete
+// no-op — $inc by 0 changes nothing and neither push branch fires, so a
+// user could never actually clear their vote.
 export const toggleVote = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { dayIndex, activityId, vote } = req.body; // vote: 1 (up), -1 (down), 0 (clear)
+    const { dayIndex, activityId, vote } = req.body; // 1 | -1 | 0
     const tripId = req.params.id;
-    const userId = req.user!._id;
+    const userId = String(req.user!._id);
+    const desired = vote > 0 ? 1 : vote < 0 ? -1 : 0;
 
-    const update: Record<string, unknown> = {
-      $inc: { "itinerary.$[day].activities.$[act].votes": vote || 0 },
+    const accessFilter = {
+      _id: tripId,
+      $or: [{ userId }, { collaborators: { $elemMatch: { userId } } }],
+      itinerary: { $elemMatch: { dayIndex, "activities.id": activityId } },
     };
-    if (vote < 0) {
-      update.$push = { "itinerary.$[day].activities.$[act].vibeSignals": "Low Vibe" };
-    } else if (vote > 0) {
-      update.$push = { "itinerary.$[day].activities.$[act].vibeSignals": "High Vibe" };
+
+    // Read-modify-write is required here (need the caller's *previous* vote
+    // to compute the delta) — mitigated the same way modifyItineraryHandler
+    // is: optimistic concurrency with a retry, not a bare overwrite.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const current = await TripModel.findOne(accessFilter, {
+        itinerary: { $elemMatch: { dayIndex } },
+        updatedAt: 1,
+      });
+      if (!current)
+        throw new NotFoundError("Trip not found, day/activity not found, or access denied");
+
+      const activity = current.itinerary?.[0]?.activities.find((a: any) => a.id === activityId);
+      if (!activity)
+        throw new NotFoundError("Trip not found, day/activity not found, or access denied");
+
+      const userVotes: Record<string, 1 | -1> = { ...(activity.userVotes || {}) };
+      const previous = userVotes[userId] || 0;
+      if (previous === desired) {
+        // No-op — already in the desired state. Nothing to write.
+        const trip = await TripModel.findById(tripId);
+        res.json(trip);
+        return;
+      }
+      if (desired === 0) delete userVotes[userId];
+      else userVotes[userId] = desired;
+
+      const delta = desired - previous;
+      const upCount = Object.values(userVotes).filter((v) => v === 1).length;
+      const downCount = Object.values(userVotes).filter((v) => v === -1).length;
+      const vibeSignals = [
+        ...Array(upCount).fill("High Vibe"),
+        ...Array(downCount).fill("Low Vibe"),
+      ];
+
+      const userVotePath = `itinerary.$[day].activities.$[act].userVotes.${userId}`;
+      const mongoUpdate: Record<string, unknown> = {
+        $inc: { "itinerary.$[day].activities.$[act].votes": delta },
+        $set: { "itinerary.$[day].activities.$[act].vibeSignals": vibeSignals },
+      };
+      if (desired === 0) {
+        mongoUpdate.$unset = { [userVotePath]: "" };
+      } else {
+        (mongoUpdate.$set as Record<string, unknown>)[userVotePath] = desired;
+      }
+
+      const trip = await TripModel.findOneAndUpdate(
+        { ...accessFilter, updatedAt: current.updatedAt },
+        mongoUpdate,
+        { new: true, arrayFilters: [{ "day.dayIndex": dayIndex }, { "act.id": activityId }] },
+      );
+
+      if (trip) {
+        socketService.broadcastMutation(
+          tripId,
+          { type: "itinerary-updated", data: trip.itinerary },
+          userId,
+        );
+        res.json(trip);
+        return;
+      }
+      // Lost the race (someone else updated the trip between our read and
+      // write) — retry with a fresh read.
     }
-
-    const trip = await TripModel.findOneAndUpdate(
-      {
-        _id: tripId,
-        $or: [{ userId }, { collaborators: { $elemMatch: { userId } } }],
-        itinerary: { $elemMatch: { dayIndex, "activities.id": activityId } },
-      },
-      update,
-      {
-        new: true,
-        arrayFilters: [{ "day.dayIndex": dayIndex }, { "act.id": activityId }],
-      },
-    );
-    if (!trip) throw new NotFoundError("Trip not found, day/activity not found, or access denied");
-
-    socketService.broadcastMutation(
-      tripId,
-      { type: "itinerary-updated", data: trip.itinerary },
-      String(userId),
-    );
-    res.json(trip);
+    throw new BadRequestError("Trip was modified by someone else at the same time. Please retry.");
   } catch (error) {
     next(error);
   }

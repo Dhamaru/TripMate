@@ -165,7 +165,8 @@ export interface IItineraryActivity {
   lat?: number;
   lon?: number;
   notes?: string;
-  votes?: number; // Fix 16: Collaborative Vibe Voting
+  votes?: number; // Fix 16: Collaborative Vibe Voting — net total, derived from userVotes
+  userVotes?: Record<string, 1 | -1>; // per-userId vote — server's source of truth for `votes`
   vibeSignals?: string[]; // e.g. ["Too expensive", "Hidden gem"]
   // unknown here breaks every ItineraryManager call site that reads/renders
   // arbitrary AI-generated activity fields (React needs a concrete

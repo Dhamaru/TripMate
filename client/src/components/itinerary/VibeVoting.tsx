@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
-import { Button } from '../ui/button';
-import { tripsApi } from '../../lib/api';
-import { useToast } from '../../hooks/use-toast';
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ThumbsUp, ThumbsDown } from "lucide-react";
+import { Button } from "../ui/button";
+import { tripsApi } from "../../lib/api";
+import { useToast } from "../../hooks/use-toast";
 
 interface Props {
   tripId: string;
@@ -19,35 +19,49 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
 
   const handleVote = async (value: number) => {
     // Toggle logic: If clicking the same vote, clear it (0). Otherwise set to new value.
+    // The server is authoritative on the vote total (it tracks who voted what
+    // and computes the real delta) — this component sends the caller's
+    // DESIRED final state, not a locally-computed diff, so a stale/reset
+    // local `userVote` (reload, new device, etc.) can never double-count.
     const newValue = userVote === value ? 0 : value;
     const diff = newValue - (userVote || 0);
 
     try {
-      setVotes(prev => prev + diff);
+      setVotes((prev) => prev + diff);
       setUserVote(newValue === 0 ? null : newValue);
 
-      await tripsApi.toggleVote(tripId, {
+      const updated = await tripsApi.toggleVote(tripId, {
         dayIndex,
         activityId,
-        vote: diff
+        vote: newValue,
       });
+
+      // Reconcile with the server's real count in case our optimistic diff
+      // (based on possibly-stale local state) didn't match reality.
+      const serverActivity = updated?.itinerary
+        ?.find((d) => d.dayIndex === dayIndex)
+        ?.activities.find((a: any) => a.id === activityId);
+      if (typeof serverActivity?.votes === "number") {
+        setVotes(serverActivity.votes);
+      }
 
       if (newValue !== 0) {
         toast({
           title: newValue > 0 ? "Vibe boosted! 🚀" : "Vibe check recorded 📉",
-          description: newValue > 0 
-            ? "Atlas will prioritize similar activities." 
-            : "Atlas will suggest alternatives in the next loop.",
+          description:
+            newValue > 0
+              ? "Atlas will prioritize similar activities."
+              : "Atlas will suggest alternatives in the next loop.",
         });
       }
     } catch (err) {
       // Revert on error
-      setVotes(prev => prev - diff);
+      setVotes((prev) => prev - diff);
       setUserVote(userVote);
       toast({
         title: "Voting failed",
         description: "Could not sync your vibe signal.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -57,7 +71,7 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
       <Button
         variant="ghost"
         size="icon"
-        className={`h-7 w-7 transition-colors ${userVote === 1 ? 'text-green-400 bg-green-500/10' : 'text-[hsl(var(--muted-foreground))]/50 hover:text-green-400 hover:bg-green-500/10'}`}
+        className={`h-7 w-7 transition-colors ${userVote === 1 ? "text-green-400 bg-green-500/10" : "text-[hsl(var(--muted-foreground))]/50 hover:text-green-400 hover:bg-green-500/10"}`}
         onClick={() => void handleVote(1)}
         title="Boost this vibe"
       >
@@ -66,7 +80,7 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
       <Button
         variant="ghost"
         size="icon"
-        className={`h-7 w-7 transition-colors ${userVote === -1 ? 'text-orange-400 bg-orange-500/10' : 'text-[hsl(var(--muted-foreground))]/50 hover:text-orange-400 hover:bg-orange-500/10'}`}
+        className={`h-7 w-7 transition-colors ${userVote === -1 ? "text-orange-400 bg-orange-500/10" : "text-[hsl(var(--muted-foreground))]/50 hover:text-orange-400 hover:bg-orange-500/10"}`}
         onClick={() => void handleVote(-1)}
         title="Vibe check"
       >
