@@ -544,7 +544,13 @@ export default function TripDetail() {
 
   const tripJournalEntries =
     journalEntries?.filter((entry) => entry.tripId?.toString() === id) || [];
-  const selectedStyle = travelStyles.find((style) => style.id === tripForm.travelStyle);
+  // TravelStyle's type allows both "Adventure" and "adventure" (the import-
+  // schedule flow can produce either), but travelStyles' own ids are always
+  // lowercase — a trip created via that path never matched a style tile
+  // here without normalizing case first.
+  const selectedStyle = travelStyles.find(
+    (style) => style.id === (tripForm.travelStyle || "").toLowerCase(),
+  );
 
   const generatePlanMutation = useMutation({
     mutationFn: async () => {
