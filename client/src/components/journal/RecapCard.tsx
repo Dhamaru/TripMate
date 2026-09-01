@@ -1,7 +1,7 @@
-import { motion } from 'framer-motion';
-import { Award, Sparkles, MapPin, Calendar, Heart } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
+import { motion } from "framer-motion";
+import { Award, Sparkles, MapPin, Calendar, Heart } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
 
 interface Props {
   recap: {
@@ -24,24 +24,31 @@ export function RecapCard({ recap, destination }: Props) {
       scale: 1,
       transition: {
         staggerChildren: 0.1,
-        delayChildren: 0.3
-      }
-    }
+        delayChildren: 0.3,
+      },
+    },
   };
 
   const item = {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
+    show: { opacity: 1, y: 0 },
   };
 
-  // Determine a background gradient based on the visualVibe signal
+  // Determine a background gradient based on the visualVibe signal — mapped
+  // to the design system's four ink roles instead of arbitrary Tailwind
+  // palette colors (indigo/purple/slate/amber-500/emerald-600/teal-500
+  // aren't part of "Night Atlas / Passport & Visa Stamp" at all).
   const getVibeGradient = (vibe?: string) => {
-    const v = vibe?.toLowerCase() || '';
-    if (v.includes('neon') || v.includes('city')) return 'from-indigo-600/20 via-purple-600/10 to-transparent';
-    if (v.includes('mountain') || v.includes('mist')) return 'from-slate-700/20 via-slate-500/10 to-transparent';
-    if (v.includes('sunny') || v.includes('beach') || v.includes('tropical')) return 'from-amber-500/20 via-orange-400/10 to-transparent';
-    if (v.includes('green') || v.includes('jungle') || v.includes('forest')) return 'from-emerald-600/20 via-teal-500/10 to-transparent';
-    return 'from-primary/20 via-primary/5 to-transparent';
+    const v = vibe?.toLowerCase() || "";
+    if (v.includes("neon") || v.includes("city"))
+      return "from-[var(--amber-dim)] via-[var(--amber-dim)]/50 to-transparent";
+    if (v.includes("mountain") || v.includes("mist"))
+      return "from-[hsl(var(--muted))]/40 via-[hsl(var(--muted))]/20 to-transparent";
+    if (v.includes("sunny") || v.includes("beach") || v.includes("tropical"))
+      return "from-[rgba(22,63,115,0.15)] via-[rgba(22,63,115,0.08)] to-transparent";
+    if (v.includes("green") || v.includes("jungle") || v.includes("forest"))
+      return "from-[rgba(61,148,103,0.15)] via-[rgba(61,148,103,0.08)] to-transparent";
+    return "from-primary/20 via-primary/5 to-transparent";
   };
 
   return (
@@ -49,10 +56,12 @@ export function RecapCard({ recap, destination }: Props) {
       variants={container}
       initial="hidden"
       animate="show"
-      className="recap-card-container relative overflow-hidden rounded-3xl border border-primary/20 bg-card p-1 shadow-2xl"
+      className="recap-card-container relative overflow-hidden rounded-3xl border border-primary/20 bg-card p-1"
     >
       {/* Decorative Vibe Background */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${getVibeGradient(recap.visualVibe)} blur-3xl opacity-50 -z-10`} />
+      <div
+        className={`absolute inset-0 bg-gradient-to-br ${getVibeGradient(recap.visualVibe)} blur-3xl opacity-50 -z-10`}
+      />
 
       <Card className="border-none bg-transparent/40 backdrop-blur-md">
         <CardHeader className="text-center pb-2">
@@ -62,7 +71,7 @@ export function RecapCard({ recap, destination }: Props) {
             </div>
           </motion.div>
           <motion.div variants={item}>
-            <CardTitle className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+            <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">
               {recap.title}
             </CardTitle>
             <p className="text-muted-foreground font-medium flex items-center justify-center gap-1.5 mt-2">
@@ -73,7 +82,10 @@ export function RecapCard({ recap, destination }: Props) {
 
         <CardContent className="space-y-8">
           {/* Summary Section */}
-          <motion.div variants={item} className="text-center px-4 italic text-lg leading-relaxed text-foreground/80">
+          <motion.div
+            variants={item}
+            className="text-center px-4 italic text-lg leading-relaxed text-foreground/80"
+          >
             "{recap.summary}"
           </motion.div>
 
@@ -81,8 +93,8 @@ export function RecapCard({ recap, destination }: Props) {
           {recap.awards && recap.awards.length > 0 && (
             <motion.div variants={item} className="space-y-4">
               <h3 className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center justify-center gap-2">
-                <div className="h-[1px] w-8 bg-muted-foreground/20" /> 
-                Badges Earned 
+                <div className="h-[1px] w-8 bg-muted-foreground/20" />
+                Badges Earned
                 <div className="h-[1px] w-8 bg-muted-foreground/20" />
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -97,7 +109,9 @@ export function RecapCard({ recap, destination }: Props) {
                     </div>
                     <div>
                       <h4 className="font-bold text-sm text-foreground">{award.title}</h4>
-                      <p className="text-xs text-muted-foreground leading-tight">{award.description}</p>
+                      <p className="text-xs text-muted-foreground leading-tight">
+                        {award.description}
+                      </p>
                     </div>
                   </motion.div>
                 ))}
@@ -107,23 +121,41 @@ export function RecapCard({ recap, destination }: Props) {
 
           {/* Stats/Highlights */}
           <div className="grid grid-cols-2 gap-4">
-             <motion.div variants={item} className="p-4 rounded-2xl bg-muted/30 border border-border/50 text-center">
-                <Heart className="h-4 w-4 mx-auto mb-2 text-rose-500" />
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Memorable Moment</p>
-                <p className="text-sm font-semibold mt-1 truncate">{recap.memorableMoment || "The whole trip!"}</p>
-             </motion.div>
-             <motion.div variants={item} className="p-4 rounded-2xl bg-muted/30 border border-border/50 text-center">
-                <Calendar className="h-4 w-4 mx-auto mb-2 text-sky-500" />
-                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">Atlas Wisdom</p>
-                <p className="text-sm font-semibold mt-1 truncate">{recap.travelTip || "Stay grounded."}</p>
-             </motion.div>
+            <motion.div
+              variants={item}
+              className="p-4 rounded-2xl bg-muted/30 border border-border/50 text-center"
+            >
+              <Heart className="h-4 w-4 mx-auto mb-2 text-[var(--ios-red)]" />
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">
+                Memorable Moment
+              </p>
+              <p className="text-sm font-semibold mt-1 truncate">
+                {recap.memorableMoment || "The whole trip!"}
+              </p>
+            </motion.div>
+            <motion.div
+              variants={item}
+              className="p-4 rounded-2xl bg-muted/30 border border-border/50 text-center"
+            >
+              <Calendar className="h-4 w-4 mx-auto mb-2 text-[var(--explorer-blue)]" />
+              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">
+                Atlas Wisdom
+              </p>
+              <p className="text-sm font-semibold mt-1 truncate">
+                {recap.travelTip || "Stay grounded."}
+              </p>
+            </motion.div>
           </div>
 
           {/* Social Proof Footer */}
           <motion.div variants={item} className="pt-4 text-center border-t border-border/20">
-             <Button variant="outline" size="sm" className="rounded-full gap-2 hover:bg-primary hover:text-white transition-all">
-                Share My Journey
-             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full gap-2 hover:bg-primary hover:text-white transition-all"
+            >
+              Share My Journey
+            </Button>
           </motion.div>
         </CardContent>
       </Card>

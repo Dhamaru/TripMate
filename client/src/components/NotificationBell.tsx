@@ -49,7 +49,11 @@ export function NotificationBell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const { data } = useQuery<{ notifications: NotificationItem[]; unreadCount: number; hasMore?: boolean }>({
+  const { data } = useQuery<{
+    notifications: NotificationItem[];
+    unreadCount: number;
+    hasMore?: boolean;
+  }>({
     queryKey: ["/api/v1/notifications"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/v1/notifications");
@@ -82,14 +86,18 @@ export function NotificationBell() {
       toast({ title: notif.title, description: notif.message });
     };
     socket.on("notification", onNotification);
-    return () => { socket.off("notification", onNotification); };
+    return () => {
+      socket.off("notification", onNotification);
+    };
   }, [socketRef, queryClient, toast]);
 
   const markRead = async (id: string) => {
     await apiRequest("POST", `/api/v1/notifications/${id}/read`);
     queryClient.setQueryData(["/api/v1/notifications"], (prev: any) => ({
       ...prev,
-      notifications: (prev?.notifications ?? []).map((n: NotificationItem) => n.id === id ? { ...n, read: true } : n),
+      notifications: (prev?.notifications ?? []).map((n: NotificationItem) =>
+        n.id === id ? { ...n, read: true } : n,
+      ),
       unreadCount: Math.max(0, (prev?.unreadCount ?? 1) - 1),
     }));
   };
@@ -98,7 +106,10 @@ export function NotificationBell() {
     await apiRequest("POST", "/api/v1/notifications/read-all");
     queryClient.setQueryData(["/api/v1/notifications"], (prev: any) => ({
       ...prev,
-      notifications: (prev?.notifications ?? []).map((n: NotificationItem) => ({ ...n, read: true })),
+      notifications: (prev?.notifications ?? []).map((n: NotificationItem) => ({
+        ...n,
+        read: true,
+      })),
       unreadCount: 0,
     }));
   };
@@ -108,7 +119,10 @@ export function NotificationBell() {
     setLoadingMore(true);
     try {
       const oldest = notifications[notifications.length - 1];
-      const res = await apiRequest("GET", `/api/v1/notifications?before=${encodeURIComponent(oldest.createdAt)}`);
+      const res = await apiRequest(
+        "GET",
+        `/api/v1/notifications?before=${encodeURIComponent(oldest.createdAt)}`,
+      );
       const page = await res.json();
       queryClient.setQueryData(["/api/v1/notifications"], (prev: any) => ({
         ...prev,
@@ -121,12 +135,13 @@ export function NotificationBell() {
   };
 
   const toggleMute = async (type: string, muted: boolean) => {
-    const next = muted
-      ? [...mutedTypes, type]
-      : mutedTypes.filter((t: string) => t !== type);
+    const next = muted ? [...mutedTypes, type] : mutedTypes.filter((t: string) => t !== type);
     // Optimistic — this is a low-stakes preference toggle, worth the snappy
     // feel over waiting on the round trip.
-    queryClient.setQueryData(["/api/v1/auth/user"], (prev: any) => ({ ...prev, mutedNotificationTypes: next }));
+    queryClient.setQueryData(["/api/v1/auth/user"], (prev: any) => ({
+      ...prev,
+      mutedNotificationTypes: next,
+    }));
     await apiRequest("PUT", "/api/v1/auth/user", { mutedNotificationTypes: next });
   };
 
@@ -136,9 +151,18 @@ export function NotificationBell() {
   };
 
   return (
-    <Popover onOpenChange={(open) => { if (!open) setSettingsOpen(false); }}>
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) setSettingsOpen(false);
+      }}
+    >
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full" data-testid="button-notifications">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-8 w-8 rounded-full"
+          data-testid="button-notifications"
+        >
           <Bell className="h-4 w-4 text-[hsl(var(--foreground))]" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-[var(--amber)] text-black text-[9px] font-bold flex items-center justify-center">
@@ -147,12 +171,18 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-1rem))] p-0 max-h-96 overflow-hidden flex flex-col">
+      <PopoverContent
+        align="end"
+        className="w-[min(20rem,calc(100vw-1rem))] p-0 max-h-96 overflow-hidden flex flex-col"
+      >
         <div className="flex items-center justify-between px-3 py-2 border-b border-[hsl(var(--border))]">
           <span className="text-sm font-semibold text-[hsl(var(--foreground))]">Notifications</span>
           <div className="flex items-center gap-3">
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-[11px] text-[var(--amber)] hover:underline">
+              <button
+                onClick={markAllRead}
+                className="text-[11px] text-[var(--amber)] hover:underline"
+              >
                 Mark all read
               </button>
             )}
@@ -169,12 +199,20 @@ export function NotificationBell() {
 
         {settingsOpen && (
           <div className="px-3 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 space-y-2">
-            <p className="text-[11px] font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Notify me about</p>
+            <p className="text-[11px] font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
+              Notify me about
+            </p>
             {NOTIFICATION_TYPES.map((t) => {
               const muted = mutedTypes.includes(t.value);
               return (
-                <label key={t.value} className="flex items-center gap-2 text-[13px] text-[hsl(var(--foreground))] cursor-pointer">
-                  <Checkbox checked={!muted} onCheckedChange={(checked) => toggleMute(t.value, !checked)} />
+                <label
+                  key={t.value}
+                  className="flex items-center gap-2 text-[13px] text-[hsl(var(--foreground))] cursor-pointer"
+                >
+                  <Checkbox
+                    checked={!muted}
+                    onCheckedChange={(checked) => toggleMute(t.value, !checked)}
+                  />
                   {t.label}
                 </label>
               );
@@ -193,14 +231,27 @@ export function NotificationBell() {
                 <button
                   key={notif.id}
                   onClick={() => handleClick(notif)}
-                  className={`w-full text-left px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--muted))] transition-colors ${!notif.read ? "bg-[var(--amber-dim)]/20" : ""}`}
+                  // --amber-dim is already an rgba() value (12% opacity baked
+                  // in) — stacking Tailwind's /20 opacity modifier on top of
+                  // an already-rgba custom property doesn't compose reliably
+                  // across browsers. Use the token directly; it already
+                  // reads as the intended subtle unread highlight.
+                  className={`w-full text-left px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--muted))] transition-colors ${!notif.read ? "bg-[var(--amber-dim)]" : ""}`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-[hsl(var(--foreground))]">{notif.title}</span>
-                    {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)] flex-shrink-0 mt-1.5" />}
+                    <span className="text-[13px] font-semibold text-[hsl(var(--foreground))]">
+                      {notif.title}
+                    </span>
+                    {!notif.read && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)] flex-shrink-0 mt-1.5" />
+                    )}
                   </div>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5 line-clamp-2">{notif.message}</p>
-                  <span className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1 block">{timeAgo(notif.createdAt)}</span>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5 line-clamp-2">
+                    {notif.message}
+                  </p>
+                  <span className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1 block">
+                    {timeAgo(notif.createdAt)}
+                  </span>
                 </button>
               ))}
               {hasMore && (

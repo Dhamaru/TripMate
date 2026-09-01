@@ -4,20 +4,26 @@ import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const CURRENCIES = [
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'GBP', name: 'British Pound', symbol: '£' },
-  { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
-  { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
-  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
-  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
-  { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
+  { code: "USD", name: "US Dollar", symbol: "$" },
+  { code: "EUR", name: "Euro", symbol: "€" },
+  { code: "GBP", name: "British Pound", symbol: "£" },
+  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+  { code: "INR", name: "Indian Rupee", symbol: "₹" },
+  { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+  { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+  { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
+  { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
 ];
 
 interface ConversionResult {
@@ -27,28 +33,35 @@ interface ConversionResult {
   disclaimer: string;
 }
 
-
-export function CurrencyConverter({ className = '' }: { className?: string }) {
-  const [amount, setAmount] = useState('100');
-  const [fromCurrency, setFromCurrency] = useState('USD');
-  const [toCurrency, setToCurrency] = useState('EUR');
-  const [budget, setBudget] = useState('');
-  const [activeTab, setActiveTab] = useState<'convert' | 'budget'>('convert');
+export function CurrencyConverter({ className = "" }: { className?: string }) {
+  const [amount, setAmount] = useState("100");
+  const [fromCurrency, setFromCurrency] = useState("USD");
+  const [toCurrency, setToCurrency] = useState("EUR");
+  const [budget, setBudget] = useState("");
+  const [activeTab, setActiveTab] = useState<"convert" | "budget">("convert");
 
   const { data: historicalData = [] } = useQuery<{ date: string; rate: number }[]>({
-    queryKey: ['/api/v1/currency/history', fromCurrency, toCurrency],
+    queryKey: ["/api/v1/currency/history", fromCurrency, toCurrency],
     queryFn: async () => {
       try {
-        const r = await fetch(`/api/v1/currency/history?from=${fromCurrency}&to=${toCurrency}&days=30`);
+        const r = await fetch(
+          `/api/v1/currency/history?from=${fromCurrency}&to=${toCurrency}&days=30`,
+        );
         if (!r.ok) return [];
         return r.json();
-      } catch { return []; }
+      } catch {
+        return [];
+      }
     },
     staleTime: 60 * 60 * 1000,
   });
 
-  const { data: conversion, isLoading, refetch } = useQuery<ConversionResult>({
-    queryKey: ['/api/v1/currency', fromCurrency, toCurrency, amount],
+  const {
+    data: conversion,
+    isLoading,
+    refetch,
+  } = useQuery<ConversionResult>({
+    queryKey: ["/api/v1/currency", fromCurrency, toCurrency, amount],
     // TanStack Query refetches automatically whenever the queryKey changes —
     // amount is part of it, so every keystroke (including a negative or
     // empty value) triggered a real conversion regardless of the Convert
@@ -62,14 +75,17 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
       try {
         // Try to fetch fresh data
         const url = `/api/v1/currency?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(amt)}`;
-        const res = await apiRequest('GET', url);
+        const res = await apiRequest("GET", url);
         const data = await res.json();
 
         // Cache the successful rate
-        localStorage.setItem(cacheKey, JSON.stringify({
-          rate: data.rate,
-          timestamp: Date.now()
-        }));
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            rate: data.rate,
+            timestamp: Date.now(),
+          }),
+        );
 
         return data;
       } catch (err) {
@@ -82,12 +98,22 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
             rate,
             convertedAmount: Math.round(amtNum * rate * 100) / 100,
             currencyName: to,
-            disclaimer: 'Offline mode: Using cached rate'
+            disclaimer: "Offline mode: Using cached rate",
           };
         }
 
         // Hard fallback if no cache
-        const baseRates: Record<string, number> = { USD: 1, EUR: 0.92, GBP: 0.79, JPY: 155, INR: 83, CAD: 1.36, AUD: 1.52, CHF: 0.9, CNY: 7.2 };
+        const baseRates: Record<string, number> = {
+          USD: 1,
+          EUR: 0.92,
+          GBP: 0.79,
+          JPY: 155,
+          INR: 83,
+          CAD: 1.36,
+          AUD: 1.52,
+          CHF: 0.9,
+          CNY: 7.2,
+        };
         const fromRate = baseRates[from] ?? 1;
         const toRate = baseRates[to] ?? 1;
         const rate = Math.round((toRate / fromRate) * 10000) / 10000;
@@ -96,7 +122,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
           rate,
           convertedAmount: Math.round(amtNum * rate * 100) / 100,
           currencyName: to,
-          disclaimer: 'Offline mode: Using estimated rate'
+          disclaimer: "Offline mode: Using estimated rate",
         } as ConversionResult;
       }
     },
@@ -120,14 +146,14 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
           <span>Currency Converter</span>
           <div className="flex bg-muted rounded-lg p-1 space-x-1">
             <button
-              onClick={() => setActiveTab('convert')}
-              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'convert' ? 'bg-[#1D4E89] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setActiveTab("convert")}
+              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === "convert" ? "bg-[var(--explorer-blue)] text-white" : "text-muted-foreground hover:text-foreground"}`}
             >
               Convert
             </button>
             <button
-              onClick={() => setActiveTab('budget')}
-              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === 'budget' ? 'bg-[#1D4E89] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setActiveTab("budget")}
+              className={`px-3 py-1 rounded text-xs transition-colors ${activeTab === "budget" ? "bg-[var(--explorer-blue)] text-white" : "text-muted-foreground hover:text-foreground"}`}
             >
               Budget
             </button>
@@ -141,12 +167,19 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">From</label>
               <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                <SelectTrigger className="bg-muted border text-foreground" data-testid="select-from-currency">
+                <SelectTrigger
+                  className="bg-muted border text-foreground"
+                  data-testid="select-from-currency"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border text-foreground">
                   {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code} className="text-foreground">
+                    <SelectItem
+                      key={currency.code}
+                      value={currency.code}
+                      className="text-foreground"
+                    >
                       {currency.code} - {currency.name}
                     </SelectItem>
                   ))}
@@ -157,12 +190,19 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">To</label>
               <Select value={toCurrency} onValueChange={setToCurrency}>
-                <SelectTrigger className="bg-muted border text-foreground" data-testid="select-to-currency">
+                <SelectTrigger
+                  className="bg-muted border text-foreground"
+                  data-testid="select-to-currency"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border text-foreground">
                   {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code} className="text-foreground">
+                    <SelectItem
+                      key={currency.code}
+                      value={currency.code}
+                      className="text-foreground"
+                    >
                       {currency.code} - {currency.name}
                     </SelectItem>
                   ))}
@@ -183,7 +223,7 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
             </Button>
           </div>
 
-          {activeTab === 'convert' ? (
+          {activeTab === "convert" ? (
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Amount</label>
@@ -203,13 +243,15 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
                 disabled={isLoading}
                 data-testid="button-convert"
               >
-                {isLoading ? 'Converting...' : 'Convert'}
+                {isLoading ? "Converting..." : "Convert"}
               </Button>
             </div>
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Trip Budget ({fromCurrency})</label>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Trip Budget ({fromCurrency})
+                </label>
                 <Input
                   type="number"
                   value={budget}
@@ -221,8 +263,9 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
               {conversion && budget && (
                 <div className="p-3 bg-muted rounded-lg border">
                   <div className="text-sm text-muted-foreground">Equivalent in {toCurrency}</div>
-                  <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                    {Math.round(parseFloat(budget) * conversion.rate).toLocaleString()} {CURRENCIES.find(c => c.code === toCurrency)?.symbol}
+                  <div className="text-xl font-bold text-[var(--emerald-horizon)] font-mono-data">
+                    {Math.round(parseFloat(budget) * conversion.rate).toLocaleString()}{" "}
+                    {CURRENCIES.find((c) => c.code === toCurrency)?.symbol}
                   </div>
                 </div>
               )}
@@ -238,18 +281,21 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
           </div>
         )}
 
-        {conversion && activeTab === 'convert' && (
+        {conversion && activeTab === "convert" && (
           <div className="space-y-4">
             <div className="bg-muted rounded-xl p-4" data-testid="conversion-result">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl font-bold text-[#1D4E89] dark:text-blue-400">
-                  {(conversion.convertedAmount ?? 0).toLocaleString()} {CURRENCIES.find(c => c.code === toCurrency)?.symbol}
+                <span className="text-2xl font-bold text-[var(--explorer-blue)] font-mono-data">
+                  {(conversion.convertedAmount ?? 0).toLocaleString()}{" "}
+                  {CURRENCIES.find((c) => c.code === toCurrency)?.symbol}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 1 {fromCurrency} = {conversion.rate} {toCurrency}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-1 opacity-70">{conversion.disclaimer}</p>
+              <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
+                {conversion.disclaimer}
+              </p>
             </div>
 
             {/* Historical Chart */}
@@ -259,19 +305,29 @@ export function CurrencyConverter({ className = '' }: { className?: string }) {
                 <AreaChart data={historicalData}>
                   <defs>
                     <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--explorer-blue)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--explorer-blue)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="date" hide />
-                  <YAxis hide domain={['auto', 'auto']} />
+                  <YAxis hide domain={["auto", "auto"]} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
-                    itemStyle={{ color: '#1D4E89' }}
-                    formatter={(value: number) => [value, 'Rate']}
-                    labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      borderColor: "hsl(var(--border))",
+                      color: "hsl(var(--foreground))",
+                    }}
+                    itemStyle={{ color: "var(--explorer-blue)" }}
+                    formatter={(value: number) => [value, "Rate"]}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                   />
-                  <Area type="monotone" dataKey="rate" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRate)" />
+                  <Area
+                    type="monotone"
+                    dataKey="rate"
+                    stroke="var(--explorer-blue)"
+                    fillOpacity={1}
+                    fill="url(#colorRate)"
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
