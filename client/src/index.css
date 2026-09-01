@@ -298,7 +298,7 @@
   .glow-amber {
     box-shadow:
       0 0 20px var(--amber-glow),
-      0 0 48px rgba(232, 144, 10, 0.08);
+      0 0 48px rgba(22, 63, 115, 0.08);
   }
   /* Card hover glow */
   .card-hover-glow {
@@ -308,7 +308,7 @@
   }
   .card-hover-glow:hover {
     box-shadow: var(--shadow-hover);
-    border-color: rgba(232, 144, 10, 0.25) !important;
+    border-color: var(--amber-hover-border) !important;
   }
   /* Amber left border active indicator */
   .nav-active-bar {

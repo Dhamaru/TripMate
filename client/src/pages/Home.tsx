@@ -93,14 +93,22 @@ export default function Home() {
           className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden cursor-pointer group card-hover-glow animate-fade-up animate-fade-up-delay-1"
           onClick={() => navigate(`/app/trips/${currentTrip.id}`)}
         >
-          <div className="relative h-52 w-full overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#0F2C52]">
-            {currentTrip.imageUrl && (
+          <div className="relative h-52 w-full overflow-hidden bg-[hsl(var(--muted))] perforated-edge">
+            {currentTrip.imageUrl ? (
               <OptimizedImage
                 src={currentTrip.imageUrl}
                 alt={currentTrip.destination}
                 className="w-full h-full group-hover:scale-[1.03] transition-transform duration-700"
-                fallback={<div className="w-full h-full" />}
+                fallback={
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Compass className="w-8 h-8 icon-tint-amber" />
+                  </div>
+                }
               />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Compass className="w-8 h-8 icon-tint-amber" />
+              </div>
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
             <div className="absolute top-4 right-4">
@@ -230,7 +238,7 @@ export default function Home() {
                     <span className="text-[11px] text-[hsl(var(--muted-foreground))] w-5 text-right font-display italic flex-shrink-0">
                       {String(idx + 1).padStart(2, "0")}
                     </span>
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--amber)] to-[#0F2C52] flex-shrink-0">
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-[hsl(var(--muted))] flex-shrink-0">
                       {t.imageUrl ? (
                         <OptimizedImage
                           src={t.imageUrl}
@@ -238,7 +246,7 @@ export default function Home() {
                           className="w-full h-full"
                           fallback={
                             <div className="w-full h-full flex items-center justify-center">
-                              <Compass className="w-4 h-4 text-white" />
+                              <Compass className="w-4 h-4 icon-tint-amber" />
                             </div>
                           }
                         />

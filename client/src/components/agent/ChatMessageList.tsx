@@ -88,7 +88,7 @@ export function ChatMessageList() {
                 </div>
               )}
               {msg.pendingConfirmation && (
-                <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <div className="mt-3 p-3 rounded-xl bg-[var(--explorer-blue)]/10 border border-[var(--explorer-blue)]/30">
                   <p className="text-xs font-medium text-foreground mb-2">
                     {msg.pendingConfirmation.summary}
                   </p>

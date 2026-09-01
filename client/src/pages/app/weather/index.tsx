@@ -293,13 +293,13 @@ export default function WeatherPage() {
               }
             }}
             placeholder="Search location (e.g., Goa, Tokyo)"
-            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#163F73]/30"
+            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
             data-testid="input-weather-location"
           />
           <Button
             type="button"
             onClick={() => handleSearch()}
-            className="bg-[#163F73] hover:bg-[#0F2C52] text-white"
+            className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
             data-testid="button-weather-search"
             disabled={loading}
           >

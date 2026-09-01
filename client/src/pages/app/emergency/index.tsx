@@ -158,12 +158,12 @@ export default function EmergencyPage() {
               if (e.key === "Enter") handleSearch();
             }}
             placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
-            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[#163F73]/30"
+            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
             data-testid="input-emergency-location"
           />
           <Button
             onClick={() => handleSearch()}
-            className="bg-[#163F73] hover:bg-[#0F2C52] text-white"
+            className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
             data-testid="button-emergency-search"
             disabled={loading}
           >
@@ -183,10 +183,10 @@ export default function EmergencyPage() {
             title="Use my location"
             disabled={loading}
           >
-            <i className="fas fa-location-arrow text-[#163F73]" />
+            <i className="fas fa-location-arrow text-[var(--amber)]" />
           </Button>
         </div>
-        {message && <p className="text-red-500 mt-2 text-sm">{message}</p>}
+        {message && <p className="text-destructive mt-2 text-sm">{message}</p>}
         <div className="text-sm text-muted-foreground mt-2">
           {loading
             ? "Searching…"
