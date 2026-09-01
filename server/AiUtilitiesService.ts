@@ -1475,6 +1475,20 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           (finalPlan.notes || "") +
           " | Cognitive Validator applied: Multi-Agent architecture active.";
 
+        // Reject (and never cache) a plan with any empty day — Zod's shape
+        // check on zTripPlan allows `activities: []`, so a bad LLM response
+        // or a grounding step that stripped everything could otherwise get
+        // cached under this destination/days/style/etc key and be served,
+        // silently empty, to every user with the same parameters until the
+        // TTL expires (live-confirmed in production: a 7-day Tokyo request
+        // returned "0 Activities" for all 7 days from a stale cache hit).
+        const hasEmptyDay =
+          !finalPlan.itinerary?.length ||
+          finalPlan.itinerary.some((day: any) => !day.activities?.length);
+        if (hasEmptyDay) {
+          throw new Error("Generated plan has one or more days with zero activities");
+        }
+
         return this.setCached(key, finalPlan);
       } catch (genError: any) {
         console.error(

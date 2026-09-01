@@ -79,6 +79,15 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   // An overlay on top of the map rather than a flow sibling, so toggling it
   // never changes the map container's own size (no need to invalidateSize).
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  // The map initializes at a world view (zoom 2) while waiting on
+  // geolocation to resolve (or its fallback to fire) — at that zoom level
+  // OSM tiles are mostly featureless landmass fill, and the dark-mode
+  // invert() filter turns that into what a real-user QA pass correctly
+  // flagged as "unreadable black continents". It was never a permanent
+  // state (geolocation resolves or times out within ~5s either way), but
+  // showing it at all reads as broken. Cover it with a normal loading
+  // state until the map actually has something worth looking at.
+  const [mapReady, setMapReady] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
   const { theme } = useTheme();
@@ -427,6 +436,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         (pos) => {
           // Auto-locate: Just center the map, don't add a marker until requested
           map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+          setMapReady(true);
         },
         (err) => {
           console.error("Auto-locate failed, falling back to downloaded regions", err);
@@ -435,6 +445,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           if (downloadedRegion) {
             map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
           }
+          setMapReady(true);
         },
         { enableHighAccuracy: true, timeout: 5000 },
       );
@@ -444,6 +455,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       if (downloadedRegion) {
         map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
       }
+      setMapReady(true);
     }
 
     refreshPinMarkers();
@@ -962,6 +974,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       <div className="relative flex-1 min-h-0" data-testid="offline-map-display">
         <div className="relative isolate w-full h-full overflow-hidden group">
           <div ref={mapContainerRef} className="w-full h-full bg-muted" style={{ zIndex: 0 }} />
+
+          {!mapReady && (
+            <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center gap-2 bg-[hsl(var(--background))]">
+              <div className="w-6 h-6 border-2 border-[var(--amber)] border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">Locating you…</p>
+            </div>
+          )}
 
           {/* Navigation Overlay Controls */}
           {activeTab === "navigation" && (
