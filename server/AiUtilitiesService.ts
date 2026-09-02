@@ -683,7 +683,15 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         source?: "openweather" | "ai" | "fallback-route" | "fallback";
       } = { current, forecast, recommendations, source: "ai" };
       return this.setCached(key, result);
-    } catch {
+    } catch (primaryErr) {
+      // Was silent here — every fallback layer failing (as observed live:
+      // OWM/AI *and* this Open-Meteo/Nominatim path both dead for a
+      // mainstream city) was undiagnosable without instrumenting a debugger,
+      // because nothing logged which layer actually broke.
+      console.warn(
+        `[Weather] Primary (OWM/AI) path failed for "${c}", trying Open-Meteo fallback:`,
+        primaryErr instanceof Error ? primaryErr.message : primaryErr,
+      );
       // Try Open-Meteo (free, no API key) via Nominatim geocoding
       try {
         let lat: string, lon: string;
@@ -693,9 +701,14 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         } else {
           const geoRes = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(c)}&limit=1`,
-            { headers: { "User-Agent": "TripMate/2.0.0" } },
+            // Nominatim's usage policy requires a User-Agent that actually
+            // identifies the application (a bare product string doesn't
+            // qualify) — this diverged from the working /geocode route's
+            // header, which spells out contact info and doesn't hit this
+            // problem.
+            { headers: { "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)" } },
           );
-          if (!geoRes.ok) throw new Error("geo_fail");
+          if (!geoRes.ok) throw new Error(`geo_fail: nominatim ${geoRes.status}`);
           const geoJson = await geoRes.json();
           if (!Array.isArray(geoJson) || geoJson.length === 0) throw new Error("geo_no_results");
           lat = geoJson[0].lat;
@@ -772,8 +785,11 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
             return this.setCached(key, result);
           }
         }
-      } catch {
-        /* fall through to generic */
+      } catch (fallbackErr) {
+        console.warn(
+          `[Weather] Open-Meteo/Nominatim fallback also failed for "${c}", using generic estimate:`,
+          fallbackErr instanceof Error ? fallbackErr.message : fallbackErr,
+        );
       }
 
       // Last resort: generic month-based estimate (clearly labelled)

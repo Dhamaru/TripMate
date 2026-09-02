@@ -77,6 +77,7 @@ export default function TripDetail() {
     setCurrentTrip,
     isLoading: tripLoading,
     error,
+    errorStatus,
   } = useTripStore();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { toast, dismiss } = useToast();
@@ -325,11 +326,33 @@ export default function TripDetail() {
     } catch {}
   }, [id, isAuthenticated]);
 
+  // Was firing unconditionally on mount — on a hard reload, checkSession()
+  // and this fetch raced, so a transient blip (auth not confirmed yet, a
+  // slow cold-start response, a dropped connection) permanently landed the
+  // page on "Trip Not Found" with no way to recover short of a second
+  // manual reload. Now waits for auth to resolve (matching the
+  // hotel/restaurant queries elsewhere in this file, which already gate on
+  // isAuthenticated) and auto-retries once on failure before giving up.
+  const retryCountRef = useRef(0);
   useEffect(() => {
-    if (id) {
+    if (id && !authLoading && isAuthenticated) {
+      retryCountRef.current = 0;
       fetchTrip(id);
     }
-  }, [id, fetchTrip]);
+  }, [id, authLoading, isAuthenticated, fetchTrip]);
+
+  useEffect(() => {
+    if (error && !tripLoading && !trip && id && retryCountRef.current < 1) {
+      retryCountRef.current += 1;
+      const t = setTimeout(() => fetchTrip(id), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [error, tripLoading, trip, id, fetchTrip]);
+
+  const retryTripFetch = () => {
+    retryCountRef.current = 0;
+    if (id) fetchTrip(id);
+  };
 
   useEffect(() => {
     if (error && isUnauthorizedError(error)) {
@@ -699,8 +722,13 @@ export default function TripDetail() {
     },
   });
 
-  const hasTripError = !!error && !tripLoading && !trip;
+  // Only shown once the auto-retry above has already fired (retryCountRef
+  // reaches 1) — a fresh failure gets one silent retry first, so this only
+  // renders for something that's actually still broken a second later.
+  const hasTripError = !!error && !tripLoading && !trip && retryCountRef.current >= 1;
   if (hasTripError) {
+    const isAuthIssue = errorStatus === 401 || errorStatus === 403;
+    const isNotFound = errorStatus === 404;
     return (
       <div className=" flex items-center justify-center">
         <Card className="bg-card border-border max-w-md">
@@ -708,13 +736,30 @@ export default function TripDetail() {
             <div className="text-red-500 mb-4">
               <i className="fas fa-exclamation-triangle text-5xl"></i>
             </div>
-            <h2 className="text-xl font-bold text-foreground mb-2">Trip Not Found</h2>
+            <h2 className="text-xl font-bold text-foreground mb-2">
+              {isAuthIssue ? "Sign In Required" : "Trip Not Found"}
+            </h2>
             <p className="text-muted-foreground mb-4">
-              The trip you're looking for doesn't exist or you don't have access to it.
+              {isAuthIssue
+                ? "Your session needs to be confirmed before this trip can load."
+                : isNotFound
+                  ? "The trip you're looking for doesn't exist or you don't have access to it."
+                  : "Something went wrong loading this trip. Your connection may be slow or unstable."}
             </p>
-            <Link href="/">
-              <Button className="bg-[#1D4E89] hover:bg-[#163F73]">Go Back Home</Button>
-            </Link>
+            <div className="flex gap-2 justify-center">
+              {!isNotFound && (
+                <Button
+                  variant="outline"
+                  onClick={retryTripFetch}
+                  className="border-border text-foreground"
+                >
+                  Try Again
+                </Button>
+              )}
+              <Link href="/">
+                <Button className="bg-[#1D4E89] hover:bg-[#163F73]">Go Back Home</Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -727,7 +772,12 @@ export default function TripDetail() {
   // if we unmount the whole page on every one of those, the Tabs component
   // below remounts and resets to its defaultValue, silently kicking the user
   // back to the Overview tab after every save.
-  if (tripLoading && !trip) {
+  // Also covers the brief window between a first failed fetch and the
+  // scheduled auto-retry above — without this, that gap rendered nothing
+  // (a blank flash) for ~1.2s before either the retry's spinner or the
+  // error screen took over.
+  const awaitingRetry = !!error && !tripLoading && !trip && retryCountRef.current < 1;
+  if ((tripLoading || awaitingRetry) && !trip) {
     return (
       <div className="">
         <div className="flex items-center justify-center min-h-screen">
