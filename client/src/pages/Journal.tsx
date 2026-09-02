@@ -510,7 +510,7 @@ export default function Journal() {
                           onClick={() =>
                             setKeptPhotos((prev) => prev.filter((_, idx) => idx !== i))
                           }
-                          className="absolute top-0 right-0 p-1 bg-[var(--ios-red)]/80 text-white rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-0 right-0 p-1 bg-[rgb(var(--ios-red-rgb)/80%)] text-white rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           ×
                         </button>
@@ -610,7 +610,7 @@ export default function Journal() {
                                   }}
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 bg-[var(--ios-red)]/50 text-white hover:bg-[var(--ios-red)]/70 rounded-full p-0 text-xs"
+                                  className="h-6 w-6 bg-[rgb(var(--ios-red-rgb)/50%)] text-white hover:bg-[rgb(var(--ios-red-rgb)/70%)] rounded-full p-0 text-xs"
                                 >
                                   ✕
                                 </Button>
@@ -638,7 +638,7 @@ export default function Journal() {
                                   }}
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0 text-[var(--ios-red)] hover:bg-[var(--ios-red)]/10 text-xs"
+                                  className="h-6 w-6 p-0 text-[var(--ios-red)] hover:bg-[rgb(var(--ios-red-rgb)/10%)] text-xs"
                                 >
                                   ✕
                                 </Button>

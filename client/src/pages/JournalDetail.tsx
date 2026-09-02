@@ -343,7 +343,7 @@ export default function JournalDetail() {
                             onClick={() =>
                               setKeptPhotos((prev) => prev.filter((_, idx) => idx !== i))
                             }
-                            className="absolute top-1 right-1 bg-[var(--ios-red)]/80 p-1 rounded-full text-white"
+                            className="absolute top-1 right-1 bg-[rgb(var(--ios-red-rgb)/80%)] p-1 rounded-full text-white"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>

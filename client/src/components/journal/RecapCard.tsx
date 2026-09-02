@@ -41,13 +41,17 @@ export function RecapCard({ recap, destination }: Props) {
   const getVibeGradient = (vibe?: string) => {
     const v = vibe?.toLowerCase() || "";
     if (v.includes("neon") || v.includes("city"))
-      return "from-[var(--amber-dim)] via-[var(--amber-dim)]/50 to-transparent";
+      // via-[var(--amber-dim)]/50 previously here: Tailwind's opacity
+      // modifier silently drops the whole rule on a var() that isn't a
+      // channel list (see --amber-rgb comment in index.css) — rgb(var())
+      // is the form that actually compiles.
+      return "from-[var(--amber-dim)] via-[rgb(var(--amber-rgb)/6%)] to-transparent";
     if (v.includes("mountain") || v.includes("mist"))
       return "from-[hsl(var(--muted))]/40 via-[hsl(var(--muted))]/20 to-transparent";
     if (v.includes("sunny") || v.includes("beach") || v.includes("tropical"))
-      return "from-[rgba(22,63,115,0.15)] via-[rgba(22,63,115,0.08)] to-transparent";
+      return "from-[rgb(var(--amber-rgb)/15%)] via-[rgb(var(--amber-rgb)/8%)] to-transparent";
     if (v.includes("green") || v.includes("jungle") || v.includes("forest"))
-      return "from-[rgba(61,148,103,0.15)] via-[rgba(61,148,103,0.08)] to-transparent";
+      return "from-[rgb(var(--emerald-horizon-rgb)/15%)] via-[rgb(var(--emerald-horizon-rgb)/8%)] to-transparent";
     return "from-primary/20 via-primary/5 to-transparent";
   };
 

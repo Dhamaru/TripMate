@@ -123,7 +123,7 @@ function DestinationCard({
       // straight into the signup destination field, same as typing it
       // into the hero search.
       onClick={() => navigate(`/signup?destination=${encodeURIComponent(d.destination.trim())}`)}
-      className="stamp-press relative flex-shrink-0 w-64 h-40 rounded-2xl overflow-hidden group border border-[hsl(var(--border))] text-left hover:-translate-y-1 hover:border-[var(--amber)]/50 transition-[transform,border-color] duration-300"
+      className="stamp-press relative flex-shrink-0 w-64 h-40 rounded-2xl overflow-hidden group border border-[hsl(var(--border))] text-left hover:-translate-y-1 hover:border-[rgb(var(--amber-rgb)/50%)] transition-[transform,border-color] duration-300"
     >
       <img
         src={d.imageUrl}
@@ -926,7 +926,7 @@ export default function Landing() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-40px" }}
                   transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: i * 0.1 }}
-                  className="flex items-start gap-4 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl p-5 hover:border-[var(--amber)]/40 hover:-translate-y-0.5 transition-[transform,border-color] duration-300"
+                  className="flex items-start gap-4 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl p-5 hover:border-[rgb(var(--amber-rgb)/40%)] hover:-translate-y-0.5 transition-[transform,border-color] duration-300"
                 >
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${member.tint}`}

@@ -26,7 +26,8 @@ export function PlaceSearchDropdown({
 
   return (
     <div
-      className={`absolute z-50 left-0 right-0 mt-1 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg shadow-2xl overflow-hidden backdrop-blur-xl ${className ?? ""}`}
+      className={`absolute z-50 left-0 right-0 mt-1 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg overflow-hidden backdrop-blur-xl ${className ?? ""}`}
+      style={{ boxShadow: "var(--shadow-card)" }}
     >
       {isLoading && suggestions.length === 0 ? (
         <div className="flex items-center gap-2 px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">

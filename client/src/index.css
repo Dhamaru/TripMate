@@ -17,10 +17,16 @@
   /* ── Brand constants (var names kept stable; values remapped to the
      ink-stamp palette so every existing consumer inherits the new world) ── */
   --amber: #163f73; /* deep ink-blue — primary action ink */
+  --amber-rgb: 22 63 115; /* space-separated channel form — Tailwind's
+    `var(--x)]/N` opacity modifier can't parse a hex custom property
+    (silently emits no rule at all, not even a broken one); use
+    `rgb(var(--amber-rgb)/N%)` wherever opacity is needed. Space-separated,
+    not comma-separated — CSS's `r g b / a` slash-alpha syntax requires it. */
   --amber-dim: rgba(22, 63, 115, 0.12);
   --amber-glow: rgba(22, 63, 115, 0.22);
   --amber-hover-border: rgba(22, 63, 115, 0.5);
   --forest: #2f6f4e; /* transit-green */
+  --forest-rgb: 47 111 78;
   --cream: #ede3cc; /* kraft/parchment paper */
   --ink: #0d1b2e; /* ink-navy dark ground */
 
@@ -90,12 +96,15 @@
   --airbnb-teal: var(--forest);
   --solar-amber: var(--amber);
   --explorer-blue: #1d4e89; /* customs-blue — planning status ink */
+  --explorer-blue-rgb: 29 78 137;
   --explorer-blue-deep: #122a47;
   --emerald-horizon: #3d9467; /* transit-green — active status ink */
+  --emerald-horizon-rgb: 61 148 103;
   --ios-blue: #1d4e89;
   --ios-orange: var(--amber);
   --ios-green: #3d9467;
   --ios-red: #b3261e;
+  --ios-red-rgb: 179 38 30;
   --ios-gray: #94a3b8;
   --ios-dark: #16283f;
   --ios-darker: #0d1b2e;

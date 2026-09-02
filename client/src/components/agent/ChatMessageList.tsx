@@ -35,7 +35,7 @@ export function ChatMessageList() {
       {messages.length === 0 && (
         <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-6">
           <span
-            className="w-12 h-12 rounded-full bg-[var(--explorer-blue)]/10 flex items-center justify-center text-2xl mb-1"
+            className="w-12 h-12 rounded-full bg-[rgb(var(--explorer-blue-rgb)/10%)] flex items-center justify-center text-2xl mb-1"
             aria-hidden="true"
           >
             🌍
@@ -88,7 +88,7 @@ export function ChatMessageList() {
                 </div>
               )}
               {msg.pendingConfirmation && (
-                <div className="mt-3 p-3 rounded-xl bg-[var(--explorer-blue)]/10 border border-[var(--explorer-blue)]/30">
+                <div className="mt-3 p-3 rounded-xl bg-[rgb(var(--explorer-blue-rgb)/10%)] border border-[rgb(var(--explorer-blue-rgb)/30%)]">
                   <p className="text-xs font-medium text-foreground mb-2">
                     {msg.pendingConfirmation.summary}
                   </p>

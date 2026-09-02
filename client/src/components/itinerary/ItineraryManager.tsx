@@ -82,9 +82,9 @@ function SortableActivity({
   const isTravelLeg = activity.type === "travel";
 
   const typeColors: Record<string, string> = {
-    travel: "border-[var(--amber)]/50 text-[var(--amber)]",
-    food: "border-[var(--forest)]/50 text-[var(--forest)]",
-    sightseeing: "border-[var(--explorer-blue)]/50 text-[var(--explorer-blue)]",
+    travel: "border-[rgb(var(--amber-rgb)/50%)] text-[var(--amber)]",
+    food: "border-[rgb(var(--forest-rgb)/50%)] text-[var(--forest)]",
+    sightseeing: "border-[rgb(var(--explorer-blue-rgb)/50%)] text-[var(--explorer-blue)]",
     accommodation: "border-purple-500/50 text-purple-400",
     activity: "border-[hsl(var(--muted-foreground))]/50 text-[hsl(var(--muted-foreground))]",
   };
@@ -101,7 +101,7 @@ function SortableActivity({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isTravelLeg ? "bg-[var(--amber)]/5" : "hover:bg-[hsl(var(--muted))]/50"}`}
+      className={`flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isTravelLeg ? "bg-[rgb(var(--amber-rgb)/5%)]" : "hover:bg-[hsl(var(--muted))]/50"}`}
     >
       {/* Drag handle — viewers can't reorder either */}
       {canEdit && (

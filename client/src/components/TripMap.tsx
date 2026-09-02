@@ -461,7 +461,7 @@ export function TripMap({
               <div className="relative w-44 md:w-56">
                 <Input
                   placeholder="Search to pin..."
-                  className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[var(--amber)]/50 focus-visible:border-[var(--amber)]/50 rounded-lg"
+                  className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[rgb(var(--amber-rgb)/50%)] focus-visible:border-[rgb(var(--amber-rgb)/50%)] rounded-lg"
                   onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                       const q = (e.currentTarget as HTMLInputElement).value;
@@ -552,7 +552,12 @@ export function TripMap({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowPaths(!showPaths)}
-                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? "bg-[var(--explorer-blue)]/15 text-[var(--explorer-blue)] hover:bg-[var(--explorer-blue)]/25" : "text-muted-foreground hover:text-[var(--explorer-blue)] hover:bg-[var(--explorer-blue)]/10"}`}
+                // Active state uses a solid fill + white text rather than
+                // ink-blue-on-tint (matches the submit-button convention
+                // elsewhere in this file) — ink-blue text at low opacity on
+                // the dark card ground measures ~1.8:1 contrast, well under
+                // WCAG AA's 4.5:1 floor for normal text.
+                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? "bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)]" : "text-muted-foreground hover:text-[var(--explorer-blue)] hover:bg-[rgb(var(--explorer-blue-rgb)/10%)]"}`}
               >
                 <i className="fas fa-route text-[11px]"></i>
                 {showPaths ? "Hide Route" : "Show Route"}
@@ -636,7 +641,11 @@ export function TripMap({
           // the exact same time and got flagged as a chronology overlap
           // (the itinerary already validates for this; the bug was on the
           // create side, not the validator). Stack new pins after
-          // whatever's already scheduled that day instead.
+          // whatever's already scheduled that day instead. This flow has no
+          // day picker — every map-added pin always targets day 1, so
+          // itinerary[0] (the read) and the hardcoded `1` below (the write)
+          // must stay in lockstep. If a day picker is ever added here, both
+          // need to move together.
           const dayActivities = itinerary?.[0]?.activities ?? [];
           await onAddActivity(
             {

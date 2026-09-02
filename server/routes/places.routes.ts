@@ -79,7 +79,11 @@ router.get("/search", async (req, res) => {
     }
 
     // Transform for frontend consumption if needed
-    const results = (data.results || []).slice(0, Number(pageSize)).map((p: any) => ({
+    // Google Text Search caps at 20/page anyway, but clamp explicitly
+    // rather than trust the caller's raw pageSize (NaN-safe: falls back to
+    // the default when the query value doesn't parse).
+    const clampedPageSize = Math.min(Math.max(Number(pageSize) || 10, 1), 20);
+    const results = (data.results || []).slice(0, clampedPageSize).map((p: any) => ({
       id: p.place_id,
       name: p.name,
       address: p.formatted_address,
@@ -163,7 +167,8 @@ router.get("/tourist-attractions", async (req, res) => {
       );
     }
 
-    const results = (data.results || []).slice(0, Number(pageSize));
+    const clampedPageSize = Math.min(Math.max(Number(pageSize) || 20, 1), 20);
+    const results = (data.results || []).slice(0, clampedPageSize);
 
     res.json({ items: results });
   } catch (err) {

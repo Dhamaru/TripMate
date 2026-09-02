@@ -42,13 +42,18 @@ export function usePlaceSuggestions(query: string, biasCoords: Coords | null | u
           params.set("lon", String(biasCoords.lon));
         }
         const res = await fetch(`/api/v1/places/search?${params.toString()}`);
+        // A rate-limited/failed response otherwise fell through to the
+        // `.catch` fallback below and degraded silently to "no suggestions"
+        // with nothing observable in client logs.
+        if (!res.ok) throw new Error(`places/search ${res.status}`);
         const data = await res.json().catch(() => ({ items: [] }));
         // A slower earlier request resolving after a newer one would
         // otherwise flash stale suggestions over fresh ones.
         if (requestId === requestIdRef.current) {
           setSuggestions(Array.isArray(data.items) ? data.items : []);
         }
-      } catch {
+      } catch (err) {
+        console.warn("[usePlaceSuggestions] search failed:", err);
         if (requestId === requestIdRef.current) setSuggestions([]);
       } finally {
         if (requestId === requestIdRef.current) setIsLoading(false);
