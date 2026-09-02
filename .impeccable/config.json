@@ -75,6 +75,11 @@
         "files": ["client/src/components/TripMap.tsx"],
         "createdAt": "2026-09-02T10:08:00.625Z",
         "reason": "L607 is a rounded-full spin loading indicator (border-b-2 on rounded-full is the standard CSS spinner technique), not a card with a clashing accent border"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "client/src/pages/tripplanner.tsx",
+        "createdAt": "2026-09-02T21:18:16.543Z"
       }
     ]
   }
