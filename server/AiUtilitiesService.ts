@@ -657,7 +657,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         } = { current, forecast, recommendations, source: "openweather" };
         return this.setCached(key, result);
       }
-      const prompt = `Provide the current weather and 7-day forecast for ${c}. If exact realtime data is unavailable, provide best predictive estimation based on known climate patterns, season, geography, altitude, and historical averages. Always return JSON with: { current: {}, forecast: [7 items], recommendations: [] }.`;
+      const prompt = `Provide the current weather and 7-day forecast for ${c}. If exact realtime data is unavailable, provide best predictive estimation based on known climate patterns, season, geography, altitude, and historical averages. Return JSON EXACTLY matching this shape and these field names (temperatures in Celsius, plain numbers, no units in the value): { "current": { "temperature": number, "condition": string, "humidity": number, "windSpeed": number }, "forecast": [ { "day": string, "high": number, "low": number, "condition": string } ] (7 items), "recommendations": string[] }.`;
       let content: string;
       // Was "if key configured, use OpenAI, else Gemini" — a *configured*
       // key whose account runs out of credits/quota at runtime (confirmed
@@ -688,8 +688,28 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         content = await this.generateWithGemini(c, prompt);
       }
       const json = this.parseJson(content);
-      const current = json.current || {};
-      const forecast = Array.isArray(json.forecast) ? json.forecast.slice(0, 7) : [];
+      // Live-caught: the model doesn't reliably use the field names every
+      // other branch of this method produces (temperature/humidity/
+      // windSpeed/condition) — a real response came back as
+      // temperature_c/humidity_percent/wind_kph instead, which the
+      // frontend's WeatherWidget doesn't read, rendering as "NaN°" and
+      // blank stats. Accept either naming rather than trust the prompt
+      // alone to hold across every model call.
+      const rawCurrent = json.current || {};
+      const current = {
+        ...rawCurrent,
+        temperature: rawCurrent.temperature ?? rawCurrent.temperature_c ?? rawCurrent.temp,
+        humidity: rawCurrent.humidity ?? rawCurrent.humidity_percent,
+        windSpeed: rawCurrent.windSpeed ?? rawCurrent.wind_kph ?? rawCurrent.wind_kmh,
+        condition: rawCurrent.condition,
+      };
+      const forecast = (Array.isArray(json.forecast) ? json.forecast.slice(0, 7) : []).map(
+        (day: any) => ({
+          ...day,
+          high: day.high ?? day.high_c ?? day.temp_high_c,
+          low: day.low ?? day.low_c ?? day.temp_low_c,
+        }),
+      );
       const recommendations = Array.isArray(json.recommendations) ? json.recommendations : [];
       const result: {
         current: any;
@@ -837,15 +857,16 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         condition:
           i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",
       }));
+      // Root cause confirmed live and fixed (see the OpenAI->Gemini
+      // fallback above and the Open-Meteo non-ok throw) — the primaryErrMsg/
+      // fallbackErrMsg captured above stay in the console.warn calls for
+      // future diagnosis; no longer echoed into the API response now that
+      // this isn't an active unknown.
       const result = {
         current,
         forecast,
         recommendations: ["Weather data unavailable — shown estimate only"],
         source: "fallback" as const,
-        // TEMPORARY diagnostic — remove once the root cause of the
-        // fallback chain is confirmed live. No secrets in these messages,
-        // just fetch/parse failure text.
-        _debug: { primaryErrMsg, fallbackErrMsg },
       };
       return this.setCached(key, result);
     }
