@@ -50,6 +50,9 @@ export const createTrip = async (req: Request, res: Response, next: NextFunction
 
     // Background Image Fetch
     setImmediate(() => fetchImageForTrip(savedTrip.id, savedTrip.destination));
+    // Background coordinate backfill for AI-generated/imported activities
+    // that never got geocoded — see backfillActivityCoords for why.
+    setImmediate(() => backfillActivityCoords(savedTrip.id, savedTrip.destination));
 
     res.status(201).json(savedTrip);
   } catch (error) {
@@ -91,6 +94,29 @@ export const getTrip = async (req: Request, res: Response, next: NextFunction) =
     if (missingIds) {
       trip.markModified("itinerary");
       await trip.save();
+    }
+
+    // Backfill coordinates for trips created before backfillActivityCoords
+    // existed (or whose itinerary was generated before this activity had
+    // any coords to begin with) — same self-heal-on-read pattern as the
+    // missing-id fix above. Atomic claim on the flag so concurrent views
+    // of the same trip (multiple tabs, a fast refresh) can't both kick off
+    // a duplicate background job.
+    if (!trip.coordsBackfillAttempted) {
+      const hasMissingCoords = (trip.itinerary || []).some((day: any) =>
+        (day.activities || []).some(
+          (act: any) => act && (act.lat == null || act.lon == null) && (act.location || act.title),
+        ),
+      );
+      if (hasMissingCoords) {
+        const claimed = await TripModel.updateOne(
+          { _id: trip.id, coordsBackfillAttempted: { $ne: true } },
+          { $set: { coordsBackfillAttempted: true } },
+        );
+        if (claimed.modifiedCount > 0) {
+          setImmediate(() => backfillActivityCoords(String(trip.id), trip.destination));
+        }
+      }
     }
 
     res.json(trip);
@@ -464,6 +490,72 @@ async function fetchImageForTrip(
     }
   } catch (err) {
     console.error(`[fetchImageForTrip] Failed for trip ${tripId}:`, err);
+  }
+}
+
+// AI-generated itineraries (planTrip pipeline / multi-agent orchestrator)
+// never geocode individual activities — only a place's name/address text
+// comes back, no lat/lon. "View on Map" (and the marker on the Map tab)
+// has nothing to show for those, only for activities added through a place
+// picker (map search, ActivityFormDialog) that already carries coordinates.
+// Backfills the rest the same way fetchImageForTrip enriches the trip after
+// creation: fire-and-forget in the background (a full itinerary can have
+// 20-30+ activities, and Nominatim's usage policy caps the free public
+// instance at ~1 req/sec — geocoding inline would make trip creation take
+// tens of seconds), one broadcastMutation once done so an already-open trip
+// page picks it up live instead of needing a manual refresh.
+async function backfillActivityCoords(tripId: string, destination: string) {
+  try {
+    if (!tripId) return;
+    const trip = await TripModel.findById(tripId);
+    if (!trip || !Array.isArray(trip.itinerary)) return;
+
+    const missing: any[] = [];
+    for (const day of trip.itinerary as any[]) {
+      if (!Array.isArray(day?.activities)) continue;
+      for (const act of day.activities) {
+        if (act && (act.lat == null || act.lon == null) && (act.location || act.title)) {
+          missing.push(act);
+        }
+      }
+    }
+    if (missing.length === 0) {
+      await TripModel.updateOne({ _id: tripId }, { $set: { coordsBackfillAttempted: true } });
+      return;
+    }
+
+    for (const act of missing) {
+      try {
+        const query = `${act.location || act.title}, ${destination}`;
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
+          { headers: { "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)" } },
+        );
+        if (res.ok) {
+          const results = await res.json();
+          if (Array.isArray(results) && results.length > 0) {
+            const lat = Number(results[0].lat);
+            const lon = Number(results[0].lon);
+            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+              act.lat = lat;
+              act.lon = lon;
+            }
+          }
+        }
+      } catch {
+        // Leave this one activity without coordinates — View on Map simply
+        // won't render for it, same graceful degradation as any activity
+        // that never had a resolvable location. Not fatal to the batch.
+      }
+      await new Promise((r) => setTimeout(r, 1100));
+    }
+
+    trip.markModified("itinerary");
+    trip.coordsBackfillAttempted = true;
+    const updated = await trip.save();
+    socketService.broadcastMutation(tripId, { type: "trip-updated", data: updated });
+  } catch (err) {
+    console.error(`[backfillActivityCoords] Failed for trip ${tripId}:`, err);
   }
 }
 

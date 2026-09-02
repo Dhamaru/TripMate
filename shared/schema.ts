@@ -210,6 +210,12 @@ export interface ITrip extends Document {
   startDate?: Date;
   endDate?: Date;
   itinerary?: IItineraryDay[];
+  // One-shot guard so the background coordinate-backfill (AI-generated
+  // activities have no lat/lon until geocoded — see
+  // backfillActivityCoords in trips.controller.ts) runs at most once per
+  // trip instead of re-attempting on every view for activities whose
+  // location text just doesn't geocode.
+  coordsBackfillAttempted?: boolean;
   expenses?: IExpense[];
   collaborators?: ICollaborator[];
   notes?: string;
@@ -261,6 +267,7 @@ const tripSchema = new Schema<ITrip>(
     startDate: { type: Date },
     endDate: { type: Date },
     itinerary: { type: Schema.Types.Mixed },
+    coordsBackfillAttempted: { type: Boolean, default: false },
     expenses: [
       {
         id: { type: String, required: true },
