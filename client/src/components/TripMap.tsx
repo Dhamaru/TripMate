@@ -390,6 +390,16 @@ export function TripMap({
   // marker. Keyed by the same rounded lat/lon the marker-building effect
   // above uses, so this always finds a marker that was actually placed
   // (an activity that failed to geocode has no marker to focus).
+  //
+  // Live-caught bug: on the very first switch to the Map tab, this effect
+  // fires on mount with focusTarget already set — but the Leaflet map
+  // itself doesn't exist yet (it's created above, gated on `coords`
+  // resolving from an async geocode fetch). mapInstanceRef.current was
+  // still null, so this bailed out silently and never got a second chance
+  // to run since focusTarget's reference doesn't change again on its own.
+  // `coords` is real state, so including it here re-fires this effect once
+  // the map (and its markers, built in the same effect as coords) is
+  // actually ready.
   useEffect(() => {
     if (!focusTarget || !mapInstanceRef.current) return;
     const key = `${Number(focusTarget.lat).toFixed(4)},${Number(focusTarget.lon).toFixed(4)}`;
@@ -405,7 +415,7 @@ export function TripMap({
       const t = setTimeout(() => marker.openPopup(), 400);
       return () => clearTimeout(t);
     }
-  }, [focusTarget]);
+  }, [focusTarget, coords]);
 
   // Route paths — own effect so toggling doesn't re-render markers.
   // Draws real road-following routes via OSRM (same routing engine used on
