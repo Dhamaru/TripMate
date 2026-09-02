@@ -109,6 +109,12 @@ export default function TripDetail() {
         queryClient.invalidateQueries({ queryKey: ["/api/v1/journal"] });
       } else if (mutation.type === "collaborators-updated") {
         fetchTrip(id);
+        // CollaboratorManager keeps its own separate React Query cache
+        // (["trips", id, "collaborators"]) rather than reading trip.collaborators
+        // off this Zustand store — fetchTrip alone never touched it, so a
+        // collaborator added from another tab/device/session left an
+        // already-open "Manage Trip Team" dialog stuck showing stale data.
+        queryClient.invalidateQueries({ queryKey: ["trips", id, "collaborators"] });
       } else if (mutation.type === "trip-updated") {
         fetchTrip(id);
       }
