@@ -5,6 +5,15 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { WeatherWidget } from "@/components/WeatherWidget";
+import { useUserLocation } from "@/hooks/useUserLocation";
+
+// Flat-earth approximation, fine at suggestion-sorting distances (a few
+// hundred km at most) — matches the precision the geocode API itself gives.
+function roughDistance(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
+  const dLat = a.lat - b.lat;
+  const dLon = (a.lon - b.lon) * Math.cos((a.lat * Math.PI) / 180);
+  return dLat * dLat + dLon * dLon;
+}
 
 export default function WeatherPage() {
   const { user } = useAuth() as { user: any };
@@ -28,6 +37,10 @@ export default function WeatherPage() {
   // doesn't treat it as new typing and re-fetch + repopulate the dropdown
   // with the very result that was just selected.
   const skipNextSuggestFetchRef = useRef(false);
+  // Nearest-first ordering, same intent as the Places-search bias used
+  // elsewhere — this bar hits the geocode API instead (city-level lookup,
+  // no lat/lon bias param there), so sort client-side once results are back.
+  const userLocation = useUserLocation();
 
   useEffect(() => {
     // Auto-load user's location weather on mount
@@ -139,6 +152,9 @@ export default function WeatherPage() {
             lon: Number(it.lon ?? it.longitude ?? it.longitude ?? it.lon),
           }))
           .filter((s) => s.name && !Number.isNaN(s.lat) && !Number.isNaN(s.lon));
+        if (userLocation) {
+          mapped.sort((a, b) => roughDistance(a, userLocation) - roughDistance(b, userLocation));
+        }
         setSuggestions(mapped);
         setActiveIndex(-1);
       } catch (err: any) {
