@@ -38,6 +38,14 @@ Any time a deliverable is a report (security audit, QA sweep, production-readine
 
 Once a day, sweep all major pages/flows in the app for regressions or drift (not just the page currently being worked on). This is a lightweight pass — confirm each page still loads, renders correctly, and has no new console/network errors — not a full audit. Flag anything found; don't silently fix without surfacing it first unless it's trivially safe.
 
+## 5. Think like the user first, the developer second
+
+Before writing a fix, ask what a real traveler using this feature would actually want — not just what makes the code/prompt technically satisfy a rule. An instruction to "make X apply everywhere" or "add a rule so Y never happens" is not permission to apply it blindly wherever it technically fits — check whether the specific place you're about to apply it actually makes sense for the person on the other end.
+
+Concrete case that prompted this rule: fixing an AI itinerary repeating the same landmark under reworded titles, the fix told the model to "branch out to nearby villages/day-trip spots within ~30km" when a small destination runs out of real attractions. That's backwards — a traveler who planned a 3-day trip to one place did not ask to be redirected to an unrelated town 30km away just so the itinerary looks varied; that adds real driving time, cost, and logistics they never approved. The user-first fix is to spend more time at fewer genuine spots (different real activities/experiences in the same area) or explicitly leave the day lighter, not to invent scope-creeping detours to hit a quota.
+
+When a fix could go two ways — technically-correct-but-presumptuous, or genuinely-useful-to-the-person-using-it — take the second one, and say so.
+
 ---
 
 ## Existing standing rules (carried over from session memory, restated here for durability)
