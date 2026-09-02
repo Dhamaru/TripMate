@@ -144,7 +144,7 @@ export function ActivityFormDialog({
             {activity ? "Edit Activity" : "Add Activity"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 pt-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 pt-2">
           {/* Kept outside the scrollable body below (not just "space-y-4"
               inside it) so its suggestions dropdown is never clipped by
               overflow-y-auto — an absolutely-positioned descendant gets
@@ -184,7 +184,7 @@ export function ActivityFormDialog({
             />
           </div>
 
-          <div className="space-y-4 overflow-y-auto pt-2">
+          <div className="space-y-4 overflow-y-auto pt-2 min-h-0">
             <div className="pt-2 border-t border-border">
               <Label htmlFor="title" className="text-foreground font-medium mb-1.5 block">
                 Activity Title *
