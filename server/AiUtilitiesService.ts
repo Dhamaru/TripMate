@@ -659,16 +659,31 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       }
       const prompt = `Provide the current weather and 7-day forecast for ${c}. If exact realtime data is unavailable, provide best predictive estimation based on known climate patterns, season, geography, altitude, and historical averages. Always return JSON with: { current: {}, forecast: [7 items], recommendations: [] }.`;
       let content: string;
+      // Was "if key configured, use OpenAI, else Gemini" — a *configured*
+      // key whose account runs out of credits/quota at runtime (confirmed
+      // live: this is exactly what's happening right now) still throws
+      // straight past this and down to the generic estimate, even though
+      // Gemini is a perfectly working alternative already used everywhere
+      // else in this class. Falls over to Gemini on any OpenAI failure,
+      // not just a missing key.
       if (this.openai) {
-        const completion = await this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          temperature: 0,
-          messages: [
-            { role: "system", content: prompt },
-            { role: "user", content: c },
-          ],
-        });
-        content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+        try {
+          const completion = await this.openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            temperature: 0,
+            messages: [
+              { role: "system", content: prompt },
+              { role: "user", content: c },
+            ],
+          });
+          content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+        } catch (openaiErr) {
+          console.warn(
+            `[Weather] OpenAI call failed for "${c}", falling back to Gemini:`,
+            openaiErr instanceof Error ? openaiErr.message : openaiErr,
+          );
+          content = await this.generateWithGemini(c, prompt);
+        }
       } else {
         content = await this.generateWithGemini(c, prompt);
       }
@@ -720,7 +735,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           const meteoRes = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&forecast_days=7&timezone=auto`,
           );
-          if (meteoRes.ok) {
+          // Was previously "if (ok) {...}" with no else — a non-ok response
+          // fell out of this block, out of the try, straight to the generic
+          // estimate with nothing thrown and nothing logged. Silent, and
+          // indistinguishable from every other failure mode in this chain.
+          if (!meteoRes.ok) throw new Error(`open-meteo ${meteoRes.status}`);
+          {
             const meteo = await meteoRes.json();
             const wc = meteo.current_weather?.weathercode ?? 0;
             const condMap = (code: number) => {
