@@ -31,6 +31,13 @@ export default function Feedback() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
+  // The Description textarea dominates the form visually, so a real user
+  // naturally fills it in and hits Submit — the toast telling them Category
+  // and Subject are also required disappears after a few seconds with no
+  // lasting sign of which field to fix. Same fix already applied to
+  // TripPlanner's Group Size field: a persistent highlighted state instead
+  // of relying on the toast alone.
+  const [submitErrors, setSubmitErrors] = useState<Set<string>>(new Set());
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -69,12 +76,25 @@ export default function Feedback() {
     e.preventDefault();
 
     const missing: string[] = [];
-    if (!form.category) missing.push("Category");
-    if (!form.subject.trim()) missing.push("Subject");
-    if (!form.description.trim()) missing.push("Description");
+    const missingFields = new Set<string>();
+    if (!form.category) {
+      missing.push("Category");
+      missingFields.add("category");
+    }
+    if (!form.subject.trim()) {
+      missing.push("Subject");
+      missingFields.add("subject");
+    }
+    if (!form.description.trim()) {
+      missing.push("Description");
+      missingFields.add("description");
+    }
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
-    if (!form.email.trim()) missing.push("Email");
-    else if (!emailValid) {
+    if (!form.email.trim()) {
+      missing.push("Email");
+      missingFields.add("email");
+    } else if (!emailValid) {
+      setSubmitErrors(new Set(["email"]));
       toast({
         title: "Invalid email",
         description: "Please enter a valid email address.",
@@ -83,6 +103,7 @@ export default function Feedback() {
       return;
     }
     if (missing.length > 0) {
+      setSubmitErrors(missingFields);
       toast({
         title: "Missing required fields",
         description: `Please fill in: ${missing.join(", ")}.`,
@@ -90,6 +111,7 @@ export default function Feedback() {
       });
       return;
     }
+    setSubmitErrors(new Set());
 
     setLoading(true);
 
@@ -217,9 +239,19 @@ export default function Feedback() {
                 </label>
                 <Select
                   value={form.category}
-                  onValueChange={(value) => setForm({ ...form, category: value })}
+                  onValueChange={(value) => {
+                    setForm({ ...form, category: value });
+                    setSubmitErrors((prev) => {
+                      if (!prev.has("category")) return prev;
+                      const next = new Set(prev);
+                      next.delete("category");
+                      return next;
+                    });
+                  }}
                 >
-                  <SelectTrigger className="bg-muted/50 border text-foreground">
+                  <SelectTrigger
+                    className={`bg-muted/50 border text-foreground ${submitErrors.has("category") ? "border-destructive ring-1 ring-destructive" : ""}`}
+                  >
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border">
@@ -255,6 +287,9 @@ export default function Feedback() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+                {submitErrors.has("category") && (
+                  <p className="text-xs text-destructive mt-1">Category is required.</p>
+                )}
               </div>
 
               {/* Email */}
@@ -266,10 +301,21 @@ export default function Feedback() {
                   type="email"
                   placeholder="your.email@example.com"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  onChange={(e) => {
+                    setForm({ ...form, email: e.target.value });
+                    setSubmitErrors((prev) => {
+                      if (!prev.has("email")) return prev;
+                      const next = new Set(prev);
+                      next.delete("email");
+                      return next;
+                    });
+                  }}
+                  className={`bg-muted border-border text-foreground placeholder:text-muted-foreground ${submitErrors.has("email") ? "border-destructive ring-1 ring-destructive" : ""}`}
                   required
                 />
+                {submitErrors.has("email") && (
+                  <p className="text-xs text-destructive mt-1">Email is required.</p>
+                )}
               </div>
 
               {/* Subject */}
@@ -281,10 +327,21 @@ export default function Feedback() {
                   type="text"
                   placeholder="Brief summary of your feedback or issue"
                   value={form.subject}
-                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  onChange={(e) => {
+                    setForm({ ...form, subject: e.target.value });
+                    setSubmitErrors((prev) => {
+                      if (!prev.has("subject")) return prev;
+                      const next = new Set(prev);
+                      next.delete("subject");
+                      return next;
+                    });
+                  }}
+                  className={`bg-muted border-border text-foreground placeholder:text-muted-foreground ${submitErrors.has("subject") ? "border-destructive ring-1 ring-destructive" : ""}`}
                   required
                 />
+                {submitErrors.has("subject") && (
+                  <p className="text-xs text-destructive mt-1">Subject is required.</p>
+                )}
               </div>
 
               {/* Description */}
@@ -299,10 +356,21 @@ export default function Feedback() {
                       : "Please provide detailed information about your feedback or suggestion"
                   }
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground min-h-[200px]"
+                  onChange={(e) => {
+                    setForm({ ...form, description: e.target.value });
+                    setSubmitErrors((prev) => {
+                      if (!prev.has("description")) return prev;
+                      const next = new Set(prev);
+                      next.delete("description");
+                      return next;
+                    });
+                  }}
+                  className={`bg-muted border-border text-foreground placeholder:text-muted-foreground min-h-[200px] ${submitErrors.has("description") ? "border-destructive ring-1 ring-destructive" : ""}`}
                   required
                 />
+                {submitErrors.has("description") && (
+                  <p className="text-xs text-destructive mt-1">Description is required.</p>
+                )}
               </div>
 
               {/* Attachments */}

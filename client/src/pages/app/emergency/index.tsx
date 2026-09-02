@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocation, Link } from "wouter";
 import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
 import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
+import { friendlyGeolocationError } from "@/lib/geolocationMessage";
 
 export default function EmergencyPage() {
   const { user } = useAuth() as { user: any };
@@ -113,8 +114,8 @@ export default function EmergencyPage() {
           { enableHighAccuracy: false, timeout: 10000 },
         );
       });
-    } catch (err: any) {
-      setMessage(err?.message ?? "Failed to get current location.");
+    } catch (err) {
+      setMessage(friendlyGeolocationError(err));
     } finally {
       setLoading(false);
     }

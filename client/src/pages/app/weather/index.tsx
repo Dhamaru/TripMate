@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { useUserLocation } from "@/hooks/useUserLocation";
+import { friendlyGeolocationError } from "@/lib/geolocationMessage";
+import { LocateFixed } from "lucide-react";
 
 // Flat-earth approximation, fine at suggestion-sorting distances (a few
 // hundred km at most) — matches the precision the geocode API itself gives.
@@ -225,9 +227,9 @@ export default function WeatherPage() {
         setLocation("Current Location");
         setSearchLocation("");
       }
-    } catch (err: any) {
+    } catch (err) {
       if (!mountedRef.current) return;
-      setMessage(err?.message ?? "Failed to get current location.");
+      setMessage(friendlyGeolocationError(err));
     } finally {
       if (mountedRef.current) setLoading(false);
     }
@@ -309,13 +311,13 @@ export default function WeatherPage() {
               }
             }}
             placeholder="Search location (e.g., Goa, Tokyo)"
-            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
+            className="flex-1 min-w-0 bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
             data-testid="input-weather-location"
           />
           <Button
             type="button"
             onClick={() => handleSearch()}
-            className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
+            className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white shrink-0"
             data-testid="button-weather-search"
             disabled={loading}
           >
@@ -332,9 +334,11 @@ export default function WeatherPage() {
             type="button"
             variant="outline"
             onClick={() => locateMe()}
-            className="border text-foreground hover:bg-muted"
+            className="border text-foreground hover:bg-muted shrink-0"
+            title="Use my location"
           >
-            My Location
+            <LocateFixed className="w-4 h-4 sm:hidden" />
+            <span className="hidden sm:inline">My Location</span>
           </Button>
         </div>
 

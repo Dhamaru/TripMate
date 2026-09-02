@@ -1023,7 +1023,11 @@ export default function TripPlanner() {
                       <Input
                         type="text"
                         autoFocus
-                        placeholder="Where are you traveling from?"
+                        // Short enough not to clip in this two-column
+                        // layout's ~250px field width at the tablet
+                        // breakpoint — the "Starting Location" label above
+                        // already carries the full meaning.
+                        placeholder="City or airport"
                         value={tripForm.origin}
                         onChange={(e) => {
                           setTripForm((prev) => ({ ...prev, origin: e.target.value }));
@@ -1053,7 +1057,7 @@ export default function TripPlanner() {
                     <div className="relative">
                       <Input
                         type="text"
-                        placeholder="Where do you want to go?"
+                        placeholder="Your destination"
                         value={tripForm.destination}
                         onChange={(e) => {
                           setTripForm((prev) => ({ ...prev, destination: e.target.value }));

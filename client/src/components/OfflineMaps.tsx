@@ -1220,11 +1220,27 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           >
             <div className="absolute left-1/2 -translate-x-1/2 top-1.5 w-10 h-1 rounded-full bg-border" />
             <div className="flex items-center gap-2 min-w-0 mt-1.5">
-              <i className="fas fa-sliders-h text-muted-foreground text-sm"></i>
-              <span className="text-sm font-medium text-foreground truncate">
-                <span className="font-mono">{formatBytes(totalSize)}</span> /{" "}
-                <span className="font-mono">2 GB</span> used
-              </span>
+              {/* "X MB / 2 GB used" alone reads as a passive storage
+                  readout — it gave zero signal that tapping this collapsed
+                  bar is actually how you get to search on a page that opens
+                  to a bare world map with no other visible input. Lead with
+                  what's actually behind it on the tab where that matters. */}
+              {activeTab === "explore" ? (
+                <>
+                  <i className="fas fa-search text-muted-foreground text-sm"></i>
+                  <span className="text-sm font-medium text-foreground truncate">
+                    Tap to search places
+                  </span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-sliders-h text-muted-foreground text-sm"></i>
+                  <span className="text-sm font-medium text-foreground truncate">
+                    <span className="font-mono">{formatBytes(totalSize)}</span> /{" "}
+                    <span className="font-mono">2 GB</span> used
+                  </span>
+                </>
+              )}
             </div>
             {/* Bouncing while collapsed — a static chevron reads as
                   decoration; motion is what actually signals "more content,

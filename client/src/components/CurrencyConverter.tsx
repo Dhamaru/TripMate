@@ -171,7 +171,12 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
                   className="bg-muted border text-foreground"
                   data-testid="select-from-currency"
                 >
-                  <SelectValue />
+                  {/* The full "USD - US Dollar" label only fits in the open
+                      list — at 375px this grid-cols-2 column is ~160px wide,
+                      not enough for the closed trigger to show both parts
+                      without clipping. Just the code here; full name stays
+                      in the dropdown list below. */}
+                  <SelectValue>{fromCurrency}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-card border text-foreground">
                   {CURRENCIES.map((currency) => (
@@ -194,7 +199,7 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
                   className="bg-muted border text-foreground"
                   data-testid="select-to-currency"
                 >
-                  <SelectValue />
+                  <SelectValue>{toCurrency}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-card border text-foreground">
                   {CURRENCIES.map((currency) => (
