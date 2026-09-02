@@ -352,7 +352,7 @@ export function TripMap({
               const delBtn = document.createElement("button");
               delBtn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> Delete';
               delBtn.style.cssText =
-                "color: #ef4444; font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer; margin-top: 4px;";
+                "color: var(--ios-red); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer; margin-top: 4px;";
               delBtn.onclick = () => onDeleteActivity(act.dayIndex, act.actIndex);
               item.appendChild(delBtn);
             }
@@ -461,7 +461,7 @@ export function TripMap({
               <div className="relative w-44 md:w-56">
                 <Input
                   placeholder="Search to pin..."
-                  className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#163F73]/50 focus-visible:border-[#163F73]/50 rounded-lg"
+                  className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[var(--amber)]/50 focus-visible:border-[var(--amber)]/50 rounded-lg"
                   onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                       const q = (e.currentTarget as HTMLInputElement).value;
@@ -482,7 +482,7 @@ export function TripMap({
                             // Add temporary search marker
                             const searchIcon = L.divIcon({
                               className: "custom-div-icon",
-                              html: `<div style="background-color: #ef4444; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); animation: pulse 2s infinite;">
+                              html: `<div style="background-color: var(--ios-red); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 0 10px rgba(179, 38, 30, 0.5); animation: pulse 2s infinite;">
                                                                      <i class="fas fa-search-location" style="color: white; font-size: 12px;"></i>
                                                                    </div>`,
                               iconSize: [24, 24],
@@ -494,7 +494,7 @@ export function TripMap({
                             popupContent.style.padding = "5px";
                             popupContent.innerHTML = `
                                                             <strong style="color: white; display: block; margin-bottom: 5px;">Found Location</strong>
-                                                            <div id="add-search-spot" style="background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-top: 5px; display: inline-block;">
+                                                            <div id="add-search-spot" style="background: var(--explorer-blue); color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-top: 5px; display: inline-block;">
                                                                 <i class="fas fa-plus mr-1"></i> Add to Trip
                                                             </div>
                                                         `;
@@ -552,7 +552,7 @@ export function TripMap({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowPaths(!showPaths)}
-                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? "bg-[#1D4E89]/15 text-[#1D4E89] dark:text-blue-400 dark:bg-blue-400/15 hover:bg-[#1D4E89]/25" : "text-muted-foreground hover:text-[#1D4E89] dark:hover:text-blue-400 hover:bg-[#1D4E89]/10"}`}
+                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? "bg-[var(--explorer-blue)]/15 text-[var(--explorer-blue)] hover:bg-[var(--explorer-blue)]/25" : "text-muted-foreground hover:text-[var(--explorer-blue)] hover:bg-[var(--explorer-blue)]/10"}`}
               >
                 <i className="fas fa-route text-[11px]"></i>
                 {showPaths ? "Hide Route" : "Show Route"}
@@ -604,7 +604,7 @@ export function TripMap({
         <div className="relative isolate w-full h-[300px] md:h-[400px] overflow-hidden">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1D4E89]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--explorer-blue)]"></div>
             </div>
           )}
           {!coords && !loading && (
