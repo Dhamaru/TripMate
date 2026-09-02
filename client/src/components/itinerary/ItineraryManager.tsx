@@ -82,6 +82,13 @@ function SortableActivity({
     id: activity.id,
   });
 
+  // Same fallback field names TripMap.tsx's own marker-placement code
+  // already tolerates — activities saved before the addActivitySchema fix
+  // (server/schemas/itinerary.schemas.ts) may still carry latitude/
+  // longitude instead of lat/lon.
+  const viewLat = activity.lat ?? activity.latitude;
+  const viewLon = activity.lon ?? activity.lng ?? activity.longitude;
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -179,12 +186,12 @@ function SortableActivity({
                 too (unlike Edit/Delete below), whenever this activity actually
                 has coordinates to fly to (AI-generated activities and manual
                 entries without a picked place don't always have one). */}
-      {onViewOnMap && activity.lat != null && activity.lon != null && (
+      {onViewOnMap && viewLat != null && viewLon != null && (
         <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
           <Button
             onClick={(e) => {
               e.stopPropagation();
-              onViewOnMap(activity.lat as number, activity.lon as number);
+              onViewOnMap(viewLat as number, viewLon as number);
             }}
             variant="ghost"
             size="icon"
