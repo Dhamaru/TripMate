@@ -786,6 +786,13 @@ export default function TripPlanner() {
         isInternational: !!tripForm.isInternational,
         status: "planning" as const,
         notes: tripForm.notes,
+        // Was only ever forwarded to /generate-itinerary (to steer the AI
+        // draft) and never onto the saved trip itself — TripDetail's
+        // Places-tab restaurant search reads trip.cuisinePreferences, so a
+        // real saved trip never actually got the cuisine-aware search this
+        // was built for.
+        cuisinePreferences: tripForm.cuisinePreferences,
+        dietaryPreferences: tripForm.dietaryPreferences,
         itinerary: Array.isArray(planData.itinerary)
           ? planData.itinerary.map((day: any, idx: number) => ({
               ...day,
@@ -1568,6 +1575,8 @@ export default function TripPlanner() {
                           isInternational: !!tripForm.isInternational,
                           status: "planning" as const,
                           notes: tripForm.notes,
+                          cuisinePreferences: tripForm.cuisinePreferences,
+                          dietaryPreferences: tripForm.dietaryPreferences,
                           itinerary: Array.isArray(planData?.itinerary)
                             ? planData.itinerary.map((day: any, idx: number) => ({
                                 ...day,
