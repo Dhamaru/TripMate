@@ -38,6 +38,7 @@ export class DraftingAgent {
       ✅ type "sightseeing"/"temple"/"museum"/"park"/"market" must be a real landmark name.
       ✅ Rotate different restaurants for lunch and dinner each day — no repeats.
       ✅ Include a mix per day: morning temple/attraction → lunch at named restaurant → afternoon market/monument → evening activity → dinner at named restaurant/street food area.
+      ✅ EVERY sightseeing/temple/museum/park/market activity must be a DIFFERENT real place across the ENTIRE trip — never reuse the same landmark under a reworded title (e.g. "X Lake" on day 1 and "X Lake View Point" on day 2 is the SAME place and is forbidden). If ${constraints.destination} is small and genuinely doesn't have enough distinct attractions to fill every day, do NOT invent detours to other towns to pad it out — the traveler chose this destination, not a tour of the surrounding region. Instead give the existing real spots more time (a longer, unhurried visit) and fill the rest of the day with a genuine local experience clearly framed as such (a market walk, a boat ride on the same lake, a cooking class, leisure/rest time) rather than a second disguised visit to the same landmark.
 
       TRIP CONSTRAINTS:
       - Destination: ${constraints.destination}

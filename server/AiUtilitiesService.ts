@@ -2152,6 +2152,43 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     let restaurantIndex = 0;
     let attractionIndex = 0;
 
+    // Catches the same landmark reappearing under a reworded title (e.g.
+    // "Ameenpur Lake" day 1, "Ameenpur Lake View Point" day 2, "Ameenpur
+    // lake fish feeding area" day 3 — three different-looking titles, one
+    // physical place) that the DraftingAgent's prompt-level "no repeats"
+    // rule doesn't always hold to, especially for a small destination with
+    // few genuinely distinct attractions. Neither branch below catches this:
+    // the title looks specific enough to skip isGenericAttraction, and it's
+    // not a food item. Backstop, not a replacement for the prompt fix.
+    const stopWords = new Set([
+      "the",
+      "of",
+      "at",
+      "in",
+      "view",
+      "viewpoint",
+      "point",
+      "spot",
+      "area",
+      "place",
+      "site",
+    ]);
+    const coreTokens = (name: string): Set<string> =>
+      new Set(
+        name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, "")
+          .split(/\s+/)
+          .filter((w) => w.length > 2 && !stopWords.has(w)),
+      );
+    const seenAttractionCores: Set<string>[] = [];
+    const isSameLandmark = (a: Set<string>, b: Set<string>): boolean => {
+      if (a.size === 0 || b.size === 0) return false;
+      let shared = 0;
+      for (const tok of a) if (b.has(tok)) shared++;
+      return shared / Math.min(a.size, b.size) >= 0.5;
+    };
+
     // Generic terms that should trigger replacement
     const genericRestaurantTerms = [
       "top rated",
@@ -2224,6 +2261,39 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
               activity.address = real.address || `${plan.destination}`;
               usedAttractions.add(real.name);
               attractionIndex++;
+              seenAttractionCores.push(coreTokens(real.name));
+            }
+          } else if (!isFood) {
+            // Non-generic, non-food — looks like a real named place, but
+            // check it isn't the same landmark as an earlier day under a
+            // reworded title before accepting it.
+            const cores = coreTokens(activity.title || activity.placeName || "");
+            const dupeOfEarlier = seenAttractionCores.some((seen) => isSameLandmark(seen, cores));
+            if (dupeOfEarlier && realAttractions.length > 0) {
+              // Find a real attraction from the pool that isn't itself a
+              // near-duplicate of anything already used.
+              let swapped = false;
+              for (let i = 0; i < realAttractions.length; i++) {
+                const candidate = realAttractions[(attractionIndex + i) % realAttractions.length];
+                if (!candidate || usedAttractions.has(candidate.name)) continue;
+                const candidateCores = coreTokens(candidate.name);
+                if (seenAttractionCores.some((seen) => isSameLandmark(seen, candidateCores)))
+                  continue;
+                activity.title = candidate.name;
+                activity.placeName = candidate.name;
+                activity.address = candidate.address || `${plan.destination}`;
+                usedAttractions.add(candidate.name);
+                attractionIndex = attractionIndex + i + 1;
+                seenAttractionCores.push(candidateCores);
+                swapped = true;
+                break;
+              }
+              // No unused real attraction left to swap in — leave as-is
+              // rather than risk an empty/broken title; the prompt-level
+              // fix is the primary defense, this is best-effort backstop.
+              if (!swapped) seenAttractionCores.push(cores);
+            } else {
+              seenAttractionCores.push(cores);
             }
           } else if (isFood && !isGenericRestaurant && realRestaurants.length > 0) {
             // Even for non-generic food entries, verify it's a real place
