@@ -23,6 +23,9 @@ export class AtlasMemoryService {
         tool_calls: msg.tool_calls as ToolCall[] | undefined,
         tool_call_id: msg.tool_call_id,
         name: msg.name,
+        timestamp: (msg as any).timestamp
+          ? new Date((msg as any).timestamp).toISOString()
+          : undefined,
       }));
     } catch (error) {
       console.error("[Atlas:Memory] Failed to get history:", error);

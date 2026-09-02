@@ -1,54 +1,63 @@
 // Task 7 — Main overlap chat panel (Zustand-connected)
-import { useEffect, useRef } from 'react'
-import { useAgentStore, useUiStore } from '../../store'
-import { ChatHeader } from './ChatHeader'
-import { ChatMessageList } from './ChatMessageList'
-import { SuggestedActions } from './SuggestedActions'
-import { ChatInput } from './ChatInput'
+import { useEffect, useRef } from "react";
+import { useAgentStore, useUiStore } from "../../store";
+import { ChatHeader } from "./ChatHeader";
+import { ChatMessageList } from "./ChatMessageList";
+import { SuggestedActions } from "./SuggestedActions";
+import { ChatInput } from "./ChatInput";
 
 export function AgentOverlayPanel() {
-    const { isChatOpen, toggleChat, setContext } = useAgentStore()
-    const { currentPage } = useUiStore()
-    const panelRef = useRef<HTMLDivElement>(null)
+  const { isChatOpen, toggleChat, setContext, loadConversation, context } = useAgentStore();
+  const { currentPage } = useUiStore();
+  const panelRef = useRef<HTMLDivElement>(null);
 
-    // Sync currentPage into agent context
-    useEffect(() => {
-        setContext({ currentPage })
-    }, [currentPage, setContext])
+  // Sync currentPage into agent context
+  useEffect(() => {
+    setContext({ currentPage });
+  }, [currentPage, setContext]);
 
-    // Keyboard shortcut: Cmd/Ctrl + K
-    useEffect(() => {
-        const handler = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                e.preventDefault()
-                toggleChat()
-            }
-        }
-        window.addEventListener('keydown', handler)
-        return () => window.removeEventListener('keydown', handler)
-    }, [toggleChat])
+  // The panel unmounts entirely on close (see the early return below), so
+  // this fires fresh every time it's opened, plus again if the user
+  // navigates to a different trip's page without closing the panel first
+  // (currentTripId changing while still mounted).
+  useEffect(() => {
+    if (isChatOpen) loadConversation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChatOpen, context.currentTripId]);
 
-    if (!isChatOpen) return null;
+  // Keyboard shortcut: Cmd/Ctrl + K
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        toggleChat();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [toggleChat]);
 
-    return (
-        <>
-            <div
-                className="fixed inset-0 z-40 bg-black/60 md:hidden"
-                onClick={toggleChat}
-                aria-hidden="true"
-            />
-            <div
-                ref={panelRef}
-                className="fixed inset-0 z-50 flex flex-col md:inset-auto md:right-0 md:top-0 md:h-full md:w-[420px] lg:w-[460px] md:shadow-2xl border-l border-border bg-card"
-                role="dialog"
-                aria-label="Atlas AI travel assistant"
-                aria-modal="true"
-            >
-                <ChatHeader onClose={toggleChat} />
-                <ChatMessageList />
-                <SuggestedActions />
-                <ChatInput />
-            </div>
-        </>
-    )
+  if (!isChatOpen) return null;
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/60 md:hidden"
+        onClick={toggleChat}
+        aria-hidden="true"
+      />
+      <div
+        ref={panelRef}
+        className="fixed inset-0 z-50 flex flex-col md:inset-auto md:right-0 md:top-0 md:h-full md:w-[420px] lg:w-[460px] md:shadow-2xl border-l border-border bg-card"
+        role="dialog"
+        aria-label="Atlas AI travel assistant"
+        aria-modal="true"
+      >
+        <ChatHeader onClose={toggleChat} />
+        <ChatMessageList />
+        <SuggestedActions />
+        <ChatInput />
+      </div>
+    </>
+  );
 }

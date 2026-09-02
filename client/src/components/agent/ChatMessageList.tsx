@@ -5,7 +5,7 @@ import { ToolCallBadge } from "./ToolCallBadge";
 import { TypingIndicator } from "./TypingIndicator";
 
 export function ChatMessageList() {
-  const { messages, isLoading, confirmPendingAction, context } = useAgentStore();
+  const { messages, isLoading, isHistoryLoading, confirmPendingAction, context } = useAgentStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +32,12 @@ export function ChatMessageList() {
       aria-live="polite"
       aria-label="Conversation"
     >
-      {messages.length === 0 && (
+      {isHistoryLoading && messages.length === 0 && (
+        <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-6">
+          <div className="w-5 h-5 border-2 border-[var(--explorer-blue)] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      {!isHistoryLoading && messages.length === 0 && (
         <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-6">
           <span
             className="w-12 h-12 rounded-full bg-[rgb(var(--explorer-blue-rgb)/10%)] flex items-center justify-center text-2xl mb-1"

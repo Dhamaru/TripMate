@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from "express";
-import { TripModel, UserModel, CrowdDensityModel, ICrowdDensity } from "@shared/schema";
+import {
+  TripModel,
+  UserModel,
+  CrowdDensityModel,
+  ICrowdDensity,
+  AtlasConversationModel,
+} from "@shared/schema";
 import { AiUtilitiesService } from "../AiUtilitiesService";
 
 import { BadRequestError, NotFoundError, ForbiddenError } from "../errors";
@@ -193,6 +199,14 @@ export const deleteTrip = async (req: Request, res: Response, next: NextFunction
     const userId = req.user?._id || req.user?.id;
     const result = await TripModel.deleteOne({ _id: req.params.id, userId });
     if (result.deletedCount === 0) throw new NotFoundError("Trip not found");
+    // Found while wiring up per-trip Atlas chat persistence: this route
+    // never cascaded anything (still true for JournalEntryModel/
+    // PackingListModel too — same gap, separate from this fix). Once the
+    // chat thread became something a real user could actually see and
+    // return to, an orphaned Mongo doc a deleted trip's tripId now points
+    // at nothing would just sit there forever with no way to reach it —
+    // low-stakes on its own, but free to close while touching this.
+    await AtlasConversationModel.deleteOne({ tripId: req.params.id, userId }).catch(() => {});
     res.status(204).send();
   } catch (error) {
     next(error);

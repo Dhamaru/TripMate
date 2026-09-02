@@ -22,8 +22,13 @@ interface AgentStore {
   // watchdog timer running invisibly in the background instead of tearing
   // down with the UI that was displaying it.
   activeStreamCleanup: (() => void) | null;
+  // True while a hydration fetch is in flight — lets the panel show a
+  // loading state instead of flashing "no messages yet" for a beat while
+  // switching trips or on first mount.
+  isHistoryLoading: boolean;
   toggleChat: () => void;
   setContext: (context: AgentContext) => void;
+  loadConversation: () => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
   streamMessage: (text: string) => Promise<void>;
   clearConversation: () => void;
@@ -41,6 +46,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   isChatOpen: false,
 
   activeStreamCleanup: null,
+  isHistoryLoading: false,
   toggleChat: () =>
     set((state) => {
       const closing = state.isChatOpen;
@@ -70,6 +76,40 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     }),
 
   setContext: (context) => set((state) => ({ context: { ...state.context, ...context } })),
+
+  // Was never called anywhere — the server has always durably persisted
+  // and re-fed conversation history into the model on every request
+  // (AtlasMemoryService, keyed per trip), but the UI itself started every
+  // page load with an empty `messages: []` and no way to get it back
+  // short of asking Atlas something and having it answer as if it
+  // remembered, with nothing to show for the history above the fold.
+  // "general" is the literal route sentinel the server resolves to its
+  // internal general:${userId} key — see agent.controller.ts.
+  loadConversation: async () => {
+    const key = get().context.currentTripId || "general";
+    set({ isHistoryLoading: true });
+    try {
+      const history: any = await agentApi.getConversation(key);
+      const messages: AgentMessage[] = (Array.isArray(history) ? history : [])
+        // tool/system turns are the model's own internal reasoning steps,
+        // never meant to render as chat bubbles — same filter the live
+        // send/stream paths implicitly apply by only ever constructing
+        // user/assistant AgentMessages in the first place.
+        .filter((m: any) => m.role === "user" || m.role === "assistant")
+        .map((m: any) => ({
+          id: nanoid(),
+          role: m.role,
+          content: m.content || "",
+          timestamp: m.timestamp || new Date().toISOString(),
+        }));
+      set({ messages, conversationId: key, isHistoryLoading: false });
+    } catch {
+      // A failed hydration shouldn't wipe out whatever's already on
+      // screen (e.g. messages from earlier this session) — just stop
+      // the loading state and leave things as they are.
+      set({ isHistoryLoading: false });
+    }
+  },
 
   sendMessage: async (text) => {
     const userMsg: AgentMessage = {
