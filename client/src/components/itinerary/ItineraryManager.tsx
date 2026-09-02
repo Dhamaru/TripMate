@@ -31,6 +31,7 @@ import {
   ChevronDown,
   Trash2,
   Plus,
+  Navigation,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { ActivityFormDialog } from "./ActivityFormDialog";
@@ -46,6 +47,11 @@ import { parseTimeToMinutes } from "@/lib/time";
 
 interface ItineraryManagerProps {
   trip: Trip;
+  // Switches TripDetail to the Map tab and flies to this activity's pin.
+  // Optional — omitted entirely wherever ItineraryManager might render
+  // without a sibling map (there's currently only the one usage, but no
+  // reason to make this a hard requirement).
+  onViewOnMap?: (lat: number, lon: number) => void;
 }
 
 // Sortable Item Component with Move Buttons
@@ -59,6 +65,7 @@ function SortableActivity({
   tripId,
   dayIndex,
   canEdit,
+  onViewOnMap,
 }: {
   activity: IItineraryActivity;
   index: number;
@@ -69,6 +76,7 @@ function SortableActivity({
   tripId: string;
   dayIndex: number;
   canEdit: boolean;
+  onViewOnMap?: (lat: number, lon: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: activity.id,
@@ -167,6 +175,27 @@ function SortableActivity({
         initialVotes={activity.votes}
       />
 
+      {/* View on Map — a read action, so shown to viewer-role collaborators
+                too (unlike Edit/Delete below), whenever this activity actually
+                has coordinates to fly to (AI-generated activities and manual
+                entries without a picked place don't always have one). */}
+      {onViewOnMap && activity.lat != null && activity.lon != null && (
+        <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewOnMap(activity.lat as number, activity.lon as number);
+            }}
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
+            title="View on map"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
+
       {/* Edit/Delete — viewer-role collaborators can't mutate the
                 itinerary (enforced server-side too), so don't show controls
                 that would just fail. */}
@@ -202,7 +231,7 @@ function SortableActivity({
   );
 }
 
-export function ItineraryManager({ trip }: ItineraryManagerProps) {
+export function ItineraryManager({ trip, onViewOnMap }: ItineraryManagerProps) {
   const [itinerary, setItinerary] = useState<IItineraryDay[]>((trip.itinerary as any) || []);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<{
@@ -604,6 +633,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
                       onMove={(dir) => moveActivity(dayIdx, actIdx, dir)}
                       tripId={String(trip.id)}
                       dayIndex={dayIdx}
+                      onViewOnMap={onViewOnMap}
                     />
                   ))}
                 </div>

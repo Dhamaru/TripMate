@@ -130,6 +130,18 @@ export default function TripDetail() {
   }, [id, queryClient, socketRef, toast, fetchTrip]);
 
   const [isEditing, setIsEditing] = useState(false);
+  // Drives the main Tabs below (was uncontrolled — defaultValue only sets
+  // the initial tab, there was no way to jump to a tab programmatically)
+  // and the "View on Map" flow: itinerary -> map tab + fly to that pin.
+  const [activeMainTab, setActiveMainTab] = useState("overview");
+  const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lon: number } | null>(null);
+  const handleViewOnMap = (lat: number, lon: number) => {
+    setActiveMainTab("map");
+    // A fresh object even for the same coordinates twice in a row, so
+    // TripMap's focus effect (which keys off reference identity via the
+    // dependency array) fires again on a second click of the same pin.
+    setMapFocusTarget({ lat, lon });
+  };
   const [heroImgError, setHeroImgError] = useState(false);
   const [isAtlasThinking, setIsAtlasThinking] = useState(false);
   const [tripForm, setTripForm] = useState({
@@ -1120,7 +1132,7 @@ export default function TripDetail() {
         )}
 
         {/* Trip Content — Tabbed */}
-        <Tabs defaultValue="overview" className="space-y-0">
+        <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-0">
           <TabsList className="flex w-full bg-muted/50 rounded-xl mb-6 p-1 h-auto gap-0.5 overflow-x-auto">
             <TabsTrigger
               value="overview"
@@ -1368,7 +1380,7 @@ export default function TripDetail() {
 
           {/* ── Itinerary tab ─────────────────────────────────── */}
           <TabsContent value="itinerary" className="mt-0">
-            <ItineraryManager trip={trip} />
+            <ItineraryManager trip={trip} onViewOnMap={handleViewOnMap} />
           </TabsContent>
 
           {/* ── Map tab ─────────────────────────────────── */}
@@ -1379,6 +1391,7 @@ export default function TripDetail() {
               origin={trip.origin}
               onAddActivity={handleMapAddActivity}
               onDeleteActivity={handleMapDeleteActivity}
+              focusTarget={mapFocusTarget}
             />
           </TabsContent>
 

@@ -21,6 +21,11 @@ interface TripMapProps {
   origin?: string;
   onAddActivity?: (activity: any, dayNumber: number) => Promise<void>;
   onDeleteActivity?: (dayIndex: number, activityIndex: number) => Promise<void>;
+  // Set (to a new object, even with the same lat/lon) whenever the
+  // itinerary's "View on Map" button is clicked — flies to and opens that
+  // activity's marker. A plain {lat, lon} rather than a day/activity index
+  // pair since that's all the marker-grouping logic below keys off of.
+  focusTarget?: { lat: number; lon: number } | null;
 }
 
 export function TripMap({
@@ -29,10 +34,16 @@ export function TripMap({
   origin,
   onAddActivity,
   onDeleteActivity,
+  focusTarget,
 }: TripMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  // Keyed the same way markers are grouped below (rounded "lat,lon") so a
+  // focus request can look its marker up and open its popup instead of
+  // just flying the camera there with no visual confirmation of *which*
+  // pin is the one being viewed.
+  const markerIndexRef = useRef<Map<string, L.Marker>>(new Map());
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [geocodeError, setGeocodeError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -288,6 +299,7 @@ export function TripMap({
     // Handle Itinerary Markers
     if (markersLayerRef.current) {
       markersLayerRef.current.clearLayers();
+      markerIndexRef.current.clear();
 
       if (itinerary) {
         const markersMap = new Map<string, any[]>();
@@ -365,13 +377,35 @@ export function TripMap({
             }
           });
 
-          L.marker([lat, lon], { icon: customIcon })
+          const marker = L.marker([lat, lon], { icon: customIcon })
             .addTo(markersLayerRef.current!)
             .bindPopup(popupContainer);
+          markerIndexRef.current.set(key, marker);
         });
       }
     }
   }, [coords, mapTheme, itinerary]);
+
+  // "View on Map" from the itinerary — fly to and open that activity's
+  // marker. Keyed by the same rounded lat/lon the marker-building effect
+  // above uses, so this always finds a marker that was actually placed
+  // (an activity that failed to geocode has no marker to focus).
+  useEffect(() => {
+    if (!focusTarget || !mapInstanceRef.current) return;
+    const key = `${Number(focusTarget.lat).toFixed(4)},${Number(focusTarget.lon).toFixed(4)}`;
+    const marker = markerIndexRef.current.get(key);
+    mapInstanceRef.current.flyTo([focusTarget.lat, focusTarget.lon], 16, {
+      animate: true,
+      duration: 1.2,
+    });
+    if (marker) {
+      // Popups sometimes fail to open mid-flyTo animation — Leaflet opens
+      // it relative to the map's current (not final) projection. A short
+      // delay lets the flyTo settle first.
+      const t = setTimeout(() => marker.openPopup(), 400);
+      return () => clearTimeout(t);
+    }
+  }, [focusTarget]);
 
   // Route paths — own effect so toggling doesn't re-render markers.
   // Draws real road-following routes via OSRM (same routing engine used on
