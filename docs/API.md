@@ -290,6 +290,12 @@ curl -X POST http://localhost:5000/api/v1/auth/signin \
 
 ## Places Endpoints
 
+### GET /places/search
+
+**Auth**: None
+**Query**: `?query=<text>` (or `?q=`), `pageSize` (default 10), optional `lat`/`lon`
+**Response**: `{ items: [...] }` — Google Places Text Search passthrough. When `lat`/`lon` are both present and numeric, results are biased (re-ranked, not restricted) toward that point via Google's `location`+`radius` (50km) params — used by every in-app place picker to rank suggestions nearest the user, or nearest the trip's destination when adding an activity inside a trip.
+
 ### GET /places/photo
 
 **Auth**: None  
