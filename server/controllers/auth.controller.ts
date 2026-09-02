@@ -32,6 +32,7 @@ const ALLOWED_PROFILE_FIELDS = new Set([
   "phoneNumber",
   "homeCity",
   "dietaryPreferences",
+  "cuisinePreferences",
   "interests",
   "preferredTransport",
   "travelStyle",

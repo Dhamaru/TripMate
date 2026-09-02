@@ -34,6 +34,7 @@ export interface IBaseUser {
   isGuest?: boolean;
   homeCity?: string;
   dietaryPreferences?: string[];
+  cuisinePreferences?: string[];
   preferredTransport?: string;
   interests?: string[];
   googleConnected?: boolean;
@@ -65,6 +66,7 @@ const userSchema = new Schema<IUser>(
     isGuest: { type: Boolean, default: false },
     homeCity: { type: String },
     dietaryPreferences: { type: [String], default: [] },
+    cuisinePreferences: { type: [String], default: [] },
     preferredTransport: { type: String },
     interests: { type: [String], default: [] },
     googleConnected: { type: Boolean, default: false },
@@ -103,6 +105,7 @@ export const insertUserSchema = z.object({
   isGuest: z.boolean().optional(),
   homeCity: z.string().optional(),
   dietaryPreferences: z.array(z.string()).optional(),
+  cuisinePreferences: z.array(z.string()).optional(),
   preferredTransport: z.string().optional(),
   interests: z.array(z.string()).optional(),
   googleConnected: z.boolean().optional(),
@@ -206,6 +209,12 @@ export interface ITrip extends Document {
   travelStyle: TravelStyle;
   transportMode?: string;
   isInternational?: boolean;
+  // What was asked at trip-creation time — kept independent of the user's
+  // profile-level preferences (shared/schema.ts IBaseUser), which can
+  // change later and shouldn't retroactively alter an already-planned
+  // trip's restaurant suggestions.
+  cuisinePreferences?: string[];
+  dietaryPreferences?: string[];
   status: TripStatus;
   startDate?: Date;
   endDate?: Date;
@@ -257,6 +266,8 @@ const tripSchema = new Schema<ITrip>(
     },
     transportMode: { type: String },
     isInternational: { type: Boolean, default: false },
+    cuisinePreferences: { type: [String], default: [] },
+    dietaryPreferences: { type: [String], default: [] },
     status: {
       type: String,
       required: true,
@@ -333,6 +344,8 @@ export const insertTripSchema = z.object({
     .default("standard"),
   transportMode: z.string().optional(),
   isInternational: z.coerce.boolean().optional(),
+  cuisinePreferences: z.array(z.string()).optional(),
+  dietaryPreferences: z.array(z.string()).optional(),
   status: z.enum(["planning", "active", "completed"]).optional(),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),

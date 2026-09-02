@@ -120,7 +120,27 @@ export default function TripPlanner() {
     transportMode: "",
     isInternational: false,
     notes: "",
+    cuisinePreferences: [] as string[],
+    dietaryPreferences: [] as string[],
   });
+
+  // Prefill from the profile's saved preferences (client/src/pages/Profile.tsx)
+  // the first time they become available — a per-trip edit here doesn't
+  // change the profile default, it's just this trip's starting point.
+  const prefilledPrefsRef = useRef(false);
+  useEffect(() => {
+    if (prefilledPrefsRef.current) return;
+    const savedCuisine = (user as any)?.cuisinePreferences;
+    const savedDiet = (user as any)?.dietaryPreferences;
+    if (savedCuisine?.length || savedDiet?.length) {
+      prefilledPrefsRef.current = true;
+      setTripForm((prev) => ({
+        ...prev,
+        cuisinePreferences: savedCuisine || [],
+        dietaryPreferences: savedDiet || [],
+      }));
+    }
+  }, [user]);
 
   // Origin biases toward where the user actually is ("traveling from" —
   // their real location is the natural default). Destination is a plain
@@ -323,6 +343,8 @@ export default function TripPlanner() {
         typeOfTrip,
         travelMedium,
         preferences,
+        cuisinePreferences: tripForm.cuisinePreferences,
+        dietaryPreferences: tripForm.dietaryPreferences,
       } as any;
 
       const trySafeParse = (obj: any) => safeParsePlan(obj);

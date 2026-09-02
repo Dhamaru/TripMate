@@ -143,6 +143,8 @@ const UPDATABLE_TRIP_FIELDS = new Set([
   "travelStyle",
   "transportMode",
   "isInternational",
+  "cuisinePreferences",
+  "dietaryPreferences",
   "status",
   "startDate",
   "endDate",
@@ -243,6 +245,8 @@ export const generateItinerary = async (req: Request, res: Response, next: NextF
       typeOfTrip,
       travelMedium,
       preferences,
+      cuisinePreferences,
+      dietaryPreferences,
     } = req.body;
 
     console.log(`[TripsController] Generating itinerary for ${destination} (${days} days)`);
@@ -255,6 +259,13 @@ export const generateItinerary = async (req: Request, res: Response, next: NextF
       currency,
       typeOfTrip,
       travelMedium,
+      // `preferences` (free-text notes) was destructured above but never
+      // actually forwarded here — every trip's notes field was silently
+      // discarded before ever reaching the AI. Fixed alongside adding the
+      // two new structured preference arrays.
+      preferences,
+      cuisinePreferences: Array.isArray(cuisinePreferences) ? cuisinePreferences : undefined,
+      dietaryPreferences: Array.isArray(dietaryPreferences) ? dietaryPreferences : undefined,
     });
 
     res.json(plan);

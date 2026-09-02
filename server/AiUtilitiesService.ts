@@ -1320,6 +1320,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     typeOfTrip: string;
     travelMedium: string;
     existingItinerary?: any[];
+    preferences?: string;
+    cuisinePreferences?: string[];
+    dietaryPreferences?: string[];
   }): Promise<
     | {
         destination: string;
@@ -1370,6 +1373,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       typeOfTrip: rawTypeOfTrip,
       travelMedium: rawTravelMedium,
       existingItinerary,
+      preferences,
+      cuisinePreferences,
+      dietaryPreferences,
     } = input;
 
     const destination = sanitize(rawDestination, 128);
@@ -1497,6 +1503,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
             currency,
             destination,
             existingItinerary,
+            preferences,
+            cuisinePreferences,
+            dietaryPreferences,
           },
           maxIterations: 3,
         });
@@ -1516,7 +1525,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
         try {
           // GROUNDING STEP: Verify results against Google Places with timeout
-          const groundingPromise = this.groundItineraryWithRealPlaces(finalPlan, currency || "INR");
+          const groundingPromise = this.groundItineraryWithRealPlaces(
+            finalPlan,
+            currency || "INR",
+            cuisinePreferences,
+            dietaryPreferences,
+          );
           finalPlan = await this.withTimeout(
             groundingPromise,
             20000,
@@ -1996,15 +2010,26 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   private async getRealPlacesFromGemini(
     destination: string,
     type: "restaurants" | "attractions",
+    cuisinePreferences?: string[],
+    dietaryPreferences?: string[],
   ): Promise<Array<{ name: string; address?: string; cuisine?: string }>> {
     const geminiKey = config.GEMINI_API_KEY;
     const placesKey = config.GOOGLE_API_KEY;
+    // Only meaningful for restaurants — an attraction has no cuisine to match.
+    const cuisineClause =
+      type === "restaurants" && cuisinePreferences?.length
+        ? ` specializing in ${cuisinePreferences.join("/")} cuisine`
+        : "";
+    const dietClause =
+      type === "restaurants" && dietaryPreferences?.length
+        ? `, all ${dietaryPreferences.join("/")}-friendly`
+        : "";
 
     // Try Gemini first
     if (geminiKey) {
       const prompt =
         type === "restaurants"
-          ? `List exactly 15 real, popular, and highly-rated restaurants in ${destination}. Include a mix of local cuisine, cafes, and fine dining. Return ONLY a valid JSON array with objects containing "name" (exact restaurant name), "address" (approximate location/area), and "cuisine" (type of food). No explanations, just the JSON array.`
+          ? `List exactly 15 real, popular, and highly-rated restaurants in ${destination}${cuisineClause}${dietClause}. ${cuisineClause ? "" : "Include a mix of local cuisine, cafes, and fine dining. "}Return ONLY a valid JSON array with objects containing "name" (exact restaurant name), "address" (approximate location/area), and "cuisine" (type of food). No explanations, just the JSON array.`
           : `List exactly 15 real, popular tourist attractions and landmarks in ${destination}. Include temples, parks, monuments, markets, and museums. Return ONLY a valid JSON array with objects containing "name" (exact place name) and "address" (approximate location/area). No explanations, just the JSON array.`;
 
       try {
@@ -2058,9 +2083,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     // Fallback to Google Places API
     if (placesKey) {
       try {
+        const prefTerms = [...(cuisinePreferences || []), ...(dietaryPreferences || [])];
         const query =
           type === "restaurants"
-            ? `best restaurants in ${destination}`
+            ? prefTerms.length > 0
+              ? `${prefTerms.join(" ")} restaurants in ${destination}`
+              : `best restaurants in ${destination}`
             : `top tourist attractions in ${destination}`;
 
         const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${placesKey}`;
@@ -2088,10 +2116,20 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   }
 
   // Verify specific places using Gemini AI for real names
-  private async groundItineraryWithRealPlaces(plan: any, currency: string): Promise<any> {
+  private async groundItineraryWithRealPlaces(
+    plan: any,
+    currency: string,
+    cuisinePreferences?: string[],
+    dietaryPreferences?: string[],
+  ): Promise<any> {
     // Get real places from Gemini
     const [realRestaurants, realAttractions] = await Promise.all([
-      this.getRealPlacesFromGemini(plan.destination, "restaurants"),
+      this.getRealPlacesFromGemini(
+        plan.destination,
+        "restaurants",
+        cuisinePreferences,
+        dietaryPreferences,
+      ),
       this.getRealPlacesFromGemini(plan.destination, "attractions"),
     ]);
 

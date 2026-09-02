@@ -232,13 +232,24 @@ export default function TripDetail() {
     },
   });
 
+  // Was a flat "restaurants near {destination}" for every trip regardless
+  // of what the traveler actually eats — now folds in whatever cuisine/
+  // dietary preferences were set at trip creation (Profile.tsx has the
+  // same fields as a saved default; TripPlanner.tsx prefills from there
+  // but this trip's own values, not the profile's, are the source of
+  // truth here since they can diverge after trip creation).
+  const cuisinePrefs = (trip as any)?.cuisinePreferences as string[] | undefined;
+  const dietaryPrefs = (trip as any)?.dietaryPreferences as string[] | undefined;
+  const restaurantQuery = [...(cuisinePrefs || []), ...(dietaryPrefs || [])].join(" ").trim()
+    ? `${[...(cuisinePrefs || []), ...(dietaryPrefs || [])].join(" ")} restaurants near ${tripForm.destination || ""}`
+    : `restaurants near ${tripForm.destination || ""}`;
   const { data: foodResults, isLoading: foodLoading } = useQuery<any>({
-    queryKey: ["places_food", id, tripForm.destination],
+    queryKey: ["places_food", id, tripForm.destination, cuisinePrefs, dietaryPrefs],
     enabled: showRestaurants && !!tripForm.destination,
     queryFn: async () => {
       const r = await apiRequest(
         "GET",
-        `/api/v1/places/search?query=${encodeURIComponent("restaurants near " + String(tripForm.destination || ""))}&pageSize=10`,
+        `/api/v1/places/search?query=${encodeURIComponent(restaurantQuery)}&pageSize=10`,
       );
       const j = await r.json();
       return Array.isArray(j?.items) ? j.items : [];

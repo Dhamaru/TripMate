@@ -8,7 +8,13 @@ import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LogOut, Link as LinkIcon, AlertTriangle, Download } from "lucide-react";
 import { authApi } from "@/lib/api/auth.api";
 import { apiRequest, getCsrfToken } from "@/lib/queryClient";
@@ -20,7 +26,7 @@ export default function Profile() {
 
   const queryClient = useQueryClient();
   const { data: userData } = useQuery<User>({
-    queryKey: ['/api/v1/auth/user'],
+    queryKey: ["/api/v1/auth/user"],
     enabled: true,
   });
 
@@ -38,17 +44,17 @@ export default function Profile() {
       setIsUploading(true);
       setUploadProgress(0);
       const fd = new FormData();
-      fd.append('image', file);
+      fd.append("image", file);
 
       const xhr = new XMLHttpRequest();
-      const url = '/api/v1/auth/user/avatar';
+      const url = "/api/v1/auth/user/avatar";
       return await new Promise((resolve, reject) => {
-        xhr.open('POST', url);
+        xhr.open("POST", url);
         // Raw XHR bypasses apiRequest()'s automatic X-CSRF-Token attachment
         // (needed here instead of fetch for upload-progress events) — without
         // this header the server's CSRF middleware 403s every upload.
         const csrfToken = getCsrfToken();
-        if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+        if (csrfToken) xhr.setRequestHeader("X-CSRF-Token", csrfToken);
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable) {
             const percent = Math.round((evt.loaded / evt.total) * 100);
@@ -64,16 +70,16 @@ export default function Profile() {
               resolve({});
             }
           } else {
-            reject(new Error(xhr.responseText || 'Upload failed'));
+            reject(new Error(xhr.responseText || "Upload failed"));
           }
         };
-        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.onerror = () => reject(new Error("Network error"));
         xhr.send(fd);
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/user'] });
-      toast({ title: 'Profile picture updated' });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
+      toast({ title: "Profile picture updated" });
       setUploadStatus("Upload complete");
       setIsUploading(false);
       setUploadProgress(100);
@@ -81,11 +87,11 @@ export default function Profile() {
       setLocalPreviewUrl("");
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Could not upload picture', variant: 'destructive' });
+      toast({ title: "Error", description: "Could not upload picture", variant: "destructive" });
       setUploadStatus("Upload failed");
       setIsUploading(false);
       setUploadProgress(0);
-    }
+    },
   });
 
   const passwordMutation = useMutation({
@@ -94,12 +100,16 @@ export default function Profile() {
       return res.data;
     },
     onSuccess: () => {
-      toast({ title: 'Password updated successfully' });
-      (document.getElementById('currentPassword') as HTMLInputElement).value = '';
-      (document.getElementById('newPassword') as HTMLInputElement).value = '';
+      toast({ title: "Password updated successfully" });
+      (document.getElementById("currentPassword") as HTMLInputElement).value = "";
+      (document.getElementById("newPassword") as HTMLInputElement).value = "";
     },
     onError: (err: any) => {
-      toast({ title: 'Error', description: err.response?.data?.message || 'Could not update password', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Could not update password",
+        variant: "destructive",
+      });
     },
   });
 
@@ -109,12 +119,16 @@ export default function Profile() {
       return res.data;
     },
     onSuccess: async () => {
-      toast({ title: 'Account deleted' });
+      toast({ title: "Account deleted" });
       await logout();
-      navigate('/');
+      navigate("/");
     },
     onError: (err: any) => {
-      toast({ title: 'Error', description: err.response?.data?.message || 'Could not delete account', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Could not delete account",
+        variant: "destructive",
+      });
     },
   });
 
@@ -123,64 +137,94 @@ export default function Profile() {
       // Was a raw fetch(), which skips apiRequest()'s automatic
       // X-CSRF-Token header — every save 403'd with "Invalid CSRF token"
       // in production, where CSRF protection is on by default.
-      const res = await apiRequest('PUT', '/api/v1/auth/user', {
+      const res = await apiRequest("PUT", "/api/v1/auth/user", {
         firstName: payload.firstName,
         lastName: payload.lastName,
         phoneNumber: (payload as any).phoneNumber,
+        dietaryPreferences: (payload as any).dietaryPreferences,
+        cuisinePreferences: (payload as any).cuisinePreferences,
       });
-      if (!res.ok) throw new Error('Failed to update profile');
+      if (!res.ok) throw new Error("Failed to update profile");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/user'] });
-      toast({ title: 'Profile updated' });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
+      toast({ title: "Profile updated" });
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Could not update profile', variant: 'destructive' });
+      toast({ title: "Error", description: "Could not update profile", variant: "destructive" });
     },
   });
 
-  const firstName = (userData?.firstName ?? '');
-  const lastName = (userData?.lastName ?? '');
-  const email = (userData?.email ?? '');
-  const profileImageUrl = localPreviewUrl || userData?.avatar || userData?.profileImageUrl || '';
-  const phoneNumber = (userData as any)?.phoneNumber ?? '';
+  const firstName = userData?.firstName ?? "";
+  const lastName = userData?.lastName ?? "";
+  const email = userData?.email ?? "";
+  const profileImageUrl = localPreviewUrl || userData?.avatar || userData?.profileImageUrl || "";
+  const phoneNumber = (userData as any)?.phoneNumber ?? "";
   const memberSince = useMemo(() => {
     const raw = (userData as any)?.createdAt;
-    if (!raw) return '';
+    if (!raw) return "";
     const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   }, [userData]);
 
-  const [countryCode, setCountryCode] = useState<string>('');
-  const [phoneLocal, setPhoneLocal] = useState<string>('');
-  const [phoneError, setPhoneError] = useState<string>('');
+  const [countryCode, setCountryCode] = useState<string>("");
+  const [phoneLocal, setPhoneLocal] = useState<string>("");
+  const [phoneError, setPhoneError] = useState<string>("");
+
+  // dietaryPreferences already existed on the user model and was read/
+  // written by the Atlas chatbot's own tool calls, but had no UI here —
+  // setting it required typing "I'm vegetarian" into chat and hoping the
+  // right tool fired. cuisinePreferences is new, same treatment.
+  const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([]);
+  const [cuisinePreferences, setCuisinePreferences] = useState<string[]>([]);
+  useEffect(() => {
+    setDietaryPreferences((userData as any)?.dietaryPreferences || []);
+    setCuisinePreferences((userData as any)?.cuisinePreferences || []);
+  }, [userData]);
+  const toggleChip = (list: string[], setList: (v: string[]) => void, value: string) => {
+    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  };
+  const DIETARY_OPTIONS = ["Vegetarian", "Vegan", "Non-Vegetarian", "Jain", "Halal", "Gluten-Free"];
+  const CUISINE_OPTIONS = [
+    "North Indian",
+    "South Indian",
+    "Chinese",
+    "Continental",
+    "Italian",
+    "Mexican",
+    "Thai",
+    "Mediterranean",
+  ];
 
   useEffect(() => {
-    const match = (phoneNumber || '').match(/^\+?(\d{1,3})\s*(\d{4,})$/);
+    const match = (phoneNumber || "").match(/^\+?(\d{1,3})\s*(\d{4,})$/);
     if (match) {
       setCountryCode(match[1]);
       setPhoneLocal(match[2]);
     } else {
-      setCountryCode('');
-      setPhoneLocal('');
+      setCountryCode("");
+      setPhoneLocal("");
     }
-    setPhoneError('');
+    setPhoneError("");
   }, [phoneNumber]);
 
   const validatePhone = (code: string, local: string) => {
-    const digitsOnly = local.replace(/\D/g, '');
-    if (!local || !digitsOnly) return '';
-    if (digitsOnly.length < 6 || digitsOnly.length > 15) return 'Enter 6-15 digits';
-    return '';
+    const digitsOnly = local.replace(/\D/g, "");
+    if (!local || !digitsOnly) return "";
+    if (digitsOnly.length < 6 || digitsOnly.length > 15) return "Enter 6-15 digits";
+    return "";
   };
 
   useEffect(() => {
     setPhoneError(validatePhone(countryCode, phoneLocal));
   }, [countryCode, phoneLocal]);
 
-  const fullPhone = useMemo(() => `+${countryCode} ${phoneLocal.replace(/\D/g, '')}`, [countryCode, phoneLocal]);
+  const fullPhone = useMemo(
+    () => `+${countryCode} ${phoneLocal.replace(/\D/g, "")}`,
+    [countryCode, phoneLocal],
+  );
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -190,13 +234,15 @@ export default function Profile() {
       email: { value: string };
     };
     if (phoneError) {
-      toast({ title: 'Invalid phone number', description: phoneError, variant: 'destructive' });
+      toast({ title: "Invalid phone number", description: phoneError, variant: "destructive" });
       return;
     }
     const payload: any = {
       firstName: form.firstName.value.trim(),
       lastName: form.lastName.value.trim(),
       email: form.email.value.trim(),
+      dietaryPreferences,
+      cuisinePreferences,
     };
     if (phoneLocal.trim()) {
       payload.phoneNumber = fullPhone;
@@ -207,11 +253,15 @@ export default function Profile() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (!allowed.includes(file.type) || file.size > maxSize) {
-        toast({ title: 'Invalid file', description: 'Please select a JPEG, PNG, GIF, or WEBP up to 5MB.', variant: 'destructive' });
-        e.currentTarget.value = '';
+        toast({
+          title: "Invalid file",
+          description: "Please select a JPEG, PNG, GIF, or WEBP up to 5MB.",
+          variant: "destructive",
+        });
+        e.currentTarget.value = "";
         setSelectedFileName("");
         setLocalPreviewUrl("");
         return;
@@ -220,7 +270,7 @@ export default function Profile() {
       setSelectedFileName(file.name);
       setLocalPreviewUrl(url);
       navigate(`/app/profile/crop?src=${encodeURIComponent(url)}`);
-      e.currentTarget.value = '';
+      e.currentTarget.value = "";
     }
   };
 
@@ -243,7 +293,11 @@ export default function Profile() {
           <CardTitle className="text-xl font-bold text-foreground">Account Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form key={userData?._id ?? userData?.email ?? 'loading'} onSubmit={handleSubmit} className="space-y-6">
+          <form
+            key={userData?._id ?? userData?.email ?? "loading"}
+            onSubmit={handleSubmit}
+            className="space-y-6"
+          >
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 space-x-0 sm:space-x-4">
               <div
                 className="w-24 h-24 relative group cursor-pointer shrink-0"
@@ -251,13 +305,30 @@ export default function Profile() {
                 title="Change picture"
               >
                 <Avatar className="w-24 h-24 rounded-full overflow-hidden bg-muted ring-2 ring-offset-2 ring-offset-background ring-[var(--explorer-blue)]">
-                  <AvatarImage src={profileImageUrl} alt="Profile" className="object-cover transition-transform group-hover:scale-105" />
-                  <AvatarFallback className="text-2xl">{firstName?.[0] || email?.[0] || 'U'}</AvatarFallback>
+                  <AvatarImage
+                    src={profileImageUrl}
+                    alt="Profile"
+                    className="object-cover transition-transform group-hover:scale-105"
+                  />
+                  <AvatarFallback className="text-2xl">
+                    {firstName?.[0] || email?.[0] || "U"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="text-white" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="text-white"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
                   </svg>
                 </div>
               </div>
@@ -280,59 +351,100 @@ export default function Profile() {
                     disabled={isUploading}
                     className="gap-2"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
-                    {isUploading ? 'Uploading…' : 'Change Photo'}
+                    {isUploading ? "Uploading…" : "Change Photo"}
                   </Button>
                   <Button
                     type="button"
                     onClick={() => {
-                      const src = profileImageUrl || '';
-                      if (!src) { toast({ title: 'No image', description: 'Upload an image first to edit.' }); return; }
+                      const src = profileImageUrl || "";
+                      if (!src) {
+                        toast({ title: "No image", description: "Upload an image first to edit." });
+                        return;
+                      }
                       navigate(`/app/profile/crop?src=${encodeURIComponent(src)}`);
                     }}
                     aria-label="Edit current picture"
                     variant="outline"
                     className="gap-2"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                     </svg>
                     Adjust
                   </Button>
                 </div>
                 {selectedFileName && (
-                  <span className="text-sm text-muted-foreground text-center sm:text-left" aria-live="polite">{selectedFileName}</span>
+                  <span
+                    className="text-sm text-muted-foreground text-center sm:text-left"
+                    aria-live="polite"
+                  >
+                    {selectedFileName}
+                  </span>
                 )}
               </div>
             </div>
             {isUploading && (
               <div className="mt-2" aria-live="polite">
                 <div className="w-full bg-secondary rounded h-2">
-                  <div className="bg-primary h-2 rounded" style={{ width: `${uploadProgress}%` }}></div>
+                  <div
+                    className="bg-primary h-2 rounded"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{uploadStatus} ({uploadProgress}%)</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {uploadStatus} ({uploadProgress}%)
+                </p>
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">First Name</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  First Name
+                </label>
                 <Input name="firstName" defaultValue={firstName} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">Last Name</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Last Name
+                </label>
                 <Input name="lastName" defaultValue={lastName} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Email
+                </label>
                 <Input name="email" defaultValue={email} disabled />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">Phone Number</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                  Phone Number
+                </label>
                 <div className="flex gap-2">
                   <div className="w-28">
                     <Select value={countryCode} onValueChange={setCountryCode}>
@@ -354,20 +466,76 @@ export default function Profile() {
                       value={phoneLocal}
                       onChange={(e) => setPhoneLocal(e.target.value)}
                       placeholder="Enter phone"
-                      className={`${phoneError ? 'border-red-500 focus:border-red-500' : ''}`}
+                      className={`${phoneError ? "border-red-500 focus:border-red-500" : ""}`}
                     />
                     {phoneError && (
-                      <p id="phone-error" className="text-xs text-red-400 mt-1" aria-live="assertive">{phoneError}</p>
+                      <p
+                        id="phone-error"
+                        className="text-xs text-red-400 mt-1"
+                        aria-live="assertive"
+                      >
+                        {phoneError}
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
+            </div>
 
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Dietary preferences
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {DIETARY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleChip(dietaryPreferences, setDietaryPreferences, opt)}
+                    className={`stamp text-xs px-2.5 py-1 transition-colors ${
+                      dietaryPreferences.includes(opt)
+                        ? "border-[var(--explorer-blue)] text-[var(--explorer-blue)] bg-[rgb(var(--explorer-blue-rgb)/10%)]"
+                        : "border-[hsl(var(--border))] text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Cuisines you enjoy
+              </label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Used to suggest real, named restaurants when planning a trip.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {CUISINE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleChip(cuisinePreferences, setCuisinePreferences, opt)}
+                    className={`stamp text-xs px-2.5 py-1 transition-colors ${
+                      cuisinePreferences.includes(opt)
+                        ? "border-[var(--amber)] text-[var(--amber)] bg-[var(--amber-dim)]"
+                        : "border-[hsl(var(--border))] text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center justify-end">
-              <Button type="submit" aria-label="Save changes" disabled={profileMutation.isPending || !!phoneError}>
-                {profileMutation.isPending ? 'Saving…' : 'Save Changes'}
+              <Button
+                type="submit"
+                aria-label="Save changes"
+                disabled={profileMutation.isPending || !!phoneError}
+              >
+                {profileMutation.isPending ? "Saving…" : "Save Changes"}
               </Button>
             </div>
           </form>
@@ -379,28 +547,35 @@ export default function Profile() {
           <CardTitle className="text-xl font-bold text-foreground">Security</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget as HTMLFormElement & {
-              currentPassword: { value: string };
-              newPassword: { value: string };
-            };
-            passwordMutation.mutate({
-              currentPassword: form.currentPassword.value,
-              newPassword: form.newPassword.value
-            });
-          }} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget as HTMLFormElement & {
+                currentPassword: { value: string };
+                newPassword: { value: string };
+              };
+              passwordMutation.mutate({
+                currentPassword: form.currentPassword.value,
+                newPassword: form.newPassword.value,
+              });
+            }}
+            className="space-y-4"
+          >
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Current Password</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                Current Password
+              </label>
               <Input type="password" id="currentPassword" name="currentPassword" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">New Password</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                New Password
+              </label>
               <Input type="password" id="newPassword" name="newPassword" required />
             </div>
             <div className="flex justify-end">
               <Button type="submit" disabled={passwordMutation.isPending}>
-                {passwordMutation.isPending ? 'Updating...' : 'Update Password'}
+                {passwordMutation.isPending ? "Updating..." : "Update Password"}
               </Button>
             </div>
           </form>
@@ -420,7 +595,7 @@ export default function Profile() {
               <div>
                 <h4 className="font-medium text-white">Google</h4>
                 <p className="text-xs text-muted-foreground">
-                  {(userData as any)?.googleConnected ? 'Connected' : 'Sign in with Google'}
+                  {(userData as any)?.googleConnected ? "Connected" : "Sign in with Google"}
                 </p>
               </div>
             </div>
@@ -430,15 +605,19 @@ export default function Profile() {
                 size="sm"
                 onClick={async () => {
                   try {
-                    const res = await apiRequest('POST', '/api/v1/auth/google/disconnect');
+                    const res = await apiRequest("POST", "/api/v1/auth/google/disconnect");
                     if (res.ok) {
-                      queryClient.invalidateQueries({ queryKey: ['/api/v1/auth/user'] });
-                      toast({ title: 'Google disconnected' });
+                      queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
+                      toast({ title: "Google disconnected" });
                     } else {
-                      toast({ title: 'Error', description: 'Could not disconnect Google', variant: 'destructive' });
+                      toast({
+                        title: "Error",
+                        description: "Could not disconnect Google",
+                        variant: "destructive",
+                      });
                     }
                   } catch {
-                    toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+                    toast({ title: "Error", description: "Network error", variant: "destructive" });
                   }
                 }}
               >
@@ -446,7 +625,9 @@ export default function Profile() {
               </Button>
             ) : (
               <a href="/api/v1/auth/google">
-                <Button variant="secondary" size="sm">Connect</Button>
+                <Button variant="secondary" size="sm">
+                  Connect
+                </Button>
               </a>
             )}
           </div>
@@ -461,11 +642,16 @@ export default function Profile() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-medium text-foreground">Sign Out</h3>
-              <p className="text-sm text-muted-foreground">Sign out of your account on this device</p>
+              <p className="text-sm text-muted-foreground">
+                Sign out of your account on this device
+              </p>
             </div>
             <Button
               variant="destructive"
-              onClick={async () => { await logout(); navigate('/'); }}
+              onClick={async () => {
+                await logout();
+                navigate("/");
+              }}
               className="flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
@@ -475,7 +661,9 @@ export default function Profile() {
           <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
             <div>
               <h3 className="font-medium text-foreground">Export Your Data</h3>
-              <p className="text-sm text-muted-foreground">Download a copy of your trips, journal entries, packing lists, and account data</p>
+              <p className="text-sm text-muted-foreground">
+                Download a copy of your trips, journal entries, packing lists, and account data
+              </p>
             </div>
             <Button
               variant="outline"
@@ -483,11 +671,11 @@ export default function Profile() {
               onClick={async () => {
                 setIsExporting(true);
                 try {
-                  const res = await apiRequest('GET', '/api/v1/auth/user/export');
-                  if (!res.ok) throw new Error('Export failed');
+                  const res = await apiRequest("GET", "/api/v1/auth/user/export");
+                  if (!res.ok) throw new Error("Export failed");
                   const blob = await res.blob();
                   const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
+                  const a = document.createElement("a");
                   a.href = url;
                   a.download = `tripmate-export-${new Date().toISOString().slice(0, 10)}.json`;
                   document.body.appendChild(a);
@@ -495,7 +683,11 @@ export default function Profile() {
                   a.remove();
                   URL.revokeObjectURL(url);
                 } catch {
-                  toast({ title: 'Error', description: 'Could not export your data', variant: 'destructive' });
+                  toast({
+                    title: "Error",
+                    description: "Could not export your data",
+                    variant: "destructive",
+                  });
                 } finally {
                   setIsExporting(false);
                 }
@@ -503,25 +695,43 @@ export default function Profile() {
               className="flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
-              {isExporting ? 'Exporting…' : 'Export Data'}
+              {isExporting ? "Exporting…" : "Export Data"}
             </Button>
           </div>
           <div className="mt-8 pt-6 border-t border-red-500/20">
             <h3 className="font-medium text-red-500 mb-2">Danger Zone</h3>
-            <p className="text-sm text-muted-foreground mb-4">Permanently delete your account and all associated data. This action cannot be undone.</p>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
-                const form = e.currentTarget as HTMLFormElement & { deletePassword?: { value: string } };
-                deleteMutation.mutate({ password: form.deletePassword?.value || '' });
-              }
-            }} className="flex items-end gap-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Permanently delete your account and all associated data. This action cannot be undone.
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (
+                  window.confirm(
+                    "Are you sure you want to delete your account? This action cannot be undone.",
+                  )
+                ) {
+                  const form = e.currentTarget as HTMLFormElement & {
+                    deletePassword?: { value: string };
+                  };
+                  deleteMutation.mutate({ password: form.deletePassword?.value || "" });
+                }
+              }}
+              className="flex items-end gap-4"
+            >
               <div className="flex-1">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Confirm Password</label>
-                <Input type="password" name="deletePassword" placeholder="Enter password to confirm" required={!userData?.googleConnected} />
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Confirm Password
+                </label>
+                <Input
+                  type="password"
+                  name="deletePassword"
+                  placeholder="Enter password to confirm"
+                  required={!userData?.googleConnected}
+                />
               </div>
               <Button type="submit" variant="destructive" disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending ? 'Deleting...' : 'Delete Account'}
+                {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
               </Button>
             </form>
           </div>

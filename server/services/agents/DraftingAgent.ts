@@ -2,29 +2,33 @@ import { z } from "zod";
 import { withRetries } from "./utils";
 
 export class DraftingAgent {
-    private openai: any;
-    private geminiHelper: any;
+  private openai: any;
+  private geminiHelper: any;
 
-    constructor(services: { openai: any, geminiHelper: any }) {
-        this.openai = services.openai;
-        this.geminiHelper = services.geminiHelper;
-    }
+  constructor(services: { openai: any; geminiHelper: any }) {
+    this.openai = services.openai;
+    this.geminiHelper = services.geminiHelper;
+  }
 
-    /**
-     * Generates a primary draft itinerary that serves as the baseline for the CriticAgent.
-     */
-    async generateDraft(goalText: string, context: Record<string, any>, constraints: Record<string, any>): Promise<any> {
-        const startTime = Date.now();
-        console.log(`[DraftingAgent] Formulating draft baseline...`);
+  /**
+   * Generates a primary draft itinerary that serves as the baseline for the CriticAgent.
+   */
+  async generateDraft(
+    goalText: string,
+    context: Record<string, any>,
+    constraints: Record<string, any>,
+  ): Promise<any> {
+    const startTime = Date.now();
+    console.log(`[DraftingAgent] Formulating draft baseline...`);
 
-        const anchors: string[] = Array.isArray(context.anchors) && context.anchors.length > 0
-            ? context.anchors
-            : [];
-        const anchorsText = anchors.length > 0
-            ? `Real local places to PRIORITISE (use as many as possible): ${JSON.stringify(anchors)}`
-            : `No pre-fetched anchors available. You MUST use your training knowledge to name real, well-known tourist spots, temples, restaurants, cafes, markets, and attractions that actually exist in ${constraints.destination}.`;
+    const anchors: string[] =
+      Array.isArray(context.anchors) && context.anchors.length > 0 ? context.anchors : [];
+    const anchorsText =
+      anchors.length > 0
+        ? `Real local places to PRIORITISE (use as many as possible): ${JSON.stringify(anchors)}`
+        : `No pre-fetched anchors available. You MUST use your training knowledge to name real, well-known tourist spots, temples, restaurants, cafes, markets, and attractions that actually exist in ${constraints.destination}.`;
 
-        const prompt = `
+    const prompt = `
       You are an expert travel planner. Generate a REAL, SPECIFIC, day-by-day itinerary for ${constraints.destination}.
 
       ABSOLUTE RULES — VIOLATION WILL REJECT YOUR RESPONSE:
@@ -40,7 +44,17 @@ export class DraftingAgent {
       - Duration: EXACTLY ${constraints.days} days (generate ALL ${constraints.days} days, no exceptions)
       - Persons: ${constraints.persons}
       - Travel style: ${constraints.travelStyle}
-      - Budget: ${constraints.budget || 'flexible'} ${constraints.currency || 'INR'}
+      - Budget: ${constraints.budget || "flexible"} ${constraints.currency || "INR"}
+      ${
+        Array.isArray(constraints.cuisinePreferences) && constraints.cuisinePreferences.length > 0
+          ? `- Cuisine preferences: ${constraints.cuisinePreferences.join(", ")} — every restaurant/cafe activity MUST match one of these cuisines, named and real (e.g. a real North Indian vegetarian restaurant, not a generic "local restaurant").`
+          : ""
+      }
+      ${
+        Array.isArray(constraints.dietaryPreferences) && constraints.dietaryPreferences.length > 0
+          ? `- Dietary requirements: ${constraints.dietaryPreferences.join(", ")} — every restaurant/cafe/food activity MUST accommodate this (e.g. a genuinely vegetarian-friendly restaurant, not one that merely has a token veg option).`
+          : ""
+      }
 
       ${anchorsText}
 
@@ -126,43 +140,53 @@ export class DraftingAgent {
       }
     `;
 
-        try {
-            // Primary Route: Gemini for rich context Drafting
-            console.log(`[DraftingAgent] Engaging Gemini (Primary Drafter)`);
-            const draftText: any = await withRetries(() => this.geminiHelper(prompt, "application/json"), 3, 2000);
+    try {
+      // Primary Route: Gemini for rich context Drafting
+      console.log(`[DraftingAgent] Engaging Gemini (Primary Drafter)`);
+      const draftText: any = await withRetries(
+        () => this.geminiHelper(prompt, "application/json"),
+        3,
+        2000,
+      );
 
-            const latency = Date.now() - startTime;
-            console.log(`[DraftingAgent] Initial draft generated in ${latency}ms`);
+      const latency = Date.now() - startTime;
+      console.log(`[DraftingAgent] Initial draft generated in ${latency}ms`);
 
-            return {
-                success: true,
-                source: 'gemini',
-                rawDraft: typeof draftText === 'string' ? JSON.parse(draftText) : draftText,
-                telemetry: { drafterLatencyMs: latency }
-            };
+      return {
+        success: true,
+        source: "gemini",
+        rawDraft: typeof draftText === "string" ? JSON.parse(draftText) : draftText,
+        telemetry: { drafterLatencyMs: latency },
+      };
+    } catch (geminiError) {
+      console.warn(`[DraftingAgent] Gemini failed. Falling back to OpenAI...`, geminiError);
 
-        } catch (geminiError) {
-            console.warn(`[DraftingAgent] Gemini failed. Falling back to OpenAI...`, geminiError);
+      try {
+        const openaiStart = Date.now();
+        const fallbackRes: any = await withRetries(
+          () =>
+            this.openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              response_format: { type: "json_object" },
+              messages: [{ role: "system", content: prompt }],
+            }),
+          2,
+          3000,
+        );
 
-            try {
-                const openaiStart = Date.now();
-                const fallbackRes: any = await withRetries(() => this.openai.chat.completions.create({
-                    model: "gpt-4o-mini",
-                    response_format: { type: "json_object" },
-                    messages: [{ role: "system", content: prompt }]
-                }), 2, 3000);
-
-                const latency = Date.now() - openaiStart;
-                return {
-                    success: true,
-                    source: 'openai_fallback',
-                    rawDraft: JSON.parse(fallbackRes.choices[0].message.content || '[]'),
-                    telemetry: { drafterLatencyMs: latency, degraded: true }
-                };
-            } catch (openaiError) {
-                console.error(`[DraftingAgent] FATAL Drafting Error: Both primary and fallback LLMs failed.`);
-                throw new Error("Drafting phase completely failed.");
-            }
-        }
+        const latency = Date.now() - openaiStart;
+        return {
+          success: true,
+          source: "openai_fallback",
+          rawDraft: JSON.parse(fallbackRes.choices[0].message.content || "[]"),
+          telemetry: { drafterLatencyMs: latency, degraded: true },
+        };
+      } catch (openaiError) {
+        console.error(
+          `[DraftingAgent] FATAL Drafting Error: Both primary and fallback LLMs failed.`,
+        );
+        throw new Error("Drafting phase completely failed.");
+      }
     }
+  }
 }
