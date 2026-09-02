@@ -180,6 +180,16 @@ export default function TripDetail() {
   const [showHotels, setShowHotels] = useState(false);
   const [showRestaurants, setShowRestaurants] = useState(false);
   const [showSpots, setShowSpots] = useState(false);
+
+  // Itinerary "View" button for a restaurant/cafe/hotel activity — jumps to
+  // Places and turns on the matching category toggle so results are
+  // immediately visible instead of landing on an empty tab the user then
+  // has to know to click into themselves.
+  const handleViewInPlaces = (category: "food" | "hotels") => {
+    setActiveMainTab("places");
+    if (category === "hotels") setShowHotels(true);
+    else setShowRestaurants(true);
+  };
   const [openApiLocations, setOpenApiLocations] = useState<
     Array<{
       id: string;
@@ -1458,6 +1468,7 @@ export default function TripDetail() {
               onViewOnMap={handleViewOnMap}
               highlightActivityId={highlightActivityId}
               highlightNonce={highlightNonce}
+              onViewInPlaces={handleViewInPlaces}
             />
           </TabsContent>
 

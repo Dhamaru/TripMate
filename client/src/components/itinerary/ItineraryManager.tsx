@@ -58,6 +58,11 @@ interface ItineraryManagerProps {
   // alone wouldn't change reference/value the second time.
   highlightActivityId?: string | null;
   highlightNonce?: number;
+  // For a restaurant/cafe/hotel, a bare map pin is the wrong destination —
+  // the Places tab is where the actual useful info (ratings, address,
+  // website) lives. Sightseeing/temple/museum/park/market still go to the
+  // map, which is what they're actually well-served by.
+  onViewInPlaces?: (category: "food" | "hotels") => void;
 }
 
 // Sortable Item Component with Move Buttons
@@ -73,6 +78,7 @@ function SortableActivity({
   canEdit,
   onViewOnMap,
   isHighlighted,
+  onViewInPlaces,
 }: {
   activity: IItineraryActivity;
   index: number;
@@ -85,6 +91,7 @@ function SortableActivity({
   canEdit: boolean;
   onViewOnMap?: (lat: number, lon: number) => void;
   isHighlighted?: boolean;
+  onViewInPlaces?: (category: "food" | "hotels") => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: activity.id,
@@ -191,26 +198,57 @@ function SortableActivity({
         initialVotes={activity.votes}
       />
 
-      {/* View on Map — a read action, so shown to viewer-role collaborators
-                too (unlike Edit/Delete below), whenever this activity actually
-                has coordinates to fly to (AI-generated activities and manual
-                entries without a picked place don't always have one). */}
-      {onViewOnMap && viewLat != null && viewLon != null && (
-        <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewOnMap(viewLat as number, viewLon as number);
-            }}
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
-            title="View on map"
-          >
-            <Navigation className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      )}
+      {/* View on Map / View in Places — a read action, so shown to
+                viewer-role collaborators too (unlike Edit/Delete below). A
+                restaurant/cafe/hotel's useful info (ratings, address,
+                website) lives in the Places tab, not a bare map pin — only
+                sightseeing/temple/museum/park/market/generic activities go
+                to the map. */}
+      {(() => {
+        const type = (activity.type || "").toLowerCase();
+        const isFoodOrStay = type === "restaurant" || type === "cafe" || type === "accommodation";
+        if (isFoodOrStay && onViewInPlaces) {
+          return (
+            <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewInPlaces(type === "accommodation" ? "hotels" : "food");
+                }}
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
+                title={
+                  type === "accommodation"
+                    ? "View in Places (Hotels)"
+                    : "View in Places (Restaurants)"
+                }
+              >
+                <MapPin className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          );
+        }
+        if (!isFoodOrStay && onViewOnMap && viewLat != null && viewLon != null) {
+          return (
+            <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewOnMap(viewLat as number, viewLon as number);
+                }}
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
+                title="View on map"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Edit/Delete — viewer-role collaborators can't mutate the
                 itinerary (enforced server-side too), so don't show controls
@@ -252,6 +290,7 @@ export function ItineraryManager({
   onViewOnMap,
   highlightActivityId,
   highlightNonce,
+  onViewInPlaces,
 }: ItineraryManagerProps) {
   const [itinerary, setItinerary] = useState<IItineraryDay[]>((trip.itinerary as any) || []);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -266,7 +305,6 @@ export function ItineraryManager({
     setHighlightedRowId(highlightActivityId);
     const t = setTimeout(() => setHighlightedRowId(null), 2500);
     return () => clearTimeout(t);
-     
   }, [highlightActivityId, highlightNonce]);
   const [editingActivity, setEditingActivity] = useState<{
     dayIndex: number;
@@ -669,6 +707,7 @@ export function ItineraryManager({
                       dayIndex={dayIdx}
                       onViewOnMap={onViewOnMap}
                       isHighlighted={highlightedRowId === activity.id}
+                      onViewInPlaces={onViewInPlaces}
                     />
                   ))}
                 </div>
