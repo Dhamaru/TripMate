@@ -16,7 +16,14 @@ export interface PlaceSuggestion {
  * app that picks a real-world place shares this one implementation
  * instead of five slightly-different copies of the same fetch+debounce.
  */
-export function usePlaceSuggestions(query: string, biasCoords: Coords | null | undefined) {
+export function usePlaceSuggestions(
+  query: string,
+  biasCoords: Coords | null | undefined,
+  // "city" restricts results to Google's locality type — for an origin/
+  // destination field, not for a specific-business picker (a restaurant,
+  // an activity, an attraction), which should keep seeing everything.
+  placeType?: "city",
+) {
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,6 +48,7 @@ export function usePlaceSuggestions(query: string, biasCoords: Coords | null | u
           params.set("lat", String(biasCoords.lat));
           params.set("lon", String(biasCoords.lon));
         }
+        if (placeType) params.set("type", placeType);
         const res = await fetch(`/api/v1/places/search?${params.toString()}`);
         // A rate-limited/failed response otherwise fell through to the
         // `.catch` fallback below and degraded silently to "no suggestions"
@@ -66,7 +74,7 @@ export function usePlaceSuggestions(query: string, biasCoords: Coords | null | u
     // biasCoords is a plain object recreated on some renders — compare by
     // value, not reference, so this doesn't re-debounce on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, biasCoords?.lat, biasCoords?.lon]);
+  }, [query, biasCoords?.lat, biasCoords?.lon, placeType]);
 
   return { suggestions, isLoading };
 }

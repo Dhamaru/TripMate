@@ -152,10 +152,12 @@ export default function TripPlanner() {
   const { suggestions: originSuggestions, isLoading: originLoading } = usePlaceSuggestions(
     showOriginSuggestions ? tripForm.origin : "",
     userLocation,
+    "city",
   );
   const { suggestions: destSuggestions, isLoading: destLoading } = usePlaceSuggestions(
     showDestSuggestions ? tripForm.destination : "",
     undefined,
+    "city",
   );
 
   const [selectedStyle, setSelectedStyle] = useState("");

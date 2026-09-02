@@ -45,9 +45,18 @@ router.get("/photo", placesPhotoLimiter, async (req, res) => {
 
 router.get("/search", async (req, res) => {
   try {
-    const { query: queryParam, q, pageSize = 10, lat, lon } = req.query;
+    const { query: queryParam, q, pageSize = 10, lat, lon, type } = req.query;
     const query = (queryParam || q) as string;
     if (!query) return res.status(400).json({ error: "Search query is required" });
+
+    // Only "city" is accepted from the client — a city/locality picker
+    // (trip origin/destination) needs Google's Text Search restricted to
+    // place-level results, or "Vijaya" matches every business with that
+    // substring in its name (a hospital, a bakery, a dairy parlour — all
+    // real production results before this existed). Every other picker in
+    // the app (restaurants, activities, attractions) wants the unrestricted
+    // search, so this stays opt-in per caller rather than a global change.
+    const typeParam = type === "city" ? "&type=locality" : "";
 
     const key = config.GOOGLE_API_KEY;
     if (!key) {
@@ -68,7 +77,7 @@ router.get("/search", async (req, res) => {
     const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
 
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}${biasParam}&key=${key}`,
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}${biasParam}${typeParam}&key=${key}`,
     );
     const data = await response.json();
 
