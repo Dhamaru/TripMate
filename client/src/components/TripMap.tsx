@@ -21,6 +21,9 @@ interface TripMapProps {
   origin?: string;
   onAddActivity?: (activity: any, dayNumber: number) => Promise<void>;
   onDeleteActivity?: (dayIndex: number, activityIndex: number) => Promise<void>;
+  // The reverse of focusTarget below — jump from a map pin's popup back to
+  // that activity's row in the Itinerary tab.
+  onViewInItinerary?: (activityId: string) => void;
   // Set (to a new object, even with the same lat/lon) whenever the
   // itinerary's "View on Map" button is clicked — flies to and opens that
   // activity's marker. A plain {lat, lon} rather than a day/activity index
@@ -34,6 +37,7 @@ export function TripMap({
   origin,
   onAddActivity,
   onDeleteActivity,
+  onViewInItinerary,
   focusTarget,
 }: TripMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -360,14 +364,26 @@ export function TripMap({
                             ${act.time ? `<div style="font-size: 0.85em; margin-top:2px;">⏰ ${act.time}</div>` : ""}
                         `;
 
+            const actionsRow = document.createElement("div");
+            actionsRow.style.cssText = "display: flex; gap: 10px; margin-top: 4px;";
+
+            if (onViewInItinerary && act.id) {
+              const editBtn = document.createElement("button");
+              editBtn.innerHTML = '<i class="fas fa-pen mr-1"></i> Edit';
+              editBtn.style.cssText =
+                "color: var(--explorer-blue); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
+              editBtn.onclick = () => onViewInItinerary(act.id);
+              actionsRow.appendChild(editBtn);
+            }
             if (onDeleteActivity) {
               const delBtn = document.createElement("button");
               delBtn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> Delete';
               delBtn.style.cssText =
-                "color: var(--ios-red); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer; margin-top: 4px;";
+                "color: var(--ios-red); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
               delBtn.onclick = () => onDeleteActivity(act.dayIndex, act.actIndex);
-              item.appendChild(delBtn);
+              actionsRow.appendChild(delBtn);
             }
+            if (actionsRow.childNodes.length > 0) item.appendChild(actionsRow);
 
             popupContainer.appendChild(item);
             if (idx < activities.length - 1) {

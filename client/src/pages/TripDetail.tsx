@@ -142,6 +142,16 @@ export default function TripDetail() {
     // dependency array) fires again on a second click of the same pin.
     setMapFocusTarget({ lat, lon });
   };
+
+  // The reverse: map pin popup -> jump to Itinerary and scroll to/highlight
+  // that activity's row.
+  const [highlightActivityId, setHighlightActivityId] = useState<string | null>(null);
+  const [highlightNonce, setHighlightNonce] = useState(0);
+  const handleViewInItinerary = (activityId: string) => {
+    setActiveMainTab("itinerary");
+    setHighlightActivityId(activityId);
+    setHighlightNonce((n) => n + 1); // same id twice in a row still re-triggers the scroll/highlight
+  };
   const [heroImgError, setHeroImgError] = useState(false);
   const [isAtlasThinking, setIsAtlasThinking] = useState(false);
   const [tripForm, setTripForm] = useState({
@@ -472,6 +482,52 @@ export default function TripDetail() {
       toast({ title: "Error", description: "Failed to add activity.", variant: "destructive" });
     },
   });
+
+  // Places-tab results (hotels/restaurants/tourist spots) had zero path into
+  // the trip — the only action was "Open Map", which bounced out to Google
+  // Maps in a new tab even though the app already has the place's name,
+  // address, and coordinates in hand. Adds it to Day 1 with a sensible type
+  // per category; "View on Map" reuses the exact same focus mechanism the
+  // Itinerary tab's own "View on map" button uses.
+  const addPlaceToItinerary = (place: any, type: "accommodation" | "food" | "sightseeing") => {
+    addActivityMutation.mutate({
+      dayIndex: 0,
+      activity: {
+        title: place.name || place.title || "Untitled place",
+        placeName: place.name || place.title,
+        address: place.address,
+        type,
+        lat: place.location?.lat,
+        lon: place.location?.lng,
+        duration_minutes: 60,
+      },
+    });
+  };
+
+  const renderPlaceActions = (place: any, type: "accommodation" | "food" | "sightseeing") => {
+    const hasCoords = place.location?.lat != null && place.location?.lng != null;
+    return (
+      <div className="flex items-center gap-3 mt-2">
+        <button
+          type="button"
+          onClick={() => addPlaceToItinerary(place, type)}
+          disabled={addActivityMutation.isPending}
+          className="text-xs text-[var(--explorer-blue)] hover:underline inline-flex items-center disabled:opacity-50"
+        >
+          <i className="fas fa-plus mr-1 text-[10px]"></i> Add to Itinerary
+        </button>
+        {hasCoords && (
+          <button
+            type="button"
+            onClick={() => handleViewOnMap(place.location.lat, place.location.lng)}
+            className="text-xs text-[var(--explorer-blue)] hover:underline inline-flex items-center"
+          >
+            View on Map <i className="fas fa-map-marker-alt ml-1 text-[10px]"></i>
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const deleteActivityMutation = useMutation({
     mutationFn: async ({ dayIndex, activityId }: { dayIndex: number; activityId: string }) => {
@@ -1380,7 +1436,12 @@ export default function TripDetail() {
 
           {/* ── Itinerary tab ─────────────────────────────────── */}
           <TabsContent value="itinerary" className="mt-0">
-            <ItineraryManager trip={trip} onViewOnMap={handleViewOnMap} />
+            <ItineraryManager
+              trip={trip}
+              onViewOnMap={handleViewOnMap}
+              highlightActivityId={highlightActivityId}
+              highlightNonce={highlightNonce}
+            />
           </TabsContent>
 
           {/* ── Map tab ─────────────────────────────────── */}
@@ -1391,6 +1452,7 @@ export default function TripDetail() {
               origin={trip.origin}
               onAddActivity={handleMapAddActivity}
               onDeleteActivity={handleMapDeleteActivity}
+              onViewInItinerary={handleViewInItinerary}
               focusTarget={mapFocusTarget}
             />
           </TabsContent>
@@ -1504,15 +1566,7 @@ export default function TripDetail() {
                                               "",
                                           )}
                                         </div>
-                                        <a
-                                          href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ""))}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center"
-                                        >
-                                          Open Map{" "}
-                                          <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
-                                        </a>
+                                        {renderPlaceActions(i, "accommodation")}
                                       </div>
                                     ))}
                                     {(!hotelResults || hotelResults.length === 0) && (
@@ -1567,15 +1621,7 @@ export default function TripDetail() {
                                               "",
                                           )}
                                         </div>
-                                        <a
-                                          href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ""))}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center"
-                                        >
-                                          Open Map{" "}
-                                          <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
-                                        </a>
+                                        {renderPlaceActions(i, "food")}
                                       </div>
                                     ))}
                                     {(!foodResults || foodResults.length === 0) && (
@@ -1630,28 +1676,7 @@ export default function TripDetail() {
                                               "",
                                           )}
                                         </div>
-                                        <a
-                                          href={`https://www.google.com/maps/search/?api=1&query=${i.lat && i.lon ? `${i.lat},${i.lon}` : encodeURIComponent(String(i.display_name || ""))}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-xs text-[#1D4E89] hover:underline mt-2 inline-flex items-center"
-                                          onClick={() => {
-                                            try {
-                                              logInfo("place_open_map", {
-                                                id: String(i.id),
-                                                type: "tourist_spot",
-                                                lat: Number(i.lat),
-                                                lon: Number(i.lon),
-                                                name: String(
-                                                  i.name_en || i.name_local || i.display_name || "",
-                                                ),
-                                              });
-                                            } catch {}
-                                          }}
-                                        >
-                                          Open Map{" "}
-                                          <i className="fas fa-external-link-alt ml-1 text-[10px]"></i>
-                                        </a>
+                                        {renderPlaceActions(i, "sightseeing")}
                                       </div>
                                     ))}
                                     {(!sightsResults || sightsResults.length === 0) && (

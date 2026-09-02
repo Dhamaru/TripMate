@@ -52,6 +52,12 @@ interface ItineraryManagerProps {
   // without a sibling map (there's currently only the one usage, but no
   // reason to make this a hard requirement).
   onViewOnMap?: (lat: number, lon: number) => void;
+  // The reverse flow — set from a map pin's "Edit" click, scrolls to and
+  // briefly highlights that activity's row. highlightNonce bumps on every
+  // click (even of the same activity twice in a row) since highlightActivityId
+  // alone wouldn't change reference/value the second time.
+  highlightActivityId?: string | null;
+  highlightNonce?: number;
 }
 
 // Sortable Item Component with Move Buttons
@@ -66,6 +72,7 @@ function SortableActivity({
   dayIndex,
   canEdit,
   onViewOnMap,
+  isHighlighted,
 }: {
   activity: IItineraryActivity;
   index: number;
@@ -77,6 +84,7 @@ function SortableActivity({
   dayIndex: number;
   canEdit: boolean;
   onViewOnMap?: (lat: number, lon: number) => void;
+  isHighlighted?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: activity.id,
@@ -115,8 +123,9 @@ function SortableActivity({
   return (
     <div
       ref={setNodeRef}
+      id={`itinerary-activity-${activity.id}`}
       style={style}
-      className={`flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isTravelLeg ? "bg-[rgb(var(--amber-rgb)/5%)]" : "hover:bg-[hsl(var(--muted))]/50"}`}
+      className={`flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isHighlighted ? "bg-[rgb(var(--explorer-blue-rgb)/15%)]" : isTravelLeg ? "bg-[rgb(var(--amber-rgb)/5%)]" : "hover:bg-[hsl(var(--muted))]/50"}`}
     >
       {/* Drag handle — viewers can't reorder either */}
       {canEdit && (
@@ -238,9 +247,27 @@ function SortableActivity({
   );
 }
 
-export function ItineraryManager({ trip, onViewOnMap }: ItineraryManagerProps) {
+export function ItineraryManager({
+  trip,
+  onViewOnMap,
+  highlightActivityId,
+  highlightNonce,
+}: ItineraryManagerProps) {
   const [itinerary, setItinerary] = useState<IItineraryDay[]>((trip.itinerary as any) || []);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // "Edit" clicked on a map pin's popup — scroll to and briefly highlight
+  // that row so it's obvious which activity got jumped to, mirroring the
+  // fly-to+popup TripMap does for the opposite direction (Itinerary -> Map).
+  const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!highlightActivityId) return;
+    const el = document.getElementById(`itinerary-activity-${highlightActivityId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedRowId(highlightActivityId);
+    const t = setTimeout(() => setHighlightedRowId(null), 2500);
+    return () => clearTimeout(t);
+     
+  }, [highlightActivityId, highlightNonce]);
   const [editingActivity, setEditingActivity] = useState<{
     dayIndex: number;
     activity: IItineraryActivity | null;
@@ -641,6 +668,7 @@ export function ItineraryManager({ trip, onViewOnMap }: ItineraryManagerProps) {
                       tripId={String(trip.id)}
                       dayIndex={dayIdx}
                       onViewOnMap={onViewOnMap}
+                      isHighlighted={highlightedRowId === activity.id}
                     />
                   ))}
                 </div>
