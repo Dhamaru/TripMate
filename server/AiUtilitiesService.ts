@@ -688,10 +688,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       // OWM/AI *and* this Open-Meteo/Nominatim path both dead for a
       // mainstream city) was undiagnosable without instrumenting a debugger,
       // because nothing logged which layer actually broke.
+      const primaryErrMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
       console.warn(
         `[Weather] Primary (OWM/AI) path failed for "${c}", trying Open-Meteo fallback:`,
-        primaryErr instanceof Error ? primaryErr.message : primaryErr,
+        primaryErrMsg,
       );
+      let fallbackErrMsg = "";
       // Try Open-Meteo (free, no API key) via Nominatim geocoding
       try {
         let lat: string, lon: string;
@@ -786,9 +788,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           }
         }
       } catch (fallbackErr) {
+        fallbackErrMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
         console.warn(
           `[Weather] Open-Meteo/Nominatim fallback also failed for "${c}", using generic estimate:`,
-          fallbackErr instanceof Error ? fallbackErr.message : fallbackErr,
+          fallbackErrMsg,
         );
       }
 
@@ -819,6 +822,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         forecast,
         recommendations: ["Weather data unavailable — shown estimate only"],
         source: "fallback" as const,
+        // TEMPORARY diagnostic — remove once the root cause of the
+        // fallback chain is confirmed live. No secrets in these messages,
+        // just fetch/parse failure text.
+        _debug: { primaryErrMsg, fallbackErrMsg },
       };
       return this.setCached(key, result);
     }
