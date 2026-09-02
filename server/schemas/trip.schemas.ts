@@ -44,29 +44,37 @@ export const createTripSchema = z.object({
     costBreakdown: z.record(z.any()).optional(),
     itinerary: z
       .array(
-        z.object({
-          dayIndex: z.number().int().min(0).optional(),
-          day: z.number().int().min(1).optional(),
-          date: z.coerce.date().optional(),
-          activities: z
-            .array(
-              z
-                .object({
-                  id: z.string().optional(),
-                  time: z.string().optional(),
-                  title: z.string().min(1),
-                  location: z.string().optional(),
-                  address: z.string().optional(),
-                  lat: z.number().optional(),
-                  lon: z.number().optional(),
-                  notes: z.string().optional(),
-                })
-                .catchall(z.any()),
-            )
-            .default([]),
-          reasoning: z.string().optional(),
-          confidenceScore: z.enum(["high", "medium", "low"]).optional(),
-        }),
+        z
+          .object({
+            dayIndex: z.number().int().min(0).optional(),
+            day: z.number().int().min(1).optional(),
+            date: z.coerce.date().optional(),
+            activities: z
+              .array(
+                z
+                  .object({
+                    id: z.string().optional(),
+                    time: z.string().optional(),
+                    title: z.string().min(1),
+                    location: z.string().optional(),
+                    address: z.string().optional(),
+                    lat: z.number().optional(),
+                    lon: z.number().optional(),
+                    notes: z.string().optional(),
+                  })
+                  .catchall(z.any()),
+              )
+              .default([]),
+            reasoning: z.string().optional(),
+            confidenceScore: z.enum(["high", "medium", "low"]).optional(),
+          })
+          // "Import My Plan" adds day-level fields beyond this list
+          // (departureReminder, dayBudget, weatherNote, location,
+          // wakeUpTime, headlineExperience) — same reasoning as the
+          // activities catchall just above: an unlisted field is silently
+          // stripped by validate() otherwise, and this object grows every
+          // time a new per-day enrichment field is added.
+          .catchall(z.any()),
       )
       .optional(),
   }),
@@ -89,6 +97,43 @@ export const updateTripSchema = z.object({
       notes: z.string().optional(),
     })
     .partial(),
+});
+
+// "Import My Plan" (parse-schedule) — was validated client-side only
+// (10-char minimum, a truthy groupSize check), so a malformed request
+// still reached the AI call: no server-side floor, no location sanity
+// check, no rejection of a start date already in the past. Every check
+// here runs BEFORE the AI call — a request that fails any of them never
+// reaches AiUtilitiesService.parseSchedule, so it never spends the model
+// budget on input that was always going to fail.
+export const parseScheduleSchema = z.object({
+  body: z
+    .object({
+      scheduleText: z
+        .string()
+        .min(20, "Tell us a bit more about your trip — at least 20 characters.")
+        .max(3000, "That's a lot of text — please keep it under 3000 characters."),
+      // A real schedule reads out place names, which are near-universally
+      // capitalized in English text ("Goa", "Baga Beach", "Fort Aguada").
+      // Deliberately loose — this only needs to catch clearly-empty or
+      // gibberish input ("asdf asdf asdf"), not verify the location is
+      // real; AiUtilitiesService.parseSchedule and its downstream
+      // grounding pass are what actually verify real places.
+      startDate: z.coerce
+        .date()
+        .optional()
+        .refine((d) => !d || d.getTime() >= Date.now() - 24 * 60 * 60 * 1000, {
+          message: "Start date can't be in the past.",
+        }),
+      groupSize: z.coerce.number().int().min(1, "Group size must be at least 1."),
+      budget: z.coerce.number().min(0).optional(),
+      currency: z.string().max(3).optional(),
+    })
+    .refine((data) => /[A-Z][a-zA-Z]{2,}/.test(data.scheduleText), {
+      message:
+        "We couldn't find a place name in your schedule — try including city or location names.",
+      path: ["scheduleText"],
+    }),
 });
 
 export const discoverPlacesSchema = z.object({

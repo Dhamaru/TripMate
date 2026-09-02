@@ -3152,117 +3152,204 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     }
   }
 
+  // Shared by parseSchedule (prompt-time steering), its cache key
+  // (trips.controller.ts calls this too, so the bucket used to build the
+  // hash always matches the bucket actually sent to the model), and — in
+  // the parseSchedule case — computed BEFORE the AI has parsed the
+  // schedule and determined the real day count, so `days` there is a
+  // deliberate rough stand-in (1), not a real day count; imprecise for a
+  // long multi-day budget entered as one lump sum, but consistent between
+  // prompt and cache key, which matters more than precision here. Buckets
+  // a raw budget instead of the exact number, so ₹49,800 and ₹50,000 hit
+  // the same cache entry instead of two nearly-identical ones.
+  // Currency-normalized via the same per-meal baseRates scale used
+  // elsewhere in this file (INR 500 ≈ one mid-range meal — the scale
+  // factor, not a literal meal count) so a ₹2,000/day trip and a $25/day
+  // trip land in the same "budget" bracket rather than one always
+  // reading as premium.
+  getBudgetBracket(
+    budget: number | undefined,
+    days: number,
+    persons: number,
+    currency: string,
+  ): "budget" | "mid" | "premium" {
+    if (!budget || budget <= 0) return "mid";
+    const baseRates: Record<string, number> = {
+      INR: 500,
+      USD: 20,
+      EUR: 18,
+      GBP: 15,
+      AUD: 25,
+      CAD: 25,
+      JPY: 2000,
+      CNY: 100,
+    };
+    const scale = (baseRates[currency] || baseRates.INR) / baseRates.INR;
+    const perDayPerPersonINR = budget / Math.max(1, days) / Math.max(1, persons) / scale;
+    if (perDayPerPersonINR < 2000) return "budget";
+    if (perDayPerPersonINR < 6000) return "mid";
+    return "premium";
+  }
+
   /**
-   * Parses a free-text travel schedule into a structured itinerary.
-   * Used by the "Import My Plan" feature.
+   * Parses a free-text travel schedule into a structured, enriched
+   * itinerary. Used by the "Import My Plan" feature. Fields kept
+   * consistent with the rest of this codebase's itinerary shape
+   * (time/title/type/address/lat/lon/cost/entryFee/duration_minutes —
+   * see DraftingAgent.ts's prompt and IItineraryActivity) so downstream
+   * consumers (Budget tracker, TripMap, ItineraryManager's View
+   * routing) work on an imported plan exactly as they do on an
+   * AI-generated one, plus the richer per-activity/per-day fields this
+   * enrichment pass adds on top: why it's worth visiting, whether it's
+   * time-sensitive (sunset/sunrise/tide-locked), a local tip, and a
+   * last-day-per-city departure reminder.
    */
-  async parseSchedule(input: {
-    scheduleText: string;
-    startDate?: string;
-    groupSize?: number;
-    budget?: number;
-    currency?: string;
-  }): Promise<{
+  async parseSchedule(
+    input: {
+      scheduleText: string;
+      startDate?: string;
+      groupSize?: number;
+      budget?: number;
+      currency?: string;
+    },
+    // Side channel for request-cost logging (server/controllers/trips.controller.ts)
+    // — kept separate from the return value rather than folding {model,
+    // tokensUsed} into it, so the response shape stays exactly what a
+    // caller of this method actually wants (the plan), not the plan plus
+    // internal telemetry a client would just have to ignore.
+    onMeta?: (meta: { model: string; tokensUsed?: number }) => void,
+  ): Promise<{
     destination: string;
     days: number;
     startDate?: string;
+    tripStyle?: string;
+    budgetBracket: "budget" | "mid" | "premium";
     itinerary: Array<{
       day: number;
       date?: string;
       theme: string;
+      location?: string;
+      wakeUpTime?: string;
+      headlineExperience?: string;
+      departureReminder?: { departBy: string; transport: string; note: string } | null;
+      dayBudget?: number;
+      weatherNote?: string;
       activities: Array<{
         id: string;
         time: string;
         title: string;
+        placeName?: string;
         type: string;
         from?: string;
         to?: string;
         notes?: string;
         address?: string;
+        lat?: number;
+        lon?: number;
         duration_minutes: number;
+        travelTimeFromPreviousMinutes?: number;
+        whyVisit?: string;
+        cost?: number;
+        entryFee?: number;
+        timeSensitive?: boolean;
+        timeNote?: string;
+        localTip?: string;
       }>;
     }>;
     costBreakdown?: Record<string, any>;
+    packingNotes?: string[];
+    bookingPriorities?: Array<{ item: string; urgency: string; reason: string }>;
     notes?: string;
   }> {
     const { scheduleText, startDate, groupSize = 1, budget, currency = "INR" } = input;
+    const budgetBracket = this.getBudgetBracket(budget, 1, groupSize, currency);
 
-    const prompt = `You are a travel itinerary parser. Parse the following travel schedule text into a structured JSON itinerary.
+    // Kept tight and directive deliberately — a longer prompt costs more
+    // tokens on every single call with no quality gain proportional to
+    // the length; every rule earns its place.
+    const systemPrompt = `You are a travel itinerary engine. Parse the user's own pasted schedule into ONLY a valid JSON object — no prose, no markdown.
 
-Schedule text:
+Rules:
+- Extract each day as a separate entry. Lines like "27th ...", "Day 3 ...", "May 31 ..." each start a new day.
+- Build a time-blocked schedule (wake-up to dinner) from what the user described — don't invent a different trip, structure and enrich THEIRS.
+- Sequence a day's stops to avoid backtracking (furthest first, work back toward the stay) where the user's own text leaves the order ambiguous.
+- Travel legs (flight/drive/train/trek): type "travel", include from/to, 15 min buffer added to any travel-time estimate.
+- Sightseeing/temple/museum/park/market: type matches; NEVER repeat the same landmark under a reworded title across days.
+- Meals: type "restaurant" or "cafe", a real specific place name (not "lunch" or "local restaurant"), with time and cost.
+- Time-sensitive experiences (sunset, sunrise, aarti, tide-locked): set timeSensitive true, anchor that day's schedule around the correct time, fill timeNote with why.
+- budgetBracket "${budgetBracket}": skip suggesting paid add-ons; "premium": suggest a genuine experiential upgrade where it fits the user's own plan.
+- The last day the user's schedule spends in a given city needs departureReminder (departBy, transport, note) on that day; every other day: null.
+- Every activity needs: title, placeName, address, approximate lat/lon (best estimate), duration_minutes, travelTimeFromPreviousMinutes, whyVisit (max 12 words), cost, entryFee, timeSensitive, timeNote, localTip (max 12 words).
+- Always return valid JSON with at least one day. Never fabricate a real place that isn't recognizable — if genuinely unsure of an exact address, give the best general area instead of inventing a fake one.
+
+JSON shape:
+{"destination":"","days":0,"startDate":"YYYY-MM-DD or null","tripStyle":"",
+"itinerary":[{"day":1,"date":"YYYY-MM-DD or null","theme":"","location":"","wakeUpTime":"HH:MM AM/PM","headlineExperience":"",
+"departureReminder":{"departBy":"HH:MM AM/PM","transport":"","note":""}|null,"dayBudget":0,"weatherNote":"",
+"activities":[{"id":"act-1-0","time":"HH:MM AM/PM","title":"","placeName":"","type":"travel|sightseeing|hotel|restaurant|cafe|market|museum|temple|park|other","from":null,"to":null,"notes":null,"address":"","lat":0,"lon":0,"duration_minutes":0,"travelTimeFromPreviousMinutes":0,"whyVisit":"","cost":0,"entryFee":0,"timeSensitive":false,"timeNote":"","localTip":""}]}],
+"packingNotes":[],"bookingPriorities":[{"item":"","urgency":"","reason":""}],"notes":""}`;
+
+    const userPrompt = `Schedule:
 """
 ${scheduleText}
 """
-
-Additional info:
-- Start date: ${startDate || "Not specified"}
-- Group size: ${groupSize} person(s)
-- Budget: ${budget ? `${budget} ${currency}` : "Not specified"}
-- Currency: ${currency}
-
-Rules:
-1. Extract each day as a separate itinerary entry. Lines like "27th ...", "28th ...", "1st June ...", "Day 3 ...", "May 31 ..." each represent one day.
-2. For travel legs (flights, car drives, trains, treks), use type "travel" and include "from" and "to" fields.
-3. For darshans/temple visits/sightseeing use type "sightseeing".
-4. For stays/hotels use type "hotel".
-5. Assign realistic times (flights in morning/evening, drives after breakfast, etc.).
-6. Set a descriptive "theme" for each day (e.g., "Travel to Haridwar", "Badrinath Darshan").
-7. Generate unique IDs for each activity using format "act-{dayNum}-{idx}".
-8. If startDate is given, calculate the "date" for each day (YYYY-MM-DD format). If ordinal dates like "27th" are in the text, use the month/year from startDate to build the full date.
-9. Identify the primary multi-city destination as a descriptive string (e.g., "Chardham Yatra - Uttarakhand & UP").
-10. Assign duration_minutes: travel legs 120-480, sightseeing 60-120, hotel 0.
-11. CRITICAL: Always return valid JSON. Never return empty itinerary — extract at minimum one day per line of the schedule.
-
-Return ONLY valid JSON, no markdown, no explanation:
-{
-  "destination": "string",
-  "days": number,
-  "startDate": "YYYY-MM-DD or null",
-  "itinerary": [
-    {
-      "day": 1,
-      "date": "YYYY-MM-DD or null",
-      "theme": "string",
-      "activities": [
-        {
-          "id": "act-1-0",
-          "time": "06:00 PM",
-          "title": "string",
-          "type": "travel|sightseeing|hotel|restaurant|other",
-          "from": "string or null",
-          "to": "string or null",
-          "notes": "string or null",
-          "address": "string or null",
-          "duration_minutes": number
-        }
-      ]
-    }
-  ],
-  "notes": "string or null"
-}`;
+Start: ${startDate || "not specified"} | Group: ${groupSize} | Budget: ${budget ? `${budget} ${currency}` : "not specified"} (bracket: ${budgetBracket})`;
 
     let raw = "";
+    let usedModel = "gemini-3.5-flash-lite";
+    let tokensUsed: number | undefined;
+    const fallbackPrompt = `Return ONLY valid JSON, no other text. Same structure as before. Parse this schedule: ${scheduleText.slice(0, 1500)} | ${groupSize} people | ${budgetBracket} budget | Start ${startDate || "unspecified"}`;
     try {
-      raw = await this.generateWithGemini(prompt);
+      raw = await this.generateWithGemini(userPrompt, systemPrompt);
     } catch (geminiError) {
-      // Fallback to NVIDIA, then OpenAI, if Gemini fails
+      // Fallback to NVIDIA, then OpenAI, if Gemini fails — same shorter,
+      // stricter retry prompt on either, since a smaller/weaker model is
+      // more likely to wander from the full rule list than to fail on
+      // basic JSON-only compliance.
       try {
-        raw = await this.generateWithNvidia(prompt);
+        raw = await this.generateWithNvidia(fallbackPrompt, systemPrompt);
+        usedModel = "meta/llama-3.1-8b-instruct";
       } catch (nvidiaError) {
         if (this.openai) {
           const res = await this.openai.chat.completions.create({
             model: "gpt-4o-mini",
-            messages: [{ role: "user", content: prompt }],
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
             temperature: 0.3,
           });
           raw = res.choices[0]?.message?.content || "{}";
+          usedModel = "gpt-4o-mini";
+          tokensUsed = res.usage?.total_tokens;
         } else {
           throw new Error("No AI provider available");
         }
       }
     }
 
-    const parsed = this.parseJson(raw);
+    let parsed = this.parseJson(raw);
+
+    // One retry with a deliberately shorter, stricter prompt if the first
+    // response didn't parse into a usable plan — a real model failure
+    // mode (truncation, stray prose) that used to go straight to a 500
+    // with no second attempt.
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !Array.isArray(parsed.itinerary) ||
+      parsed.itinerary.length === 0
+    ) {
+      try {
+        const retryRaw = await this.generateWithGemini(fallbackPrompt, systemPrompt);
+        parsed = this.parseJson(retryRaw);
+        usedModel = "gemini-3.5-flash-lite (retry)";
+      } catch {
+        // fall through to the error below
+      }
+    }
+
+    onMeta?.({ model: usedModel, tokensUsed });
 
     if (
       !parsed ||
@@ -3273,7 +3360,9 @@ Return ONLY valid JSON, no markdown, no explanation:
       throw new Error("AI could not extract a valid itinerary from the schedule text");
     }
 
-    // Ensure each activity has an id and duration
+    // Ensure each activity has an id and duration, same backstop the
+    // original implementation had — a model can omit a required field
+    // even under an explicit schema instruction.
     for (const day of parsed.itinerary) {
       if (!Array.isArray(day.activities)) day.activities = [];
       for (let i = 0; i < day.activities.length; i++) {
@@ -3285,6 +3374,9 @@ Return ONLY valid JSON, no markdown, no explanation:
         }
       }
     }
+
+    parsed = this.finalizeAttractionDedup(parsed);
+    parsed.budgetBracket = budgetBracket;
 
     return parsed;
   }

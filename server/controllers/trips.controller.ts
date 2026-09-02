@@ -1,10 +1,13 @@
 import { Request, Response, NextFunction } from "express";
+import crypto from "crypto";
 import {
   TripModel,
   UserModel,
   CrowdDensityModel,
   ICrowdDensity,
   AtlasConversationModel,
+  ImportPlanCacheModel,
+  ImportPlanRequestLogModel,
 } from "@shared/schema";
 import { AiUtilitiesService } from "../AiUtilitiesService";
 
@@ -685,19 +688,92 @@ export const getPublicTrip = async (req: Request, res: Response, next: NextFunct
 };
 
 export const parseSchedule = async (req: Request, res: Response, next: NextFunction) => {
+  const startedAt = Date.now();
+  const userId = req.user?._id || req.user?.id || "unknown";
   try {
+    // parseScheduleSchema (validate() middleware, trips.routes.ts) has
+    // already rejected anything too short, groupSize <1, or a start date
+    // in the past, and coerced groupSize/budget/startDate to the right
+    // types — req.body is trustworthy on shape by this point. What's left
+    // here is content sanitization: strip any HTML the textarea would
+    // otherwise pass straight through into the AI prompt unchanged.
     const { scheduleText, startDate, groupSize, budget, currency } = req.body;
-    if (!scheduleText || typeof scheduleText !== "string" || scheduleText.trim().length < 10) {
-      throw new BadRequestError("scheduleText is required and must be at least 10 characters.");
+    const sanitizedScheduleText = String(scheduleText)
+      .replace(/<[^>]*>/g, "")
+      .trim();
+    if (sanitizedScheduleText.length < 20) {
+      throw new BadRequestError(
+        "Please paste more detail about your trip — at least 20 characters.",
+      );
     }
+    const normalizedCurrency = currency || "INR";
+
     const aiService = new AiUtilitiesService();
-    const result = await aiService.parseSchedule({
-      scheduleText: scheduleText.slice(0, 3000),
-      startDate,
-      groupSize: groupSize ? Number(groupSize) : 1,
-      budget: budget ? Number(budget) : undefined,
-      currency: currency || "INR",
-    });
+    const budgetBracket = aiService.getBudgetBracket(budget, 1, groupSize, normalizedCurrency);
+
+    // Cache hash: sanitized input + group size + budget bracket (not the
+    // exact budget — see getBudgetBracket) + currency, so a request that
+    // only differs by ₹49,800 vs ₹50,000 still hits the same entry. Not
+    // including startDate deliberately — a schedule pasted today vs next
+    // week with the same text/group/budget should still be treated as
+    // the same parse; the actual date math happens client-side against
+    // whatever startDate is chosen at trip-creation time regardless.
+    const hash = crypto
+      .createHash("sha256")
+      .update(
+        `${sanitizedScheduleText}|${groupSize}|${budgetBracket}|${normalizedCurrency.toUpperCase()}`,
+      )
+      .digest("hex");
+
+    const cached = await ImportPlanCacheModel.findOne({ hash })
+      .lean()
+      .catch(() => null);
+    if (cached) {
+      // Fire-and-forget — a logging write must never delay or fail the
+      // response to the user (same reasoning as the cache-miss path
+      // below and the account-export/delete-cascade pattern elsewhere
+      // in this codebase: best-effort side effects don't block the
+      // primary result).
+      ImportPlanRequestLogModel.create({
+        userId,
+        cacheHit: true,
+        durationMs: Date.now() - startedAt,
+        aiModel: "cache",
+      }).catch((e) => console.error("[TripsController] request log write failed:", e.message));
+      return res.json(cached.structuredJson);
+    }
+
+    let loggedMeta: { model: string; tokensUsed?: number } = { model: "unknown" };
+    const result = await aiService.parseSchedule(
+      {
+        scheduleText: sanitizedScheduleText,
+        // parseScheduleSchema coerces this to a real Date (z.coerce.date())
+        // for the past-date check — parseSchedule's prompt wants a plain
+        // "YYYY-MM-DD" string, not a Date's verbose toString().
+        startDate: startDate ? new Date(startDate).toISOString().slice(0, 10) : undefined,
+        groupSize,
+        budget,
+        currency: normalizedCurrency,
+      },
+      (meta) => {
+        loggedMeta = meta;
+      },
+    );
+
+    // Best-effort — per the original spec's own instruction ("if the DB
+    // insert fails, still return the itinerary to the user"), neither of
+    // these can block or fail the response.
+    ImportPlanCacheModel.create({ hash, structuredJson: result }).catch((e) =>
+      console.error("[TripsController] import-plan cache write failed:", e.message),
+    );
+    ImportPlanRequestLogModel.create({
+      userId,
+      cacheHit: false,
+      durationMs: Date.now() - startedAt,
+      aiModel: loggedMeta.model,
+      tokensUsed: loggedMeta.tokensUsed,
+    }).catch((e) => console.error("[TripsController] request log write failed:", e.message));
+
     res.json(result);
   } catch (error) {
     console.error("[TripsController] parseSchedule Error:", error);

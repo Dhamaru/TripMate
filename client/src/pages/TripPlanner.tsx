@@ -181,6 +181,11 @@ export default function TripPlanner() {
   });
   const [isParsing, setIsParsing] = useState(false);
   const importSaved = useRef(false);
+  // Persistent inline errors for the Import form — the toast the old
+  // validation showed for a couple of these cases disappears after a few
+  // seconds with no lasting indicator of which field to fix, same gap the
+  // AI-plan form's submitErrors above was already built to close.
+  const [importErrors, setImportErrors] = useState<Record<string, string>>({});
 
   // Prefill from ?destination=&style= query params (e.g. landing page hero search)
   useEffect(() => {
@@ -244,22 +249,35 @@ export default function TripPlanner() {
 
   const handleImportSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!importForm.scheduleText.trim() || importForm.scheduleText.trim().length < 10) {
-      toast({
-        title: "Missing Schedule",
-        description: "Please paste your travel schedule.",
-        variant: "destructive",
-      });
-      return;
+
+    // Mirrors parseScheduleSchema (server/schemas/trip.schemas.ts) so a
+    // request that would just get rejected by the server never leaves
+    // the browser — same checks, immediate feedback, no round trip.
+    const errors: Record<string, string> = {};
+    const trimmedSchedule = importForm.scheduleText.trim();
+    if (trimmedSchedule.length < 20) {
+      errors.scheduleText = "Tell us a bit more about your trip — at least 20 characters.";
+    } else if (!/[A-Z][a-zA-Z]{2,}/.test(trimmedSchedule)) {
+      errors.scheduleText =
+        "We couldn't find a place name in your schedule — try including city or location names.";
     }
     if (!importForm.groupSize) {
-      toast({
-        title: "Missing Info",
-        description: "Please enter group size.",
-        variant: "destructive",
-      });
+      errors.groupSize = "Please select a group size.";
+    }
+    if (importForm.startDate) {
+      const chosen = new Date(importForm.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (chosen < today) {
+        errors.startDate = "Start date can't be in the past.";
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      setImportErrors(errors);
       return;
     }
+    setImportErrors({});
+
     setIsParsing(true);
     importSaved.current = false;
     try {
@@ -270,7 +288,20 @@ export default function TripPlanner() {
         budget: importForm.budget ? parseFloat(importForm.budget) : undefined,
         currency: importForm.currency || "INR",
       });
-      const parsed = await res.json();
+      const parsed = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        // Server-side validation/rate-limit rejection — surface the real
+        // reason (errorHandler.middleware.ts's shape: { error: string })
+        // instead of the generic "check the format" message, which was
+        // shown for every failure regardless of cause.
+        toast({
+          title: res.status === 429 ? "Slow down" : "Couldn't parse that",
+          description: parsed?.error || "Please check your schedule and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
       if (!parsed || !parsed.itinerary) {
         toast({
           title: "Parse Failed",
@@ -299,7 +330,13 @@ export default function TripPlanner() {
             ? new Date(importForm.startDate)
             : undefined,
         notes: parsed.notes || "",
+        // Spread ...day first so the enrichment pass's day-level fields
+        // (theme, location, wakeUpTime, headlineExperience,
+        // departureReminder, dayBudget, weatherNote) survive — the
+        // explicit fields after override only what needs a real
+        // transform (dayIndex/day/date), not a full field rename.
         itinerary: parsed.itinerary.map((day: any, idx: number) => ({
+          ...day,
           dayIndex: idx,
           day: day.day || idx + 1,
           date: day.date ? new Date(day.date) : undefined,
@@ -914,12 +951,21 @@ export default function TripPlanner() {
                   <Textarea
                     placeholder={`Paste your travel plan here. For example:\n\nDay 1 - Mumbai to Goa ✈️ (morning flight)\nDay 2 - Baga Beach, then Fort Aguada 🏖️\nDay 3 - Old Goa churches, spice plantation tour\nDay 4 - Dudhsagar Falls day trip 🚗\nDay 5 - Return to Mumbai\n...`}
                     value={importForm.scheduleText}
-                    onChange={(e) =>
-                      setImportForm((prev) => ({ ...prev, scheduleText: e.target.value }))
-                    }
-                    className="bg-muted border text-foreground placeholder:text-muted-foreground min-h-[200px] font-mono text-sm"
+                    onChange={(e) => {
+                      setImportForm((prev) => ({ ...prev, scheduleText: e.target.value }));
+                      if (importErrors.scheduleText) {
+                        setImportErrors((prev) => {
+                          const { scheduleText, ...rest } = prev;
+                          return rest;
+                        });
+                      }
+                    }}
+                    className={`bg-muted border text-foreground placeholder:text-muted-foreground min-h-[200px] font-mono text-sm ${importErrors.scheduleText ? "border-destructive ring-1 ring-destructive" : ""}`}
                     required
                   />
+                  {importErrors.scheduleText && (
+                    <p className="text-xs text-destructive mt-1">{importErrors.scheduleText}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -930,11 +976,20 @@ export default function TripPlanner() {
                     <Input
                       type="date"
                       value={importForm.startDate}
-                      onChange={(e) =>
-                        setImportForm((prev) => ({ ...prev, startDate: e.target.value }))
-                      }
-                      className="bg-muted border text-foreground placeholder:text-muted-foreground h-11"
+                      onChange={(e) => {
+                        setImportForm((prev) => ({ ...prev, startDate: e.target.value }));
+                        if (importErrors.startDate) {
+                          setImportErrors((prev) => {
+                            const { startDate, ...rest } = prev;
+                            return rest;
+                          });
+                        }
+                      }}
+                      className={`bg-muted border text-foreground placeholder:text-muted-foreground h-11 ${importErrors.startDate ? "border-destructive ring-1 ring-destructive" : ""}`}
                     />
+                    {importErrors.startDate && (
+                      <p className="text-xs text-destructive mt-1">{importErrors.startDate}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
@@ -942,11 +997,19 @@ export default function TripPlanner() {
                     </label>
                     <Select
                       value={importForm.groupSize}
-                      onValueChange={(value) =>
-                        setImportForm((prev) => ({ ...prev, groupSize: value }))
-                      }
+                      onValueChange={(value) => {
+                        setImportForm((prev) => ({ ...prev, groupSize: value }));
+                        if (importErrors.groupSize) {
+                          setImportErrors((prev) => {
+                            const { groupSize, ...rest } = prev;
+                            return rest;
+                          });
+                        }
+                      }}
                     >
-                      <SelectTrigger className="bg-muted border text-foreground placeholder:text-muted-foreground h-11">
+                      <SelectTrigger
+                        className={`bg-muted border text-foreground placeholder:text-muted-foreground h-11 ${importErrors.groupSize ? "border-destructive ring-1 ring-destructive" : ""}`}
+                      >
                         <SelectValue placeholder="Select group size" />
                       </SelectTrigger>
                       <SelectContent position="popper" className="bg-muted border z-50">
@@ -970,6 +1033,9 @@ export default function TripPlanner() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                    {importErrors.groupSize && (
+                      <p className="text-xs text-destructive mt-1">{importErrors.groupSize}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">

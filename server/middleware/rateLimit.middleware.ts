@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { config } from "../config";
 
 const rateLimitResponse = (retryAfter: number) => ({
@@ -88,4 +88,32 @@ export const placesPhotoLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json(rateLimitResponse(60)),
+});
+
+// "Import My Plan" (parse-schedule) — express-rate-limit's default
+// keyGenerator is per-IP, which every other limiter in this file also
+// uses; fine for anonymous/proxy-abuse protection, but this route sits
+// behind requireAuth specifically to bound cost per SIGNED-IN user, not
+// per network address (two users behind one office/campus NAT would
+// otherwise share one 3-request budget; one user across two devices
+// would get two). Keyed on the authenticated user id instead.
+export const importPlanLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: testMultiplier(3),
+  standardHeaders: true,
+  legacyHeaders: false,
+  // ipKeyGenerator normalizes an IPv6 address before it's used as a key —
+  // a raw one otherwise fails express-rate-limit's own validation
+  // (ERR_ERL_KEY_GEN_IPV6), since different IPv6 representations of the
+  // same address would silently bypass the limit. This route sits
+  // behind requireAuth, so req.user is normally present; the IP fallback
+  // only matters if that ever isn't true.
+  keyGenerator: (req) => req.user?._id || ipKeyGenerator(req.ip || "unknown"),
+  handler: (req, res) =>
+    res.status(429).json({
+      success: false,
+      code: "RATE_LIMITED",
+      error: "Please wait before generating another plan.",
+      retryAfter: 60,
+    }),
 });

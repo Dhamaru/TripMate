@@ -351,29 +351,37 @@ export const insertTripSchema = z.object({
   endDate: z.coerce.date().optional(),
   itinerary: z
     .array(
-      z.object({
-        dayIndex: z.number().int().min(0).optional(), // Make optional if AI doesn't provide it
-        day: z.number().int().min(1).optional(), // Allow 'day' from AI
-        date: z.coerce.date().optional(),
-        activities: z
-          .array(
-            z
-              .object({
-                id: z.string().optional(),
-                time: z.string().optional(),
-                title: z.string().min(1),
-                location: z.string().optional(),
-                address: z.string().optional(),
-                lat: z.number().optional(),
-                lon: z.number().optional(),
-                notes: z.string().optional(),
-              })
-              .catchall(z.any()),
-          )
-          .default([]),
-        reasoning: z.string().optional(),
-        confidenceScore: z.enum(["high", "medium", "low"]).optional(),
-      }),
+      z
+        .object({
+          dayIndex: z.number().int().min(0).optional(), // Make optional if AI doesn't provide it
+          day: z.number().int().min(1).optional(), // Allow 'day' from AI
+          date: z.coerce.date().optional(),
+          activities: z
+            .array(
+              z
+                .object({
+                  id: z.string().optional(),
+                  time: z.string().optional(),
+                  title: z.string().min(1),
+                  location: z.string().optional(),
+                  address: z.string().optional(),
+                  lat: z.number().optional(),
+                  lon: z.number().optional(),
+                  notes: z.string().optional(),
+                })
+                .catchall(z.any()),
+            )
+            .default([]),
+          reasoning: z.string().optional(),
+          confidenceScore: z.enum(["high", "medium", "low"]).optional(),
+        })
+        // Mirrors the activities catchall above — "Import My Plan" adds
+        // day-level fields (departureReminder, dayBudget, weatherNote,
+        // location, wakeUpTime, headlineExperience) this object doesn't
+        // name explicitly. See server/schemas/trip.schemas.ts's matching
+        // comment — this is the second of the two places that shape has
+        // to be declared.
+        .catchall(z.any()),
     )
     .optional(),
   notes: z.string().optional(),
@@ -669,6 +677,78 @@ export const insertCrowdDensitySchema = z.object({
   density: z.number().min(1).max(10),
   placeId: z.string().optional(),
 });
+
+// "Import My Plan" (parseSchedule) result cache — keyed on a hash of
+// (sanitized schedule text + group size + budget bracket), so a near-
+// identical resubmission (or two people pasting the same well-known
+// itinerary) skips the AI call entirely. TTL'd the same way
+// CrowdDensityModel is just above — a stale 2-week-old parse being
+// served today matters far less than the AI cost saved, but it
+// shouldn't live forever either.
+export interface IImportPlanCache extends Document {
+  hash: string;
+  structuredJson: Record<string, unknown>;
+  createdAt: Date;
+}
+
+const importPlanCacheSchema = new Schema<IImportPlanCache>(
+  {
+    hash: { type: String, required: true, unique: true, index: true },
+    structuredJson: { type: Schema.Types.Mixed, required: true },
+  },
+  {
+    timestamps: { createdAt: true, updatedAt: false },
+    toJSON: baseToJSON,
+    versionKey: false,
+  },
+);
+
+importPlanCacheSchema.index({ createdAt: 1 }, { expireAfterSeconds: 86400 * 7 }); // 7 days
+
+export const ImportPlanCacheModel: Model<IImportPlanCache> = mongoose.model<IImportPlanCache>(
+  "ImportPlanCache",
+  importPlanCacheSchema,
+);
+
+// Cost-monitoring log for "Import My Plan" — one row per request,
+// cache hits included (duration/tokens will just read near-zero/absent
+// for those, which is itself useful signal for how often the cache is
+// actually paying for itself). tokensUsed is only ever populated for
+// the OpenAI fallback path, where the SDK response carries it directly;
+// Gemini/NVIDIA's raw fetch calls in this codebase don't currently
+// extract usage metadata, and reporting a fabricated number would be
+// worse than reporting none.
+export interface IImportPlanRequestLog extends Document {
+  userId: string;
+  tokensUsed?: number;
+  cacheHit: boolean;
+  durationMs: number;
+  // Named aiModel, not model — Mongoose's Document type already reserves
+  // `model` for its own `doc.model()` method; declaring a same-named
+  // field breaks the interface's extends Document.
+  aiModel: string;
+  createdAt: Date;
+}
+
+const importPlanRequestLogSchema = new Schema<IImportPlanRequestLog>(
+  {
+    userId: { type: String, required: true, index: true },
+    tokensUsed: { type: Number },
+    cacheHit: { type: Boolean, required: true },
+    durationMs: { type: Number, required: true },
+    aiModel: { type: String, required: true },
+  },
+  {
+    timestamps: { createdAt: true, updatedAt: false },
+    toJSON: baseToJSON,
+    versionKey: false,
+  },
+);
+
+importPlanRequestLogSchema.index({ userId: 1, createdAt: -1 });
+
+export const ImportPlanRequestLogModel: Model<IImportPlanRequestLog> =
+  mongoose.model<IImportPlanRequestLog>("ImportPlanRequestLog", importPlanRequestLogSchema);
 
 export interface IFeedback extends Document {
   type: string;
