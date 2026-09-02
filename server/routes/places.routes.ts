@@ -49,19 +49,48 @@ router.get("/search", async (req, res) => {
     const query = (queryParam || q) as string;
     if (!query) return res.status(400).json({ error: "Search query is required" });
 
-    // Only "city" is accepted from the client — a city/locality picker
-    // (trip origin/destination) needs Google's Text Search restricted to
-    // place-level results, or "Vijaya" matches every business with that
-    // substring in its name (a hospital, a bakery, a dairy parlour — all
-    // real production results before this existed). Every other picker in
-    // the app (restaurants, activities, attractions) wants the unrestricted
-    // search, so this stays opt-in per caller rather than a global change.
-    const typeParam = type === "city" ? "&type=locality" : "";
-
     const key = config.GOOGLE_API_KEY;
     if (!key) {
       console.warn("[Places] GOOGLE_API_KEY is missing, returning empty results");
       return res.json({ items: [] });
+    }
+
+    const clampedPageSize = Math.min(Math.max(Number(pageSize) || 10, 1), 20);
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    const hasBias =
+      lat !== undefined && lon !== undefined && !Number.isNaN(latNum) && !Number.isNaN(lonNum);
+
+    // "city" (trip origin/destination pickers) used to append
+    // `&type=locality` to Text Search below — verified against Google's
+    // raw API that this does nothing: Text Search's `type` param doesn't
+    // filter when a free-text query is present, so "Vijaya" still returned
+    // Vijaya Super Speciality Hospital, Vijaya Dairy Parlour, etc. (live
+    // production behavior, confirmed). Text Search also does full-text
+    // relevance matching, not prefix matching — a real city-picker needs
+    // Places Autocomplete instead (`types=(cities)` is properly enforced
+    // there, and prefix-matches "Vijaya" -> Vijayawada/Vijayapura/etc,
+    // verified against Google's raw endpoint). Every other picker in the
+    // app (restaurants, activities, attractions) keeps Text Search below —
+    // this branch is opt-in, not a global switch.
+    if (type === "city") {
+      const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)${biasParam}&key=${key}`,
+      );
+      const data = await response.json();
+      if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+        console.error(
+          `[Places] Google Autocomplete returned ${data.status}: ${data.error_message || "no message"}`,
+        );
+      }
+      const results = (data.predictions || []).slice(0, clampedPageSize).map((p: any) => ({
+        id: p.place_id,
+        name: p.structured_formatting?.main_text || p.description,
+        address: p.structured_formatting?.secondary_text,
+        display_name: p.description,
+      }));
+      return res.json({ items: results });
     }
 
     // Optional proximity bias — Text Search doesn't restrict to a radius,
@@ -70,14 +99,10 @@ router.get("/search", async (req, res) => {
     // trip's destination should still surface a good match far away, just
     // rank the nearby one first when both are plausible. 50km keeps the
     // bias city-scale rather than pinpoint-scale.
-    const latNum = Number(lat);
-    const lonNum = Number(lon);
-    const hasBias =
-      lat !== undefined && lon !== undefined && !Number.isNaN(latNum) && !Number.isNaN(lonNum);
     const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
 
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}${biasParam}${typeParam}&key=${key}`,
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}${biasParam}&key=${key}`,
     );
     const data = await response.json();
 
@@ -91,7 +116,6 @@ router.get("/search", async (req, res) => {
     // Google Text Search caps at 20/page anyway, but clamp explicitly
     // rather than trust the caller's raw pageSize (NaN-safe: falls back to
     // the default when the query value doesn't parse).
-    const clampedPageSize = Math.min(Math.max(Number(pageSize) || 10, 1), 20);
     const results = (data.results || []).slice(0, clampedPageSize).map((p: any) => ({
       id: p.place_id,
       name: p.name,
