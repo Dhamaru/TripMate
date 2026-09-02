@@ -1548,6 +1548,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           // If grounding fails, we intentionally swallow the error and use the pristine AI plan.
         }
 
+        // Runs no matter what happened above (grounding succeeded, timed
+        // out, or threw) — see finalizeAttractionDedup's own comment.
+        finalPlan = this.finalizeAttractionDedup(finalPlan);
+
         // Final explainability tag
         finalPlan.notes =
           (finalPlan.notes || "") +
@@ -2115,6 +2119,137 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     return [];
   }
 
+  // Pure filler — never distinguishes one place from another.
+  private readonly dedupeFillerWords = new Set([
+    "the",
+    "of",
+    "at",
+    "in",
+    "and",
+    "view",
+    "viewpoint",
+    "point",
+    "spot",
+    "area",
+    "place",
+    "site",
+  ]);
+  // A generic feature word alone doesn't distinguish two places either —
+  // but unlike filler, it's meaningful when paired with something else
+  // (two different real temples both containing "temple" is normal), so
+  // it's only stripped when deciding whether a title has ANYTHING
+  // distinguishing left over, never used to auto-match two titles just
+  // because they share it.
+  private readonly dedupeGenericFeatureWords = new Set([
+    "lake",
+    "fort",
+    "temple",
+    "park",
+    "museum",
+    "garden",
+    "gardens",
+    "market",
+    "hill",
+    "beach",
+    "river",
+    "falls",
+    "waterfall",
+  ]);
+  private wordsOf(text: string): Set<string> {
+    return new Set(
+      String(text)
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length > 2),
+    );
+  }
+  // What's left of a title after stripping the destination's own name,
+  // filler, and a lone generic feature word — i.e. what actually tells
+  // this place apart from every other real place in the same town. A
+  // small destination's every genuine attraction naturally starts with
+  // the town's own name (so matching on THAT alone would flag two real,
+  // different landmarks — "Ameenpur Kaman" vs "Ameenpur Lake" — as the
+  // same place), so the destination name is excluded from comparison,
+  // not used as a match signal.
+  private distinguishingTokens(title: string, destinationWords: Set<string>): Set<string> {
+    const out = new Set<string>();
+    for (const w of this.wordsOf(title)) {
+      if (destinationWords.has(w)) continue;
+      if (this.dedupeFillerWords.has(w)) continue;
+      if (this.dedupeGenericFeatureWords.has(w)) continue;
+      out.add(w);
+    }
+    return out;
+  }
+
+  // Unconditional final anti-repetition pass — runs on finalPlan
+  // regardless of whether groundItineraryWithRealPlaces succeeded, timed
+  // out (it's wrapped in a 20s timeout and silently falls back to the
+  // raw AI draft), or threw. The prompt-level fix depends on the model
+  // actually following it, which live testing showed it doesn't reliably
+  // do for a destination with few real attractions (a small town's only
+  // real feature — e.g. a lake — got relisted as "X Lake" / "X Lake View
+  // Point" / "X lake view point" across 3 days: no distinguishing token
+  // beyond the destination name and the generic word "lake" in any of
+  // them). This pass is pure and local, so it can't be skipped: a title
+  // that reduces to nothing distinguishing is treated as the same
+  // generic feature repeated, and rewritten as honest extra time at the
+  // place it actually is — matching CLAUDE.md's rule against padding an
+  // itinerary with disguised repeats — rather than left claiming to be a
+  // different real place. A title with its own distinguishing word (e.g.
+  // "Ameenpur Kaman", "Ameenpur Lake Walking Track") is left alone even
+  // though it shares the destination name or a generic feature word with
+  // something else, since that's a real, separate experience, not a
+  // reworded duplicate.
+  private finalizeAttractionDedup(plan: any): any {
+    if (!Array.isArray(plan?.itinerary)) return plan;
+    const destinationWords = this.wordsOf(plan.destination || "");
+    let firstGenericTitle: string | null = null;
+    // Separately catches a literal/near-literal repeat of a SPECIFIC real
+    // place (e.g. "Golconda Fort" verbatim twice) — distinguishingTokens
+    // being non-empty means the emptiness check above doesn't apply, but
+    // it can still be the same place said twice.
+    const seenSpecific: Array<{ tokens: Set<string>; title: string }> = [];
+    for (const day of plan.itinerary) {
+      if (!Array.isArray(day.activities)) continue;
+      for (const activity of day.activities) {
+        const title = activity.title || activity.placeName || "";
+        const type = (activity.type || "").toLowerCase();
+        const isFood =
+          type === "restaurant" ||
+          type === "cafe" ||
+          title.toLowerCase().includes("lunch") ||
+          title.toLowerCase().includes("dinner");
+        if (isFood || !title) continue;
+
+        const distinguishing = this.distinguishingTokens(title, destinationWords);
+        if (distinguishing.size === 0) {
+          if (firstGenericTitle) {
+            activity.title = `Relax / free time at ${firstGenericTitle}`;
+            activity.placeName = firstGenericTitle;
+          } else {
+            firstGenericTitle = title;
+          }
+          continue;
+        }
+
+        const dupe = seenSpecific.find((s) => {
+          let shared = 0;
+          for (const tok of s.tokens) if (distinguishing.has(tok)) shared++;
+          return shared / Math.min(s.tokens.size, distinguishing.size) >= 0.6;
+        });
+        if (dupe) {
+          activity.title = `Relax / free time at ${dupe.title}`;
+          activity.placeName = dupe.title;
+        } else {
+          seenSpecific.push({ tokens: distinguishing, title });
+        }
+      }
+    }
+    return plan;
+  }
+
   // Verify specific places using Gemini AI for real names
   private async groundItineraryWithRealPlaces(
     plan: any,
@@ -2152,42 +2287,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     let restaurantIndex = 0;
     let attractionIndex = 0;
 
-    // Catches the same landmark reappearing under a reworded title (e.g.
-    // "Ameenpur Lake" day 1, "Ameenpur Lake View Point" day 2, "Ameenpur
-    // lake fish feeding area" day 3 — three different-looking titles, one
-    // physical place) that the DraftingAgent's prompt-level "no repeats"
-    // rule doesn't always hold to, especially for a small destination with
-    // few genuinely distinct attractions. Neither branch below catches this:
-    // the title looks specific enough to skip isGenericAttraction, and it's
-    // not a food item. Backstop, not a replacement for the prompt fix.
-    const stopWords = new Set([
-      "the",
-      "of",
-      "at",
-      "in",
-      "view",
-      "viewpoint",
-      "point",
-      "spot",
-      "area",
-      "place",
-      "site",
-    ]);
-    const coreTokens = (name: string): Set<string> =>
-      new Set(
-        name
-          .toLowerCase()
-          .replace(/[^a-z0-9\s]/g, "")
-          .split(/\s+/)
-          .filter((w) => w.length > 2 && !stopWords.has(w)),
-      );
-    const seenAttractionCores: Set<string>[] = [];
-    const isSameLandmark = (a: Set<string>, b: Set<string>): boolean => {
-      if (a.size === 0 || b.size === 0) return false;
-      let shared = 0;
-      for (const tok of a) if (b.has(tok)) shared++;
-      return shared / Math.min(a.size, b.size) >= 0.5;
-    };
+    // Anti-repetition (the same landmark reappearing under a reworded
+    // title) is NOT handled in this function — it depends on the two
+    // Gemini calls above finishing inside a 20s timeout, which silently
+    // falls back to skipping this whole function on a slow response. See
+    // finalizeAttractionDedup, which runs unconditionally afterward
+    // regardless of whether grounding ran at all.
 
     // Generic terms that should trigger replacement
     const genericRestaurantTerms = [
@@ -2261,39 +2366,6 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
               activity.address = real.address || `${plan.destination}`;
               usedAttractions.add(real.name);
               attractionIndex++;
-              seenAttractionCores.push(coreTokens(real.name));
-            }
-          } else if (!isFood) {
-            // Non-generic, non-food — looks like a real named place, but
-            // check it isn't the same landmark as an earlier day under a
-            // reworded title before accepting it.
-            const cores = coreTokens(activity.title || activity.placeName || "");
-            const dupeOfEarlier = seenAttractionCores.some((seen) => isSameLandmark(seen, cores));
-            if (dupeOfEarlier && realAttractions.length > 0) {
-              // Find a real attraction from the pool that isn't itself a
-              // near-duplicate of anything already used.
-              let swapped = false;
-              for (let i = 0; i < realAttractions.length; i++) {
-                const candidate = realAttractions[(attractionIndex + i) % realAttractions.length];
-                if (!candidate || usedAttractions.has(candidate.name)) continue;
-                const candidateCores = coreTokens(candidate.name);
-                if (seenAttractionCores.some((seen) => isSameLandmark(seen, candidateCores)))
-                  continue;
-                activity.title = candidate.name;
-                activity.placeName = candidate.name;
-                activity.address = candidate.address || `${plan.destination}`;
-                usedAttractions.add(candidate.name);
-                attractionIndex = attractionIndex + i + 1;
-                seenAttractionCores.push(candidateCores);
-                swapped = true;
-                break;
-              }
-              // No unused real attraction left to swap in — leave as-is
-              // rather than risk an empty/broken title; the prompt-level
-              // fix is the primary defense, this is best-effort backstop.
-              if (!swapped) seenAttractionCores.push(cores);
-            } else {
-              seenAttractionCores.push(cores);
             }
           } else if (isFood && !isGenericRestaurant && realRestaurants.length > 0) {
             // Even for non-generic food entries, verify it's a real place
