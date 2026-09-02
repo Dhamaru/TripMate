@@ -21,6 +21,9 @@ import { Link, useLocation } from "wouter";
 import { useAuthStore, useTripStore } from "@/store";
 import type { Trip } from "@/types/api.types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
 
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 
@@ -118,6 +121,22 @@ export default function TripPlanner() {
     isInternational: false,
     notes: "",
   });
+
+  // Origin biases toward where the user actually is ("traveling from" —
+  // their real location is the natural default). Destination is a plain
+  // text-match place search with no bias, same as the Landing.tsx hero
+  // search — "where do you want to go" has no sensible "near me" ranking.
+  const userLocation = useUserLocation();
+  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
+  const [showDestSuggestions, setShowDestSuggestions] = useState(false);
+  const { suggestions: originSuggestions, isLoading: originLoading } = usePlaceSuggestions(
+    showOriginSuggestions ? tripForm.origin : "",
+    userLocation,
+  );
+  const { suggestions: destSuggestions, isLoading: destLoading } = usePlaceSuggestions(
+    showDestSuggestions ? tripForm.destination : "",
+    undefined,
+  );
 
   const [selectedStyle, setSelectedStyle] = useState("");
   const [selectedPackingItems, setSelectedPackingItems] = useState<string[]>([]);
@@ -1000,32 +1019,62 @@ export default function TripPlanner() {
                     <label className="block text-sm font-semibold text-foreground mb-2">
                       Starting Location <span className="text-red-500">*</span>
                     </label>
-                    <Input
-                      type="text"
-                      autoFocus
-                      placeholder="Where are you traveling from?"
-                      value={tripForm.origin}
-                      onChange={(e) => setTripForm((prev) => ({ ...prev, origin: e.target.value }))}
-                      className="bg-muted border text-foreground placeholder:text-muted-foreground"
-                      data-testid="input-origin"
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        autoFocus
+                        placeholder="Where are you traveling from?"
+                        value={tripForm.origin}
+                        onChange={(e) => {
+                          setTripForm((prev) => ({ ...prev, origin: e.target.value }));
+                          setShowOriginSuggestions(e.target.value.trim().length >= 3);
+                        }}
+                        onBlur={() => setTimeout(() => setShowOriginSuggestions(false), 150)}
+                        className="bg-muted border text-foreground placeholder:text-muted-foreground"
+                        data-testid="input-origin"
+                        required
+                      />
+                      <PlaceSearchDropdown
+                        suggestions={originSuggestions}
+                        isLoading={originLoading}
+                        visible={showOriginSuggestions}
+                        onSelect={(place: PlaceSuggestion) => {
+                          const name = place.name || place.display_name?.split(",")[0] || "";
+                          setTripForm((prev) => ({ ...prev, origin: name }));
+                          setShowOriginSuggestions(false);
+                        }}
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
                       Destination <span className="text-red-500">*</span>
                     </label>
-                    <Input
-                      type="text"
-                      placeholder="Where do you want to go?"
-                      value={tripForm.destination}
-                      onChange={(e) =>
-                        setTripForm((prev) => ({ ...prev, destination: e.target.value }))
-                      }
-                      className="bg-muted border text-foreground placeholder:text-muted-foreground"
-                      required
-                      data-testid="input-destination"
-                    />
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        placeholder="Where do you want to go?"
+                        value={tripForm.destination}
+                        onChange={(e) => {
+                          setTripForm((prev) => ({ ...prev, destination: e.target.value }));
+                          setShowDestSuggestions(e.target.value.trim().length >= 3);
+                        }}
+                        onBlur={() => setTimeout(() => setShowDestSuggestions(false), 150)}
+                        className="bg-muted border text-foreground placeholder:text-muted-foreground"
+                        required
+                        data-testid="input-destination"
+                      />
+                      <PlaceSearchDropdown
+                        suggestions={destSuggestions}
+                        isLoading={destLoading}
+                        visible={showDestSuggestions}
+                        onSelect={(place: PlaceSuggestion) => {
+                          const name = place.name || place.display_name?.split(",")[0] || "";
+                          setTripForm((prev) => ({ ...prev, destination: name }));
+                          setShowDestSuggestions(false);
+                        }}
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">

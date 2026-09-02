@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { EmergencyServices } from "@/components/EmergencyServices";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation, Link } from "wouter";
+import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
+import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
 
 export default function EmergencyPage() {
   const { user } = useAuth() as { user: any };
@@ -16,6 +18,14 @@ export default function EmergencyPage() {
   const [shortName, setShortName] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  // Biases toward wherever locateMe() already resolved (or the last
+  // searched location) — nearest-first suggestions while typing a
+  // replacement, not just an exact-match-on-Enter search bar.
+  const { suggestions, isLoading: suggestionsLoading } = usePlaceSuggestions(
+    showSuggestions ? searchLocation : "",
+    coords,
+  );
 
   useEffect(() => {
     locateMe();
@@ -151,18 +161,44 @@ export default function EmergencyPage() {
       </div>
 
       <div className="bg-card rounded-2xl border border p-4 max-w-2xl">
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            value={searchLocation}
-            onChange={(e) => setSearchLocation(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSearch();
-            }}
-            placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
-            className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
-            data-testid="input-emergency-location"
-          />
+        <div className="flex gap-2 relative">
+          <div className="relative flex-1">
+            <Input
+              type="text"
+              value={searchLocation}
+              onChange={(e) => {
+                setSearchLocation(e.target.value);
+                setShowSuggestions(e.target.value.trim().length >= 3);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setShowSuggestions(false);
+                  handleSearch();
+                }
+              }}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
+              className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
+              data-testid="input-emergency-location"
+            />
+            <PlaceSearchDropdown
+              suggestions={suggestions}
+              isLoading={suggestionsLoading}
+              visible={showSuggestions}
+              onSelect={(place: PlaceSuggestion) => {
+                const name = place.name || place.display_name?.split(",")[0] || "";
+                setShowSuggestions(false);
+                setSearchLocation(name);
+                if (place.location) {
+                  setCoords({ lat: place.location.lat, lon: place.location.lng });
+                  setDisplayName(place.display_name || name);
+                  setShortName(name);
+                } else {
+                  handleSearch(name);
+                }
+              }}
+            />
+          </div>
           <Button
             onClick={() => handleSearch()}
             className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"

@@ -42,6 +42,7 @@ import { AIReasoningPanel } from "./AIReasoningPanel";
 import { AtlasDayButton } from "./AtlasDayButton";
 import { VibeVoting } from "./VibeVoting";
 import { useLocation } from "wouter";
+import { parseTimeToMinutes } from "@/lib/time";
 
 interface ItineraryManagerProps {
   trip: Trip;
@@ -226,22 +227,6 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
     return cId === currentUserId;
   });
   const canEdit = isOwner || collaboratorEntry?.role === "editor";
-
-  /**
-   * Helper to parse "HH:MM AM/PM" into minutes from midnight.
-   */
-  const parseTimeToMinutes = (timeStr?: string): number => {
-    if (!timeStr) return 0;
-    try {
-      const [time, modifier] = timeStr.split(" ");
-      let [hours, minutes] = time.split(":").map(Number);
-      if (modifier === "PM" && hours < 12) hours += 12;
-      if (modifier === "AM" && hours === 12) hours = 0;
-      return hours * 60 + (minutes || 0);
-    } catch (e) {
-      return 0;
-    }
-  };
 
   /**
    * Validates that the itinerary is chronologically sound and flags overlaps.
@@ -695,6 +680,7 @@ export function ItineraryManager({ trip }: ItineraryManagerProps) {
         dayIndex={editingActivity?.dayIndex || 0}
         onSave={handleSaveActivity}
         currency={trip.currency}
+        destination={trip.destination}
       />
     </div>
   );

@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
 import { Search } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { nextAvailableTime } from "@/lib/time";
 
 // Faked dark mode over OSM's (light-only) tiles — standard invert-hue trick.
 const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
@@ -630,12 +631,19 @@ export function TripMap({
         onConfirm={async (name) => {
           if (!pendingAddSpot || !onAddActivity) return;
           const { lat, lon, address } = pendingAddSpot;
+          // Was a hardcoded "10:00 AM" for every pin added this way — two
+          // places tagged from the map in the same session both landed on
+          // the exact same time and got flagged as a chronology overlap
+          // (the itinerary already validates for this; the bug was on the
+          // create side, not the validator). Stack new pins after
+          // whatever's already scheduled that day instead.
+          const dayActivities = itinerary?.[0]?.activities ?? [];
           await onAddActivity(
             {
               title: name,
               placeName: name,
               type: "sightseeing",
-              time: "10:00 AM",
+              time: nextAvailableTime(dayActivities),
               lat,
               lon,
               address,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { apiRequest } from "@/lib/queryClient";
 import { getCurrencySymbol } from "@/lib/currency";
+import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
+import { useTripDestinationCoords } from "@/hooks/useTripDestinationCoords";
+import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
 import { Loader2, Search, MapPin } from "lucide-react";
 
 interface ActivityFormDialogProps {
@@ -22,6 +24,11 @@ interface ActivityFormDialogProps {
   dayIndex: number;
   onSave: (activity: any) => void;
   currency?: string;
+  // Biases the location search toward this trip's city — searching for
+  // "restaurants" while planning a Tokyo trip should surface Tokyo
+  // restaurants first, not whatever's nearest to wherever the planner
+  // physically is right now.
+  destination?: string;
 }
 
 export function ActivityFormDialog({
@@ -31,6 +38,7 @@ export function ActivityFormDialog({
   dayIndex,
   onSave,
   currency,
+  destination,
 }: ActivityFormDialogProps) {
   const [formData, setFormData] = useState({
     title: "",
@@ -49,10 +57,12 @@ export function ActivityFormDialog({
   });
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const biasCoords = useTripDestinationCoords(destination);
+  const { suggestions, isLoading: isSearching } = usePlaceSuggestions(
+    showSuggestions ? searchTerm : "",
+    biasCoords,
+  );
 
   // Pre-fill form if editing
   useEffect(() => {
@@ -92,40 +102,15 @@ export function ActivityFormDialog({
       });
       setSearchTerm("");
     }
-    setSuggestions([]);
     setShowSuggestions(false);
   }, [activity, open]);
 
-  const handleSearch = async (val: string) => {
+  const handleSearch = (val: string) => {
     setSearchTerm(val);
-    if (!val.trim() || val.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
-    searchTimeoutRef.current = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const res = await apiRequest(
-          "GET",
-          `/api/v1/places/search?query=${encodeURIComponent(val)}&pageSize=5`,
-        );
-        const data = await res.json();
-        const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
-        setSuggestions(items);
-        setShowSuggestions(items.length > 0);
-      } catch (err) {
-        console.error("Place search error:", err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500);
+    setShowSuggestions(val.trim().length >= 3);
   };
 
-  const selectPlace = (place: any) => {
+  const selectPlace = (place: PlaceSuggestion) => {
     const name = place.name || place.display_name?.split(",")[0] || "";
     const addr = place.display_name || "";
 
@@ -133,13 +118,12 @@ export function ActivityFormDialog({
       ...prev,
       placeName: name,
       address: addr,
-      lat: Number(place.lat ?? place.location?.lat),
-      lon: Number(place.lon ?? place.location?.lng),
+      lat: place.location?.lat,
+      lon: place.location?.lng,
       title: prev.title || `Visit ${name}`,
     }));
 
     setSearchTerm(name);
-    setSuggestions([]);
     setShowSuggestions(false);
   };
 
@@ -166,7 +150,7 @@ export function ActivityFormDialog({
               htmlFor="placeSearch"
               className="text-foreground font-medium mb-1.5 flex items-center gap-2"
             >
-              <MapPin className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
+              <MapPin className="w-4 h-4 text-[var(--explorer-blue)]" />
               Find Location
             </Label>
             <div className="relative">
@@ -175,7 +159,7 @@ export function ActivityFormDialog({
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
                 placeholder="Search for a place, restaurant, park..."
-                className="bg-muted border-border text-foreground pl-10 h-11 focus:border-[#1D4E89] transition-all"
+                className="bg-muted border-border text-foreground pl-10 h-11 focus:border-[var(--explorer-blue)] transition-all"
               />
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 {isSearching ? (
@@ -186,25 +170,12 @@ export function ActivityFormDialog({
               </div>
             </div>
 
-            {showSuggestions && (
-              <div className="absolute z-50 left-0 right-0 mt-1 bg-muted border border-border rounded-lg shadow-2xl overflow-hidden backdrop-blur-xl">
-                {suggestions.map((p, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => selectPlace(p)}
-                    className="w-full text-left px-4 py-3 hover:bg-[#1D4E89]/10 border-b border-border last:border-0 transition-colors group"
-                  >
-                    <div className="font-medium text-foreground group-hover:text-[#1D4E89] dark:text-blue-400 transition-colors">
-                      {p.name || p.display_name?.split(",")[0]}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">
-                      {p.display_name}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+            <PlaceSearchDropdown
+              suggestions={suggestions}
+              isLoading={isSearching}
+              visible={showSuggestions}
+              onSelect={selectPlace}
+            />
           </div>
 
           <div className="pt-2 border-t border-border">
@@ -274,8 +245,8 @@ export function ActivityFormDialog({
               rows={2}
             />
             {formData.lat && (
-              <div className="text-[10px] text-[#1D4E89] dark:text-blue-400 mt-1 flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#1D4E89] animate-pulse" />
+              <div className="text-[10px] text-[var(--explorer-blue)] mt-1 flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--explorer-blue)] animate-pulse" />
                 Coordinates captured: {formData.lat.toFixed(4)}, {formData.lon?.toFixed(4)}
               </div>
             )}
@@ -320,7 +291,7 @@ export function ActivityFormDialog({
 
           {/* From / To fields for travel legs */}
           {formData.type === "travel" && (
-            <div className="grid grid-cols-2 gap-4 p-3 bg-[#1D4E89]/5 border border-[#1D4E89]/20 rounded-lg">
+            <div className="grid grid-cols-2 gap-4 p-3 bg-[var(--explorer-blue)]/5 border border-[var(--explorer-blue)]/20 rounded-lg">
               <div>
                 <Label className="text-foreground font-medium mb-1.5 block">From</Label>
                 <Input
@@ -390,13 +361,13 @@ export function ActivityFormDialog({
               type="button"
               variant="destructive"
               onClick={() => onOpenChange(false)}
-              className="flex-1 bg-transparent hover:bg-red-500/10 border border-red-500/50 text-red-500 h-12"
+              className="flex-1 bg-transparent hover:bg-destructive/10 border border-destructive/50 text-destructive h-12"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-[#1D4E89] to-blue-600 hover:opacity-90 h-12 font-bold shadow-lg shadow-blue-800/20"
+              className="flex-1 bg-[var(--explorer-blue)] hover:bg-[var(--explorer-blue-deep)] h-12 font-bold border border-[var(--explorer-blue)]"
             >
               {activity ? "Update" : "Add"} Activity
             </Button>

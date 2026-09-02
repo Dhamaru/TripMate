@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { computeTileUrls, downloadTiles, deleteTiles, formatBytes } from "@/lib/offlineTiles";
 import { apiRequest } from "@/lib/queryClient";
+import { useUserLocation } from "@/hooks/useUserLocation";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -258,6 +259,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
   const [placesResults, setPlacesResults] = useState<PlaceResult[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
+  // Maps here is a standalone, not-tied-to-one-trip page — bias search
+  // toward wherever the user actually is, not a trip's destination (that
+  // biasing happens in TripMap.tsx, which is opened from within a trip).
+  // Named distinctly from the `userLocation` nav-tracking state below —
+  // that one is live GPS during turn-by-turn navigation, this is a single
+  // cached read used only to rank search results.
+  const searchBiasLocation = useUserLocation();
   const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
@@ -742,10 +750,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           : [query];
 
       const perQueryPageSize = Math.ceil(pageSize / queries.length);
+      const biasParams = searchBiasLocation
+        ? `&lat=${searchBiasLocation.lat}&lon=${searchBiasLocation.lon}`
+        : "";
       const results = await Promise.all(
         queries.map(async (q) => {
           const res = await fetch(
-            `/api/v1/places/search?q=${encodeURIComponent(q)}&page=${page}&pageSize=${perQueryPageSize}`,
+            `/api/v1/places/search?q=${encodeURIComponent(q)}&page=${page}&pageSize=${perQueryPageSize}${biasParams}`,
           );
           const j = await res.json();
           return { items: Array.isArray(j?.items) ? j.items : [], total: j?.total || 0 };

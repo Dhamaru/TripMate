@@ -45,7 +45,7 @@ router.get("/photo", placesPhotoLimiter, async (req, res) => {
 
 router.get("/search", async (req, res) => {
   try {
-    const { query: queryParam, q, pageSize = 10 } = req.query;
+    const { query: queryParam, q, pageSize = 10, lat, lon } = req.query;
     const query = (queryParam || q) as string;
     if (!query) return res.status(400).json({ error: "Search query is required" });
 
@@ -55,8 +55,20 @@ router.get("/search", async (req, res) => {
       return res.json({ items: [] });
     }
 
+    // Optional proximity bias — Text Search doesn't restrict to a radius,
+    // it just re-ranks toward the given point, which is exactly what we
+    // want here: a search bar biased toward the user's real location or a
+    // trip's destination should still surface a good match far away, just
+    // rank the nearby one first when both are plausible. 50km keeps the
+    // bias city-scale rather than pinpoint-scale.
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    const hasBias =
+      lat !== undefined && lon !== undefined && !Number.isNaN(latNum) && !Number.isNaN(lonNum);
+    const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
+
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}&key=${key}`,
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}${biasParam}&key=${key}`,
     );
     const data = await response.json();
 
