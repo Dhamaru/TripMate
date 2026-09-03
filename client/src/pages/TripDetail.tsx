@@ -140,13 +140,23 @@ export default function TripDetail() {
   // the initial tab, there was no way to jump to a tab programmatically)
   // and the "View on Map" flow: itinerary -> map tab + fly to that pin.
   const [activeMainTab, setActiveMainTab] = useState("overview");
-  const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lon: number } | null>(null);
-  const handleViewOnMap = (lat: number, lon: number) => {
+  const [mapFocusTarget, setMapFocusTarget] = useState<{
+    lat: number;
+    lon: number;
+    label?: string;
+  } | null>(null);
+  // label is required for a Places-tab search result: that place isn't in
+  // the itinerary, so TripMap has no marker already built for it — without
+  // a name to put on an ad-hoc marker, the "View on Map" click flew the
+  // camera to empty coordinates with no pin and no popup at all
+  // (live-reported). Itinerary activities already have a real marker built
+  // from the itinerary array, so label is redundant (but harmless) there.
+  const handleViewOnMap = (lat: number, lon: number, label?: string) => {
     setActiveMainTab("map");
     // A fresh object even for the same coordinates twice in a row, so
     // TripMap's focus effect (which keys off reference identity via the
     // dependency array) fires again on a second click of the same pin.
-    setMapFocusTarget({ lat, lon });
+    setMapFocusTarget({ lat, lon, label });
   };
 
   // The reverse: map pin popup -> jump to Itinerary and scroll to/highlight
@@ -184,9 +194,20 @@ export default function TripDetail() {
   // Itinerary "View" button for a restaurant/cafe/hotel activity — jumps to
   // Places and turns on the matching category toggle so results are
   // immediately visible instead of landing on an empty tab the user then
-  // has to know to click into themselves.
-  const handleViewInPlaces = (category: "food" | "hotels") => {
+  // has to know to click into themselves. placeName targets the search at
+  // that exact place — live-reported: clicking View on "Sri Rudra Biryani
+  // Palace" landed on a generic "restaurants near <destination>" list that
+  // didn't contain it at all, since the category browse query never knew
+  // which place was clicked. placesTarget overrides that generic query
+  // with a name-specific one (see foodResults/hotelResults below) so the
+  // clicked place actually shows up, and drives a highlight on its card.
+  const [placesTarget, setPlacesTarget] = useState<{
+    name: string;
+    category: "food" | "hotels";
+  } | null>(null);
+  const handleViewInPlaces = (category: "food" | "hotels", placeName?: string) => {
     setActiveMainTab("places");
+    setPlacesTarget(placeName ? { name: placeName, category } : null);
     if (category === "hotels") setShowHotels(true);
     else setShowRestaurants(true);
   };
@@ -229,14 +250,30 @@ export default function TripDetail() {
     setHeroImgError(false);
   }, [trip?.imageUrl]);
 
-  const { data: hotelResults, isLoading: hotelsLoading } = useQuery<any>({
-    queryKey: ["places_hotels", id, tripForm.destination],
+  const {
+    data: hotelResults,
+    isLoading: hotelsLoading,
+    isError: hotelsError,
+    refetch: refetchHotels,
+  } = useQuery<any>({
+    queryKey: ["places_hotels", id, tripForm.destination, placesTarget],
     enabled: showHotels && !!tripForm.destination,
     queryFn: async () => {
+      const hotelQuery =
+        placesTarget?.category === "hotels" && placesTarget.name
+          ? `${placesTarget.name} ${tripForm.destination || ""}`
+          : "hotels near " + String(tripForm.destination || "");
       const r = await apiRequest(
         "GET",
-        `/api/v1/places/search?query=${encodeURIComponent("hotels near " + String(tripForm.destination || ""))}&pageSize=10`,
+        `/api/v1/places/search?query=${encodeURIComponent(hotelQuery)}&pageSize=10`,
       );
+      // A failed search (rate-limited, upstream error) used to come back
+      // through here indistinguishable from a genuine zero-result search
+      // — both silently returned [] and rendered the same "No hotels
+      // found", which reads as "this destination has none" when the real
+      // story is "the search itself failed". Throwing here lets the
+      // empty-state below tell them apart.
+      if (!r.ok) throw new Error(`places search failed: ${r.status}`);
       const j = await r.json();
       return Array.isArray(j?.items) ? j.items : [];
     },
@@ -253,20 +290,37 @@ export default function TripDetail() {
   const restaurantQuery = [...(cuisinePrefs || []), ...(dietaryPrefs || [])].join(" ").trim()
     ? `${[...(cuisinePrefs || []), ...(dietaryPrefs || [])].join(" ")} restaurants near ${tripForm.destination || ""}`
     : `restaurants near ${tripForm.destination || ""}`;
-  const { data: foodResults, isLoading: foodLoading } = useQuery<any>({
-    queryKey: ["places_food", id, tripForm.destination, cuisinePrefs, dietaryPrefs],
+  const {
+    data: foodResults,
+    isLoading: foodLoading,
+    isError: foodError,
+    refetch: refetchFood,
+  } = useQuery<any>({
+    queryKey: ["places_food", id, tripForm.destination, cuisinePrefs, dietaryPrefs, placesTarget],
     enabled: showRestaurants && !!tripForm.destination,
     queryFn: async () => {
+      const query =
+        placesTarget?.category === "food" && placesTarget.name
+          ? `${placesTarget.name} ${tripForm.destination || ""}`
+          : restaurantQuery;
       const r = await apiRequest(
         "GET",
-        `/api/v1/places/search?query=${encodeURIComponent(restaurantQuery)}&pageSize=10`,
+        `/api/v1/places/search?query=${encodeURIComponent(query)}&pageSize=10`,
       );
+      // See hotelResults' queryFn above for why this throws instead of
+      // silently returning [] on failure.
+      if (!r.ok) throw new Error(`places search failed: ${r.status}`);
       const j = await r.json();
       return Array.isArray(j?.items) ? j.items : [];
     },
   });
 
-  const { data: sightsResults, isLoading: sightsLoading } = useQuery<any>({
+  const {
+    data: sightsResults,
+    isLoading: sightsLoading,
+    isError: sightsError,
+    refetch: refetchSights,
+  } = useQuery<any>({
     queryKey: ["places_sights", id, tripForm.destination],
     enabled: showSpots && !!tripForm.destination,
     queryFn: async () => {
@@ -276,6 +330,9 @@ export default function TripDetail() {
         "GET",
         `/api/v1/places/search?query=${encodeURIComponent("tourist attractions in " + String(tripForm.destination || ""))}&pageSize=10`,
       );
+      // See hotelResults' queryFn above for why this throws instead of
+      // silently returning [] on failure.
+      if (!r.ok) throw new Error(`places search failed: ${r.status}`);
       const j = await r.json();
       return Array.isArray(j?.items) ? j.items : [];
     },
@@ -546,7 +603,9 @@ export default function TripDetail() {
         {hasCoords && (
           <button
             type="button"
-            onClick={() => handleViewOnMap(place.location.lat, place.location.lng)}
+            onClick={() =>
+              handleViewOnMap(place.location.lat, place.location.lng, place.name || place.title)
+            }
             className="text-xs text-[var(--explorer-blue)] hover:underline inline-flex items-center"
           >
             View on Map <i className="fas fa-map-marker-alt ml-1 text-[10px]"></i>
@@ -1507,7 +1566,10 @@ export default function TripDetail() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg mx-auto">
                   <Button
-                    onClick={() => setShowHotels(!showHotels)}
+                    onClick={() => {
+                      setShowHotels(!showHotels);
+                      setPlacesTarget(null);
+                    }}
                     variant={showHotels ? "default" : "outline"}
                     className={` h-12 ${showHotels ? "bg-[#1D4E89] text-white hover:bg-[#1D4E89]/90" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
@@ -1515,7 +1577,10 @@ export default function TripDetail() {
                     Hotels
                   </Button>
                   <Button
-                    onClick={() => setShowRestaurants(!showRestaurants)}
+                    onClick={() => {
+                      setShowRestaurants(!showRestaurants);
+                      setPlacesTarget(null);
+                    }}
                     variant={showRestaurants ? "default" : "outline"}
                     className={` h-12 ${showRestaurants ? "bg-emerald-500 text-white hover:bg-emerald-500/90" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
@@ -1566,6 +1631,18 @@ export default function TripDetail() {
                               <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
                                 <i className="fas fa-bed text-[#1D4E89]"></i> Hotels
                               </div>
+                              {placesTarget?.category === "hotels" && (
+                                <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+                                  Showing results for "{placesTarget.name}"
+                                  <button
+                                    type="button"
+                                    onClick={() => setPlacesTarget(null)}
+                                    className="text-[var(--explorer-blue)] hover:underline"
+                                  >
+                                    Show all hotels
+                                  </button>
+                                </div>
+                              )}
                               <div className="space-y-3">
                                 {hotelsLoading ? (
                                   <div className="text-muted-foreground text-xs">
@@ -1573,41 +1650,68 @@ export default function TripDetail() {
                                   </div>
                                 ) : (
                                   <>
-                                    {(hotelResults || []).slice(0, 5).map((i: any) => (
-                                      <div
-                                        key={`h-${i.id}`}
-                                        className="text-sm text-foreground bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors"
-                                      >
-                                        <div className="font-semibold">
-                                          {String(
-                                            i.name ||
-                                              i.title ||
-                                              i.name_en ||
-                                              i.name_local ||
-                                              i.display_name?.split(",")[0] ||
-                                              "Unknown Place",
-                                          )}
+                                    {(hotelResults || []).slice(0, 5).map((i: any) => {
+                                      const placeName = String(
+                                        i.name || i.title || i.name_en || i.name_local || "",
+                                      );
+                                      const isTarget =
+                                        placesTarget?.category === "hotels" &&
+                                        placeName &&
+                                        placesTarget.name
+                                          .toLowerCase()
+                                          .includes(placeName.toLowerCase());
+                                      return (
+                                        <div
+                                          key={`h-${i.id}`}
+                                          className={`text-sm text-foreground bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors ${isTarget ? "ring-2 ring-[var(--explorer-blue)]" : ""}`}
+                                        >
+                                          <div className="font-semibold">
+                                            {String(
+                                              i.name ||
+                                                i.title ||
+                                                i.name_en ||
+                                                i.name_local ||
+                                                i.display_name?.split(",")[0] ||
+                                                "Unknown Place",
+                                            )}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                            {String(
+                                              i.address ||
+                                                (i.display_name?.includes(",")
+                                                  ? i.display_name
+                                                      .split(",")
+                                                      .slice(1)
+                                                      .join(",")
+                                                      .trim()
+                                                  : i.display_name) ||
+                                                "",
+                                            )}
+                                          </div>
+                                          {renderPlaceActions(i, "accommodation")}
                                         </div>
-                                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                          {String(
-                                            i.address ||
-                                              (i.display_name?.includes(",")
-                                                ? i.display_name
-                                                    .split(",")
-                                                    .slice(1)
-                                                    .join(",")
-                                                    .trim()
-                                                : i.display_name) ||
-                                              "",
-                                          )}
+                                      );
+                                    })}
+                                    {hotelsError ? (
+                                      <div className="text-xs">
+                                        <p className="text-[var(--ios-red)]">
+                                          Couldn't load hotels — the search failed, not that there
+                                          aren't any.
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={() => refetchHotels()}
+                                          className="text-[var(--explorer-blue)] hover:underline mt-1"
+                                        >
+                                          Try again
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      (!hotelResults || hotelResults.length === 0) && (
+                                        <div className="text-muted-foreground text-xs italic">
+                                          No hotels found
                                         </div>
-                                        {renderPlaceActions(i, "accommodation")}
-                                      </div>
-                                    ))}
-                                    {(!hotelResults || hotelResults.length === 0) && (
-                                      <div className="text-muted-foreground text-xs italic">
-                                        No hotels found
-                                      </div>
+                                      )
                                     )}
                                   </>
                                 )}
@@ -1621,6 +1725,18 @@ export default function TripDetail() {
                               <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
                                 <i className="fas fa-utensils text-emerald-500"></i> Restaurants
                               </div>
+                              {placesTarget?.category === "food" && (
+                                <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+                                  Showing results for "{placesTarget.name}"
+                                  <button
+                                    type="button"
+                                    onClick={() => setPlacesTarget(null)}
+                                    className="text-[var(--explorer-blue)] hover:underline"
+                                  >
+                                    Show all restaurants
+                                  </button>
+                                </div>
+                              )}
                               <div className="space-y-3">
                                 {foodLoading ? (
                                   <div className="text-muted-foreground text-xs">
@@ -1628,41 +1744,68 @@ export default function TripDetail() {
                                   </div>
                                 ) : (
                                   <>
-                                    {(foodResults || []).slice(0, 5).map((i: any) => (
-                                      <div
-                                        key={`f-${i.id}`}
-                                        className="text-sm text-foreground bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors"
-                                      >
-                                        <div className="font-semibold">
-                                          {String(
-                                            i.name ||
-                                              i.title ||
-                                              i.name_en ||
-                                              i.name_local ||
-                                              i.display_name?.split(",")[0] ||
-                                              "Unknown Place",
-                                          )}
+                                    {(foodResults || []).slice(0, 5).map((i: any) => {
+                                      const placeName = String(
+                                        i.name || i.title || i.name_en || i.name_local || "",
+                                      );
+                                      const isTarget =
+                                        placesTarget?.category === "food" &&
+                                        placeName &&
+                                        placesTarget.name
+                                          .toLowerCase()
+                                          .includes(placeName.toLowerCase());
+                                      return (
+                                        <div
+                                          key={`f-${i.id}`}
+                                          className={`text-sm text-foreground bg-muted/50 rounded-xl p-3 hover:bg-muted/50 transition-colors ${isTarget ? "ring-2 ring-[var(--explorer-blue)]" : ""}`}
+                                        >
+                                          <div className="font-semibold">
+                                            {String(
+                                              i.name ||
+                                                i.title ||
+                                                i.name_en ||
+                                                i.name_local ||
+                                                i.display_name?.split(",")[0] ||
+                                                "Unknown Place",
+                                            )}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                            {String(
+                                              i.address ||
+                                                (i.display_name?.includes(",")
+                                                  ? i.display_name
+                                                      .split(",")
+                                                      .slice(1)
+                                                      .join(",")
+                                                      .trim()
+                                                  : i.display_name) ||
+                                                "",
+                                            )}
+                                          </div>
+                                          {renderPlaceActions(i, "food")}
                                         </div>
-                                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                          {String(
-                                            i.address ||
-                                              (i.display_name?.includes(",")
-                                                ? i.display_name
-                                                    .split(",")
-                                                    .slice(1)
-                                                    .join(",")
-                                                    .trim()
-                                                : i.display_name) ||
-                                              "",
-                                          )}
+                                      );
+                                    })}
+                                    {foodError ? (
+                                      <div className="text-xs">
+                                        <p className="text-[var(--ios-red)]">
+                                          Couldn't load restaurants — the search failed, not that
+                                          there aren't any.
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={() => refetchFood()}
+                                          className="text-[var(--explorer-blue)] hover:underline mt-1"
+                                        >
+                                          Try again
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      (!foodResults || foodResults.length === 0) && (
+                                        <div className="text-muted-foreground text-xs italic">
+                                          No restaurants found
                                         </div>
-                                        {renderPlaceActions(i, "food")}
-                                      </div>
-                                    ))}
-                                    {(!foodResults || foodResults.length === 0) && (
-                                      <div className="text-muted-foreground text-xs italic">
-                                        No restaurants found
-                                      </div>
+                                      )
                                     )}
                                   </>
                                 )}
@@ -1714,10 +1857,26 @@ export default function TripDetail() {
                                         {renderPlaceActions(i, "sightseeing")}
                                       </div>
                                     ))}
-                                    {(!sightsResults || sightsResults.length === 0) && (
-                                      <div className="text-muted-foreground text-xs italic">
-                                        No spots found
+                                    {sightsError ? (
+                                      <div className="text-xs">
+                                        <p className="text-[var(--ios-red)]">
+                                          Couldn't load spots — the search failed, not that there
+                                          aren't any.
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={() => refetchSights()}
+                                          className="text-[var(--explorer-blue)] hover:underline mt-1"
+                                        >
+                                          Try again
+                                        </button>
                                       </div>
+                                    ) : (
+                                      (!sightsResults || sightsResults.length === 0) && (
+                                        <div className="text-muted-foreground text-xs italic">
+                                          No spots found
+                                        </div>
+                                      )
                                     )}
                                   </>
                                 )}

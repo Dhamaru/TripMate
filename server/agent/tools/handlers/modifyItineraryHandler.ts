@@ -7,6 +7,47 @@ import { nanoid } from "nanoid";
 import { FeasibilityModeler } from "../../../services/FeasibilityModeler";
 import { socketService } from "../../../services/SocketService";
 
+// Atlas's own tool-call arguments sometimes come back shouting-case
+// ("SRI RUDRA BIRYANI PALACE") or with stray trailing punctuation ("The
+// Brewery."), live-reported. Only intervenes on a title with ZERO
+// lowercase letters (i.e. actually all-caps, not just capitalized words)
+// and at least 2 words, so a short real acronym ("KFC") isn't mangled
+// into "Kfc" — the reported bug was always a multi-word phrase.
+function normalizeActivityTitle(title: string): string {
+  if (!title) return title;
+  const trimmed = String(title)
+    .trim()
+    .replace(/[.\s]+$/, "");
+  const isShouting = /[A-Z]/.test(trimmed) && !/[a-z]/.test(trimmed) && trimmed.includes(" ");
+  if (!isShouting) return trimmed;
+  return trimmed.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+// Was called as resolveCoordinates(act.address) — but resolveCoordinates
+// takes (name, destination), two required params. address ended up
+// bound to `name` and `destination` was simply undefined, so the actual
+// upstream search became "<address>, undefined" — a large share of why
+// Atlas-added/edited activities never got coordinates and lost their
+// View-on-map icon entirely (live-reported). Fixed call sites pass the
+// activity's own title/placeName as the name (matches the exact pattern
+// AiUtilitiesService's other real caller of this method already uses)
+// and the trip's real destination.
+async function tryResolveCoords(act: any, destination: string, aiService?: any): Promise<void> {
+  if (act.latitude || !aiService?.resolveCoordinates) return;
+  const name = act.placeName || act.title;
+  if (!name) return;
+  try {
+    const coords = await aiService.resolveCoordinates(name, destination);
+    if (coords) {
+      act.latitude = coords.lat;
+      act.longitude = coords.lon;
+    }
+  } catch {
+    // best-effort — an activity with no coordinates just doesn't get a
+    // View-on-map icon, it's not fatal to the edit itself
+  }
+}
+
 export async function modifyItineraryHandler(
   args: {
     tripId: string;
@@ -68,16 +109,10 @@ export async function modifyItineraryHandler(
         }
 
         // Try to resolve coordinates for activities that lack them
-        if (deps?.aiService?.resolveCoordinates) {
-          for (const act of args.activities) {
-            if (!act.latitude && act.address) {
-              const coords = await deps.aiService.resolveCoordinates(act.address);
-              if (coords) {
-                act.latitude = coords.lat;
-                act.longitude = coords.lon;
-              }
-            }
-          }
+        for (const act of args.activities) {
+          await tryResolveCoords(act, doc.destination, deps?.aiService);
+          if (act.title) act.title = normalizeActivityTitle(act.title);
+          if (act.placeName) act.placeName = normalizeActivityTitle(act.placeName);
         }
 
         itinerary[dayIndex].activities = args.activities.map((act: any) => ({
@@ -98,13 +133,9 @@ export async function modifyItineraryHandler(
         }
 
         const act = { ...args.activity };
-        if (!act.latitude && act.address && deps?.aiService?.resolveCoordinates) {
-          const coords = await deps.aiService.resolveCoordinates(act.address);
-          if (coords) {
-            act.latitude = coords.lat;
-            act.longitude = coords.lon;
-          }
-        }
+        await tryResolveCoords(act, doc.destination, deps?.aiService);
+        if (act.title) act.title = normalizeActivityTitle(act.title);
+        if (act.placeName) act.placeName = normalizeActivityTitle(act.placeName);
 
         const newActivity = {
           id: act.id || nanoid(8),
@@ -158,13 +189,9 @@ export async function modifyItineraryHandler(
         }
 
         const act = { ...args.activity };
-        if (!act.latitude && act.address && deps?.aiService?.resolveCoordinates) {
-          const coords = await deps.aiService.resolveCoordinates(act.address);
-          if (coords) {
-            act.latitude = coords.lat;
-            act.longitude = coords.lon;
-          }
-        }
+        await tryResolveCoords(act, doc.destination, deps?.aiService);
+        if (act.title) act.title = normalizeActivityTitle(act.title);
+        if (act.placeName) act.placeName = normalizeActivityTitle(act.placeName);
 
         itinerary[dayIndex].activities[idx] = {
           ...itinerary[dayIndex].activities[idx],

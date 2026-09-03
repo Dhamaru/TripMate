@@ -28,7 +28,10 @@ interface TripMapProps {
   // itinerary's "View on Map" button is clicked — flies to and opens that
   // activity's marker. A plain {lat, lon} rather than a day/activity index
   // pair since that's all the marker-grouping logic below keys off of.
-  focusTarget?: { lat: number; lon: number } | null;
+  // label names a place that ISN'T necessarily an itinerary activity (e.g.
+  // a Places-tab search result) — see the focus effect below for why it's
+  // needed.
+  focusTarget?: { lat: number; lon: number; label?: string } | null;
 }
 
 export function TripMap({
@@ -48,6 +51,13 @@ export function TripMap({
   // just flying the camera there with no visual confirmation of *which*
   // pin is the one being viewed.
   const markerIndexRef = useRef<Map<string, L.Marker>>(new Map());
+  // Holds a marker created on the fly by the focus effect below for a
+  // focusTarget that has no real itinerary marker (a Places-tab search
+  // result, not yet added to the trip). Kept separate from markersLayerRef
+  // so the itinerary-rebuild effect's clearLayers() doesn't wipe it, and
+  // tracked so a second, different focus request removes the stale one
+  // instead of leaving orphaned pins on the map.
+  const adhocMarkerRef = useRef<L.Marker | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [geocodeError, setGeocodeError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -400,6 +410,17 @@ export function TripMap({
         });
       }
     }
+    // A place viewed via the ad-hoc marker above and then actually added to
+    // the itinerary now has a real marker at the same key — drop the
+    // stand-in so the two don't sit stacked on top of each other.
+    if (adhocMarkerRef.current) {
+      const latLng = adhocMarkerRef.current.getLatLng();
+      const key = `${latLng.lat.toFixed(4)},${latLng.lng.toFixed(4)}`;
+      if (markerIndexRef.current.has(key)) {
+        adhocMarkerRef.current.remove();
+        adhocMarkerRef.current = null;
+      }
+    }
   }, [coords, mapTheme, itinerary]);
 
   // "View on Map" from the itinerary — fly to and open that activity's
@@ -419,18 +440,47 @@ export function TripMap({
   useEffect(() => {
     if (!focusTarget || !mapInstanceRef.current) return;
     const key = `${Number(focusTarget.lat).toFixed(4)},${Number(focusTarget.lon).toFixed(4)}`;
-    const marker = markerIndexRef.current.get(key);
+    let marker = markerIndexRef.current.get(key);
+
+    // Live-reported: "View on Map" from the Places tab flew the camera to
+    // the right coordinates but showed no pin and no name at all. Root
+    // cause — the marker-building effect above only ever creates markers
+    // for activities already IN the itinerary; a searched place the user
+    // hasn't added yet has no marker to find here. Create a lightweight
+    // ad-hoc one so there's always something to fly to and open, and clean
+    // up any previous ad-hoc marker so repeated searches don't litter pins.
+    if (!marker) {
+      if (adhocMarkerRef.current) {
+        adhocMarkerRef.current.remove();
+        adhocMarkerRef.current = null;
+      }
+      const adhocIcon = L.divIcon({
+        className: "custom-marker",
+        html: `<div style="background-color: #64748b; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                     <i class="fas fa-map-marker-alt" style="color: white; font-size: 14px;"></i>
+                   </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16],
+      });
+      const adhocMarker = L.marker([focusTarget.lat, focusTarget.lon], { icon: adhocIcon })
+        .addTo(mapInstanceRef.current)
+        .bindPopup(
+          `<div style="min-width: 160px; color: #1a1a1a;"><div style="font-weight: bold;">${focusTarget.label || "Selected location"}</div></div>`,
+        );
+      adhocMarkerRef.current = adhocMarker;
+      marker = adhocMarker;
+    }
+
     mapInstanceRef.current.flyTo([focusTarget.lat, focusTarget.lon], 16, {
       animate: true,
       duration: 1.2,
     });
-    if (marker) {
-      // Popups sometimes fail to open mid-flyTo animation — Leaflet opens
-      // it relative to the map's current (not final) projection. A short
-      // delay lets the flyTo settle first.
-      const t = setTimeout(() => marker.openPopup(), 400);
-      return () => clearTimeout(t);
-    }
+    // Popups sometimes fail to open mid-flyTo animation — Leaflet opens
+    // it relative to the map's current (not final) projection. A short
+    // delay lets the flyTo settle first.
+    const t = setTimeout(() => marker!.openPopup(), 400);
+    return () => clearTimeout(t);
   }, [focusTarget, coords]);
 
   // Route paths — own effect so toggling doesn't re-render markers.

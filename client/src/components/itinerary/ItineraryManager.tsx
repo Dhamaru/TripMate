@@ -62,7 +62,7 @@ interface ItineraryManagerProps {
   // the Places tab is where the actual useful info (ratings, address,
   // website) lives. Sightseeing/temple/museum/park/market still go to the
   // map, which is what they're actually well-served by.
-  onViewInPlaces?: (category: "food" | "hotels") => void;
+  onViewInPlaces?: (category: "food" | "hotels", placeName?: string) => void;
 }
 
 // Sortable Item Component with Move Buttons
@@ -91,7 +91,7 @@ function SortableActivity({
   canEdit: boolean;
   onViewOnMap?: (lat: number, lon: number) => void;
   isHighlighted?: boolean;
-  onViewInPlaces?: (category: "food" | "hotels") => void;
+  onViewInPlaces?: (category: "food" | "hotels", placeName?: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: activity.id,
@@ -213,7 +213,10 @@ function SortableActivity({
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onViewInPlaces(type === "accommodation" ? "hotels" : "food");
+                  onViewInPlaces(
+                    type === "accommodation" ? "hotels" : "food",
+                    activity.placeName || activity.title,
+                  );
                 }}
                 variant="ghost"
                 size="icon"
