@@ -33,7 +33,14 @@ function normalizeActivityTitle(title: string): string {
 // AiUtilitiesService's other real caller of this method already uses)
 // and the trip's real destination.
 async function tryResolveCoords(act: any, destination: string, aiService?: any): Promise<void> {
-  if (act.latitude || !aiService?.resolveCoordinates) return;
+  // Guard on both latitude/longitude field spellings — act.lat/act.lon is
+  // the app's canonical name (ActivityFormDialog, TripMap, AI-generated
+  // activities all use it), but this function itself writes latitude/
+  // longitude. Only checking .latitude meant an activity that already had
+  // real .lat/.lon (just not .latitude) got needlessly re-geocoded on every
+  // edit — harmless to the data (both field pairs end up populated) but a
+  // wasted geocode call each time (code-review finding, 2026-09-03).
+  if (act.latitude || act.lat || !aiService?.resolveCoordinates) return;
   const name = act.placeName || act.title;
   if (!name) return;
   try {

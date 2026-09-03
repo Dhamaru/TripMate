@@ -439,6 +439,19 @@ export function TripMap({
   // actually ready.
   useEffect(() => {
     if (!focusTarget || !mapInstanceRef.current) return;
+
+    // Drop any leftover ad-hoc marker from a PREVIOUS focus request before
+    // deciding whether this one needs a new one — code-review caught a real
+    // leak here: this used to run only inside the `if (!marker)` branch
+    // below, so viewing a non-itinerary place (ad-hoc marker created) and
+    // then viewing a real itinerary activity elsewhere (a real marker is
+    // found, that branch never runs) left the first ad-hoc pin stuck on the
+    // map forever with no popup actions and no way to dismiss it.
+    if (adhocMarkerRef.current) {
+      adhocMarkerRef.current.remove();
+      adhocMarkerRef.current = null;
+    }
+
     const key = `${Number(focusTarget.lat).toFixed(4)},${Number(focusTarget.lon).toFixed(4)}`;
     let marker = markerIndexRef.current.get(key);
 
@@ -447,13 +460,8 @@ export function TripMap({
     // cause — the marker-building effect above only ever creates markers
     // for activities already IN the itinerary; a searched place the user
     // hasn't added yet has no marker to find here. Create a lightweight
-    // ad-hoc one so there's always something to fly to and open, and clean
-    // up any previous ad-hoc marker so repeated searches don't litter pins.
+    // ad-hoc one so there's always something to fly to and open.
     if (!marker) {
-      if (adhocMarkerRef.current) {
-        adhocMarkerRef.current.remove();
-        adhocMarkerRef.current = null;
-      }
       const adhocIcon = L.divIcon({
         className: "custom-marker",
         html: `<div style="background-color: #64748b; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">

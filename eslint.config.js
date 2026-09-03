@@ -104,5 +104,23 @@ export default tseslint.config(
       "@typescript-eslint/no-empty-object-type": "warn",
     },
   },
+  {
+    // tests/** matches neither the server/** nor client/src/** globs above,
+    // so it was falling through to tseslint's strict recommended defaults
+    // — every existing test file that needed `any` (mocking a Mongoose
+    // model, casting a private method) worked around it with a per-line
+    // eslint-disable-next-line comment instead. That doesn't scale for a
+    // regression suite with dozens of loosely-typed mock/fetch-response
+    // shapes (tests/backend/fixall-batch.test.ts, tests/e2e/*.spec.ts) —
+    // same relaxation the app code already gets, scoped to tests only.
+    files: ["tests/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
   prettier,
 );

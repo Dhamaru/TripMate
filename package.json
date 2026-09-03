@@ -18,6 +18,7 @@
     "test:unit": "vitest run tests/backend tests/frontend tests/agents tests/sse",
     "test:integration": "vitest run tests/integration",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "db:seed": "tsx server/scripts/seed.ts",
     "db:clear": "tsx server/scripts/clearDb.ts",
     "test:parser": "tsx client/src/lib/__tests__/runParserTests.ts",
