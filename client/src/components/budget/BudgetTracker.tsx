@@ -64,9 +64,26 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
 
   const manualSpent = expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const grandTransit = Number(trip.budgetBreakdown?.grandTransit || 0);
-  const totalSpent = manualSpent + itineraryCost + grandTransit;
+  const plannedCost = itineraryCost + grandTransit;
+  const totalSpent = manualSpent + plannedCost;
   const budget = trip.budget || 0;
   const remaining = budget - totalSpent;
+
+  // "Spent" previously meant this whole total unconditionally — a user who
+  // just created a trip and logged zero real expenses would see a nonzero
+  // "Spent" figure the moment the AI itinerary's own entry-fee/cost
+  // estimates got summed in, before a single rupee actually left their
+  // pocket ("i have just created the trip why its showing spent?", a real
+  // user report). The number itself is useful (it's how much of the
+  // budget the current plan is on track to use), but calling it "Spent"
+  // when it's entirely planned/estimated reads as the app claiming money
+  // was already charged. Label reflects what's actually behind the figure.
+  const spentLabel =
+    manualSpent === 0 && plannedCost > 0
+      ? "Estimated (planned)"
+      : manualSpent > 0 && plannedCost > 0
+        ? "Spent + planned"
+        : "Spent";
 
   // Prepare Chart Data
   // We add an "AI Itinerary" slice to the pie chart to represent the planned activities
@@ -246,7 +263,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Spent</p>
+                <p className="text-sm text-muted-foreground">{spentLabel}</p>
                 <p className="text-2xl font-bold text-[#1D4E89] dark:text-blue-400">
                   {trip.currency || "INR"} {totalSpent.toLocaleString()}
                 </p>
@@ -265,6 +282,12 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                 ? `Over budget by ${Math.abs(remaining).toLocaleString()}`
                 : `${remaining.toLocaleString()} remaining`}
             </p>
+            {plannedCost > 0 && (
+              <p className="text-right mt-1 text-xs text-muted-foreground">
+                Includes {trip.currency || "INR"} {plannedCost.toLocaleString()} in planned
+                itinerary costs — not money spent yet
+              </p>
+            )}
           </CardContent>
         </Card>
 
