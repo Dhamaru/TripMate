@@ -58,11 +58,16 @@ export async function expenseToolHandler(args: {
       if (!trip) {
         return { success: false, error: "Trip not found", durationMs: Date.now() - start };
       }
-      socketService.broadcastMutation(
-        tripId,
-        { type: "expenses-updated", data: trip.expenses },
-        userId,
-      );
+      // No excludeUserId — see modifyItineraryHandler.ts's comment on the
+      // same pattern: Atlas acts for the user in their own open tab, so
+      // excluding them meant their own change never live-updated their
+      // own screen. (notifyTripParticipants below still excludes them —
+      // that's a notification-bell ping for OTHER collaborators, correctly
+      // separate from this.)
+      socketService.broadcastMutation(tripId, {
+        type: "expenses-updated",
+        data: trip.expenses,
+      });
       await notifyTripParticipants(trip, userId, {
         type: "expense-updated",
         title: "Expense added",
@@ -101,11 +106,16 @@ export async function expenseToolHandler(args: {
           durationMs: Date.now() - start,
         };
       }
-      socketService.broadcastMutation(
-        tripId,
-        { type: "expenses-updated", data: trip.expenses },
-        userId,
-      );
+      // No excludeUserId — see modifyItineraryHandler.ts's comment on the
+      // same pattern: Atlas acts for the user in their own open tab, so
+      // excluding them meant their own change never live-updated their
+      // own screen. (notifyTripParticipants below still excludes them —
+      // that's a notification-bell ping for OTHER collaborators, correctly
+      // separate from this.)
+      socketService.broadcastMutation(tripId, {
+        type: "expenses-updated",
+        data: trip.expenses,
+      });
       await notifyTripParticipants(trip, userId, {
         type: "expense-updated",
         title: "Expense removed",

@@ -81,11 +81,12 @@ export async function packingListToolHandler(args: {
       } as any);
       await list.save();
       if (list.tripId) {
-        socketService.broadcastMutation(
-          String(list.tripId),
-          { type: "packing-updated", data: list },
-          userId,
-        );
+        // No excludeUserId — see modifyItineraryHandler.ts's comment on
+        // the same pattern.
+        socketService.broadcastMutation(String(list.tripId), {
+          type: "packing-updated",
+          data: list,
+        });
       }
       return {
         success: true,
@@ -112,11 +113,12 @@ export async function packingListToolHandler(args: {
       (list.items[idx] as any).packed = !(list.items[idx] as any).packed;
       await list.save();
       if (list.tripId) {
-        socketService.broadcastMutation(
-          String(list.tripId),
-          { type: "packing-updated", data: list },
-          userId,
-        );
+        // No excludeUserId — see modifyItineraryHandler.ts's comment on
+        // the same pattern.
+        socketService.broadcastMutation(String(list.tripId), {
+          type: "packing-updated",
+          data: list,
+        });
       }
       return {
         success: true,
@@ -132,11 +134,12 @@ export async function packingListToolHandler(args: {
       list.items.splice(idx, 1);
       await list.save();
       if (list.tripId) {
-        socketService.broadcastMutation(
-          String(list.tripId),
-          { type: "packing-updated", data: list },
-          userId,
-        );
+        // No excludeUserId — see modifyItineraryHandler.ts's comment on
+        // the same pattern.
+        socketService.broadcastMutation(String(list.tripId), {
+          type: "packing-updated",
+          data: list,
+        });
       }
       return {
         success: true,

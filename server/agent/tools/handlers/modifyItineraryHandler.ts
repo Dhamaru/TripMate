@@ -231,11 +231,17 @@ export async function modifyItineraryHandler(
       };
     }
 
-    socketService.broadcastMutation(
-      tripId,
-      { type: "itinerary-updated", data: written.itinerary },
-      userId,
-    );
+    // No excludeUserId — unlike a REST-form edit (where the actor's own
+    // screen already updated locally from the response), Atlas executes
+    // this ON BEHALF of the user in their own open tab, which is exactly
+    // the tab that needs to hear about its own change. Excluding the
+    // actor meant the one person guaranteed to be looking at this trip
+    // right now never got the live update, and had to reload to see
+    // what Atlas just did — live-reported.
+    socketService.broadcastMutation(tripId, {
+      type: "itinerary-updated",
+      data: written.itinerary,
+    });
 
     return {
       success: true,

@@ -73,6 +73,8 @@ import { useLocation } from "wouter";
 import { apiRequest, throwIfResNotOk } from "@/lib/queryClient";
 import { IPackingListItem, PackingList, Trip } from "@shared/schema";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSocket } from "@/hooks/useSocket";
+import { usePresence } from "@/hooks/usePresence";
 
 type PackingItem = IPackingListItem & { is_mandatory?: boolean; category?: string };
 
@@ -179,6 +181,30 @@ export default function PackingChecklist() {
   const { data: packingLists, isLoading } = useQuery<PackingList[]>({
     queryKey: ["/api/v1/packing-lists"],
   });
+
+  // Atlas can add/toggle/remove packing items via chat from any page — this
+  // page previously had no way to hear about that live (the only
+  // trip-mutation listener in the app lives in TripDetail.tsx, which isn't
+  // mounted here), so a change made through Atlas while sitting on this
+  // page directly required a manual reload to actually see it, same bug
+  // class as the itinerary one fixed alongside this. usePresence joins the
+  // socket room for the currently-selected trip (a no-op when no trip is
+  // selected, i.e. "none" — the hook itself skips on a falsy tripId).
+  usePresence(selectedTripId !== "none" ? selectedTripId : "");
+  const socketRef = useSocket();
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || selectedTripId === "none") return;
+    const onMutation = (mutation: { type: string }) => {
+      if (mutation.type === "packing-updated" || mutation.type === "packing-deleted") {
+        queryClient.invalidateQueries({ queryKey: ["/api/v1/packing-lists"] });
+      }
+    };
+    socket.on("trip-mutation", onMutation);
+    return () => {
+      socket.off("trip-mutation", onMutation);
+    };
+  }, [socketRef, selectedTripId, queryClient]);
 
   const currentList = packingLists?.find((list) => {
     if (selectedTripId !== "none") {
