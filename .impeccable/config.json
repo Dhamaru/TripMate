@@ -102,6 +102,11 @@
         "rule": "design-system-color",
         "value": "rgba(0,0,0,0.3)",
         "createdAt": "2026-09-03T12:04:30.059Z"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "animate-spin rounded-full client/src/pages/tripdetail.tsx",
+        "createdAt": "2026-09-03T21:23:26.354Z"
       }
     ]
   }
