@@ -25,8 +25,20 @@ router.get("/photo", placesPhotoLimiter, async (req, res) => {
     const key = config.GOOGLE_API_KEY;
     if (!key) return res.status(404).end();
 
+    // Was a flat maxwidth=400 for every caller — fine for the small
+    // Places-search-result thumbnails this was built for, but the trip
+    // hero banner (TripDetail.tsx: w-full, up to ~900px, object-cover)
+    // reuses this exact route and was stretching that same 400px source
+    // across its full width — visibly soft/blurry, live-reported, and
+    // inconsistent with the hero's OWN Wikipedia-thumbnail fallback one
+    // source over (trips.controller.ts), which already asks for
+    // pithumbsize=1200. Callers now opt into a wider size via ?w=; every
+    // existing call site that doesn't pass it keeps the original 400px
+    // (Places-tab cards, destination-image landing thumbnails).
+    const w = Math.min(1600, Math.max(1, parseInt(String(req.query.w || "400"), 10) || 400));
+
     const upstream = await fetch(
-      `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${encodeURIComponent(ref)}&key=${key}`,
+      `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${w}&photo_reference=${encodeURIComponent(ref)}&key=${key}`,
       { redirect: "follow" },
     );
     if (!upstream.ok) return res.status(404).end();

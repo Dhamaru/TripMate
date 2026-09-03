@@ -493,8 +493,13 @@ async function fetchImageForTrip(
             // served on every future read of this trip) — a raw
             // Google URL here means GOOGLE_API_KEY leaks forever,
             // not just for the one response that generated it.
-            // Same proxy already used for /places/search photos.
-            imageUrl = `/api/v1/places/photo?ref=${encodeURIComponent(photoRef)}`;
+            // Same proxy already used for /places/search photos, but
+            // w=1200 here (vs. that route's 400px default) — this is
+            // the full-width hero banner, not a small result card, and
+            // 400px was visibly blurry stretched across it (live-
+            // reported). Matches the Wikipedia fallback's pithumbsize
+            // right below, which fills this exact same imageUrl slot.
+            imageUrl = `/api/v1/places/photo?ref=${encodeURIComponent(photoRef)}&w=1200`;
             imageCaption = place.name || destination;
             break outer;
           }
