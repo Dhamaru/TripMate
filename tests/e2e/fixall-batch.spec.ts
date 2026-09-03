@@ -254,7 +254,12 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       dietaryPreferences: [],
     });
     try {
-      const { json } = await apiReq(sharedCtx, "GET", "/api/v1/trips/" + tripId);
+      const { status, json } = await apiReq(sharedCtx, "GET", "/api/v1/trips/" + tripId);
+      // A rate-limited/failed GET returns an error body with no
+      // cuisinePreferences field at all -- asserting status first turns
+      // that into a clear "GET failed with 429" instead of a confusing
+      // "cuisinePreferences is undefined" that reads like a data bug.
+      expect(status, "GET /api/v1/trips/:id succeeded").toBe(200);
       const trip = json.trip || json;
       expect(Array.isArray(trip.cuisinePreferences), "cuisinePreferences is array").toBe(true);
       expect(Array.isArray(trip.dietaryPreferences), "dietaryPreferences is array").toBe(true);
@@ -274,7 +279,8 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       dietaryPreferences: ["Vegetarian"],
     });
     try {
-      const { json } = await apiReq(sharedCtx, "GET", "/api/v1/trips/" + tripId);
+      const { status, json } = await apiReq(sharedCtx, "GET", "/api/v1/trips/" + tripId);
+      expect(status, "GET /api/v1/trips/:id succeeded").toBe(200);
       const trip = json.trip || json;
       expect(trip.cuisinePreferences, "cuisine prefs stored").toEqual(["BBQ", "Steakhouse"]);
       expect(trip.dietaryPreferences, "dietary prefs stored").toEqual(["Vegetarian"]);
