@@ -31,7 +31,10 @@ function App() {
   // Hidden while the chat panel itself is open — the panel already has its
   // own close (X) control, and the trigger otherwise sits fixed on top of
   // the panel's own send button in the same bottom-right corner.
-  const FAB_EXCLUDED_ROUTES = ["/app/maps", "/app/profile", "/app/planner"];
+  // Live-reported: the FAB sat directly on top of the Packing List's
+  // category headers/badges at 375px — this route was never added when
+  // the profile/planner exclusions landed, same overlap class as those.
+  const FAB_EXCLUDED_ROUTES = ["/app/maps", "/app/profile", "/app/planner", "/app/packing"];
   const showAtlasButton =
     showAtlas && !FAB_EXCLUDED_ROUTES.some((r) => location.startsWith(r)) && !isChatOpen;
 

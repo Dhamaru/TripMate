@@ -147,7 +147,19 @@ export const getDestinationImage = async (req: Request, res: Response, next: Nex
     const rawUrl = destinationImageUrls.get(destination);
     if (!rawUrl) throw new BadRequestError("Unknown destination");
 
-    const target = new URL(rawUrl);
+    // Live-reported: GET .../destination-image?d=VISHAKAPATNAM 500'd on
+    // every request, breaking that image slot on the landing page for
+    // every visitor. Root cause: some real trip's stored imageUrl isn't
+    // a valid absolute URL (the aggregate above only guards against
+    // null/empty, not malformed), so `new URL()` throws a native
+    // TypeError - not an AppError, so the global error handler had no
+    // statusCode to read and defaulted to 500 instead of a clean 400.
+    let target: URL;
+    try {
+      target = new URL(rawUrl);
+    } catch {
+      throw new BadRequestError("Stored image URL is malformed");
+    }
     if (target.protocol !== "https:") throw new BadRequestError("Only https URLs are allowed");
     if (!DESTINATION_IMAGE_ALLOWED_HOSTS.has(target.hostname))
       throw new BadRequestError("Host not allowed");

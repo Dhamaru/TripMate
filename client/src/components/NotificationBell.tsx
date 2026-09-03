@@ -162,6 +162,7 @@ export function NotificationBell() {
           size="icon"
           className="relative h-8 w-8 rounded-full"
           data-testid="button-notifications"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
         >
           <Bell className="h-4 w-4 text-[hsl(var(--foreground))]" />
           {unreadCount > 0 && (
