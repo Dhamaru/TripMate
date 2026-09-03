@@ -19,3 +19,7 @@ uploads/
 
 # Local Claude Code tooling config — not app source, stays local-only
 .claude/
+
+# Playwright's own generated output (npm run test:e2e) — reproducible, not source
+playwright-report/
+test-results/
