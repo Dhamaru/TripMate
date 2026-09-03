@@ -819,15 +819,19 @@ export default function PackingChecklist() {
   const packedCount = items.filter((i) => i.packed).length;
 
   const getSeasonIcon = (season: Season) => {
+    // No margin here — the TabsTrigger's flex `gap` already spaces icon
+    // from label; a redundant mr-2 on top of that gap was eating the width
+    // the label needed to fit without truncating at 375px.
+    const iconClass = "w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0";
     switch (season) {
       case "Summer":
-        return <Sun className="w-4 h-4 mr-2" />;
+        return <Sun className={iconClass} />;
       case "Winter":
-        return <Snowflake className="w-4 h-4 mr-2" />;
+        return <Snowflake className={iconClass} />;
       case "Spring":
-        return <Leaf className="w-4 h-4 mr-2" />;
+        return <Leaf className={iconClass} />;
       case "Autumn":
-        return <CloudRain className="w-4 h-4 mr-2" />;
+        return <CloudRain className={iconClass} />;
     }
   };
 
@@ -876,10 +880,10 @@ export default function PackingChecklist() {
                 <TabsTrigger
                   key={season}
                   value={season}
-                  className="min-w-0 px-1 rounded-full data-[state=active]:bg-[var(--amber)] data-[state=active]:text-white transition-all duration-300 flex items-center justify-center gap-1 sm:gap-2"
+                  className="min-w-0 px-0.5 sm:px-2 rounded-full data-[state=active]:bg-[var(--amber)] data-[state=active]:text-white transition-all duration-300 flex items-center justify-center gap-0.5 sm:gap-2"
                 >
                   {getSeasonIcon(season)}
-                  <span className="text-[11px] sm:text-sm font-medium truncate">
+                  <span className="text-[11px] sm:text-sm font-medium whitespace-nowrap">
                     {labels[season]}
                   </span>
                 </TabsTrigger>

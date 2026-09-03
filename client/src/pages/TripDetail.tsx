@@ -976,26 +976,33 @@ export default function TripDetail() {
                       <CollaboratorManager tripId={id} ownerId={trip.userId} />
                     </div>
                   )}
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-muted/50 border text-foreground hover:bg-card "
-                    data-testid="button-edit-trip"
-                  >
-                    <i className="fas fa-edit md:mr-2"></i>
-                    <span className="hidden md:inline">Edit</span>
-                  </Button>
-                  <Button
-                    onClick={() => setDeleteConfirmOpen(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-muted/50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
-                    data-testid="button-delete-trip"
-                  >
-                    <i className="fas fa-trash md:mr-2"></i>
-                    <span className="hidden md:inline">Delete</span>
-                  </Button>
+                  {/* Edit + Delete kept in their own flex group (mirrors the
+                      PresenceBubbles/CollaboratorManager grouping above) so at
+                      narrow widths they wrap together as a pair instead of
+                      Delete orphaning alone onto its own line, which read as
+                      an oversized, disconnected red circle at 375px. */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => setIsEditing(true)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-muted/50 border text-foreground hover:bg-card "
+                      data-testid="button-edit-trip"
+                    >
+                      <i className="fas fa-edit md:mr-2"></i>
+                      <span className="hidden md:inline">Edit</span>
+                    </Button>
+                    <Button
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-muted/50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
+                      data-testid="button-delete-trip"
+                    >
+                      <i className="fas fa-trash md:mr-2"></i>
+                      <span className="hidden md:inline">Delete</span>
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
