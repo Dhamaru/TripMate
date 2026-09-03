@@ -530,7 +530,13 @@ export function TripMap({
                         const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`);
                         const data = await res.json();
                         if (Array.isArray(data) && data.length > 0) {
-                          const { lat, lon } = data[0];
+                          const { lat, lon, display_name: displayName } = data[0];
+                          // Short, readable label from Nominatim's full
+                          // address string — "Parul University, SH 158,
+                          // ..., India" all the way through reads as noise
+                          // in a small popup; the venue/road name (first
+                          // segment) is what actually identifies the pin.
+                          const shortName = (displayName || q).split(",")[0].trim();
 
                           // Fly to location
                           if (mapInstanceRef.current) {
@@ -552,8 +558,18 @@ export function TripMap({
                             const popupContent = document.createElement("div");
                             popupContent.style.textAlign = "center";
                             popupContent.style.padding = "5px";
+                            // Leaflet's popup chrome is light by default —
+                            // every other marker popup in this file (see
+                            // the activity-marker popup above) already
+                            // uses dark text (#333 etc.) for exactly that
+                            // reason. This one used `color: white`, white
+                            // text on Leaflet's white popup background —
+                            // invisible, live-reported as "the popup is
+                            // just empty". Also showed a static "Found
+                            // Location" instead of the place actually
+                            // searched for.
                             popupContent.innerHTML = `
-                                                            <strong style="color: white; display: block; margin-bottom: 5px;">Found Location</strong>
+                                                            <strong style="color: #1a1a1a; display: block; margin-bottom: 5px; max-width: 200px;">${shortName}</strong>
                                                             <div id="add-search-spot" style="background: var(--explorer-blue); color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-top: 5px; display: inline-block;">
                                                                 <i class="fas fa-plus mr-1"></i> Add to Trip
                                                             </div>
@@ -569,7 +585,18 @@ export function TripMap({
                               const btn = document.getElementById("add-search-spot");
                               if (btn) {
                                 btn.onclick = () => {
-                                  setPendingAddSpot({ lat, lon, address: q, marker });
+                                  // Full address (not just the shortened
+                                  // popup label) — this pre-fills the
+                                  // Add-to-Trip dialog's address field, so
+                                  // give it the real thing Nominatim
+                                  // resolved rather than echoing back
+                                  // whatever the user happened to type.
+                                  setPendingAddSpot({
+                                    lat,
+                                    lon,
+                                    address: displayName || q,
+                                    marker,
+                                  });
                                   setAddSpotDialogOpen(true);
                                 };
                               }
