@@ -44,6 +44,7 @@ import { AtlasDayButton } from "./AtlasDayButton";
 import { VibeVoting } from "./VibeVoting";
 import { useLocation } from "wouter";
 import { parseTimeToMinutes } from "@/lib/time";
+import { getCurrencySymbol } from "@/lib/currency";
 
 interface ItineraryManagerProps {
   trip: Trip;
@@ -79,6 +80,7 @@ function SortableActivity({
   onViewOnMap,
   isHighlighted,
   onViewInPlaces,
+  currency,
 }: {
   activity: IItineraryActivity;
   index: number;
@@ -92,6 +94,7 @@ function SortableActivity({
   onViewOnMap?: (lat: number, lon: number) => void;
   isHighlighted?: boolean;
   onViewInPlaces?: (category: "food" | "hotels", placeName?: string) => void;
+  currency?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: activity.id,
@@ -179,6 +182,17 @@ function SortableActivity({
             <span className="text-[10px] font-mono-data text-[hsl(var(--muted-foreground))] shrink-0">
               <Clock className="inline w-2.5 h-2.5 mr-0.5" />
               {activity.duration_minutes}m
+            </span>
+          )}
+          {/* Est. cost — parsed/generated activities (Import My Plan,
+              Let AI Plan, Atlas) carry cost/entryFee, but this view never
+              showed either; the pre-save preview did (ImportPlanPreview.tsx),
+              live-reported as itinerary details feeling less complete after
+              confirming the trip. */}
+          {(activity.cost || activity.entryFee) && (
+            <span className="text-[10px] font-mono-data text-[var(--emerald-horizon)] shrink-0">
+              ~{getCurrencySymbol(currency)}
+              {activity.cost || activity.entryFee}
             </span>
           )}
         </div>
@@ -711,6 +725,7 @@ export function ItineraryManager({
                       onViewOnMap={onViewOnMap}
                       isHighlighted={highlightedRowId === activity.id}
                       onViewInPlaces={onViewInPlaces}
+                      currency={trip.currency}
                     />
                   ))}
                 </div>
