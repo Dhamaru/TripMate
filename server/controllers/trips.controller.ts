@@ -105,6 +105,34 @@ export const getTrip = async (req: Request, res: Response, next: NextFunction) =
       await trip.save();
     }
 
+    // Self-heal trips whose itinerary days never got a `dayIndex` field —
+    // live-reported and confirmed: every client mutation (addActivity,
+    // updateActivity, deleteActivity, toggleVote in itinerary.controller.ts)
+    // sends `dayIndex` as the 0-based array POSITION (ItineraryManager.tsx's
+    // own `.map((day, dayIdx) => ...)`), but those controllers all match
+    // against a `dayIndex` FIELD stored on the day sub-document itself. A
+    // trip whose days only ever got a `day` field (1-based, set by
+    // AiUtilitiesService's planTrip/generateFallbackTrip, and likely most
+    // pre-existing trips) has no such field to match — addActivity's fast
+    // path silently misses, falls through to its "day doesn't exist yet"
+    // branch, and PUSHES A WHOLE NEW PHANTOM DAY instead of adding to the
+    // one the user actually clicked on. No error surfaces; the user just
+    // sees "Activity added" and the activity is gone from where they
+    // expected it. dayIndex must always equal array position by
+    // construction (every write path assumes this), so it's always safe to
+    // force-sync it here, not just fill in when missing.
+    let dayIndexFixed = false;
+    (trip.itinerary || []).forEach((day: any, idx: number) => {
+      if (day && day.dayIndex !== idx) {
+        day.dayIndex = idx;
+        dayIndexFixed = true;
+      }
+    });
+    if (dayIndexFixed) {
+      trip.markModified("itinerary");
+      await trip.save();
+    }
+
     // Backfill coordinates for trips created before backfillActivityCoords
     // existed (or whose itinerary was generated before this activity had
     // any coords to begin with) — same self-heal-on-read pattern as the
