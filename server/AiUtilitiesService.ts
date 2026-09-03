@@ -2232,6 +2232,28 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   // though it shares the destination name or a generic feature word with
   // something else, since that's a real, separate experience, not a
   // reworded duplicate.
+  // Live-reported: a 10-day Rajasthan schedule parsed into a JSON object
+  // that self-reported `days: 10` but only had ONE entry in `itinerary` —
+  // the model apparently detailed day 1 in full and then just stopped,
+  // rather than fabricating the rest from a light-detail input (a
+  // reasonable instinct given parseSchedule's "don't invent a different
+  // trip" rule, but an incomplete result either way). parseSchedule's
+  // retry check only ever fired on a fully EMPTY itinerary (length === 0),
+  // so this exact self-contradictory case — the model's own `days` field
+  // disagreeing with its own `itinerary.length` — sailed straight through
+  // silently. A day count under half of what the model itself claimed is
+  // a strong, checkable signal something went wrong mid-generation,
+  // independent of how detailed the user's original pasted text was.
+  private isPlanSuspiciouslyShort(plan: any): boolean {
+    return (
+      !!plan &&
+      typeof plan.days === "number" &&
+      plan.days > 1 &&
+      Array.isArray(plan.itinerary) &&
+      plan.itinerary.length < Math.ceil(plan.days / 2)
+    );
+  }
+
   private finalizeAttractionDedup(plan: any): any {
     if (!Array.isArray(plan?.itinerary)) return plan;
     const destinationWords = this.wordsOf(plan.destination || "");
@@ -3363,19 +3385,33 @@ Start: ${startDate || "not specified"} | Group: ${groupSize} | Budget: ${budget 
     // One retry with a deliberately shorter, stricter prompt if the first
     // response didn't parse into a usable plan — a real model failure
     // mode (truncation, stray prose) that used to go straight to a 500
-    // with no second attempt.
+    // with no second attempt. Also retries when the plan technically
+    // parsed but is suspiciously incomplete (see isPlanSuspiciouslyShort).
     if (
       !parsed ||
       typeof parsed !== "object" ||
       !Array.isArray(parsed.itinerary) ||
-      parsed.itinerary.length === 0
+      parsed.itinerary.length === 0 ||
+      this.isPlanSuspiciouslyShort(parsed)
     ) {
       try {
         const retryRaw = await this.generateWithGemini(fallbackPrompt, systemPrompt);
-        parsed = this.parseJson(retryRaw);
-        usedModel = "gemini-3.5-flash-lite (retry)";
+        const retryParsed = this.parseJson(retryRaw);
+        // Only replace the first attempt if the retry is actually more
+        // complete — a short-input case where the model correctly (not
+        // buggily) produced fewer days than initially guessed shouldn't
+        // get overwritten by a worse or equally-short retry.
+        if (
+          retryParsed &&
+          Array.isArray(retryParsed.itinerary) &&
+          retryParsed.itinerary.length > (parsed?.itinerary?.length || 0)
+        ) {
+          parsed = retryParsed;
+          usedModel = "gemini-3.5-flash-lite (retry)";
+        }
       } catch {
-        // fall through to the error below
+        // fall through — keep the first attempt's result (even if short)
+        // rather than losing it entirely over a failed retry.
       }
     }
 

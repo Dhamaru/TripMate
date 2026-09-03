@@ -25,11 +25,53 @@ import { AiUtilitiesService } from "../../server/AiUtilitiesService";
 // The dedup helpers are private methods in the TS source, which is a
 // compile-time-only restriction — at runtime they're plain properties on
 // the instance, callable like any other method.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let svc: any;
 
 beforeAll(() => {
   svc = new AiUtilitiesService();
+});
+
+describe("isPlanSuspiciouslyShort", () => {
+  // Live-reported: parseSchedule's own JSON response said `days: 10` but
+  // `itinerary` had exactly 1 entry — a self-contradictory result that
+  // the old retry-trigger (itinerary.length === 0 only) never caught.
+  it("flags a plan whose itinerary is under half its own claimed day count", () => {
+    const plan = { days: 10, itinerary: [{ day: 1, activities: [] }] };
+    expect(svc.isPlanSuspiciouslyShort(plan)).toBe(true);
+  });
+
+  it("does NOT flag a plan whose itinerary roughly matches its claimed days", () => {
+    const plan = { days: 3, itinerary: [{}, {}, {}] };
+    expect(svc.isPlanSuspiciouslyShort(plan)).toBe(false);
+  });
+
+  it("does NOT flag a plan at exactly the half-of-days boundary (5 of 10)", () => {
+    const plan = { days: 10, itinerary: Array(5).fill({}) };
+    expect(svc.isPlanSuspiciouslyShort(plan)).toBe(false);
+  });
+
+  it("does NOT flag a genuinely 1-day trip (days: 1) even with 1 itinerary entry", () => {
+    // days > 1 guard — a real 1-day trip shouldn't be treated as
+    // "suspiciously short" just because 1 < ceil(1/2) would be false
+    // anyway, but this pins the intent explicitly.
+    const plan = { days: 1, itinerary: [{}] };
+    expect(svc.isPlanSuspiciouslyShort(plan)).toBe(false);
+  });
+
+  it("does NOT flag when days is missing or not a number (nothing to compare against)", () => {
+    expect(svc.isPlanSuspiciouslyShort({ itinerary: [{}] })).toBe(false);
+    expect(svc.isPlanSuspiciouslyShort({ days: "10", itinerary: [{}] })).toBe(false);
+  });
+
+  it("does NOT flag when itinerary isn't an array", () => {
+    expect(svc.isPlanSuspiciouslyShort({ days: 10, itinerary: null })).toBe(false);
+  });
+
+  it("handles a null/undefined plan safely", () => {
+    expect(svc.isPlanSuspiciouslyShort(null)).toBe(false);
+    expect(svc.isPlanSuspiciouslyShort(undefined)).toBe(false);
+  });
 });
 
 describe("wordsOf", () => {
