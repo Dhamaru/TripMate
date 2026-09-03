@@ -80,6 +80,13 @@
         "rule": "border-accent-on-rounded",
         "value": "client/src/pages/tripplanner.tsx",
         "createdAt": "2026-09-02T21:18:16.543Z"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": ["client/src/pages/TripPlanner.tsx"],
+        "createdAt": "2026-09-03T05:02:59.889Z",
+        "reason": "L914 (and prior line numbers as the file shifts) is the auth-loading rounded-full spinner (border-b-2 on rounded-full, standard CSS spinner technique), not a card with a clashing accent border - matches the identical, already-sanctioned TripMap.tsx spinner exception"
       }
     ]
   }
