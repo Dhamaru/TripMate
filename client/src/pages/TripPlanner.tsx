@@ -24,6 +24,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
+import { ImportPlanPreview } from "@/components/ImportPlanPreview";
 
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 
@@ -186,6 +187,9 @@ export default function TripPlanner() {
   // seconds with no lasting indicator of which field to fix, same gap the
   // AI-plan form's submitErrors above was already built to close.
   const [importErrors, setImportErrors] = useState<Record<string, string>>({});
+  // The parsed plan, shown via ImportPlanPreview for review before it
+  // becomes a real trip. null = still on the paste-your-schedule form.
+  const [importPreview, setImportPreview] = useState<any>(null);
 
   // Prefill from ?destination=&style= query params (e.g. landing page hero search)
   useEffect(() => {
@@ -311,44 +315,12 @@ export default function TripPlanner() {
         return;
       }
 
-      const tripData = {
-        origin:
-          importForm.scheduleText
-            .match(/from\s+([A-Za-z ]+)/i)?.[1]
-            ?.split(" to ")[0]
-            ?.trim() || "",
-        destination: parsed.destination || "Multi-city Trip",
-        budget: importForm.budget ? parseFloat(importForm.budget) : undefined,
-        days: parsed.days || parsed.itinerary.length,
-        groupSize: parseInt(importForm.groupSize) || 1,
-        travelStyle: "standard" as const,
-        currency: importForm.currency || "INR",
-        status: "planning" as const,
-        startDate: parsed.startDate
-          ? new Date(parsed.startDate)
-          : importForm.startDate
-            ? new Date(importForm.startDate)
-            : undefined,
-        notes: parsed.notes || "",
-        // Spread ...day first so the enrichment pass's day-level fields
-        // (theme, location, wakeUpTime, headlineExperience,
-        // departureReminder, dayBudget, weatherNote) survive — the
-        // explicit fields after override only what needs a real
-        // transform (dayIndex/day/date), not a full field rename.
-        itinerary: parsed.itinerary.map((day: any, idx: number) => ({
-          ...day,
-          dayIndex: idx,
-          day: day.day || idx + 1,
-          date: day.date ? new Date(day.date) : undefined,
-          activities: (day.activities || []).map((act: any) => ({
-            ...act,
-            title: act.title || "Activity",
-            address: act.address || act.to || act.from || "",
-          })),
-        })),
-      };
-
-      createTripMutation.mutate(tripData);
+      // Review before creating — matches the "Let AI Plan" mode's own
+      // Save-Trip-after-review pattern (line ~1560) rather than
+      // auto-creating the trip the instant the parse succeeds, with no
+      // chance to see what the AI actually understood from the pasted
+      // text before it becomes a real trip.
+      setImportPreview(parsed);
     } catch (err: any) {
       console.error("[ImportSchedule] Error:", err);
       toast({
@@ -359,6 +331,56 @@ export default function TripPlanner() {
     } finally {
       setIsParsing(false);
     }
+  };
+
+  // Builds the actual createTrip payload from a parsed plan — split out
+  // from handleImportSchedule since it now runs at confirm-time (after
+  // the preview), not immediately on parse success.
+  const buildImportTripData = (parsed: any) => ({
+    origin:
+      importForm.scheduleText
+        .match(/from\s+([A-Za-z ]+)/i)?.[1]
+        ?.split(" to ")[0]
+        ?.trim() || "",
+    destination: parsed.destination || "Multi-city Trip",
+    budget: importForm.budget ? parseFloat(importForm.budget) : undefined,
+    days: parsed.days || parsed.itinerary.length,
+    groupSize: parseInt(importForm.groupSize) || 1,
+    travelStyle: "standard" as const,
+    currency: importForm.currency || "INR",
+    status: "planning" as const,
+    startDate: parsed.startDate
+      ? new Date(parsed.startDate)
+      : importForm.startDate
+        ? new Date(importForm.startDate)
+        : undefined,
+    notes: parsed.notes || "",
+    // Spread ...day first so the enrichment pass's day-level fields
+    // (theme, location, wakeUpTime, headlineExperience,
+    // departureReminder, dayBudget, weatherNote) survive — the explicit
+    // fields after override only what needs a real transform
+    // (dayIndex/day/date), not a full field rename.
+    itinerary: parsed.itinerary.map((day: any, idx: number) => ({
+      ...day,
+      dayIndex: idx,
+      day: day.day || idx + 1,
+      date: day.date ? new Date(day.date) : undefined,
+      activities: (day.activities || []).map((act: any) => ({
+        ...act,
+        title: act.title || "Activity",
+        address: act.address || act.to || act.from || "",
+      })),
+    })),
+  });
+
+  const handleConfirmImportTrip = () => {
+    if (!importPreview) return;
+    createTripMutation.mutate(buildImportTripData(importPreview));
+  };
+
+  const handleCancelImportPreview = () => {
+    setImportPreview(null);
+    importSaved.current = false;
   };
 
   const planTripMutation = useMutation({
@@ -931,7 +953,17 @@ export default function TripPlanner() {
           </button>
         </div>
         {/* Import My Plan Mode */}
-        {planMode === "import" && (
+        {planMode === "import" && importPreview && (
+          <div className="mb-6">
+            <ImportPlanPreview
+              plan={importPreview}
+              isCreating={createTripMutation.isPending}
+              onConfirm={handleConfirmImportTrip}
+              onCancel={handleCancelImportPreview}
+            />
+          </div>
+        )}
+        {planMode === "import" && !importPreview && (
           <Card className="bg-card border elev-1 mb-6">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-foreground">
@@ -1082,20 +1114,16 @@ export default function TripPlanner() {
 
                 <Button
                   type="submit"
-                  disabled={isParsing || createTripMutation.isPending}
+                  disabled={isParsing}
                   className="w-full bg-[var(--amber)] text-white py-4 text-base font-semibold rounded-xl disabled:opacity-50"
                 >
                   {isParsing ? (
                     <>
                       <i className="fas fa-brain fa-spin mr-2"></i>Parsing Your Schedule...
                     </>
-                  ) : createTripMutation.isPending ? (
-                    <>
-                      <i className="fas fa-save fa-spin mr-2"></i>Saving Trip...
-                    </>
                   ) : (
                     <>
-                      <i className="fas fa-wand-magic-sparkles mr-2"></i>Parse & Create Trip
+                      <i className="fas fa-wand-magic-sparkles mr-2"></i>Parse Schedule
                     </>
                   )}
                 </Button>
