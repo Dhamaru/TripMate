@@ -46,6 +46,19 @@ Concrete case that prompted this rule: fixing an AI itinerary repeating the same
 
 When a fix could go two ways — technically-correct-but-presumptuous, or genuinely-useful-to-the-person-using-it — take the second one, and say so.
 
+## 6. Production/investor-grade bar — verification is not optional overhead
+
+This app is meant to be shown to real users and investors, not just pass a green checkmark. A single session (2026-09-03) shipped ~13 real bugs that all lived through typecheck/build/vitest passing and an earlier "looks done" pass — the user had to personally exercise real flows repeatedly to surface them. That's the standard to stop repeating: **typecheck/build/unit-tests-green is table stakes, not evidence of correctness.** Before declaring any fix or feature done:
+
+- **Multi-angle, not happy-path-once.** Check the exact reported scenario, the adjacent scenarios it implies (a coordinate-resolution fix implies checking title-normalization, empty-input, and the field-name variant too — not just the one call site that was reported), legacy/pre-existing data shapes (not just freshly-created test data), and concurrent/multi-user paths where relevant.
+- **Dispatch agents for independent verification, not just for report-writing.** Rule 3 already requires agents for report deliverables — extend that instinct to any change with real surface area (touches a shared data shape, a widely-called handler, an endpoint many flows hit): a second, independent pass (code-reviewer and/or qa-investigator) catches what the implementer's own pass is structurally blind to, exactly as it did this session (the ad-hoc-marker leak and the coord-guard gap were both found by agent review after the implementer's own live pass called it done). Use the strongest available model for that verification pass, not a fast/cheap default — this is exactly the kind of judgment call worth paying for.
+- **Test data that mirrors production, not just fresh happy-path fixtures.** This session's most severe bug (phantom itinerary days) only reproduced because a real, pre-existing trip's data shape (day-only, no dayIndex) differed from what a fresh test-created trip would have. When touching an existing data shape, test against a real existing record, not only a newly-created one.
+- **Say what's still unverified, plainly.** If a fix is code-complete and unit-tested but hasn't had a live pass yet (rate limits, cost, time), say exactly that — don't let "typecheck/build/test clean" get reported in a way that reads as "verified live" when it isn't.
+
+## 7. Session resumability — CONTEXT.md must always be pickup-ready
+
+Token/session breaks will happen. The user should never have to re-explain state or re-catch a mistake because a fresh session lost the thread. Keep `CONTEXT.md`'s "Known open issues" section current as a live snapshot, not just a chronological log: anything code-complete-but-not-yet-live-verified, anything explicitly deferred, and the concrete next action, so a session with zero prior context can read it and continue correctly — not re-discover, not re-ask, not repeat work. Update it as state changes, not just at the end of a task.
+
 ---
 
 ## Existing standing rules (carried over from session memory, restated here for durability)
