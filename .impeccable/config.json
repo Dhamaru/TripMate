@@ -92,6 +92,16 @@
         "rule": "design-system-color",
         "value": "#1a1a1a",
         "createdAt": "2026-09-03T11:35:41.781Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#64748b",
+        "createdAt": "2026-09-03T12:04:29.937Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,0.3)",
+        "createdAt": "2026-09-03T12:04:30.059Z"
       }
     ]
   }
