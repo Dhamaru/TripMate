@@ -1202,6 +1202,27 @@ export default function TripDetail() {
                         {Number(tripForm.days) === 1 ? "day" : "days"}
                       </span>
                     </div>
+                    {/* Live-reported: reducing Trip Duration here doesn't
+                        touch the itinerary at all — this form's own
+                        endpoint (PUT /trips/:id) deliberately never writes
+                        `itinerary` (only the dedicated /itinerary/* routes
+                        do, each with its own concurrency protection), so a
+                        planned Day 8 activity is never silently deleted
+                        just because someone shortened the trip. That's the
+                        right call for real data, but with no explanation
+                        it looks broken — this makes the mismatch visible
+                        and points at the one place it can actually be
+                        fixed, instead of leaving it a silent surprise. */}
+                    {Array.isArray(trip.itinerary) &&
+                      trip.itinerary.length > 0 &&
+                      Number(tripForm.days) < trip.itinerary.length && (
+                        <p className="text-xs text-[var(--amber)] mt-1.5">
+                          Your itinerary still has {trip.itinerary.length}{" "}
+                          {trip.itinerary.length === 1 ? "day" : "days"} planned — reducing this
+                          number won't remove them. Trim the extra days from the Itinerary tab if
+                          you want them gone.
+                        </p>
+                      )}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
