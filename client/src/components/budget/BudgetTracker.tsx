@@ -282,12 +282,6 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                 ? `Over budget by ${Math.abs(remaining).toLocaleString()}`
                 : `${remaining.toLocaleString()} remaining`}
             </p>
-            {plannedCost > 0 && (
-              <p className="text-right mt-1 text-xs text-muted-foreground">
-                Includes {trip.currency || "INR"} {plannedCost.toLocaleString()} in planned
-                itinerary costs — not money spent yet
-              </p>
-            )}
           </CardContent>
         </Card>
 
