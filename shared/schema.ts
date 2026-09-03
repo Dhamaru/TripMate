@@ -746,6 +746,10 @@ const importPlanRequestLogSchema = new Schema<IImportPlanRequestLog>(
 );
 
 importPlanRequestLogSchema.index({ userId: 1, createdAt: -1 });
+// Unlike ImportPlanCacheModel, this had no expiry at all — cost-monitoring
+// rows would accumulate forever. 90 days keeps enough history for real
+// cost-trend analysis without growing unbounded.
+importPlanRequestLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 86400 * 90 });
 
 export const ImportPlanRequestLogModel: Model<IImportPlanRequestLog> =
   mongoose.model<IImportPlanRequestLog>("ImportPlanRequestLog", importPlanRequestLogSchema);

@@ -78,7 +78,16 @@ router.get("/search", async (req, res) => {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)${biasParam}&key=${key}`,
       );
-      const data = await response.json();
+      // Autocomplete has its own, tighter per-key quota than Text Search
+      // and a CDN layer in front of it — an error response here (429/503)
+      // can come back as plain text/HTML, not JSON. .json() on that
+      // throws and surfaces as an unhandled 500 instead of the empty
+      // result a search box should degrade to.
+      if (!response.ok) {
+        console.warn(`[Places] Google Autocomplete HTTP ${response.status}`);
+        return res.json({ items: [] });
+      }
+      const data = await response.json().catch(() => ({}));
       if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
         console.error(
           `[Places] Google Autocomplete returned ${data.status}: ${data.error_message || "no message"}`,

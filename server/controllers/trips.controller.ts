@@ -707,21 +707,48 @@ export const parseSchedule = async (req: Request, res: Response, next: NextFunct
       );
     }
     const normalizedCurrency = currency || "INR";
+    // parseScheduleSchema coerces this to a real Date (z.coerce.date(),
+    // for the past-date check) — normalize to a plain "YYYY-MM-DD" once
+    // here and reuse it everywhere below (the cache hash and the AI
+    // prompt both need a startDate representation; a raw Date object's
+    // implicit toString() in a template literal is deterministic but
+    // timezone/locale-dependent and needlessly fragile for a cache key).
+    const startDateStr: string | undefined = startDate
+      ? new Date(startDate).toISOString().slice(0, 10)
+      : undefined;
+
+    // Rough day-count estimate from the pasted text itself (counts "Day N"
+    // occurrences) — used only to steer getBudgetBracket before the AI has
+    // actually parsed the schedule. Previously hardcoded to 1, which read
+    // a 10-day ₹30,000 trip (₹3,000/day — "budget") as "premium"
+    // (₹30,000/day) and steered the prompt toward suggesting paid
+    // upgrades on what's actually a tight budget. Not exact — the AI's
+    // own parsed `days` is the source of truth for everything after this
+    // point — but a much closer estimate than assuming every trip is 1 day.
+    const estimatedDays = Math.max(1, (sanitizedScheduleText.match(/\bday\s*\d+/gi) || []).length);
 
     const aiService = new AiUtilitiesService();
-    const budgetBracket = aiService.getBudgetBracket(budget, 1, groupSize, normalizedCurrency);
+    const budgetBracket = aiService.getBudgetBracket(
+      budget,
+      estimatedDays,
+      groupSize,
+      normalizedCurrency,
+    );
 
     // Cache hash: sanitized input + group size + budget bracket (not the
-    // exact budget — see getBudgetBracket) + currency, so a request that
-    // only differs by ₹49,800 vs ₹50,000 still hits the same entry. Not
-    // including startDate deliberately — a schedule pasted today vs next
-    // week with the same text/group/budget should still be treated as
-    // the same parse; the actual date math happens client-side against
-    // whatever startDate is chosen at trip-creation time regardless.
+    // exact budget — see getBudgetBracket) + currency + startDate. Budget
+    // is deliberately bucketed (₹49,800 vs ₹50,000 should still hit the
+    // same entry) but startDate is NOT interchangeable the same way — the
+    // AI embeds concrete per-day dates in its response (it's told the
+    // start date and asked to compute each day's date from it), so a
+    // cached result from one startDate served to a request with a
+    // different startDate would silently hand back the wrong dates. Live
+    // review caught this before it shipped: a Sept-10 cached trip would
+    // otherwise get served to a user who asked for Nov-15.
     const hash = crypto
       .createHash("sha256")
       .update(
-        `${sanitizedScheduleText}|${groupSize}|${budgetBracket}|${normalizedCurrency.toUpperCase()}`,
+        `${sanitizedScheduleText}|${groupSize}|${budgetBracket}|${normalizedCurrency.toUpperCase()}|${startDateStr || "none"}`,
       )
       .digest("hex");
 
@@ -747,10 +774,7 @@ export const parseSchedule = async (req: Request, res: Response, next: NextFunct
     const result = await aiService.parseSchedule(
       {
         scheduleText: sanitizedScheduleText,
-        // parseScheduleSchema coerces this to a real Date (z.coerce.date())
-        // for the past-date check — parseSchedule's prompt wants a plain
-        // "YYYY-MM-DD" string, not a Date's verbose toString().
-        startDate: startDate ? new Date(startDate).toISOString().slice(0, 10) : undefined,
+        startDate: startDateStr,
         groupSize,
         budget,
         currency: normalizedCurrency,

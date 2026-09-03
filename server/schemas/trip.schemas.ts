@@ -109,16 +109,17 @@ export const updateTripSchema = z.object({
 export const parseScheduleSchema = z.object({
   body: z
     .object({
+      // Bare .min()/.max() intentionally, not chained with the location
+      // check below — superRefine short-circuits so a too-short input
+      // reports ONLY the length error, not both stacked together (a
+      // 5-char input used to fail length AND the location regex at once,
+      // producing two concatenated messages in one string; the client-side
+      // mirror in TripPlanner.tsx already checks these as if/else-if,
+      // this brings the server in line with it).
       scheduleText: z
         .string()
         .min(20, "Tell us a bit more about your trip — at least 20 characters.")
         .max(3000, "That's a lot of text — please keep it under 3000 characters."),
-      // A real schedule reads out place names, which are near-universally
-      // capitalized in English text ("Goa", "Baga Beach", "Fort Aguada").
-      // Deliberately loose — this only needs to catch clearly-empty or
-      // gibberish input ("asdf asdf asdf"), not verify the location is
-      // real; AiUtilitiesService.parseSchedule and its downstream
-      // grounding pass are what actually verify real places.
       startDate: z.coerce
         .date()
         .optional()
@@ -129,10 +130,22 @@ export const parseScheduleSchema = z.object({
       budget: z.coerce.number().min(0).optional(),
       currency: z.string().max(3).optional(),
     })
-    .refine((data) => /[A-Z][a-zA-Z]{2,}/.test(data.scheduleText), {
-      message:
-        "We couldn't find a place name in your schedule — try including city or location names.",
-      path: ["scheduleText"],
+    .superRefine((data, ctx) => {
+      if (data.scheduleText.length < 20) return; // .min() above already reports this
+      // A real schedule reads out place names, which are near-universally
+      // capitalized in English text ("Goa", "Baga Beach", "Fort Aguada").
+      // Deliberately loose — this only needs to catch clearly-empty or
+      // gibberish input ("asdf asdf asdf"), not verify the location is
+      // real; AiUtilitiesService.parseSchedule and its downstream
+      // grounding pass are what actually verify real places.
+      if (!/[A-Z][a-zA-Z]{2,}/.test(data.scheduleText)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "We couldn't find a place name in your schedule — try including city or location names.",
+          path: ["scheduleText"],
+        });
+      }
     }),
 });
 

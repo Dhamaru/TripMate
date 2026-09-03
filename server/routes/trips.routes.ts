@@ -42,9 +42,10 @@ router.post("/:id/share", tripsController.shareTrip);
 router.post("/generate-itinerary", generationLimiter, tripsController.generateItinerary);
 
 // Parse user's own schedule text into structured itinerary
+// requireAuth not repeated here — router.use(requireAuth) above already
+// covers every route below it, this one included.
 router.post(
   "/parse-schedule",
-  requireAuth,
   importPlanLimiter,
   validate(parseScheduleSchema),
   tripsController.parseSchedule,

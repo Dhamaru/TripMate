@@ -2176,22 +2176,37 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, " ")
         .split(/\s+/)
-        .filter((w) => w.length > 2),
+        // >1, not >2 — a 2-letter token can be a real distinguishing word
+        // ("Da Nang", "Ha Long Bay", "Mu Cang Chai"), not just filler.
+        .filter((w) => w.length > 1),
     );
   }
   // What's left of a title after stripping the destination's own name,
-  // filler, and a lone generic feature word — i.e. what actually tells
-  // this place apart from every other real place in the same town. A
-  // small destination's every genuine attraction naturally starts with
+  // filler, and (usually) a generic feature word — i.e. what actually
+  // tells this place apart from every other real place in the same town.
+  // A small destination's every genuine attraction naturally starts with
   // the town's own name (so matching on THAT alone would flag two real,
   // different landmarks — "Ameenpur Kaman" vs "Ameenpur Lake" — as the
   // same place), so the destination name is excluded from comparison,
   // not used as a match signal.
   private distinguishingTokens(title: string, destinationWords: Set<string>): Set<string> {
-    const out = new Set<string>();
+    const afterDestAndFiller = new Set<string>();
     for (const w of this.wordsOf(title)) {
       if (destinationWords.has(w)) continue;
       if (this.dedupeFillerWords.has(w)) continue;
+      afterDestAndFiller.add(w);
+    }
+    // Only strip a generic feature word ("fort", "lake", "museum"...) when
+    // something else survives it. A real, specific landmark can be
+    // NOTHING but destination + one generic word — "Agra Fort", "Jaipur
+    // Museum" — and stripping that word too would erase the only signal
+    // that title had, misclassifying a real distinct place as the same
+    // "generic feature repeated" bucket every other zero-token title
+    // falls into. Caught live: "Agra Fort" and "Jaipur Museum" both
+    // reduced to 0 tokens before this guard.
+    if (afterDestAndFiller.size <= 1) return afterDestAndFiller;
+    const out = new Set<string>();
+    for (const w of afterDestAndFiller) {
       if (this.dedupeGenericFeatureWords.has(w)) continue;
       out.add(w);
     }
@@ -2249,10 +2264,19 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           continue;
         }
 
+        // Math.max, not Math.min — a single shared token was enough to
+        // hit the 0.6 threshold against the SMALLER set's size alone,
+        // which false-merged two real, different places that just
+        // happen to share one word: "National Museum" (-> {national})
+        // and "National War Memorial" (-> {national, war, memorial})
+        // matched at 1/min(1,3)=1.0 and the memorial got overwritten.
+        // Sizing against the larger set means a real title with its own
+        // extra distinguishing words no longer gets swallowed by a
+        // same-prefix generic one.
         const dupe = seenSpecific.find((s) => {
           let shared = 0;
           for (const tok of s.tokens) if (distinguishing.has(tok)) shared++;
-          return shared / Math.min(s.tokens.size, distinguishing.size) >= 0.6;
+          return shared / Math.max(s.tokens.size, distinguishing.size) >= 0.6;
         });
         if (dupe) {
           activity.title = `Relax / free time at ${dupe.title}`;
@@ -3262,7 +3286,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     notes?: string;
   }> {
     const { scheduleText, startDate, groupSize = 1, budget, currency = "INR" } = input;
-    const budgetBracket = this.getBudgetBracket(budget, 1, groupSize, currency);
+    // Same estimate trips.controller.ts computes for the cache key — kept
+    // identical so the bracket that steers this prompt always matches the
+    // bracket the cache was keyed on for this exact request. Real day
+    // count isn't known until after this parse; "Day N" occurrences in
+    // the user's own text is a much closer estimate than assuming 1.
+    const estimatedDays = Math.max(1, (scheduleText.match(/\bday\s*\d+/gi) || []).length);
+    const budgetBracket = this.getBudgetBracket(budget, estimatedDays, groupSize, currency);
 
     // Kept tight and directive deliberately — a longer prompt costs more
     // tokens on every single call with no quality gain proportional to
