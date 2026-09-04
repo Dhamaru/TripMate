@@ -69,6 +69,55 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
     });
   });
 
+  describe("public trip share does not leak voter identity via userVotes either", () => {
+    it("strips userVotes from every itinerary activity in the public response, keeps the numeric vote total", async () => {
+      // Caught by a security-review pass on the getPublicTrip fix itself
+      // (finding #1's projection correctly dropped userId/collaborators/
+      // expenses/budget/notes, but kept `itinerary` wholesale -- a
+      // Mixed-typed subtree, so toggleVote's userVotes.<userId> map,
+      // keyed by the literal voter's user id (their raw email for a
+      // Google-signup account), still shipped verbatim one level down).
+      const tripRes = await request(app)
+        .post("/api/v1/trips")
+        .set("Authorization", `Bearer ${token}`)
+        .send(
+          createTrip(userId, {
+            destination: "Lisbon",
+            itinerary: [{ dayIndex: 0, day: 1, activities: [] }],
+          } as any),
+        );
+      const tripId = tripRes.body.id;
+
+      const addRes = await request(app)
+        .post(`/api/v1/trips/${tripId}/itinerary/activity`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ dayIndex: 0, activity: { title: "Belem Tower", type: "sightseeing" } });
+      const activityId = addRes.body.itinerary[0].activities[0].id;
+
+      const voteRes = await request(app)
+        .post(`/api/v1/trips/${tripId}/itinerary/vote`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ dayIndex: 0, activityId, vote: 1 });
+      expect(voteRes.status).toBe(200);
+
+      const shareRes = await request(app)
+        .post(`/api/v1/trips/${tripId}/share`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ isPublic: true });
+      const shareId = shareRes.body.shareId;
+
+      const publicRes = await request(app).get(`/api/v1/trips/public/${shareId}`);
+      expect(publicRes.status).toBe(200);
+      const publicActivity = publicRes.body.itinerary[0].activities[0];
+      expect(
+        publicActivity.userVotes,
+        "userVotes (keyed by voter user id / email) must not be in the public response",
+      ).toBeUndefined();
+      // The non-identifying numeric total is fine to keep.
+      expect(publicActivity.votes).toBe(1);
+    });
+  });
+
   describe("public trip share no longer leaks private data", () => {
     it("omits expenses, notes, budget, userId, and collaborators from the public response", async () => {
       const tripRes = await request(app)

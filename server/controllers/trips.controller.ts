@@ -726,7 +726,26 @@ export const getPublicTrip = async (req: Request, res: Response, next: NextFunct
       "destination days startDate endDate groupSize travelStyle currency itinerary imageUrl imageCaption",
     );
     if (!trip) throw new NotFoundError("Public trip not found");
-    res.json(trip);
+
+    // A top-level field allowlist isn't enough on its own — `itinerary` is
+    // a Mixed-typed subtree, so including it at all ships every key inside
+    // every activity verbatim, including `userVotes` (toggleVote writes
+    // `activities.$[act].userVotes.<userId>`, keyed by the literal voter's
+    // user id — which IS their raw email for any Google-signup account).
+    // Caught by a security-review pass on this exact fix: the projection
+    // above correctly drops userId/collaborators/expenses/budget/notes,
+    // but this same PII class was still reachable one level down. Strip
+    // it per-activity rather than widening the top-level projection,
+    // since Mongo field selection can't reach inside a Mixed value.
+    const json = trip.toJSON() as any;
+    if (Array.isArray(json.itinerary)) {
+      for (const day of json.itinerary) {
+        for (const activity of day?.activities || []) {
+          delete activity.userVotes;
+        }
+      }
+    }
+    res.json(json);
   } catch (error) {
     next(error);
   }

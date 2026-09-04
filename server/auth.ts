@@ -102,9 +102,7 @@ export async function setupAuth(app: Express) {
             // the user as a generic, permanent "Continue with Google" login
             // failure with zero explanation. getUserByEmail is the function
             // that actually exists for this (LocalStrategy already uses it
-            // a few lines down) — once the real account is found, the
-            // existing "link this Google identity to it" branch below
-            // already does the right thing.
+            // a few lines down).
             let user = await storage.getUserByEmail(email);
             if (!user) {
               user = await storage.upsertUser({
@@ -115,6 +113,31 @@ export async function setupAuth(app: Express) {
                 profileImageUrl: profile.photos?.[0]?.value,
                 googleConnected: true,
                 googleId: profile.id,
+              });
+            } else if (user.password && !user.googleConnected) {
+              // Fixing the lookup above made this branch reachable for the
+              // first time — and reaching it silently would have been a
+              // real account-takeover path (caught by a security-review
+              // pass on this exact diff): anyone can register any email
+              // with a password here today, since signup has no email
+              // verification. Left as-is, this would let an attacker
+              // pre-register a victim's email, then have the victim's own
+              // real "Continue with Google" sign-in get silently linked
+              // onto the attacker's pre-made account and session — the
+              // attacker's original password still works and now has
+              // standing access to everything the victim does afterward.
+              // The codebase already refuses the mirror-image case for
+              // exactly this reason (signup won't let a caller set a
+              // password on an existing Google account without emailed
+              // proof of inbox ownership, see the comment in
+              // auth.controller.ts's signup) — apply the same refusal
+              // here instead of silently linking. A real "connect Google
+              // to my account" flow belongs behind an authenticated
+              // session (Profile settings), not an anonymous OAuth
+              // callback matched on email alone.
+              return done(null, false, {
+                message:
+                  "An account with this email already has a password set. Sign in with your password instead.",
               });
             } else {
               const updates: Record<string, any> = { googleConnected: true, googleId: profile.id };
