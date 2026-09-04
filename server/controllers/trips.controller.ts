@@ -712,7 +712,19 @@ export const getAiRecommendations = async (req: Request, res: Response, next: Ne
 export const getPublicTrip = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { shareId } = req.params;
-    const trip = await TripModel.findOne({ shareId, isPublic: true });
+    // Was returning the whole document with no projection — this is a
+    // genuinely PUBLIC, unauthenticated route (anyone with the link, no
+    // account), and the full Trip document carries the owner's and every
+    // collaborator's raw email (userId IS the email for Google-signup
+    // accounts), the complete expense ledger with free-text descriptions,
+    // the trip budget, and private notes. Live-confirmed all of that came
+    // back in the response. A field allowlist, not a blocklist, so a
+    // future field added to Trip is private-by-default on this route
+    // until someone deliberately opts it in here.
+    const trip = await TripModel.findOne(
+      { shareId, isPublic: true },
+      "destination days startDate endDate groupSize travelStyle currency itinerary imageUrl imageCaption",
+    );
     if (!trip) throw new NotFoundError("Public trip not found");
     res.json(trip);
   } catch (error) {

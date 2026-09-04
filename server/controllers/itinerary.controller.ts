@@ -4,15 +4,17 @@ import { NotFoundError, BadRequestError } from "../errors";
 import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
+import { ACTIVITY_FIELD_NAMES } from "../schemas/itinerary.schemas";
 
-const UPDATABLE_ACTIVITY_FIELDS = [
-  "time",
-  "title",
-  "location",
-  "notes",
-  "latitude",
-  "longitude",
-] as const;
+// Was a hand-maintained {time, title, location, notes, latitude,
+// longitude} list that fell out of sync with updateActivitySchema the
+// last time the accepted field set was widened (latitude/longitude were
+// even renamed to lat/lon elsewhere and never updated here) — every
+// other field a real edit sends (cost, type, address, placeName,
+// duration, coordinates) validated fine, got a 200 back, and was
+// silently never written. Now derived from the schema's own field list
+// so the two structurally cannot drift apart again.
+const UPDATABLE_ACTIVITY_FIELDS = ACTIVITY_FIELD_NAMES;
 
 const editorAccessFilter = (tripId: string, userId: string) => ({
   _id: tripId,

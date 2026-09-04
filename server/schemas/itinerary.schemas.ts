@@ -28,6 +28,23 @@ const activityFields = {
   to: z.string().optional(),
 };
 
+// itinerary.controller.ts's updateActivity needs its own allowlist of
+// which fields it's willing to $set (Zod validation alone isn't a write
+// allowlist — it just says the shape is well-formed). That allowlist
+// was hand-maintained separately from this schema and silently fell out
+// of sync with it the last time this field set was widened: it still
+// only wrote {time, title, location, notes, latitude, longitude} while
+// this schema (correctly) accepts the full set below under the renamed
+// lat/lon — live-confirmed every other field (cost, type, address,
+// coordinates...) was validated as well-formed, accepted with a 200, and
+// then silently discarded, never written. Exporting the real key list
+// here means the controller's allowlist is now structurally the same
+// list as what this schema actually accepts — the two cannot drift
+// apart again the way they just did.
+export const ACTIVITY_FIELD_NAMES = Object.keys(activityFields) as Array<
+  keyof typeof activityFields
+>;
+
 export const addActivitySchema = z.object({
   params: z.object({
     id: z.string().min(1, "Trip ID is required"),

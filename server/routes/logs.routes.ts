@@ -21,7 +21,17 @@ const logsLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-router.use(logsLimiter);
+// Was router.use(logsLimiter) — that applies to EVERY request that enters
+// this router, not just ones that match one of its two routes. Because
+// this router is mounted at the shared "/api/v1" prefix (server/index.ts)
+// alongside every other v1 router, any request that doesn't match
+// /logs/info or /logs/error still passes through this limiter first
+// before falling through to whatever actually handles it further down
+// the chain — live-reproduced: ordinary navigation (Home -> Trips ->
+// Journal) tripped this 10-req/60s ceiling and GET /api/v1/trips started
+// 429ing, rendering as "No trips yet" for an account that has real trips.
+// Attaching the limiter to each route directly instead of router-wide
+// scopes it to only the requests it was actually meant to bound.
 
 function sanitizeString(value: unknown): string {
   return String(value ?? "")
@@ -46,12 +56,12 @@ function sanitizePayload(payload: unknown, depth = 0): unknown {
   return payload;
 }
 
-router.post("/logs/info", (req, res) => {
+router.post("/logs/info", logsLimiter, (req, res) => {
   logger.info(`[client] ${sanitizeString(req.body?.event)}`, sanitizePayload(req.body?.payload));
   res.status(204).send();
 });
 
-router.post("/logs/error", (req, res) => {
+router.post("/logs/error", logsLimiter, (req, res) => {
   logger.error(`[client] ${sanitizeString(req.body?.event)}`, sanitizePayload(req.body?.payload));
   res.status(204).send();
 });

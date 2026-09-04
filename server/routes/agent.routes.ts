@@ -1,7 +1,14 @@
 import { Router } from "express";
-import { chat, stream, getHistory, clearHistory, confirmAction } from "../controllers/agent.controller";
+import {
+  chat,
+  stream,
+  getHistory,
+  clearHistory,
+  confirmAction,
+} from "../controllers/agent.controller";
 import { requireAuth } from "../middleware/auth";
 import { aiLimiter } from "../middleware/rateLimit.middleware";
+import { requireSameOriginFetch } from "../middleware/csrf.middleware";
 import { validate } from "../middleware/validate";
 import { agentMessageSchema } from "../schemas/agent.schemas";
 
@@ -54,7 +61,7 @@ router.post("/chat", requireAuth, aiLimiter, validate(agentMessageSchema), chat)
  *             schema:
  *               type: string
  */
-router.get("/chat/stream", requireAuth, aiLimiter, stream);
+router.get("/chat/stream", requireSameOriginFetch, requireAuth, aiLimiter, stream);
 
 /**
  * @swagger

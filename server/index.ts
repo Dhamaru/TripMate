@@ -65,7 +65,18 @@ app.use(cookieParser(config.SESSION_SECRET));
 app.use(requestIdMiddleware);
 app.use(requestLoggerMiddleware);
 app.use(csrfMiddleware);
-app.use("/api/v1", generalLimiter);
+// Was `app.use("/api/v1", generalLimiter)` — path-scoped, so it silently
+// never applied to anything mounted outside that exact prefix. The two
+// back-compat aliases below (/api/tools, /api/auth) are real, separate
+// top-level mounts, not sub-paths of /api/v1 — confirmed live-exploitable:
+// /api/tools/public/destination-image (a billed Google Places Photo call)
+// was reachable completely unauthenticated and unlimited. /api/tools is
+// also NOT dead code (TripPlanner.tsx's generate-itinerary fallback calls
+// /api/tools/planTrip directly), so it can't just be deleted — it has to
+// actually be protected. Mounting with no path applies to every request
+// the app handles, so no future alias/prefix mismatch can silently bypass
+// this again.
+app.use(generalLimiter);
 
 // Uploads (journal photos, feedback attachments) are served through
 // authenticated/ownership-checked proxy routes now — GET /api/v1/journal/

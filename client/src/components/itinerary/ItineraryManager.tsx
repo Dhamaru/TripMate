@@ -157,6 +157,13 @@ function SortableActivity({
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
+        {/* Live-measured at 375px: the title span was the only non-shrink-0
+            child in this row (the type stamp/duration/cost pills all have
+            shrink-0), so inside an already-narrow min-w-0 column it
+            absorbed the entire squeeze and rendered as a single clipped
+            character. basis-full at phone width forces it onto its own
+            line in this already-flex-wrap row instead of being crushed;
+            sm:basis-auto lets it share the line again once there's room. */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {isTravelLeg && (activity.from || activity.to) ? (
             <>
@@ -171,7 +178,7 @@ function SortableActivity({
               )}
             </>
           ) : (
-            <span className="text-sm font-medium text-foreground truncate">
+            <span className="basis-full sm:basis-auto min-w-0 text-sm font-medium text-foreground truncate">
               {activity.title || activity.placeName}
             </span>
           )}
