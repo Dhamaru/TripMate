@@ -67,9 +67,29 @@ router.get(
     if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
       return res.redirect("/signin?error=google_not_configured");
     }
-    passport.authenticate("google", {
-      session: false,
-      failureRedirect: "/signin?error=auth_failed",
+    // Was passport.authenticate("google", { failureRedirect:
+    // "/signin?error=auth_failed" }) — passport's built-in failureRedirect
+    // only ever looks at whether `user` came back truthy, so the specific
+    // reason the Google strategy's callback passed (via `info`) for
+    // refusing to auto-link a Google identity onto an existing password
+    // account (see server/auth.ts) was silently discarded. Every failure
+    // — a real password-account collision, a network blip, a user who hit
+    // Cancel on Google's consent screen — landed on the same generic
+    // "auth_failed", so a user in that specific, recoverable case (sign
+    // in with your password instead) had no way to learn that and no path
+    // forward. A custom callback lets the specific `info.message` from
+    // that refusal pick a distinct, actionable error code.
+    passport.authenticate("google", { session: false }, (err: any, user: any, info: any) => {
+      if (err) return res.redirect("/signin?error=auth_failed");
+      if (!user) {
+        const code =
+          info?.message && /already has a password/i.test(info.message)
+            ? "google_link_password_exists"
+            : "auth_failed";
+        return res.redirect(`/signin?error=${code}`);
+      }
+      req.user = user;
+      return next();
     })(req, res, next);
   },
   authController.googleCallback,

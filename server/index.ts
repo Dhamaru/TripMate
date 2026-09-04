@@ -73,10 +73,21 @@ app.use(csrfMiddleware);
 // was reachable completely unauthenticated and unlimited. /api/tools is
 // also NOT dead code (TripPlanner.tsx's generate-itinerary fallback calls
 // /api/tools/planTrip directly), so it can't just be deleted — it has to
-// actually be protected. Mounting with no path applies to every request
-// the app handles, so no future alias/prefix mismatch can silently bypass
-// this again.
-app.use(generalLimiter);
+// actually be protected.
+//
+// First attempt mounted this with NO path at all (applies to every
+// request the app handles) to guarantee no future alias/prefix mismatch
+// could bypass it again — but that also metered every static asset, the
+// SPA shell, sw.js, and the manifest against the same per-IP budget.
+// Caught live the same day: a single normal page load now costs ~10+ of
+// the 100/15min budget before a single API call, and under this
+// session's own heavy verification traffic /signin itself started
+// 429ing. "/api" covers every real API surface (/api/v1, /api/tools,
+// /api/auth all start with it) while leaving static/SPA delivery
+// unmetered — same bypass-proof guarantee (nothing API-shaped can be
+// mounted outside "/api" without it being obviously wrong), without the
+// over-broad blast radius.
+app.use("/api", generalLimiter);
 
 // Uploads (journal photos, feedback attachments) are served through
 // authenticated/ownership-checked proxy routes now — GET /api/v1/journal/

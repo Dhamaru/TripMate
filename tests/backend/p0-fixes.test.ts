@@ -35,8 +35,11 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
       // back-compat aliases in server/index.ts) was completely
       // unprotected: unauthenticated, unlimited, including a route that
       // makes a billed Google Places Photo call per request. Fixed by
-      // mounting the limiter with no path (applies to every request the
-      // app handles) instead of scoping it to one prefix.
+      // mounting the limiter at "/api" (covers /api/v1, /api/tools,
+      // /api/auth alike) instead of one exact prefix. A first attempt
+      // mounted it with no path at all, which also metered every static
+      // asset/SPA load against the same budget and made /signin itself
+      // start 429ing under real traffic — narrowed to "/api" instead.
       const res = await request(app).get("/api/tools/ping");
       expect(
         res.headers["ratelimit-limit"],
@@ -51,7 +54,7 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
   });
 
   describe("logs router no longer throttles unrelated /api/v1 traffic", () => {
-    it("20 sequential GET /api/v1/trips calls (well over the old 10/60s logs ceiling) all succeed", async () => {
+    it("GET /api/v1/trips reports the general limiter's ceiling, not the 10/60s logs one", async () => {
       // Was router.use(logsLimiter) in logs.routes.ts — a router-wide
       // middleware with no path filter runs for EVERY request that
       // enters that router, not just ones matching its own /logs/*
@@ -62,10 +65,41 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
       // as a real account's trips list rendering "No trips yet" under
       // normal browsing. Fixed by attaching the limiter to the two
       // /logs/* routes directly instead of router-wide.
-      for (let i = 0; i < 20; i++) {
-        const res = await request(app).get("/api/v1/trips").set("Authorization", `Bearer ${token}`);
-        expect(res.status, `request #${i + 1}`).toBe(200);
-      }
+      //
+      // A count-based test here can't actually discriminate: in
+      // NODE_ENV=test both logsLimiter (config.NODE_ENV==="test" ? 1000
+      // : 10) and generalLimiter (100 * the 100x test multiplier =
+      // 10000) have ceilings far above any request volume a unit test
+      // would send, so a bounded loop of requests "succeeding" proves
+      // nothing about which limiter actually ran. Asserting the
+      // reported ratelimit-limit header value does discriminate: with
+      // the bug, GET /api/v1/trips passes through logsLimiter last and
+      // reports 1000; with the fix, only generalLimiter ever touches it
+      // and it reports 10000.
+      const res = await request(app).get("/api/v1/trips").set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(
+        Number(res.headers["ratelimit-limit"]),
+        "reports generalLimiter's ceiling, not logsLimiter's",
+      ).toBe(10000);
+    });
+  });
+
+  describe("the /api mount still skips rate-limiting Render's own healthcheck probes", () => {
+    // Coverage gap the code-review pass on the P0 commit itself caught:
+    // moving generalLimiter's mount point (no-path -> "/api") changes
+    // what req.path looks like inside its own skip predicate, and a
+    // broken prefix-strip there would silently start rate-limiting
+    // healthcheck probes with nothing in the suite catching it.
+    it.each([
+      "/api/v1/health",
+      "/api/tools/health",
+      "/api/v1/liveness",
+      "/api/v1/readiness",
+      "/api/v1/version",
+    ])("%s is not rate-limited", async (path) => {
+      const res = await request(app).get(path);
+      expect(res.headers["ratelimit-limit"], `${path} should be skipped`).toBeUndefined();
     });
   });
 
@@ -169,15 +203,37 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
       ).toBeUndefined();
     });
 
-    it("a non-public trip is still not reachable via the public route", async () => {
+    it("a trip unshared after having been public is no longer reachable via its real shareId", async () => {
+      // The previous version of this test fetched /public/<raw trip _id>
+      // for a trip that was never shared at all — that 404s on a plain
+      // lookup miss regardless of whether the controller's isPublic:true
+      // filter does anything, so it couldn't actually prove the filter
+      // matters. Share the trip for real (mint a genuine shareId), then
+      // flip isPublic back off, and confirm THAT shareId — which does
+      // exist in the DB — is rejected once the flag is off.
       const tripRes = await request(app)
         .post("/api/v1/trips")
         .set("Authorization", `Bearer ${token}`)
         .send(createTrip(userId, { destination: "Tokyo" }));
       const tripId = tripRes.body.id;
 
-      const publicRes = await request(app).get(`/api/v1/trips/public/${tripId}`);
-      expect(publicRes.status).toBe(404);
+      const shareRes = await request(app)
+        .post(`/api/v1/trips/${tripId}/share`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ isPublic: true });
+      const shareId = shareRes.body.shareId;
+      expect(shareId, "shareId minted on share").toBeTruthy();
+
+      const stillPublicRes = await request(app).get(`/api/v1/trips/public/${shareId}`);
+      expect(stillPublicRes.status, "reachable while isPublic:true").toBe(200);
+
+      await request(app)
+        .post(`/api/v1/trips/${tripId}/share`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ isPublic: false });
+
+      const unsharedRes = await request(app).get(`/api/v1/trips/public/${shareId}`);
+      expect(unsharedRes.status, "same real shareId rejected once unshared").toBe(404);
     });
   });
 

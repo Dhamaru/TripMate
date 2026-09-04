@@ -31,20 +31,18 @@ export const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json(rateLimitResponse(15 * 60)),
-  // This limiter used to be mounted as app.use("/api/v1", generalLimiter),
-  // which meant req.path here was already stripped of the "/api/v1"
-  // prefix by Express (e.g. a request to /api/v1/health read as
-  // /health). It's now mounted directly on the app with no path prefix
-  // (see server/index.ts — that scoping was the actual bug, silently
-  // exempting anything mounted outside /api/v1 from rate limiting at
-  // all), so req.path is the FULL path from root. Checking startsWith
-  // against the bare segment would have started rate-limiting Render's
-  // own healthcheck probes. Strip whichever known API prefix is present
-  // before matching, so this keeps working the same regardless of which
-  // mount (/api/v1 or the /api/tools back-compat alias) a healthcheck
-  // route is reached through.
+  // This limiter is mounted as app.use("/api", generalLimiter)
+  // (server/index.ts) — Express strips exactly the matched mount path
+  // from req.path before calling any middleware mounted with a path,
+  // plain function or Router alike (confirmed empirically, not assumed:
+  // a request to /api/v1/health arrives here with req.path === "/v1/
+  // health", not the full path and not further stripped to "/health").
+  // So the health-check segment always has exactly one of these prefixes
+  // still on it, depending on which mount (/api/v1 or the /api/tools
+  // back-compat alias) a healthcheck route is reached through — strip
+  // that one prefix before matching the bare segment.
   skip: (req) => {
-    const path = (req.path ?? "").replace(/^\/api\/(?:v1|tools)/, "");
+    const path = (req.path ?? "").replace(/^\/(?:v1|tools)/, "");
     return (
       path.startsWith("/health") ||
       path.startsWith("/liveness") ||

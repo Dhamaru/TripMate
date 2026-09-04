@@ -2,6 +2,9 @@ import crypto from "crypto";
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../config";
 import { ForbiddenError } from "../errors";
+import { allowedOrigins } from "./security.middleware";
+
+const isProd = config.NODE_ENV === "production";
 
 const CSRF_COOKIE = "XSRF-TOKEN";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -71,6 +74,29 @@ export const requireSameOriginFetch = (req: Request, res: Response, next: NextFu
   const site = req.headers["sec-fetch-site"] as string | undefined;
   if (mode === "navigate" || site === "cross-site") {
     return next(new ForbiddenError("This endpoint cannot be reached via cross-site navigation"));
+  }
+  // Code-review flagged a real residual gap on the first pass: this only
+  // rejected "cross-site", but `Sec-Fetch-Site: same-site` is also
+  // attacker-reachable — SameSite=Lax cookies ARE sent on same-site
+  // requests, so any sibling subdomain of the same registrable domain
+  // could still drive this endpoint with credentials. That's only
+  // theoretical here because onrender.com is a public suffix (a real
+  // sibling *.onrender.com computes as cross-site, not same-site) — but
+  // it stops being theoretical the moment this app moves to a custom
+  // apex domain with its own subdomains. Checking Origin against the
+  // same allowlist corsMiddleware already trusts closes that gap without
+  // breaking the legitimate case (a dev frontend on a different port,
+  // which is same-site but a different origin) — only reject when an
+  // Origin header is actually present and doesn't match; browsers don't
+  // reliably send Origin on a plain same-origin GET, so absence isn't
+  // itself a signal.
+  const origin = req.headers.origin as string | undefined;
+  if (origin && !allowedOrigins.includes(origin)) {
+    const isDevLocal =
+      !isProd && (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"));
+    if (!isDevLocal) {
+      return next(new ForbiddenError("This endpoint cannot be reached from this origin"));
+    }
   }
   return next();
 };
