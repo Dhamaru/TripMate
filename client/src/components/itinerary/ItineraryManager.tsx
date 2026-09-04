@@ -156,24 +156,39 @@ function SortableActivity({
       )}
 
       {/* Main content */}
-      <div className="flex-1 min-w-0">
-        {/* Live-measured at 375px, twice: the first fix attempt put
-            basis-full on just the title span below, which turned out to
-            be a no-op — the real squeeze was one level up. This content
-            div's OWN row (the outer activity row above) had five other
-            shrink-0 siblings (drag handle, time badge, vote cluster,
-            view-on-map button, edit/delete buttons) and never wrapped, so
-            at 375px they alone consumed ~278px of a ~293px row, leaving
-            this flex-1 min-w-0 column about 15px wide regardless of what
-            was inside it — "Humayun Tomb Visit" rendered as literally
-            "H.". The real fix is flex-wrap on the OUTER row (this
-            component's root element) so the trailing control clusters
-            drop to their own line at phone width instead of crushing
-            this column. Once this column actually has real width, the
-            title span's own basis-full below does its originally-intended
-            job: forcing IT onto its own line within this now-reasonably-
-            sized column, rather than sharing a line with the type
-            stamp/duration/cost pills. */}
+      <div className="grow shrink basis-full sm:basis-auto min-w-0">
+        {/* Live-measured at 375px, THREE times before this landed:
+            (1) basis-full on just the title span below was a no-op — the
+            squeeze was one level up, on this div.
+            (2) flex-wrap on the outer row was ALSO a no-op, for a subtler
+            reason confirmed by direct measurement: this div was `flex-1`,
+            Tailwind's shorthand for `flex: 1 1 0%` — flex-basis:0%. A
+            flex-wrap parent decides whether to wrap based on items'
+            HYPOTHETICAL (flex-basis) sizes, not their rendered/content
+            size, and 0% never contributes to that sum — so the row's
+            other five shrink-0 siblings (drag handle, time badge, vote
+            cluster, view-on-map button, edit/delete buttons) never
+            summed past the container width for wrapping purposes, no
+            wrap ever triggered, and this div was still squeezed to ~15px
+            exactly as before. Confirmed via a git-revert-and-remeasure,
+            not assumed — the DOM literally reported clientWidth:15
+            unchanged after the flex-wrap-only fix shipped and deployed.
+            (3) The actual fix: basis-full (flex-basis:100%, a real value
+            that DOES count toward the wrap calculation) as separate grow/
+            shrink/basis-* longhand utilities instead of the flex-1
+            shorthand — mixing a `flex-*` shorthand with a `basis-*`
+            longhand risks exactly the silent override/no-op this whole
+            saga was about, so the fix avoids that combination entirely,
+            not just this one instance of it. At mobile width this div now
+            requests the row's FULL width, which the outer row's
+            flex-wrap can't satisfy alongside drag+time, so it correctly
+            wraps onto its own line — and everything after it (vote/view-
+            on-map/edit/delete) wraps to the line after that. sm:basis-auto
+            restores the original share-a-line behavor once there's room.
+            The title span's own basis-full below is what THEN makes the
+            title (not the type/duration/cost pills) take that div's own
+            first line, once this outer div actually has real width to
+            share. */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {isTravelLeg && (activity.from || activity.to) ? (
             <>
