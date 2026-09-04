@@ -129,6 +129,50 @@ describe("Trips API", () => {
     ]);
   });
 
+  it("stamps dayIndex at creation, so addActivity works correctly even BEFORE the trip is ever fetched", async () => {
+    // A live-verification pass on the self-heal-on-read fix above found
+    // the gap it doesn't cover: the heal only runs inside getTrip, so a
+    // trip whose itinerary was created with day-only entries and then
+    // written to WITHOUT ever being read first (exactly what an Atlas
+    // tool call can do immediately after trip creation) still hits the
+    // phantom-day bug — reproduced live: create -> addActivity -> 201,
+    // but pushed a second, phantom day instead of landing on Day 1.
+    // Fixed at the source: createTrip now stamps dayIndex itself
+    // (ensureDayIndexes, mirroring the existing ensureActivityIds
+    // pattern), so there's never a window where a freshly-created trip's
+    // days lack it.
+    const trip = await request(app)
+      .post("/api/v1/trips")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        createTrip(userId, {
+          itinerary: [
+            { day: 1, activities: [{ id: "a1", title: "Existing Day 1 Activity" }] },
+            { day: 2, activities: [{ id: "a2", title: "Existing Day 2 Activity" }] },
+          ],
+        } as any),
+      );
+    expect(trip.status).toBe(201);
+    // dayIndex must be correct on the raw create response itself — not
+    // just after a later GET.
+    expect(trip.body.itinerary[0].dayIndex).toBe(0);
+    expect(trip.body.itinerary[1].dayIndex).toBe(1);
+    const tripId = trip.body.id;
+
+    // No GET in between — straight from create to add, the exact
+    // sequence that reproduced the gap live.
+    const addRes = await request(app)
+      .post(`/api/v1/trips/${tripId}/itinerary/activity`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ dayIndex: 0, activity: { title: "New Activity" } });
+    expect(addRes.status).toBe(201);
+    expect(addRes.body.itinerary.length, "no phantom day created").toBe(2);
+    expect(addRes.body.itinerary[0].activities.map((a: any) => a.title)).toEqual([
+      "Existing Day 1 Activity",
+      "New Activity",
+    ]);
+  });
+
   it("should delete a trip", async () => {
     const trip = await request(app)
       .post("/api/v1/trips")

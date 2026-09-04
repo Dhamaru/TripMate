@@ -32,6 +32,27 @@ function ensureActivityIds(itinerary: any): any {
   return itinerary;
 }
 
+// Every write path that touches a day inside itinerary.controller.ts
+// (addActivity, updateActivity, deleteActivity, toggleVote) matches a day
+// by a `dayIndex` FIELD, expected to equal that day's real array
+// position — getTrip already self-heals this on READ for any trip that
+// predates this field or was built by a path that only ever set the
+// 1-based `day` field, but that only covers a trip AFTER it's been
+// fetched at least once. Live-confirmed the gap: create a trip, then
+// immediately POST an activity add before ever GETing the trip (exactly
+// what an Atlas tool call can do right after trip creation) — same
+// phantom-day bug the self-heal was built to close, just reached from
+// the write side instead of the read side. Stamping it correctly at
+// creation time, the same place ensureActivityIds already runs, closes
+// the gap at the source instead of only patching it on next read.
+function ensureDayIndexes(itinerary: any): any {
+  if (!Array.isArray(itinerary)) return itinerary;
+  itinerary.forEach((day: any, idx: number) => {
+    if (day) day.dayIndex = idx;
+  });
+  return itinerary;
+}
+
 export const createTrip = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id || req.user?.id;
@@ -53,7 +74,10 @@ export const createTrip = async (req: Request, res: Response, next: NextFunction
       ...req.body,
       userId,
     });
-    if (tripData.itinerary) ensureActivityIds(tripData.itinerary);
+    if (tripData.itinerary) {
+      ensureActivityIds(tripData.itinerary);
+      ensureDayIndexes(tripData.itinerary);
+    }
 
     const savedTrip = await TripModel.create(tripData);
 

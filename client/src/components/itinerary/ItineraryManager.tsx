@@ -135,7 +135,7 @@ function SortableActivity({
       ref={setNodeRef}
       id={`itinerary-activity-${activity.id}`}
       style={style}
-      className={`flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isHighlighted ? "bg-[rgb(var(--explorer-blue-rgb)/15%)]" : isTravelLeg ? "bg-[rgb(var(--amber-rgb)/5%)]" : "hover:bg-[hsl(var(--muted))]/50"}`}
+      className={`flex flex-wrap sm:flex-nowrap items-center gap-2 px-3 py-2.5 border-b border-[hsl(var(--border))] last:border-0 transition-colors group ${isHighlighted ? "bg-[rgb(var(--explorer-blue-rgb)/15%)]" : isTravelLeg ? "bg-[rgb(var(--amber-rgb)/5%)]" : "hover:bg-[hsl(var(--muted))]/50"}`}
     >
       {/* Drag handle — viewers can't reorder either */}
       {canEdit && (
@@ -157,13 +157,23 @@ function SortableActivity({
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        {/* Live-measured at 375px: the title span was the only non-shrink-0
-            child in this row (the type stamp/duration/cost pills all have
-            shrink-0), so inside an already-narrow min-w-0 column it
-            absorbed the entire squeeze and rendered as a single clipped
-            character. basis-full at phone width forces it onto its own
-            line in this already-flex-wrap row instead of being crushed;
-            sm:basis-auto lets it share the line again once there's room. */}
+        {/* Live-measured at 375px, twice: the first fix attempt put
+            basis-full on just the title span below, which turned out to
+            be a no-op — the real squeeze was one level up. This content
+            div's OWN row (the outer activity row above) had five other
+            shrink-0 siblings (drag handle, time badge, vote cluster,
+            view-on-map button, edit/delete buttons) and never wrapped, so
+            at 375px they alone consumed ~278px of a ~293px row, leaving
+            this flex-1 min-w-0 column about 15px wide regardless of what
+            was inside it — "Humayun Tomb Visit" rendered as literally
+            "H.". The real fix is flex-wrap on the OUTER row (this
+            component's root element) so the trailing control clusters
+            drop to their own line at phone width instead of crushing
+            this column. Once this column actually has real width, the
+            title span's own basis-full below does its originally-intended
+            job: forcing IT onto its own line within this now-reasonably-
+            sized column, rather than sharing a line with the type
+            stamp/duration/cost pills. */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {isTravelLeg && (activity.from || activity.to) ? (
             <>
