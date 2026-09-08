@@ -31,7 +31,7 @@ const TOOLS = [
     description: "Translate text and voice",
     icon: Languages,
     href: "/app/translate",
-    tint: "icon-tint-purple",
+    tint: "icon-tint-blue",
     num: "04",
   },
   {
@@ -39,7 +39,7 @@ const TOOLS = [
     description: "Download maps for offline use",
     icon: Map,
     href: "/app/maps",
-    tint: "icon-tint-orange",
+    tint: "icon-tint-amber",
     num: "05",
   },
   {

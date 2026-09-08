@@ -24,7 +24,18 @@ interface BudgetTrackerProps {
   trip: Trip;
 }
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#ff7300"];
+// On-system category ink tokens (design-audit P0 fix — this was the
+// Recharts documentation's default demo palette, verbatim, on the app's
+// budget screen. Reusing the same 6-way activity-category ink register
+// index.css already defines rather than inventing a 7th color set).
+const COLORS = [
+  "#1e3a8a", // --ink-sightseeing
+  "#c2410c", // --ink-dining
+  "#334155", // --ink-lodging
+  "#854d0e", // --ink-culture
+  "#2f6f4e", // --ink-nature
+  "#0f766e", // --ink-shopping
+];
 
 const CATEGORIES = ["Accommodation", "Food", "Transport", "Activities", "Shopping", "Other"];
 
@@ -221,22 +232,22 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <Card className="bg-red-500/10 border-red-500/20 overflow-hidden">
+            <Card className="bg-[rgb(var(--stamp-red-rgb)/10%)] border-[rgb(var(--stamp-red-rgb)/20%)] overflow-hidden">
               <CardContent className="p-4 flex items-start gap-3">
-                <div className="p-2 bg-red-500/20 rounded-full text-red-500">
+                <div className="p-2 bg-[rgb(var(--stamp-red-rgb)/20%)] rounded-full text-[var(--stamp-red)]">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-red-500">High Burn Rate Detected</h4>
+                    <h4 className="font-bold text-[var(--stamp-red)]">High Burn Rate Detected</h4>
                     <Badge
                       variant="outline"
-                      className="text-red-500 border-red-500/50 bg-red-500/10"
+                      className="text-[var(--stamp-red)] border-[rgb(var(--stamp-red-rgb)/50%)] bg-[rgb(var(--stamp-red-rgb)/10%)]"
                     >
                       {Math.round((forecast.burnRate - 1) * 100)}% Over Target
                     </Badge>
                   </div>
-                  <p className="text-sm text-red-200/70 mt-1">
+                  <p className="text-sm text-[rgb(var(--stamp-red-rgb)/70%)] mt-1">
                     Your current spending pace exceeds your proportional daily budget.
                     {forecast.alerts?.[0] ||
                       "We recommend reviewing your upcoming planned expenses."}
@@ -258,25 +269,25 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
             <div className="flex justify-between mb-4 text-foreground">
               <div>
                 <p className="text-sm text-muted-foreground">Total Budget</p>
-                <p className="text-2xl font-bold">
+                <p className="text-2xl font-bold font-mono-data tabular-nums">
                   {trip.currency || "INR"} {budget.toLocaleString()}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">{spentLabel}</p>
-                <p className="text-2xl font-bold text-[#1D4E89] dark:text-blue-400">
+                <p className="text-2xl font-bold font-mono-data tabular-nums text-[var(--customs-blue)]">
                   {trip.currency || "INR"} {totalSpent.toLocaleString()}
                 </p>
               </div>
             </div>
             <div className="w-full bg-secondary h-4 rounded-full overflow-hidden">
               <div
-                className={`h-full ${remaining < 0 ? "bg-red-500" : "bg-emerald-600"}`}
+                className={`h-full ${remaining < 0 ? "bg-[var(--stamp-red)]" : "bg-[var(--transit-green)]"}`}
                 style={{ width: `${Math.min((totalSpent / (budget || 1)) * 100, 100)}%` }}
               />
             </div>
             <p
-              className={`text-right mt-2 text-sm ${remaining < 0 ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}
+              className={`text-right mt-2 text-sm font-mono-data tabular-nums ${remaining < 0 ? "text-[var(--stamp-red)]" : "text-[var(--transit-green)]"}`}
             >
               {remaining < 0
                 ? `Over budget by ${Math.abs(remaining).toLocaleString()}`
@@ -314,7 +325,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
                     }}
-                    itemStyle={{ color: "#fff" }}
+                    itemStyle={{ color: "hsl(var(--foreground))" }}
                   />
                   <Legend layout="vertical" align="right" verticalAlign="middle" />
                 </PieChart>
@@ -521,7 +532,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(expense.id)}
-                      className="text-red-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8"
+                      className="text-[var(--stamp-red)] hover:text-[rgb(var(--stamp-red-rgb)/80%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] h-8 w-8"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

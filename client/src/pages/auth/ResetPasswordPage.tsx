@@ -105,7 +105,7 @@ export default function ResetPasswordPage() {
           <Button
             onClick={() => navigate("/signin")}
             variant="outline"
-            className="w-full h-14 border-white/20 rounded-xl text-white hover:bg-white/10 font-bold"
+            className="w-full h-14 bg-white/10 border-white/20 rounded-xl text-white hover:bg-white/10 font-bold"
           >
             Back to Sign In
           </Button>

@@ -65,3 +65,14 @@ Token/session breaks will happen. The user should never have to re-explain state
 
 - **Never declare something fixed without live proof.** Verify every fix via real signup/real API calls against the running app (production when the fix is production-scoped), not just unit tests or static code reading.
 - **QA/test account hygiene.** Any throwaway QA/test account created for verification (e.g. `@example.com` pattern) must be deleted, with all cascaded data, once verification is done. Never count test/QA/guest accounts in real-user stats.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

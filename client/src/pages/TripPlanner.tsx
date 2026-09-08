@@ -50,7 +50,7 @@ const travelStyles = [
     name: "Cultural",
     caption: "Sights & stories",
     Icon: Landmark,
-    tint: "icon-tint-purple",
+    tint: "icon-tint-blue",
     ink: "#7C5FD6",
   },
   {

@@ -125,7 +125,7 @@ export default function SignInPage() {
               </Label>
               <Link
                 href="/forgot-password"
-                className="text-xs font-semibold text-[#163F73] hover:text-[#4F82C4] smooth-transition"
+                className="text-xs font-semibold text-[var(--ink-blue-bright)] hover:text-white smooth-transition"
               >
                 Forgot Password?
               </Link>
@@ -175,7 +175,7 @@ export default function SignInPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-14 border-white/20 rounded-xl hover:bg-white/10 transition-all font-bold text-lg text-white flex items-center justify-center gap-3"
+                className="w-full h-14 bg-white/10 border-white/20 rounded-xl hover:bg-white/10 transition-all font-bold text-lg text-white flex items-center justify-center gap-3"
               >
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path
@@ -205,7 +205,7 @@ export default function SignInPage() {
             variant="outline"
             onClick={handleGuestLogin}
             disabled={isLoading}
-            className="w-full h-14 border-white/20 rounded-xl hover:bg-white/10 smooth-transition font-bold text-lg text-white"
+            className="w-full h-14 bg-white/10 border-white/20 rounded-xl hover:bg-white/10 smooth-transition font-bold text-lg text-white"
           >
             Continue as Guest
           </Button>
@@ -232,7 +232,7 @@ export default function SignInPage() {
 
         <Button
           variant="outline"
-          className="h-14 border-white/20 rounded-xl hover:bg-white/10 smooth-transition w-full font-bold text-lg text-white"
+          className="h-14 bg-white/10 border-white/20 rounded-xl hover:bg-white/10 smooth-transition w-full font-bold text-lg text-white"
           onClick={() => navigate("/signup")}
         >
           Create Account

@@ -25,6 +25,10 @@
   --stamp-red-rgb: 179 38 30;
   --warning-amber: #d97706; /* departure alerts / time-sensitive notes */
   --warning-amber-rgb: 217 119 6;
+  --ink-blue-bright: #4f82c4; /* ink-blue, lifted for readable text/links
+    on dark navy surfaces — --ink-blue itself is ~1.6:1 against --card and
+    fails contrast for interactive text (design-audit P0, NotificationBell) */
+  --ink-blue-bright-rgb: 79 130 196;
 
   /* ── 8-Way Activity Category Ink Register ─────────────────── */
   --ink-sightseeing: #1e3a8a;
@@ -69,43 +73,55 @@
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
   --shadow-hover: 0 0 0 1px var(--amber-dim), 0 4px 24px rgba(0, 0, 0, 0.35);
 
-  /* ── Dark (default) tokens — ink-navy under a customs-desk lamp ──── */
-  --background: 211 46% 11%; /* #0D1B2E ink-navy ground  */
+  /* ── Dark (default) tokens — ink-navy under a customs-desk lamp ────
+     Surface ramp rebuilt 2026-09-08 (design-audit P0): the previous
+     ramp spanned background 11% -> border 22%, an 11-point range that
+     reads as one flat navy field on a real monitor (design-auditor
+     agent finding, confirmed live). Rebuilt to a 5-step ramp spanning
+     ~19 points (7% -> 26%) so page/card/raised/input/border are each
+     visibly distinct without touching hue or violating the no-drop-
+     shadow elevation rule — depth comes from lightness steps, not
+     shadows. --hairline-lit is a new top-edge highlight token (the
+     Linear/Arc "simulated light source" trick) for future use on
+     elevated surfaces; not yet wired into a shared component. */
+  --background: 211 44% 7%; /* page ground — was 11%, darkened for headroom */
   --foreground: 38 25% 88%; /* #EDE6D6 warm parchment text */
 
-  --card: 211 40% 15%; /* elevated ink-navy surface */
+  --card: 211 38% 12%; /* elevated ink-navy surface — was 15%, now step 1 */
   --card-foreground: 38 25% 88%;
 
-  --popover: 211 40% 13%;
+  --popover: 211 36% 15%; /* raised surface — dropdowns, popovers, hovered rows */
   --popover-foreground: 38 25% 88%;
 
   --primary: 211 68% 27%; /* #163F73 ink-blue         */
   --primary-foreground: 0 0% 98%;
 
-  --secondary: 211 30% 18%;
+  --secondary: 211 28% 17%;
   --secondary-foreground: 38 20% 80%;
 
-  --muted: 211 30% 16%;
+  --muted: 211 26% 17%;
   --muted-foreground: 210 14% 58%;
 
-  --accent: 211 30% 18%;
+  --accent: 211 28% 19%;
   --accent-foreground: 38 20% 80%;
 
   --destructive: 0 72% 45%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 211 24% 22%; /* subtle cool-ink border   */
-  --input: 211 24% 19%;
+  --border: 211 20% 26%; /* subtle cool-ink border — top of the ramp */
+  --input: 211 24% 21%;
   --ring: 211 68% 27%;
 
+  --hairline-lit: 0 0% 100% / 6%; /* simulated top-edge light source */
+
   /* ── Sidebar ─────────────────────────────────────────── */
-  --sidebar: 211 48% 9%;
+  --sidebar: 211 46% 5%;
   --sidebar-foreground: 38 25% 88%;
   --sidebar-primary: 211 68% 27%;
   --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 211 30% 16%;
+  --sidebar-accent: 211 28% 17%;
   --sidebar-accent-foreground: 38 20% 80%;
-  --sidebar-border: 211 24% 19%;
+  --sidebar-border: 211 22% 21%;
   --sidebar-ring: 211 68% 27%;
 
   /* ── Legacy bridge (used by older components) ─────────── */
@@ -478,6 +494,15 @@
 
 @layer components {
   /* Quick-action icon containers — ink-stamp tints */
+  /* Textured ink surface for a missing-photo hero fallback — replaces a
+     previous from-[#1D4E89]-to-purple-600 gradient block, which both
+     violated DESIGN.md's Don't-render-a-gradient-as-a-photo-placeholder
+     rule and introduced an off-system purple (design-audit P0). */
+  .hero-fallback-ink {
+    background-color: hsl(var(--card));
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.1'/%3E%3C/svg%3E");
+  }
+
   .icon-tint-amber {
     background: rgba(22, 63, 115, 0.12);
     color: #163f73;
@@ -489,14 +514,6 @@
   .icon-tint-green {
     background: rgba(61, 148, 103, 0.12);
     color: #3d9467;
-  }
-  .icon-tint-purple {
-    background: rgba(167, 139, 250, 0.1);
-    color: #a78bfa;
-  }
-  .icon-tint-orange {
-    background: rgba(251, 146, 60, 0.1);
-    color: #fb923c;
   }
   .icon-tint-red {
     background: rgba(179, 38, 30, 0.1);

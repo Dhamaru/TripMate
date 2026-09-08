@@ -38,8 +38,8 @@ const STYLE_LABELS: Record<string, string> = {
 const quickActions = [
   { title: "Plan Trip", icon: Plus, href: "/app/planner", tint: "icon-tint-amber" },
   { title: "Journal", icon: BookOpen, href: "/app/journal", tint: "icon-tint-blue" },
-  { title: "Tools", icon: Grid, href: "/app/tools", tint: "icon-tint-purple" },
-  { title: "Maps", icon: Map, href: "/app/maps", tint: "icon-tint-orange" },
+  { title: "Tools", icon: Grid, href: "/app/tools", tint: "icon-tint-blue" },
+  { title: "Maps", icon: Map, href: "/app/maps", tint: "icon-tint-amber" },
 ];
 
 export default function Home() {
@@ -201,7 +201,7 @@ export default function Home() {
 
           <Link href="/app/maps">
             <div className="bg-[hsl(var(--card))] rounded-2xl border border-[hsl(var(--border))] p-5 flex items-start gap-4 card-hover-glow cursor-pointer group">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center icon-tint-orange flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center icon-tint-amber flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                 <WifiOff className="w-5 h-5" />
               </div>
               <div className="min-w-0">

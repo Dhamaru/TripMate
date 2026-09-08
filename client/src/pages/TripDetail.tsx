@@ -1130,7 +1130,7 @@ export default function TripDetail() {
                 </Button>
               </>
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#1D4E89] to-purple-600 transition-opacity"></div>
+              <div className="absolute inset-0 hero-fallback-ink transition-opacity"></div>
             )}
 
             {/* Text overlay removed to prevent duplication with the main header */}

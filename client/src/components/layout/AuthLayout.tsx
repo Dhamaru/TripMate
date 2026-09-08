@@ -33,7 +33,11 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
               className="text-5xl font-bold leading-tight"
             >
               Your Intelligent <br />
-              <span className="text-[#163F73]">Travel Companion</span>
+              {/* Was --ink-blue (#163F73) on a black photo scrim — ~2:1
+                  contrast, effectively unreadable (design-audit P0,
+                  live-confirmed screenshot). --ink-blue-bright reads
+                  clearly against the dark scrim while staying in-family. */}
+              <span className="text-[var(--ink-blue-bright)]">Travel Companion</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -41,19 +45,22 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
               transition={{ delay: 0.1 }}
               className="text-lg text-white/70 font-medium"
             >
-              Seamless planning, AI-powered itineraries, and real-time travel intelligence — all in one place.
+              Seamless planning, AI-powered itineraries, and real-time travel intelligence — all in
+              one place.
             </motion.p>
 
             <div className="pt-8 grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[#1D4E89]/30 flex items-center justify-center text-[#163F73]">
+                <div className="w-10 h-10 rounded-full bg-[#1D4E89]/30 flex items-center justify-center text-[var(--ink-blue-bright)]">
                   <i className="fa-solid fa-wand-magic-sparkles" />
                 </div>
-                <p className="text-xs font-bold uppercase tracking-wider text-white/50">AI Powered</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-white/50">
+                  AI Powered
+                </p>
                 <p className="text-sm text-white/80">Smart suggestions tailored to you.</p>
               </div>
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[#163F73]/10 flex items-center justify-center text-[#163F73]">
+                <div className="w-10 h-10 rounded-full bg-[#163F73]/30 flex items-center justify-center text-[var(--ink-blue-bright)]">
                   <i className="fa-solid fa-map-location-dot" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-wider text-white/50">Seamless</p>
@@ -62,7 +69,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             </div>
           </div>
 
-          <footer className="text-white/30 text-xs">
+          <footer className="text-white/55 text-xs">
             © 2026 TripMate Intelligence. Explore the world intelligently.
           </footer>
         </div>
@@ -73,11 +80,9 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         <div className="md:hidden mb-8">
           <TripMateLogo size="md" showText={true} />
         </div>
-        
+
         <div className="flex-1 flex items-center justify-center w-full max-w-[480px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="w-full">
-            {children}
-          </div>
+          <div className="w-full">{children}</div>
         </div>
       </main>
     </div>

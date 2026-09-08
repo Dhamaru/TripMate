@@ -65,7 +65,7 @@ const features = [
     title: "Smart Translator",
     description: "Instant translation for 10+ languages with phonetic pronunciation guides.",
     tag: "Offline",
-    tint: "icon-tint-purple",
+    tint: "icon-tint-blue",
   },
   {
     icon: Banknote,
@@ -87,7 +87,7 @@ const features = [
     description:
       "Download any region before you fly and keep navigating, searching, and dropping pins with zero signal — no data plan needed abroad.",
     tag: "No Signal Needed",
-    tint: "icon-tint-orange",
+    tint: "icon-tint-amber",
   },
 ];
 

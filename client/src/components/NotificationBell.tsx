@@ -166,7 +166,12 @@ export function NotificationBell() {
         >
           <Bell className="h-4 w-4 text-[hsl(var(--foreground))]" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-[var(--amber)] text-black text-[9px] font-bold flex items-center justify-center">
+            // Fixed: was bg-[var(--amber)] text-black — --amber is aliased
+            // to --ink-blue (deep navy), so this was near-invisible black
+            // text on navy (design-audit P0). An unread count is an alert,
+            // not a primary action — stamp-red + white reads correctly and
+            // matches the alert semantic.
+            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-[var(--stamp-red)] text-white text-[9px] font-bold flex items-center justify-center">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -182,7 +187,7 @@ export function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-[11px] text-[var(--amber)] hover:underline"
+                className="text-[11px] text-[var(--ink-blue-bright)] hover:underline"
               >
                 Mark all read
               </button>
@@ -244,7 +249,7 @@ export function NotificationBell() {
                       {notif.title}
                     </span>
                     {!notif.read && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)] flex-shrink-0 mt-1.5" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--ink-blue-bright)] flex-shrink-0 mt-1.5" />
                     )}
                   </div>
                   <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5 line-clamp-2">
@@ -259,7 +264,7 @@ export function NotificationBell() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="w-full py-2.5 text-[12px] text-[var(--amber)] hover:underline disabled:opacity-50"
+                  className="w-full py-2.5 text-[12px] text-[var(--ink-blue-bright)] hover:underline disabled:opacity-50"
                 >
                   {loadingMore ? "Loading…" : "Load more"}
                 </button>
