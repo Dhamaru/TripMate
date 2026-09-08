@@ -485,6 +485,9 @@ export interface IPackingListItem {
   packed: boolean;
   category?: string;
   is_mandatory?: boolean;
+  weatherDriven?: boolean;
+  activityDriven?: boolean;
+  notes?: string;
 }
 
 export interface IPackingListTemplate extends Document {

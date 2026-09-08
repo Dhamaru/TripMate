@@ -115,10 +115,14 @@ function SortableActivity({
   const isTravelLeg = activity.type === "travel";
 
   const typeColors: Record<string, string> = {
-    travel: "border-[rgb(var(--amber-rgb)/50%)] text-[var(--amber)]",
-    food: "border-[rgb(var(--forest-rgb)/50%)] text-[var(--forest)]",
-    sightseeing: "border-[rgb(var(--explorer-blue-rgb)/50%)] text-[var(--explorer-blue)]",
-    accommodation: "border-purple-500/50 text-purple-400",
+    travel: "border-[rgb(var(--ink-transit-rgb)/50%)] text-[var(--ink-transit)]",
+    food: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining)]",
+    sightseeing: "border-[rgb(var(--ink-sightseeing-rgb)/50%)] text-[var(--ink-sightseeing)]",
+    accommodation: "border-[rgb(var(--ink-lodging-rgb)/50%)] text-[var(--ink-lodging)]",
+    culture: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture)]",
+    nature: "border-[rgb(var(--ink-nature-rgb)/50%)] text-[var(--ink-nature)]",
+    nightlife: "border-[rgb(var(--ink-nightlife-rgb)/50%)] text-[var(--ink-nightlife)]",
+    shopping: "border-[rgb(var(--ink-shopping-rgb)/50%)] text-[var(--ink-shopping)]",
     activity: "border-[hsl(var(--muted-foreground))]/50 text-[hsl(var(--muted-foreground))]",
   };
   const typeLabel: Record<string, string> = {
@@ -126,6 +130,10 @@ function SortableActivity({
     food: "Food",
     sightseeing: "Sight",
     accommodation: "Stay",
+    culture: "Culture",
+    nature: "Nature",
+    nightlife: "Night",
+    shopping: "Shop",
     activity: "Activity",
   };
   const typeClass = typeColors[activity.type || "activity"] || typeColors.activity;
@@ -210,6 +218,11 @@ function SortableActivity({
           <span className={`stamp text-[9px] px-1.5 py-0 shrink-0 ${typeClass}`}>
             {typeLabel[activity.type || "activity"] || "Activity"}
           </span>
+          {activity.bookingRequired && (
+            <span className="stamp text-[9px] px-1.5 py-0 shrink-0 border-[var(--stamp-red)] text-[var(--stamp-red)]">
+              Booking Req.
+            </span>
+          )}
           {activity.duration_minutes && (
             <span className="text-[10px] font-mono-data text-[hsl(var(--muted-foreground))] shrink-0">
               <Clock className="inline w-2.5 h-2.5 mr-0.5" />
@@ -731,6 +744,15 @@ export function ItineraryManager({
                 )}
               </div>
             </div>
+
+            {day.reasoning && (
+              <div className="px-4 py-1.5 text-xs text-[hsl(var(--muted-foreground))] border-b border-[hsl(var(--border))]/50 bg-[hsl(var(--muted))]/20 italic">
+                <span className="font-semibold not-italic text-[var(--customs-blue)] mr-1">
+                  Intent:
+                </span>
+                {day.reasoning}
+              </div>
+            )}
 
             <DndContext
               sensors={sensors}

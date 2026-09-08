@@ -1,53 +1,82 @@
-# TripMate UI Style Guide
+# TripMate UI Style Guide (The Passport & Visa Stamp System)
 
-## Design Tokens
-- Colors: use existing CSS variables (`--ios-*`, `--sidebar-*`, `--primary`, etc.).
-- Spacing: prefer Tailwind spacing and `.responsive-container` for page padding.
-- Shadows: use `.elev-1` and `.elev-2` for depth; avoid inline box-shadow.
-- Typography: keep current font stack via `--font-sans`; headings use existing Tailwind sizes.
+This guide documents the design tokens, component architecture, and styling rules established in `DESIGN.md` and implemented in `client/src/index.css`.
 
-## Layout
-- Header: fixed at 64px height; top: 0; full width.
-- Sidebar: fixed, `height: 100vh`, inner `overflow-y: auto`; toggle `body.sidebar-expanded`. Support mini-mode with `body.sidebar-collapsed`.
-- Content: add `.with-sidebar` at page root. Avoid page-level top padding; rely on global header offset.
-- Container: wrap main content in `.responsive-container` (max-width 1280px). Use `.page-section` for vertical grouping.
+---
 
-## Interactions
-- Apply `.smooth-transition` to interactive elements.
-- Micro-interactions: use `.hover-lift` for subtle hover lift; `.interactive-tap` or `.tap-scale` on mobile.
-- Use `.fade-in` / `.slide-up` for non-essential UI only; avoid animations on initial load.
-- Tooltips: use `aria-describedby` and fade within 120ms.
-- Respect `prefers-reduced-motion`.
+## 1. Creative Concept & Ground Philosophy
 
-## Components
-- Cards: support `.card-filled`, `.card-outlined`, `.card-quiet` for variants.
-- Buttons: support loading via `.btn-loading`.
-- Icons: follow size tokens via `.icon-sm`, `.icon-md`, `.icon-lg`.
-- Inputs: use subtle borders via `.input-subtle`.
+- **Metaphor:** The traveler's passport, stamped at every stage of a journey.
+- **Dark Mode (Default):** The passport inspected under a customs desk lamp (`#0D1B2E` cool ink-navy ground, `#EDE6D6` warm parchment text).
+- **Light Mode:** The same passport in daylight (`hsl(42 38% 90%)` kraft/parchment paper, ink-navy text).
+- **Operate Mode:** Task-completion travel software. Clarity, scanability, and spatial layout outrank decorative SaaS clichés.
 
-## Accessibility
-- Roles: `nav[role="navigation"]`, descriptive `aria-label`s.
-- Add a skip link using `.skip-to-content`; visible on focus.
-- Sidebar/menu announce state via `aria-expanded` and `aria-current`.
-- Maintain at least 3:1 contrast for muted elements.
-- Minimum tap target: 44px x 44px.
+---
 
-## Responsiveness
-- Use `.responsive-container`; grids collapse below 640px.
-- Sidebar collapses automatically below 768px.
-- Use percentage widths for map containers.
-- Ensure text never scales below 14px on mobile.
+## 2. Typography (IBM Plex Foundry)
 
-## Do/Don't
-- Do: use semantic utility names like `.section-title`, `.subtle-text`, `.chip`, `.badge`.
-- Do: prefer CSS variables over Tailwind arbitrary values.
-- Do: document new utilities in `client/src/styles/utilities.css`.
-- Don't: scroll-jack, force animations, or use non-tokenized gradients.
+Always use IBM Plex family tokens:
 
-## Additional Tokens
-- Surfaces: `--surface`, `--surface-2`.
-- Text: `--text-primary`, `--text-secondary`.
-- Borders: `--border-subtle`, `--border-strong`.
-- Radius: `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-pill`.
-- Motion: `--transition-fast`, `--transition-medium`, `--transition-slow`.
-- Icons: `--icon-sm`, `--icon-md`, `--icon-lg`.
+- **Display Headings:** `IBM Plex Serif` (`.font-display`, 700 weight, 1.18 line-height, -0.01em tracking) for destination names and primary headers.
+- **Body & Prose:** `IBM Plex Sans` (`.font-sans-clean`, 400/500 weight, 1.55 line-height) for labels, descriptions, and inputs.
+- **Manifest / Discrete Data:** `IBM Plex Mono` (`.font-mono-data`, `font-variant-numeric: tabular-nums`) for currency amounts, dates, flight/transit codes, and coordinates.
+- **Label / Eyebrows:** `.label-xs` (uppercase, 10px, tracked mono, 0.1em letter-spacing) for manifest and field headers.
+
+---
+
+## 3. Official Ink Roles & Color Tokens
+
+All color tokens live in `client/src/index.css`:
+
+### Primary Actions
+
+- `--ink-blue` (`#163F73`) / `--ink-blue-rgb` (`22 63 115`): Primary CTA, submit buttons, brand accent. Darkens to `#0F2C52` on hover (`.stamp-press`).
+
+### State & Status Inks
+
+- `--customs-blue` (`#1D4E89`) / `--customs-blue-rgb` (`29 78 137`): Planning status, informational links, transit icons.
+- `--transit-green` (`#2F6F4E` or `#3D9467`) / `--transit-green-rgb` (`47 111 78`): Active status, confirmed items, success states.
+- `--stamp-red` (`#B3261E`) / `--stamp-red-rgb` (`179 38 30`): Completed status, alerts, warnings, destructive actions.
+- `--warning-amber` (`#D97706`) / `--warning-amber-rgb` (`217 119 6`): Time-sensitive notes, departure warnings.
+
+### 8-Way Activity Category Register
+
+Used by `TripMap.tsx` markers and activity badges:
+
+- `--ink-sightseeing`: Sightseeing & Attractions (Indigo `#1E3A8A`)
+- `--ink-dining`: Restaurants & Cafes (Terracotta `#C2410C`)
+- `--ink-lodging`: Hotels & Accommodations (Slate Navy `#334155`)
+- `--ink-transit`: Travel & Logistics (Customs Blue `#1D4E89`)
+- `--ink-culture`: Museums & Historic Sites (Warm Bronze `#854D0E`)
+- `--ink-nature`: Parks & Outdoor Spots (Transit Green `#2F6F4E`)
+- `--ink-nightlife`: Bars & Evening Events (Stamp Red `#B3261E`)
+- `--ink-shopping`: Bazaars & Retail (Deep Teal `#0F766E`)
+
+_Note on Opacity:_ Always use `[rgb(var(--<name>-rgb)/N%)]` when applying opacity modifiers in Tailwind.
+
+---
+
+## 4. Components & Signatures
+
+### Status Badge ("The Stamp")
+
+- Use the `.stamp` utility: 2px border in currentColor, 3px border-radius, `-2deg` to `-3deg` rotation, uppercase mono data text.
+- Never use generic flat SaaS pill badges with pastel backgrounds.
+
+### Perforated Ticket Divider
+
+- Use `.perforated-edge`: 2px dashed border mimicking a boarding-pass tear line between hero media and manifest card footers.
+
+### Buttons & Inputs
+
+- Primary Button: `bg-[var(--ink-blue)] hover:bg-[#0F2C52] text-white rounded-xl stamp-press`.
+- Active tactile feedback: `.stamp-press` gives subtle scale(`0.96`) and brightness(`0.85`) depression.
+
+---
+
+## 5. Accessibility & Responsiveness
+
+- **Contrast:** Minimum 4.5:1 for body copy; 3:1 for large display headers.
+- **Tap Targets:** Minimum 44px x 44px on all interactive mobile buttons.
+- **Mobile Safe Areas:** Avoid `fixed bottom-0` or `sticky bottom-0` without clearing the mobile navigation bar (`bottom-3`). Use `pb-20 md:pb-4`.
+- **Responsive Text:** Prevent clipped titles by using `basis-full sm:basis-auto` on responsive flex headers.

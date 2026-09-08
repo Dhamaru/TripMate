@@ -14,18 +14,43 @@
    ───────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Brand constants (var names kept stable; values remapped to the
-     ink-stamp palette so every existing consumer inherits the new world) ── */
-  --amber: #163f73; /* deep ink-blue — primary action ink */
-  --amber-rgb: 22 63 115; /* space-separated channel form — Tailwind's
-    `var(--x)]/N` opacity modifier can't parse a hex custom property
-    (silently emits no rule at all, not even a broken one); use
-    `rgb(var(--amber-rgb)/N%)` wherever opacity is needed. Space-separated,
-    not comma-separated — CSS's `r g b / a` slash-alpha syntax requires it. */
+  /* ── Official Ink Roles (Passport & Visa Stamp System) ──── */
+  --ink-blue: #163f73; /* primary action ink */
+  --ink-blue-rgb: 22 63 115;
+  --customs-blue: #1d4e89; /* planning status ink */
+  --customs-blue-rgb: 29 78 137;
+  --transit-green: #2f6f4e; /* active status ink */
+  --transit-green-rgb: 47 111 78;
+  --stamp-red: #b3261e; /* alert / completed ink */
+  --stamp-red-rgb: 179 38 30;
+  --warning-amber: #d97706; /* departure alerts / time-sensitive notes */
+  --warning-amber-rgb: 217 119 6;
+
+  /* ── 8-Way Activity Category Ink Register ─────────────────── */
+  --ink-sightseeing: #1e3a8a;
+  --ink-sightseeing-rgb: 30 58 138;
+  --ink-dining: #c2410c;
+  --ink-dining-rgb: 194 65 12;
+  --ink-lodging: #334155;
+  --ink-lodging-rgb: 51 65 85;
+  --ink-transit: #1d4e89;
+  --ink-transit-rgb: 29 78 137;
+  --ink-culture: #854d0e;
+  --ink-culture-rgb: 133 77 14;
+  --ink-nature: #2f6f4e;
+  --ink-nature-rgb: 47 111 78;
+  --ink-nightlife: #b3261e;
+  --ink-nightlife-rgb: 179 38 30;
+  --ink-shopping: #0f766e;
+  --ink-shopping-rgb: 15 118 110;
+
+  /* ── Brand constants (backward-compatible legacy bridges) ─── */
+  --amber: var(--ink-blue); /* deep ink-blue — primary action ink */
+  --amber-rgb: 22 63 115; /* space-separated channel form for rgb(var(...) / N%) */
   --amber-dim: rgba(22, 63, 115, 0.12);
   --amber-glow: rgba(22, 63, 115, 0.22);
   --amber-hover-border: rgba(22, 63, 115, 0.5);
-  --forest: #2f6f4e; /* transit-green */
+  --forest: var(--transit-green);
   --forest-rgb: 47 111 78;
   --cream: #ede3cc; /* kraft/parchment paper */
   --ink: #0d1b2e; /* ink-navy dark ground */
@@ -225,22 +250,17 @@
     margin: 0;
     /* paper-grain texture overlay */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    cursor:
-      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23163F73' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>")
-        1 1,
-      auto;
   }
 
-  a,
-  button,
-  [role="button"],
-  input[type="submit"],
-  input[type="button"],
-  select {
-    cursor:
-      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'><path fill='%23163F73' d='M2 2 L2 22 L9 15 L12 23 L14 22 L11 14 L22 14 Z'/></svg>")
-        1 1,
-      pointer;
+  ::selection {
+    background-color: hsl(var(--primary));
+    color: #ffffff;
+  }
+
+  /* Browser surface theming — discrete themed scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
   }
 
   h1,
