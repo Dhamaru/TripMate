@@ -306,6 +306,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const pinMarkersRef = useRef<L.Marker[]>([]);
   const placesAbortRef = useRef<AbortController | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  // Guards the auto-fit-to-pins below to run at most once per session —
+  // otherwise saving a new pin (which also updates customPins) would yank
+  // the view away from wherever the user just navigated to.
+  const pinsFitOnceRef = useRef(false);
 
   // Persist regions & pins
   useEffect(() => {
@@ -316,12 +320,61 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
   useEffect(() => {
     refreshPinMarkers();
+
+    // Root cause of "I can't see my saved pins after reload" (live-verified:
+    // the /api/v1/map-pins backend itself round-trips correctly — create,
+    // then a fresh GET, both return the pin). The markers WERE being added
+    // to the map; they just landed off-screen, because the map always
+    // re-centers on the user's current geolocation (or a fallback region)
+    // on load, entirely independent of where any saved pins actually are.
+    // A pin saved in Kyoto is invisible if you reload this page from home.
+    // Fix: once pins are loaded and the map exists, fit the view to them —
+    // guarded to fire only once per session so adding a new pin later
+    // doesn't yank the view away from wherever the user is currently
+    // looking.
+    const map = mapInstanceRef.current;
+    if (map && customPins.length > 0 && !pinsFitOnceRef.current) {
+      pinsFitOnceRef.current = true;
+      if (customPins.length === 1) {
+        map.setView([customPins[0].lat, customPins[0].lng], 14);
+      } else {
+        const bounds = L.latLngBounds(customPins.map((p) => [p.lat, p.lng] as [number, number]));
+        map.fitBounds(bounds.pad(0.25));
+      }
+    }
   }, [customPins]);
 
   // Clean up markers helper
   const clearPinMarkers = () => {
     pinMarkersRef.current.forEach((m) => m.remove());
     pinMarkersRef.current = [];
+  };
+
+  // Shared with the map-popup delete button below — pulled out so the new
+  // Saved Pins list (real fix for "can't see/delete saved pins") uses the
+  // exact same delete path instead of a second, divergent implementation.
+  const handleDeletePin = async (id: string) => {
+    try {
+      const r = await apiRequest("DELETE", `/api/v1/map-pins/${id}`);
+      if (!r.ok) throw new Error("delete_failed");
+      setCustomPins((prev) => prev.filter((p) => p.id !== id));
+      toast({ title: "Pin deleted" });
+    } catch {
+      toast({ title: "Couldn't delete pin", description: "Try again.", variant: "destructive" });
+    }
+  };
+
+  // Centers the map on a saved pin and collapses the sheet so the pin is
+  // actually visible instead of hidden behind the expanded sheet.
+  const locatePin = (pin: CustomPin) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.flyTo([pin.lat, pin.lng], 15);
+    setSheetExpanded(false);
+    const marker = pinMarkersRef.current.find(
+      (m) => m.getLatLng().lat === pin.lat && m.getLatLng().lng === pin.lng,
+    );
+    marker?.openPopup();
   };
 
   const refreshPinMarkers = () => {
@@ -355,20 +408,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       deleteBtn.style.color = "red";
       deleteBtn.style.fontSize = "10px";
       deleteBtn.style.marginTop = "4px";
-      deleteBtn.addEventListener("click", async () => {
-        try {
-          const r = await apiRequest("DELETE", `/api/v1/map-pins/${pin.id}`);
-          if (!r.ok) throw new Error("delete_failed");
-          setCustomPins((prev) => prev.filter((p) => p.id !== pin.id));
-          toast({ title: "Pin Deleted" });
-        } catch {
-          toast({
-            title: "Couldn't delete pin",
-            description: "Try again.",
-            variant: "destructive",
-          });
-        }
-      });
+      deleteBtn.addEventListener("click", () => handleDeletePin(pin.id));
       popupEl.appendChild(deleteBtn);
 
       const marker = L.marker([pin.lat, pin.lng], { icon }).addTo(map).bindPopup(popupEl);
@@ -438,19 +478,27 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       // I will rely on a "Add Pin Current Location" button in the UI instead of click-map for stability.
     });
 
-    // Initial state: Prioritize Geolocation
+    // Initial state: Prioritize Geolocation — but never override the
+    // saved-pins auto-fit above (pinsFitOnceRef) if that already won the
+    // race. Geolocation and the pins fetch are two independent network
+    // calls; either can resolve first. If the user has saved pins, seeing
+    // those on load matters more than centering on wherever they are right
+    // now, and re-centering on geolocation after the pin-fit already ran
+    // would just reintroduce the exact "can't see my pins" bug.
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           // Auto-locate: Just center the map, don't add a marker until requested
-          map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+          if (!pinsFitOnceRef.current) {
+            map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+          }
           setMapReady(true);
         },
         (err) => {
           console.error("Auto-locate failed, falling back to downloaded regions", err);
           // Fallback: Use downloaded region if available
           const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
-          if (downloadedRegion) {
+          if (downloadedRegion && !pinsFitOnceRef.current) {
             map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
           }
           setMapReady(true);
@@ -460,7 +508,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     } else {
       // No Geo support: specific fallback
       const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
-      if (downloadedRegion) {
+      if (downloadedRegion && !pinsFitOnceRef.current) {
         map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
       }
       setMapReady(true);
@@ -1476,6 +1524,68 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                               </Button>
                             )}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Saved Pins list — previously the only way to see a saved
+                  pin was to spot its tiny marker on the map, which was
+                  often off-screen entirely (see the auto-fit fix above).
+                  A real list makes them visible regardless of where the
+                  map is currently centered, and puts name + delete one
+                  tap away instead of buried in a map popup. */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-foreground">Saved Pins</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {customPins.length === 0 ? (
+                    <div className="text-muted-foreground text-sm py-8 text-center border-2 border-dashed border-border rounded-lg">
+                      <i className="fas fa-map-pin text-4xl mb-3 opacity-50"></i>
+                      <p>No saved pins yet.</p>
+                      <p className="text-xs mt-1">
+                        Use "Add Pin at Center" above to drop one anywhere.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {customPins.map((pin) => (
+                        <div
+                          key={pin.id}
+                          className="flex items-center gap-3 bg-muted rounded-xl border border-border p-3"
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full border-2 border-white flex-shrink-0"
+                            style={{ backgroundColor: pin.color }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {pin.name}
+                            </p>
+                            {pin.note && (
+                              <p className="text-xs text-muted-foreground truncate">{pin.note}</p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg flex-shrink-0"
+                            onClick={() => locatePin(pin)}
+                          >
+                            <i className="fas fa-location-crosshairs mr-1.5"></i> Locate
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-[#B3261E] hover:text-[#B3261E] hover:bg-[#B3261E]/10 flex-shrink-0"
+                            onClick={() => handleDeletePin(pin.id)}
+                            aria-label={`Delete pin ${pin.name}`}
+                          >
+                            <i className="fas fa-trash text-xs"></i>
+                          </Button>
                         </div>
                       ))}
                     </div>
