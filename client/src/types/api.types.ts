@@ -78,6 +78,7 @@ export interface ItineraryActivity {
   id: string;
   time: string;
   placeName: string;
+  title?: string; // legacy/alternate field name — see ItineraryManager.tsx's placeName||title fallback
   address?: string;
   lat?: number;
   lon?: number;
@@ -130,6 +131,8 @@ export interface Trip {
   expenses?: IExpense[];
   collaborators?: ICollaborator[];
   createdAt: string | Date;
+  isPublic?: boolean;
+  shareId?: string;
 }
 
 // Agent

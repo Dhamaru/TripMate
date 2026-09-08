@@ -18,6 +18,9 @@ import {
   Moon,
 } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
+import { WifiOff, Download } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: "/app/home" },
@@ -32,6 +35,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
+  const isOnline = useOnlineStatus();
+  const { canInstall, promptInstall } = usePwaInstall();
   // The Maps page manages its own full-height "focus mode" layout (map fills
   // the viewport, a bottom sheet holds secondary controls) — the standard
   // padded/max-width/bottom-nav-clearance wrapper below would fight that, so
@@ -51,6 +56,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
+
+      {/* Offline banner — UX-audit finding: previously nothing detected
+          offline at all; the app just spun forever then bounced to
+          sign-in. Fixed overlay (not part of layout flow) so it doesn't
+          reshuffle the sidebar/header on every connectivity flicker. */}
+      <AnimatePresence>
+        {!isOnline && (
+          <motion.div
+            initial={{ y: -40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -40, opacity: 0 }}
+            className="fixed top-0 left-0 right-0 z-[110] bg-[var(--stamp-red)] text-white text-xs font-semibold flex items-center justify-center gap-2 py-1.5"
+            role="status"
+          >
+            <WifiOff className="w-3.5 h-3.5" />
+            You&apos;re offline — showing cached data, some actions may not work.
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Sidebar ─────────────────────────────────── */}
       <aside
@@ -126,6 +150,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Bottom: profile + collapse */}
         <div className="border-t border-[hsl(var(--sidebar-border))] p-2 space-y-1 flex-shrink-0">
+          {/* Install app — UX-audit finding: the app is a fully working
+              installable PWA and nothing ever surfaced that to a user.
+              Only rendered once the browser has actually offered
+              (beforeinstallprompt fired), so this never shows a dead
+              button on a platform/browser that doesn't support it. */}
+          {canInstall && (
+            <button
+              onClick={promptInstall}
+              className={cn(
+                "w-full flex items-center gap-2.5 rounded-lg h-9 text-[var(--ink-blue-bright)] hover:bg-[hsl(var(--muted))] transition-all",
+                collapsed ? "px-0 justify-center" : "px-3",
+              )}
+              title="Install TripMate"
+            >
+              <Download className="h-[16px] w-[16px] flex-shrink-0" />
+              {!collapsed && (
+                <span className="text-[12px] font-sans-clean font-medium">Install app</span>
+              )}
+            </button>
+          )}
+
           {/* Theme toggle */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

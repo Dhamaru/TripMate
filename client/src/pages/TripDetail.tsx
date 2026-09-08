@@ -44,6 +44,14 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import ReactMarkdown from "react-markdown";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Copy, Check } from "lucide-react";
 
 const travelStyles = [
   { id: "adventure", icon: Mountain, name: "Adventure", color: "text-[#1D4E89]" },
@@ -93,6 +101,12 @@ export default function TripDetail() {
   });
   const canEditTrip = isOwner || collaboratorEntry?.role === "editor";
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  // Share link — UX-audit finding: shareTrip/getPublicTrip were fully
+  // built and hardened server-side with zero client entry point. Owner
+  // only, matching the server (shareTrip scopes to { _id, userId }).
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const { toast, dismiss } = useToast();
   const activeToastId = useRef<string | null>(null);
   const queryClient = useQueryClient();
@@ -716,6 +730,26 @@ export default function TripDetail() {
     deleteTripMutation.mutate();
   };
 
+  const toggleShare = async (isPublic: boolean) => {
+    if (!id) return;
+    setShareLoading(true);
+    try {
+      const res = await apiRequest("POST", `/api/v1/trips/${id}/share`, { isPublic });
+      const updated = await res.json();
+      setCurrentTrip(updated);
+      toast({
+        title: isPublic ? "Link created" : "Link disabled",
+        description: isPublic
+          ? "Anyone with the link can now view this trip (read-only)."
+          : "The share link no longer works.",
+      });
+    } catch (e) {
+      toast({ title: "Couldn't update sharing", variant: "destructive" });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   const handleCancel = () => {
     if (trip) {
       setTripForm({
@@ -962,7 +996,27 @@ export default function TripDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground print:bg-white print:text-black">
+      {/* Same print pattern as packing/index.tsx: hide chrome, force a
+          plain white page, expand anything scroll-clipped. Radix only
+          mounts the active TabsContent, so printing from the Itinerary
+          tab naturally prints just that tab's content. */}
+      <style>{`
+        @media print {
+          @page { margin: 1cm; size: auto; }
+          body, #root, main, .min-h-screen {
+            background-color: white !important;
+            color: black !important;
+            overflow: visible !important;
+            height: auto !important;
+            width: auto !important;
+            position: relative !important;
+            display: block !important;
+          }
+          .no-print, button, [role="tablist"], header, nav, .fixed { display: none !important; }
+          .overflow-y-auto, .overflow-hidden { overflow: visible !important; height: auto !important; }
+        }
+      `}</style>
       {/* Navigation Header */}
 
       {/* Main Content */}
@@ -1053,6 +1107,35 @@ export default function TripDetail() {
                       narrow widths they wrap together as a pair instead of
                       Delete orphaning alone onto its own line, which read as
                       an oversized, disconnected red circle at 375px. */}
+                  {isOwner && (
+                    <Button
+                      onClick={() => setShareDialogOpen(true)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-muted/50 border text-foreground hover:bg-card no-print"
+                      data-testid="button-share-trip"
+                    >
+                      <i className="fas fa-share-nodes md:mr-2"></i>
+                      <span className="hidden md:inline">Share</span>
+                    </Button>
+                  )}
+                  {/* Print itinerary — UX-audit finding: window.print()
+                      already exists for the packing list and the
+                      pre-save AI plan preview, but not for the itinerary
+                      a traveler actually saved and travels with. Same
+                      pattern as packing/index.tsx's print CSS below. */}
+                  {activeMainTab === "itinerary" && (
+                    <Button
+                      onClick={() => window.print()}
+                      variant="outline"
+                      size="sm"
+                      className="bg-muted/50 border text-foreground hover:bg-card no-print"
+                      data-testid="button-print-itinerary"
+                    >
+                      <i className="fas fa-print md:mr-2"></i>
+                      <span className="hidden md:inline">Print</span>
+                    </Button>
+                  )}
                   {/* Edit is owner+editor; Delete is owner-only (matches
                       the server: deleteTrip scopes to { _id, userId }). A
                       viewer previously saw both buttons and just got a
@@ -1366,6 +1449,69 @@ export default function TripDetail() {
 
           {/* ── Overview tab ─────────────────────────────────── */}
           <TabsContent value="overview" className="space-y-6 mt-0">
+            {/* "Today" panel — UX-audit finding: a completed trip's detail
+                page was byte-for-byte identical to an active one, no
+                day-of-travel view at all. Scoped down from a full
+                separate view to a lightweight card here: only renders
+                for an active trip with dated days, finds today's day by
+                date match, and surfaces "next up" by comparing activity
+                times against the current clock. Real feature work (a
+                dedicated live-tracking view) is still a bigger ask than
+                this — flagged as such, not claiming full parity. */}
+            {trip.status === "active" &&
+              Array.isArray(trip.itinerary) &&
+              (() => {
+                const todayStr = new Date().toDateString();
+                const todayDay = trip.itinerary.find(
+                  (d) => d.date && new Date(d.date).toDateString() === todayStr,
+                );
+                if (!todayDay) return null;
+                const now = new Date();
+                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                const toMinutes = (t?: string) => {
+                  if (!t) return null;
+                  const m = /^(\d{1,2}):(\d{2})/.exec(t);
+                  if (!m) return null;
+                  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+                };
+                const upcoming = todayDay.activities
+                  .map((a) => ({ a, mins: toMinutes(a.time) }))
+                  .filter((x) => x.mins != null && x.mins >= nowMinutes)
+                  .sort((x, y) => (x.mins as number) - (y.mins as number));
+                const nextUp = upcoming[0]?.a;
+                return (
+                  <Card className="bg-card border-[var(--transit-green)]/40 border-2">
+                    <CardHeader>
+                      <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <span className="stamp text-[10px] text-[var(--forest)]">Today</span>
+                        Day {todayDay.day ?? todayDay.dayIndex + 1}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {nextUp ? (
+                        <div className="bg-muted/50 rounded-xl p-4">
+                          <p className="label-xs text-muted-foreground mb-1">Next up</p>
+                          <p className="font-bold text-foreground">
+                            {nextUp.time && (
+                              <span className="font-mono-data mr-2">{nextUp.time}</span>
+                            )}
+                            {nextUp.title || nextUp.placeName}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No more scheduled activities today.
+                        </p>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {todayDay.activities.length}{" "}
+                        {todayDay.activities.length === 1 ? "activity" : "activities"} planned today
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-foreground">Trip Overview</CardTitle>
@@ -2006,6 +2152,65 @@ export default function TripDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share this trip</DialogTitle>
+            <DialogDescription>
+              Anyone with the link can view a read-only copy of your itinerary — no account needed,
+              no edit access.
+            </DialogDescription>
+          </DialogHeader>
+          {trip?.isPublic && trip?.shareId ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={`${window.location.origin}/share/${trip.shareId}`}
+                  className="bg-muted border text-foreground font-mono-data text-xs"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(
+                      `${window.location.origin}/share/${trip.shareId}`,
+                    );
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  }}
+                  aria-label="Copy link"
+                >
+                  {linkCopied ? (
+                    <Check className="h-4 w-4 text-[var(--transit-green)]" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleShare(false)}
+                disabled={shareLoading}
+                className="text-[var(--stamp-red)] border-[rgb(var(--stamp-red-rgb)/50%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)]"
+              >
+                {shareLoading ? "Working…" : "Stop sharing"}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={() => toggleShare(true)}
+              disabled={shareLoading}
+              className="bg-[var(--ink-blue)] hover:bg-[#0F2C52] text-white w-full"
+            >
+              {shareLoading ? "Creating link…" : "Create public link"}
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

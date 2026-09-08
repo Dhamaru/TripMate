@@ -38,6 +38,7 @@ import Tools from "@/pages/Tools";
 import Feedback from "@/pages/Feedback";
 import TripsHistory from "@/pages/TripsHistory";
 import NotFound from "@/pages/not-found";
+import PublicTripPage from "@/pages/PublicTrip";
 
 import AuthLayout from "@/components/layout/AuthLayout";
 import AppLayout from "@/components/layout/Layout";
@@ -91,6 +92,10 @@ function Router() {
           <ResetPasswordPage />
         </AuthLayout>
       </Route>
+
+      {/* Public trip share link — no auth, matches server's
+          GET /api/v1/trips/public/:shareId */}
+      <Route path="/share/:shareId" component={PublicTripPage} />
 
       {/* Support Routes */}
       <Route path="/help" component={HelpCenter} />
@@ -240,17 +245,31 @@ function Router() {
 function AppRoutes() {
   useEffect(() => {
     const keyHandler = (e: KeyboardEvent) => {
-      const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && String(e.key).toLowerCase() === 'z';
-      if (isUndo) { e.preventDefault(); e.stopPropagation(); }
+      const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && String(e.key).toLowerCase() === "z";
+      if (isUndo) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     };
     const beforeInputHandler = (e: any) => {
-      if (String(e.inputType) === 'historyUndo') { e.preventDefault(); e.stopPropagation(); }
+      if (String(e.inputType) === "historyUndo") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     };
-    window.addEventListener('keydown', keyHandler, { capture: true } as any);
-    window.addEventListener('beforeinput', beforeInputHandler as EventListener, { capture: true } as any);
+    window.addEventListener("keydown", keyHandler, { capture: true } as any);
+    window.addEventListener(
+      "beforeinput",
+      beforeInputHandler as EventListener,
+      { capture: true } as any,
+    );
     return () => {
-      window.removeEventListener('keydown', keyHandler, { capture: true } as any);
-      window.removeEventListener('beforeinput', beforeInputHandler as EventListener, { capture: true } as any);
+      window.removeEventListener("keydown", keyHandler, { capture: true } as any);
+      window.removeEventListener(
+        "beforeinput",
+        beforeInputHandler as EventListener,
+        { capture: true } as any,
+      );
     };
   }, []);
 
