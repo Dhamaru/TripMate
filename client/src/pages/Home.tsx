@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { logError } from "@/lib/logger";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { getCurrencySymbol } from "@/lib/currency";
 
 const STYLE_LABELS: Record<string, string> = {
   adventure: "Adventure",
@@ -62,8 +63,33 @@ export default function Home() {
     }
   }, [error, toast]);
 
-  const currentTrip = trips?.length > 0 ? trips[0] : null;
+  // Was `trips[0]` (newest by creation) with a hardcoded "Active" stamp
+  // regardless of the trip's real status — a completed trip from months
+  // ago would render as the dashboard hero, stamped "Active" (UX-audit
+  // finding, live-confirmed: a trip that ended 55 days ago showed
+  // "Active" here while /app/trips correctly showed "Completed" for the
+  // same trip). Pick the trip that's actually relevant to show right
+  // now — an in-progress trip first, then the soonest upcoming one,
+  // then fall back to most recent — and stamp its real status.
+  const currentTrip = (() => {
+    if (!trips || trips.length === 0) return null;
+    const active = trips.find((t) => t.status === "active");
+    if (active) return active;
+    const upcoming = trips
+      .filter((t) => t.status === "planning" && t.startDate)
+      .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime());
+    if (upcoming.length > 0) return upcoming[0];
+    return trips[0];
+  })();
   const hasTrips = !!trips && trips.length > 0;
+  const HERO_STAMP: Record<string, { label: string; className: string }> = {
+    planning: { label: "Planning", className: "text-[var(--customs-blue)]" },
+    active: { label: "Active", className: "text-[var(--forest)]" },
+    completed: { label: "Completed", className: "text-[var(--stamp-red)]" },
+  };
+  const heroStamp = currentTrip
+    ? (HERO_STAMP[currentTrip.status ?? "planning"] ?? HERO_STAMP.planning)
+    : HERO_STAMP.planning;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -112,8 +138,8 @@ export default function Home() {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
             <div className="absolute top-4 right-4">
-              <span className="stamp bg-[hsl(var(--card))]/90 text-[var(--forest)] text-[10px]">
-                <Sparkles className="w-3 h-3" /> Active
+              <span className={`stamp bg-[hsl(var(--card))]/90 text-[10px] ${heroStamp.className}`}>
+                <Sparkles className="w-3 h-3" /> {heroStamp.label}
               </span>
             </div>
             <div className="absolute bottom-5 left-5">
@@ -139,7 +165,8 @@ export default function Home() {
               <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))]">
                 <Wallet className="w-3.5 h-3.5" />
                 <span className="text-xs font-mono-data">
-                  ₹{currentTrip.budget?.toLocaleString()}
+                  {getCurrencySymbol(currentTrip.currency)}
+                  {currentTrip.budget?.toLocaleString()}
                 </span>
               </div>
             </div>

@@ -34,7 +34,17 @@ function App() {
   // Live-reported: the FAB sat directly on top of the Packing List's
   // category headers/badges at 375px — this route was never added when
   // the profile/planner exclusions landed, same overlap class as those.
-  const FAB_EXCLUDED_ROUTES = ["/app/maps", "/app/profile", "/app/planner", "/app/packing"];
+  // UX-audit finding: /app/trips/:id was missing from this list — the
+  // Atlas FAB sat directly over itinerary content just above the bottom
+  // nav on mobile trip-detail pages, same overlap class as the routes
+  // already excluded below.
+  const FAB_EXCLUDED_ROUTES = [
+    "/app/maps",
+    "/app/profile",
+    "/app/planner",
+    "/app/packing",
+    "/app/trips/",
+  ];
   const showAtlasButton =
     showAtlas && !FAB_EXCLUDED_ROUTES.some((r) => location.startsWith(r)) && !isChatOpen;
 

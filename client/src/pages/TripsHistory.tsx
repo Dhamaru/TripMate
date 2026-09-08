@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import type { Trip } from "@shared/schema";
-import { Compass, Plus, Search, Filter } from "lucide-react";
+import { Compass, Plus, Search, Filter, ArrowUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { logError } from "@/lib/logger";
@@ -25,6 +25,10 @@ export default function TripsHistory() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  // UX-audit finding: no way to sort My Trips once a user has more than a
+  // handful — always server/creation order. "newest" mirrors that as the
+  // default so existing behavior doesn't change until a user picks one.
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "destination" | "upcoming">("newest");
 
   const {
     data: trips,
@@ -56,14 +60,33 @@ export default function TripsHistory() {
     }
   }, [error, isLoading]);
 
-  const filteredTrips = (trips ?? []).filter((trip) => {
-    const dest = (trip?.destination ?? "").toLowerCase();
-    const status = trip?.status ?? "planning";
-    return (
-      dest.includes(searchQuery.toLowerCase()) &&
-      (statusFilter === "all" || status === statusFilter)
-    );
-  });
+  const filteredTrips = (trips ?? [])
+    .filter((trip) => {
+      const dest = (trip?.destination ?? "").toLowerCase();
+      const status = trip?.status ?? "planning";
+      return (
+        dest.includes(searchQuery.toLowerCase()) &&
+        (statusFilter === "all" || status === statusFilter)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === "destination") {
+        return (a.destination ?? "").localeCompare(b.destination ?? "");
+      }
+      if (sortBy === "upcoming") {
+        // Trips with a start date sort soonest-first; undated trips sink
+        // to the bottom rather than sorting as "epoch 0" (soonest).
+        const aTime = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+        const bTime = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+        return aTime - bTime;
+      }
+      // newest/oldest by Mongo ObjectId creation order (first 8 hex chars
+      // are a timestamp) — trips don't carry a client-visible createdAt,
+      // and id ordering is already how the unsorted list behaves today.
+      const aId = String(a.id ?? "");
+      const bId = String(b.id ?? "");
+      return sortBy === "oldest" ? aId.localeCompare(bId) : bId.localeCompare(aId);
+    });
 
   return (
     <div className="space-y-6">
@@ -84,7 +107,7 @@ export default function TripsHistory() {
 
       {/* Filters */}
       <div className="bg-card rounded-3xl border border-border p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -104,6 +127,18 @@ export default function TripsHistory() {
               <SelectItem value="planning">Planning</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger className="bg-muted border text-foreground">
+              <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="upcoming">Upcoming first</SelectItem>
+              <SelectItem value="destination">Destination A-Z</SelectItem>
             </SelectContent>
           </Select>
         </div>

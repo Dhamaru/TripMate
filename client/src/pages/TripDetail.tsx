@@ -79,6 +79,19 @@ export default function TripDetail() {
     error,
     errorStatus,
   } = useTripStore();
+  // UX-audit finding: this header rendered Edit/Delete unconditionally —
+  // the server correctly rejects a viewer's attempt (and ItineraryManager
+  // already gates its own controls this way), but a viewer-role
+  // collaborator would still SEE a red Delete button on someone else's
+  // trip, which reads as broken/untrustworthy even though it's blocked.
+  const currentUserId = String((user as any)?._id || (user as any)?.id || "");
+  const isOwner = !!trip && String((trip as any).userId) === currentUserId;
+  const collaboratorEntry = trip?.collaborators?.find((c: any) => {
+    const cId =
+      typeof c.userId === "string" ? c.userId : String(c.userId?._id || c.userId?.id || "");
+    return cId === currentUserId;
+  });
+  const canEditTrip = isOwner || collaboratorEntry?.role === "editor";
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { toast, dismiss } = useToast();
   const activeToastId = useRef<string | null>(null);
@@ -1040,28 +1053,38 @@ export default function TripDetail() {
                       narrow widths they wrap together as a pair instead of
                       Delete orphaning alone onto its own line, which read as
                       an oversized, disconnected red circle at 375px. */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={() => setIsEditing(true)}
-                      variant="outline"
-                      size="sm"
-                      className="bg-muted/50 border text-foreground hover:bg-card "
-                      data-testid="button-edit-trip"
-                    >
-                      <i className="fas fa-edit md:mr-2"></i>
-                      <span className="hidden md:inline">Edit</span>
-                    </Button>
-                    <Button
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      variant="outline"
-                      size="sm"
-                      className="bg-muted/50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
-                      data-testid="button-delete-trip"
-                    >
-                      <i className="fas fa-trash md:mr-2"></i>
-                      <span className="hidden md:inline">Delete</span>
-                    </Button>
-                  </div>
+                  {/* Edit is owner+editor; Delete is owner-only (matches
+                      the server: deleteTrip scopes to { _id, userId }). A
+                      viewer previously saw both buttons and just got a
+                      rejected request on click (UX-audit finding). */}
+                  {(canEditTrip || isOwner) && (
+                    <div className="flex items-center gap-2">
+                      {canEditTrip && (
+                        <Button
+                          onClick={() => setIsEditing(true)}
+                          variant="outline"
+                          size="sm"
+                          className="bg-muted/50 border text-foreground hover:bg-card "
+                          data-testid="button-edit-trip"
+                        >
+                          <i className="fas fa-edit md:mr-2"></i>
+                          <span className="hidden md:inline">Edit</span>
+                        </Button>
+                      )}
+                      {isOwner && (
+                        <Button
+                          onClick={() => setDeleteConfirmOpen(true)}
+                          variant="outline"
+                          size="sm"
+                          className="bg-muted/50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
+                          data-testid="button-delete-trip"
+                        >
+                          <i className="fas fa-trash md:mr-2"></i>
+                          <span className="hidden md:inline">Delete</span>
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1306,35 +1329,35 @@ export default function TripDetail() {
           <TabsList className="flex w-full bg-muted/50 rounded-xl mb-6 p-1 h-auto gap-0.5 overflow-x-auto">
             <TabsTrigger
               value="overview"
-              className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-compass mr-1 sm:mr-1.5" />
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="itinerary"
-              className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-route mr-1 sm:mr-1.5" />
               Itinerary
             </TabsTrigger>
             <TabsTrigger
               value="map"
-              className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-map-marked-alt mr-1 sm:mr-1.5" />
               Map
             </TabsTrigger>
             <TabsTrigger
               value="budget"
-              className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-wallet mr-1 sm:mr-1.5" />
               Budget
             </TabsTrigger>
             <TabsTrigger
               value="places"
-              className="flex-1 min-w-0 rounded-lg text-[10px] sm:text-xs font-semibold px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-search-location mr-1 sm:mr-1.5" />
               Places

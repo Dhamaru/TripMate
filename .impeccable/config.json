@@ -107,6 +107,11 @@
         "rule": "border-accent-on-rounded",
         "value": "animate-spin rounded-full client/src/pages/tripdetail.tsx",
         "createdAt": "2026-09-03T21:23:26.354Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#ffffff",
+        "createdAt": "2026-09-08T08:58:32.762Z"
       }
     ]
   }

@@ -20,10 +20,10 @@ import {
 import { useTheme } from "./ThemeProvider";
 
 const NAV_ITEMS = [
-  { label: "Home",     icon: Home,          href: "/app/home" },
-  { label: "Trips",    icon: Compass,       href: "/app/trips" },
-  { label: "Journal",  icon: Book,          href: "/app/journal" },
-  { label: "Tools",    icon: Grid,          href: "/app/tools" },
+  { label: "Home", icon: Home, href: "/app/home" },
+  { label: "Trips", icon: Compass, href: "/app/trips" },
+  { label: "Journal", icon: Book, href: "/app/journal" },
+  { label: "Tools", icon: Grid, href: "/app/tools" },
   { label: "Feedback", icon: MessageSquare, href: "/app/feedback" },
 ];
 
@@ -36,23 +36,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // the viewport, a bottom sheet holds secondary controls) — the standard
   // padded/max-width/bottom-nav-clearance wrapper below would fight that, so
   // it opts out and takes the full content area itself.
-  const isFullBleed = location.startsWith('/app/maps');
+  const isFullBleed = location.startsWith("/app/maps");
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
+      {/* Skip link — UX-audit finding: keyboard/screen-reader users had no
+          way past the full sidebar; every page started with a 5-6-tab
+          walk through Home/Trips/Journal/Tools/Feedback before reaching
+          content. Visually hidden until focused, first element in the
+          DOM so it's always the first Tab stop. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-[var(--ink-blue)] focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold"
+      >
+        Skip to content
+      </a>
 
       {/* ── Sidebar ─────────────────────────────────── */}
       <aside
         className={cn(
           "hidden md:flex flex-col bg-[hsl(var(--sidebar))] border-r border-[hsl(var(--sidebar-border))] transition-all duration-300 ease-in-out fixed left-0 top-0 bottom-0 z-40",
-          collapsed ? "w-[60px]" : "w-[240px]"
+          collapsed ? "w-[60px]" : "w-[240px]",
         )}
       >
         {/* Logo bar */}
-        <div className={cn(
-          "h-16 flex items-center border-b border-[hsl(var(--sidebar-border))] flex-shrink-0 transition-all duration-300",
-          collapsed ? "justify-center px-0" : "px-5"
-        )}>
+        <div
+          className={cn(
+            "h-16 flex items-center border-b border-[hsl(var(--sidebar-border))] flex-shrink-0 transition-all duration-300",
+            collapsed ? "justify-center px-0" : "px-5",
+          )}
+        >
           {collapsed ? (
             <TripMateLogo size="sm" showText={false} />
           ) : (
@@ -82,17 +95,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     collapsed ? "px-0 justify-center" : "px-3",
                     isActive
                       ? "text-[var(--amber)] bg-[var(--amber-dim)]"
-                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
+                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
                   )}
                   title={collapsed ? item.label : undefined}
                 >
                   {isActive && !collapsed && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[var(--amber)] rounded-r-full" />
                   )}
-                  <item.icon className={cn(
-                    "h-[18px] w-[18px] flex-shrink-0 transition-all duration-150",
-                    isActive ? "text-[var(--amber)]" : "group-hover:scale-110"
-                  )} />
+                  <item.icon
+                    className={cn(
+                      "h-[18px] w-[18px] flex-shrink-0 transition-all duration-150",
+                      isActive ? "text-[var(--amber)]" : "group-hover:scale-110",
+                    )}
+                  />
                   {!collapsed && (
                     <span className="text-[13px] font-medium tracking-wide whitespace-nowrap font-sans-clean">
                       {item.label}
@@ -116,14 +131,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className={cn(
               "w-full flex items-center gap-2.5 rounded-lg h-9 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-all",
-              collapsed ? "px-0 justify-center" : "px-3"
+              collapsed ? "px-0 justify-center" : "px-3",
             )}
             title="Toggle theme"
           >
-            {theme === "dark"
-              ? <Sun className="h-[16px] w-[16px] text-[var(--amber)] flex-shrink-0" />
-              : <Moon className="h-[16px] w-[16px] flex-shrink-0" />
-            }
+            {theme === "dark" ? (
+              <Sun className="h-[16px] w-[16px] text-[var(--amber)] flex-shrink-0" />
+            ) : (
+              <Moon className="h-[16px] w-[16px] flex-shrink-0" />
+            )}
             {!collapsed && (
               <span className="text-[12px] font-sans-clean font-medium">
                 {theme === "dark" ? "Light mode" : "Dark mode"}
@@ -133,10 +149,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Profile */}
           <Link href="/app/profile">
-            <div className={cn(
-              "flex items-center gap-2.5 rounded-lg h-11 cursor-pointer group hover:bg-[hsl(var(--muted))] transition-colors",
-              collapsed ? "px-0 justify-center" : "px-3"
-            )}>
+            <div
+              className={cn(
+                "flex items-center gap-2.5 rounded-lg h-11 cursor-pointer group hover:bg-[hsl(var(--muted))] transition-colors",
+                collapsed ? "px-0 justify-center" : "px-3",
+              )}
+            >
               <Avatar className="h-7 w-7 rounded-full border border-[hsl(var(--border))] flex-shrink-0">
                 <AvatarImage src={user?.profileImageUrl} className="object-cover" />
                 <AvatarFallback className="bg-[var(--amber)] text-black text-[11px] font-bold">
@@ -161,61 +179,68 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
               "w-full flex items-center gap-2 rounded-lg h-8 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-all",
-              collapsed ? "px-0 justify-center" : "px-3"
+              collapsed ? "px-0 justify-center" : "px-3",
             )}
             title={collapsed ? "Expand" : "Collapse"}
           >
-            {collapsed
-              ? <ChevronRight className="h-3.5 w-3.5" />
-              : <><ChevronLeft className="h-3.5 w-3.5" /><span className="text-[11px] font-sans-clean">Collapse</span></>
-            }
+            {collapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" />
+            ) : (
+              <>
+                <ChevronLeft className="h-3.5 w-3.5" />
+                <span className="text-[11px] font-sans-clean">Collapse</span>
+              </>
+            )}
           </button>
         </div>
       </aside>
 
       {/* ── Main content ──────────────────────────────── */}
-      <div className={cn(
-        "flex-1 flex flex-col h-full transition-all duration-300 ease-in-out min-w-0",
-        "md:ml-[240px]",
-        collapsed && "md:ml-[60px]"
-      )}>
-
+      <div
+        className={cn(
+          "flex-1 flex flex-col h-full transition-all duration-300 ease-in-out min-w-0",
+          "md:ml-[240px]",
+          collapsed && "md:ml-[60px]",
+        )}
+      >
         {/* Top bar */}
         <header className="h-14 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
           {/* Mobile logo */}
           <div className="md:hidden flex items-center gap-2">
             <TripMateLogo size="sm" showText={false} />
-            <span className="font-display text-sm font-bold text-[hsl(var(--foreground))]">TripMate</span>
+            <span className="font-display text-sm font-bold text-[hsl(var(--foreground))]">
+              TripMate
+            </span>
           </div>
 
           <div className="hidden md:block" />
 
           {/* Right: notifications + user */}
           <div className="flex items-center gap-3">
-          <NotificationBell />
-          <Link href="/app/profile">
-            <div className="flex items-center gap-3 cursor-pointer group">
-              <div className="hidden md:flex flex-col items-end">
-                <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--amber)] transition-colors flex items-center gap-1.5 font-sans-clean">
-                  {user?.isGuest && (
-                    <span className="bg-[var(--amber-dim)] text-[var(--amber)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
-                      GUEST
-                    </span>
-                  )}
-                  {user?.firstName} {user?.lastName}
-                </span>
-                <span className="label-xs text-[hsl(var(--muted-foreground))]">
-                  {user?.isGuest ? "Trial" : "Member"}
-                </span>
+            <NotificationBell />
+            <Link href="/app/profile">
+              <div className="flex items-center gap-3 cursor-pointer group">
+                <div className="hidden md:flex flex-col items-end">
+                  <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--amber)] transition-colors flex items-center gap-1.5 font-sans-clean">
+                    {user?.isGuest && (
+                      <span className="bg-[var(--amber-dim)] text-[var(--amber)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
+                        GUEST
+                      </span>
+                    )}
+                    {user?.firstName} {user?.lastName}
+                  </span>
+                  <span className="label-xs text-[hsl(var(--muted-foreground))]">
+                    {user?.isGuest ? "Trial" : "Member"}
+                  </span>
+                </div>
+                <Avatar className="h-8 w-8 rounded-full border border-[hsl(var(--border))] group-hover:border-[var(--amber)] transition-all duration-200">
+                  <AvatarImage src={user?.profileImageUrl} className="object-cover" />
+                  <AvatarFallback className="bg-[var(--amber)] text-black text-[11px] font-bold">
+                    {user?.firstName?.[0] || "U"}
+                  </AvatarFallback>
+                </Avatar>
               </div>
-              <Avatar className="h-8 w-8 rounded-full border border-[hsl(var(--border))] group-hover:border-[var(--amber)] transition-all duration-200">
-                <AvatarImage src={user?.profileImageUrl} className="object-cover" />
-                <AvatarFallback className="bg-[var(--amber)] text-black text-[11px] font-bold">
-                  {user?.firstName?.[0] || "U"}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          </Link>
+            </Link>
           </div>
         </header>
 
@@ -223,7 +248,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* pb-32 (128px) mobile clearance for the fixed bottom nav (bottom-3
             offset + ~64px height ≈ 76px) — pb-24 measured 34px short on
             pages whose last content sits close to the true page bottom. */}
-        <main className={isFullBleed ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto pb-32 md:pb-8"}>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className={
+            isFullBleed ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto pb-32 md:pb-8"
+          }
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={location}
@@ -245,13 +276,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               const isActive = location === item.href || location.startsWith(item.href + "/");
               return (
                 <Link key={item.href} href={item.href} className="flex-1">
-                  <div className={cn(
-                    "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all duration-150",
-                    isActive
-                      ? "text-[var(--amber)]"
-                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-                  )}>
-                    <item.icon className={cn("h-[18px] w-[18px]", isActive && "drop-shadow-[0_0_6px_rgba(232,144,10,0.6)]")} />
+                  <div
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all duration-150",
+                      isActive
+                        ? "text-[var(--amber)]"
+                        : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-[18px] w-[18px]",
+                        isActive && "drop-shadow-[0_0_6px_rgba(232,144,10,0.6)]",
+                      )}
+                    />
                     <span className="label-xs">{item.label}</span>
                   </div>
                 </Link>
