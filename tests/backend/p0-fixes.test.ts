@@ -10,6 +10,7 @@ import request from "supertest";
 import { app } from "../../server/index";
 import { connectDB, closeDB, clearDB } from "../helpers/db";
 import { createUser, createTrip } from "../helpers/factories";
+import { signupAndLogin } from "../helpers/auth";
 
 describe("P0 fixes — five-expert review, 2026-09-03", () => {
   let token: string;
@@ -23,9 +24,9 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
   beforeEach(async () => {
     await clearDB();
     const userData = createUser();
-    const signupRes = await request(app).post("/api/v1/auth/signup").send(userData);
-    token = signupRes.body.token;
-    userId = signupRes.body.user.id;
+    const auth = await signupAndLogin(app, userData);
+    token = auth.token;
+    userId = auth.user.id;
   });
 
   describe("rate limiting actually applies to the /api/tools back-compat alias", () => {

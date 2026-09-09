@@ -10,6 +10,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
 import { getBackendBaseUrl } from "./urls";
+import { SessionModel } from "@shared/schema";
 
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "./email";
@@ -86,8 +87,12 @@ export async function setupAuth(app: Express) {
           clientID: config.GOOGLE_CLIENT_ID,
           clientSecret: config.GOOGLE_CLIENT_SECRET,
           callbackURL: `${config.FRONTEND_URL || "https://tripmate-ylt6.onrender.com"}/api/v1/auth/google/callback`,
+          // Needed to read the request's cookies below (guest->real
+          // conversion) — passport-google-oauth20 only passes `req` to
+          // the verify callback when this is explicitly enabled.
+          passReqToCallback: true,
         },
-        async (accessToken, refreshToken, profile, done) => {
+        async (req, accessToken, refreshToken, profile, done) => {
           try {
             const rawEmail = profile.emails?.[0]?.value;
             if (!rawEmail) return done(new Error("No email provided by Google"));
@@ -105,6 +110,60 @@ export async function setupAuth(app: Express) {
             // a few lines down).
             let user = await storage.getUserByEmail(email);
             if (!user) {
+              // Guest -> real conversion: if this browser still carries a
+              // live guest session cookie, re-key that SAME account
+              // instead of creating a brand-new one at _id: email. Every
+              // trip/journal/pin/Atlas conversation the guest already made
+              // stays attached automatically, because every one of those
+              // records is keyed to this exact _id and it never changes
+              // (product/security review finding this session — without
+              // this, converting silently orphaned a guest's work on an
+              // unreachable row the moment they signed in for real).
+              let guestUserId: string | null = null;
+              const cookieToken = req.cookies?.token;
+              if (cookieToken) {
+                try {
+                  const decoded = jwt.verify(cookieToken, config.JWT_SECRET) as {
+                    sub?: string;
+                    isGuest?: boolean;
+                  };
+                  if (decoded?.isGuest && decoded.sub) guestUserId = decoded.sub;
+                } catch {
+                  // Expired/invalid/no guest cookie — fall through to a normal new account.
+                }
+              }
+
+              if (guestUserId) {
+                const guestUser = await storage.getUser(guestUserId);
+                // Re-verify isGuest against a fresh DB read, not just what
+                // the JWT claimed — the token could be old/stale relative
+                // to the account's current state.
+                if (guestUser?.isGuest) {
+                  user = await storage.updateUser(guestUserId, {
+                    email,
+                    firstName: profile.name?.givenName,
+                    lastName: profile.name?.familyName,
+                    profileImageUrl: profile.photos?.[0]?.value,
+                    googleConnected: true,
+                    googleId: profile.id,
+                    emailVerified: true,
+                    isGuest: false,
+                  });
+                  // Revoke any pre-existing session on this guest row —
+                  // otherwise a guest cookie planted in someone else's
+                  // browser (cookie-tossing, XSS, shared device) keeps
+                  // working for up to 7 more days after that browser's
+                  // owner converts it into their real account (security
+                  // review finding this session). This flow issues its
+                  // own fresh session right after in googleCallback.
+                  await SessionModel.updateMany(
+                    { userId: guestUserId, revoked: false },
+                    { revoked: true },
+                  );
+                }
+              }
+            }
+            if (!user) {
               user = await storage.upsertUser({
                 _id: email,
                 email,
@@ -113,6 +172,9 @@ export async function setupAuth(app: Express) {
                 profileImageUrl: profile.photos?.[0]?.value,
                 googleConnected: true,
                 googleId: profile.id,
+                // Google has already proven this inbox is real — no
+                // separate confirm-your-email step needed for this path.
+                emailVerified: true,
               });
             } else if (user.password && !user.googleConnected) {
               // Fixing the lookup above made this branch reachable for the
@@ -140,7 +202,11 @@ export async function setupAuth(app: Express) {
                   "An account with this email already has a password set. Sign in with your password instead.",
               });
             } else {
-              const updates: Record<string, any> = { googleConnected: true, googleId: profile.id };
+              const updates: Record<string, any> = {
+                googleConnected: true,
+                googleId: profile.id,
+                emailVerified: true,
+              };
               if (!user.profileImageUrl && profile.photos?.[0]?.value) {
                 updates.profileImageUrl = profile.photos[0].value;
               }

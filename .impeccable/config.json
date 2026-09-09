@@ -1,7 +1,7 @@
 {
   "detector": {
     "ignoreRules": ["border-accent-on-rounded"],
-    "ignoreFiles": [],
+    "ignoreFiles": ["server/email.ts"],
     "ignoreValues": [
       {
         "rule": "bounce-easing",
@@ -112,6 +112,11 @@
         "rule": "design-system-color",
         "value": "#ffffff",
         "createdAt": "2026-09-08T08:58:32.762Z"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "animate-bounce",
+        "createdAt": "2026-09-08T11:08:34.872Z"
       }
     ]
   }

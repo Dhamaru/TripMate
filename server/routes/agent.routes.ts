@@ -8,6 +8,7 @@ import {
 } from "../controllers/agent.controller";
 import { requireAuth } from "../middleware/auth";
 import { aiLimiter } from "../middleware/rateLimit.middleware";
+import { guestAiQuota } from "../middleware/guestQuota.middleware";
 import { requireSameOriginFetch } from "../middleware/csrf.middleware";
 import { validate } from "../middleware/validate";
 import { agentMessageSchema } from "../schemas/agent.schemas";
@@ -32,7 +33,7 @@ const router = Router();
  *       200:
  *         description: Agent response with toolsUsed, confidence, structuredData
  */
-router.post("/chat", requireAuth, aiLimiter, validate(agentMessageSchema), chat);
+router.post("/chat", requireAuth, aiLimiter, validate(agentMessageSchema), guestAiQuota, chat);
 
 /**
  * @swagger
@@ -61,6 +62,10 @@ router.post("/chat", requireAuth, aiLimiter, validate(agentMessageSchema), chat)
  *             schema:
  *               type: string
  */
+// guestAiQuota is NOT used here — EventSource can't read a 402 response
+// body, so the quota check happens inside the stream controller itself,
+// after SSE headers are flushed, so the upgrade message can be sent as a
+// real SSE event the client can actually read.
 router.get("/chat/stream", requireSameOriginFetch, requireAuth, aiLimiter, stream);
 
 /**
@@ -115,6 +120,6 @@ router.delete("/history/:tripId", requireAuth, clearHistory);
  *       404:
  *         description: Confirmation expired, already used, or not owned by the requester
  */
-router.post("/confirm-action/:id", requireAuth, aiLimiter, confirmAction);
+router.post("/confirm-action/:id", requireAuth, aiLimiter, guestAiQuota, confirmAction);
 
 export default router;

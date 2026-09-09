@@ -7,7 +7,9 @@ interface AuthStore {
   isLoading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  // No password, no auth-state change — the account isn't usable yet
+  // until the emailed confirmation link is clicked and a password is set.
+  signUp: (email: string, firstName: string, lastName: string) => Promise<{ message: string }>;
   signOut: () => Promise<void>;
   checkSession: (retryCount?: number) => Promise<void>;
   guestSignIn: () => Promise<void>;
@@ -21,9 +23,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const { user } = await authApi.signIn({ email, password });
     set({ user, isAuthenticated: true, isLoading: false });
   },
-  signUp: async (email, password, firstName, lastName) => {
-    const { user } = await authApi.signUp({ email, password, firstName, lastName });
-    set({ user, isAuthenticated: true, isLoading: false });
+  signUp: async (email, firstName, lastName) => {
+    return authApi.signUp({ email, firstName, lastName });
   },
   signOut: async () => {
     await authApi.signOut();

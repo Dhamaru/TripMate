@@ -150,10 +150,15 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       if (result.structuredData) get().handleStructuredData(result.structuredData as any);
     } catch (e: any) {
       const msg = e?.message || e?.error || String(e) || "Network error";
+      // Guest lifetime-quota rejections aren't a transient failure — "try
+      // again" is actively wrong advice, the retry will 402 the same way.
+      // Server already writes the sign-in-with-Google upgrade prompt into
+      // `msg` itself; just drop the generic error framing around it.
+      const isQuota = e?.code === "GUEST_QUOTA_EXCEEDED";
       const errorMsg: AgentMessage = {
         id: nanoid(),
         role: "assistant",
-        content: `⚠️ Sorry, I encountered an error: ${msg}. Please try again.`,
+        content: isQuota ? msg : `⚠️ Sorry, I encountered an error: ${msg}. Please try again.`,
         timestamp: new Date().toISOString(),
       };
       set((state) => ({
@@ -243,10 +248,17 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
           }
           resolve();
         },
-        (error) => {
+        (error, code) => {
+          // Same "don't say Error:, don't imply retrying helps" treatment
+          // as the non-stream path — a guest quota rejection isn't a
+          // stream failure, and the server-written message already tells
+          // them what to do (sign in with Google).
+          const isQuota = code === "GUEST_QUOTA_EXCEEDED";
           set((state) => ({
             messages: state.messages.map((m) =>
-              m.id === streamingId ? { ...m, content: `Error: ${error}`, isStreaming: false } : m,
+              m.id === streamingId
+                ? { ...m, content: isQuota ? error : `Error: ${error}`, isStreaming: false }
+                : m,
             ),
             isLoading: false,
             error,

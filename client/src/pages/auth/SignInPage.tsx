@@ -209,6 +209,13 @@ export default function SignInPage() {
           >
             Continue as Guest
           </Button>
+          {/* Product-review finding: nothing told a guest their trip was
+              temporary before this — someone could spend real time
+              planning and lose it with zero warning. Said upfront, before
+              any effort is invested, not after. */}
+          <p className="text-center text-xs text-white/40 -mt-1">
+            Try it without an account — one trip, saved in this browser for 7 days.
+          </p>
 
           {guestError && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>

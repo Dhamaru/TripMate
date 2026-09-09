@@ -17,6 +17,7 @@ import crypto from "crypto";
 import { app } from "../../server/index";
 import { connectDB, closeDB, clearDB } from "../helpers/db";
 import { createUser } from "../helpers/factories";
+import { signupAndLogin } from "../helpers/auth";
 import { ImportPlanCacheModel } from "../../shared/schema";
 import { AiUtilitiesService } from "../../server/AiUtilitiesService";
 
@@ -70,9 +71,8 @@ const CANNED_PARSED = {
 
 async function signup() {
   const userData = createUser();
-  const res = await request(app).post("/api/v1/auth/signup").send(userData);
-  expect(res.status).toBe(201);
-  return { token: res.body.token as string, userId: res.body.user.id as string };
+  const auth = await signupAndLogin(app, userData);
+  return { token: auth.token, userId: auth.user.id as string };
 }
 
 function hashFor(

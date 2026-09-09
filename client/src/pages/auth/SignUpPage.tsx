@@ -9,33 +9,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuthStore } from "@/store";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Eye, EyeOff } from "lucide-react";
+import { MailCheck } from "lucide-react";
 
-const SignUpSchema = z
-  .object({
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    email: z.string().email(),
-    password: z.string().min(6),
-    confirmPassword: z.string().min(6),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+const SignUpSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email(),
+});
 
 export default function SignUpPage() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    firstName: "",
-    lastName: "",
-  });
+  const [formData, setFormData] = useState({ email: "", firstName: "", lastName: "" });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // No password field anymore — there's no session to start on submit, so
+  // success means "check your email," not "you're in."
+  const [sent, setSent] = useState(false);
   const { signUp } = useAuthStore();
   const [, navigate] = useLocation();
 
@@ -49,10 +37,7 @@ export default function SignUpPage() {
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,24 +46,52 @@ export default function SignUpPage() {
 
     const parsed = SignUpSchema.safeParse(formData);
     if (!parsed.success) {
-      const firstIssue = parsed.error.issues[0];
-      setError(
-        firstIssue?.message || "Please enter valid details: name (1+), email, password (6+).",
-      );
+      setError(parsed.error.issues[0]?.message || "Please enter a valid name and email.");
       return;
     }
 
     setIsLoading(true);
-
     try {
-      await signUp(formData.email, formData.password, formData.firstName, formData.lastName);
-      navigate("/app/home");
+      await signUp(formData.email, formData.firstName, formData.lastName);
+      setSent(true);
     } catch (err: any) {
       setError(err.message || "Sign up failed");
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (sent) {
+    return (
+      <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
+        <CardContent className="p-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center"
+          >
+            <div className="w-14 h-14 rounded-full bg-[#163F73]/30 flex items-center justify-center mb-5">
+              <MailCheck className="w-7 h-7 text-[var(--ink-blue-bright,#4F82C4)]" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Check your email</h2>
+            <p className="text-white/60 font-medium mb-1">We sent a confirmation link to</p>
+            <p className="text-white font-semibold mb-6">{formData.email}</p>
+            <p className="text-white/50 text-sm mb-8 max-w-xs">
+              Click the link to confirm it's really you, then set a password to finish creating your
+              account. The link expires in 1 hour.
+            </p>
+            <Button
+              variant="outline"
+              className="h-12 bg-white/10 border-white/20 rounded-xl w-full font-semibold text-white"
+              onClick={() => navigate("/signin")}
+            >
+              Back to sign in
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-white/10 backdrop-blur-xl border-white/15 radius-card p-1 shadow-2xl overflow-hidden">
@@ -137,62 +150,9 @@ export default function SignUpPage() {
               required
               className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
             />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <Label htmlFor="password" className="text-sm font-medium text-white ml-1">
-                Password
-              </Label>
-            </div>
-            <div className="relative group">
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Create a password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-white/60"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-sm font-medium text-white ml-1">
-              Confirm Password
-            </Label>
-            <div className="relative group">
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                placeholder="Repeat your password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-transparent text-white/60"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </Button>
-            </div>
+            <p className="text-white/40 text-xs ml-1">
+              We'll email you a link to confirm it's yours and set a password.
+            </p>
           </div>
 
           {error && (
@@ -214,7 +174,7 @@ export default function SignUpPage() {
             disabled={isLoading}
             className="w-full h-14 bg-[#163F73] hover:bg-[#0F2C52] active:scale-[0.98] transition-all rounded-xl font-bold text-lg shadow-lg shadow-[#163F73]/30"
           >
-            {isLoading ? "Creating Account..." : "Create Account"}
+            {isLoading ? "Sending..." : "Continue with Email"}
           </Button>
 
           {providers?.google !== false && (

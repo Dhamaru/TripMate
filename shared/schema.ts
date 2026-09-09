@@ -40,6 +40,32 @@ export interface IBaseUser {
   googleConnected?: boolean;
   googleId?: string;
   mutedNotificationTypes?: string[];
+  // Defaults false so every EXISTING password account (created before this
+  // field existed) also reads as unverified — Mongoose applies a schema
+  // default to a missing field on hydrate, not just on insert, so this
+  // retroactively covers old documents with no migration needed. Google
+  // accounts are stamped true at signup/link time (Google already proved
+  // the inbox); guest accounts don't need it (no password path to gate).
+  emailVerified?: boolean;
+  // Stamped on every authenticated request, guests only (see
+  // requireAuth) — updatedAt is unreliable for "is this account still
+  // being used" since it's bumped by unrelated field writes and never by
+  // a pure read. Drives the guest-inactivity purge job
+  // (server/scripts/purgeGuests.ts); real accounts don't need it, they
+  // don't get purged.
+  lastSeenAt?: Date;
+  // Lifetime counters for guest accounts only — a rate WINDOW doesn't
+  // bound cost for an account that doesn't persist (the account itself
+  // can just be re-created), so these are simple lifetime caps instead.
+  // See server/middleware/guestQuota.middleware.ts.
+  guestAiCalls?: number;
+  guestGenerations?: number;
+  // Lifetime count of journal photos uploaded, mirroring the counters
+  // above — an atomic counter on the account, not a per-request scan of
+  // JournalEntryModel, so two concurrent uploads can't both read the
+  // same pre-upload count and together land more than the cap (TOCTOU
+  // found by security review this session; see guestJournalPhotoQuotaPostUpload).
+  guestJournalPhotos?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -72,6 +98,11 @@ const userSchema = new Schema<IUser>(
     googleConnected: { type: Boolean, default: false },
     googleId: { type: String },
     mutedNotificationTypes: { type: [String], default: [] },
+    emailVerified: { type: Boolean, default: false },
+    lastSeenAt: { type: Date },
+    guestAiCalls: { type: Number, default: 0 },
+    guestGenerations: { type: Number, default: 0 },
+    guestJournalPhotos: { type: Number, default: 0 },
   },
   {
     timestamps: true,
@@ -86,6 +117,12 @@ const userSchema = new Schema<IUser>(
 // either write lands, since that check and the create() aren't atomic.
 // Verified no existing duplicate emails in production before adding this.
 userSchema.index({ email: 1 }, { unique: true, sparse: true });
+// Not a TTL index deliberately — a bare TTL on User would delete only the
+// User document and orphan everything in the other 12 collections a
+// guest can own. server/scripts/purgeGuests.ts queries this compound
+// index and runs the same full cascade deleteAccount uses
+// (purgeUserData), so nothing is left behind.
+userSchema.index({ isGuest: 1, lastSeenAt: 1 });
 
 export const UserModel: Model<IUser> = mongoose.model<IUser>("User", userSchema);
 
@@ -110,6 +147,7 @@ export const insertUserSchema = z.object({
   interests: z.array(z.string()).optional(),
   googleConnected: z.boolean().optional(),
   googleId: z.string().optional(),
+  emailVerified: z.boolean().optional(),
 });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = IBaseUser;

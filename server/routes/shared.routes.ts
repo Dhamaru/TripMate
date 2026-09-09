@@ -10,6 +10,7 @@ import {
   updatePackingListSchema,
 } from "../schemas/packing.schemas";
 import { aiLimiter, generationLimiter } from "../middleware/rateLimit.middleware";
+import { guestAiQuota, guestGenerationQuota } from "../middleware/guestQuota.middleware";
 
 const router = Router();
 
@@ -51,18 +52,44 @@ router.put(
 );
 router.delete("/packing/:id", packingController.deletePackingList);
 router.delete("/packing-lists/:id", packingController.deletePackingList);
-// Packing AI — generate smart list for a trip
-router.post("/packing/generate/:id", packingController.generatePackingList);
-router.post("/packing-lists/generate/:id", packingController.generatePackingList);
+// Packing AI — generate smart list for a trip. Previously had no rate
+// limiter at all (security review finding this session).
+router.post(
+  "/packing/generate/:id",
+  aiLimiter,
+  guestAiQuota,
+  packingController.generatePackingList,
+);
+router.post(
+  "/packing-lists/generate/:id",
+  aiLimiter,
+  guestAiQuota,
+  packingController.generatePackingList,
+);
 
 // Journal CRUD is registered in journal.routes.ts (mounted earlier at the
 // same /api/v1 prefix, so it wins for these exact paths) — duplicate
 // registrations previously here were dead/unreachable and have been
 // removed. Only journal's AI endpoints, unique to this router, live here.
-router.post("/journal/augment", aiLimiter, journalAiController.augmentEntry);
-router.post("/journal/:id/contextualize", aiLimiter, journalAiController.contextualizeEntry);
-router.post("/journal/:id/enhance", aiLimiter, journalAiController.enhanceEntry);
-router.post("/journal/:id/enhance/confirm", aiLimiter, journalAiController.confirmEnhancement);
-router.post("/journal/recap/:tripId", generationLimiter, journalAiController.generateRecap);
+router.post("/journal/augment", aiLimiter, guestAiQuota, journalAiController.augmentEntry);
+router.post(
+  "/journal/:id/contextualize",
+  aiLimiter,
+  guestAiQuota,
+  journalAiController.contextualizeEntry,
+);
+router.post("/journal/:id/enhance", aiLimiter, guestAiQuota, journalAiController.enhanceEntry);
+router.post(
+  "/journal/:id/enhance/confirm",
+  aiLimiter,
+  guestAiQuota,
+  journalAiController.confirmEnhancement,
+);
+router.post(
+  "/journal/recap/:tripId",
+  generationLimiter,
+  guestGenerationQuota,
+  journalAiController.generateRecap,
+);
 
 export default router;

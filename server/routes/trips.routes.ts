@@ -11,6 +11,7 @@ import {
   aiLimiter,
   importPlanLimiter,
 } from "../middleware/rateLimit.middleware";
+import { guestGenerationQuota, guestAiQuota } from "../middleware/guestQuota.middleware";
 import { createTripSchema, parseScheduleSchema } from "../schemas/trip.schemas";
 import {
   addActivitySchema,
@@ -39,7 +40,12 @@ router.delete("/:id", tripsController.deleteTrip);
 router.post("/:id/share", tripsController.shareTrip);
 
 // AI Itinerary Generation (Internal/Sync)
-router.post("/generate-itinerary", generationLimiter, tripsController.generateItinerary);
+router.post(
+  "/generate-itinerary",
+  generationLimiter,
+  guestGenerationQuota,
+  tripsController.generateItinerary,
+);
 
 // Parse user's own schedule text into structured itinerary
 // requireAuth not repeated here — router.use(requireAuth) above already
@@ -48,6 +54,7 @@ router.post(
   "/parse-schedule",
   importPlanLimiter,
   validate(parseScheduleSchema),
+  guestGenerationQuota,
   tripsController.parseSchedule,
 );
 
@@ -89,11 +96,16 @@ router.post(
 router.delete("/:id/collaborators/:collaboratorId", collaboratorController.removeCollaborator);
 
 // AI Suggestions & Content
-router.get("/:id/hacks", aiLimiter, tripsController.getHacks);
-router.get("/:id/quiet-places", aiLimiter, tripsController.getQuietPlaces);
-router.get("/:id/budget-forecast", aiLimiter, tripsController.getBudgetForecast);
-router.post("/:id/discover", aiLimiter, tripsController.discoverPlaces);
-router.post("/:id/ai-recommendations", aiLimiter, tripsController.getAiRecommendations);
+router.get("/:id/hacks", aiLimiter, guestAiQuota, tripsController.getHacks);
+router.get("/:id/quiet-places", aiLimiter, guestAiQuota, tripsController.getQuietPlaces);
+router.get("/:id/budget-forecast", aiLimiter, guestAiQuota, tripsController.getBudgetForecast);
+router.post("/:id/discover", aiLimiter, guestAiQuota, tripsController.discoverPlaces);
+router.post(
+  "/:id/ai-recommendations",
+  aiLimiter,
+  guestAiQuota,
+  tripsController.getAiRecommendations,
+);
 router.post("/:id/image", tripsController.forceUpdateImage);
 
 export default router;

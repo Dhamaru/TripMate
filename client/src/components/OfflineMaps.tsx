@@ -259,6 +259,12 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
   const [placesResults, setPlacesResults] = useState<PlaceResult[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
+  // Distinguishes "haven't searched yet" from "searched and got 0-1 weak
+  // matches" — a real landmark can be entirely unindexed by name in
+  // Google's Places data (live-confirmed: 0 results unbiased, 1 unrelated
+  // result biased) while its street address resolves it correctly. Gates
+  // the low-confidence hint below so it only shows after a real search.
+  const [hasSearched, setHasSearched] = useState(false);
   // Maps here is a standalone, not-tied-to-one-trip page — bias search
   // toward wherever the user actually is, not a trip's destination (that
   // biasing happens in TripMap.tsx, which is opened from within a trip).
@@ -832,6 +838,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       // Silent fail
     } finally {
       setPlacesLoading(false);
+      setHasSearched(true);
     }
   }
 
@@ -1313,7 +1320,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       <Input
                         placeholder="Search city..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setHasSearched(false);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
@@ -1419,6 +1429,28 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                         ))}
                       </div>
                     )}
+
+                    {/* Google Places Text Search sometimes doesn't index a
+                        real landmark under its own name at all — live-
+                        confirmed on a real place: 0 results unbiased, one
+                        unrelated result once location-biased, while its
+                        street address resolves it correctly. Not
+                        recoverable client-side (the app already passes the
+                        query straight through), so tell the user the
+                        working alternative instead of leaving a wrong or
+                        empty result unexplained. */}
+                    {hasSearched &&
+                      !placesLoading &&
+                      searchQuery.trim().length >= 2 &&
+                      placesResults.length <= 1 && (
+                        <div className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg px-3 py-2">
+                          {placesResults.length === 0
+                            ? "No match for that name. "
+                            : "Only one weak match found. "}
+                          Some smaller landmarks aren't listed by name — try the street address, or
+                          a nearby well-known place instead.
+                        </div>
+                      )}
                   </CardContent>
                 </Card>
               )}

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import * as toolsController from "../controllers/tools.controller";
 import { requireAuth } from "../middleware/auth";
+import { aiLimiter } from "../middleware/rateLimit.middleware";
+import { guestAiQuota } from "../middleware/guestQuota.middleware";
 
 const router = Router();
 
@@ -26,7 +28,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/EmergencyResponse'
  */
-router.get("/", requireAuth, toolsController.getEmergencyContacts);
-router.get("/:query?", requireAuth, toolsController.getEmergencyContacts);
+router.get("/", requireAuth, aiLimiter, guestAiQuota, toolsController.getEmergencyContacts);
+router.get("/:query?", requireAuth, aiLimiter, guestAiQuota, toolsController.getEmergencyContacts);
 
 export default router;

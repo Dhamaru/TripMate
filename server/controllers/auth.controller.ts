@@ -14,7 +14,14 @@ import {
 import { AgentJob } from "../models/AgentJob";
 import { TripSuggestion } from "../models/TripSuggestion";
 import { UserMemoryModel } from "../services/UserMemoryService";
-import { BadRequestError, UnauthorizedError, NotFoundError, TooManyRequestsError } from "../errors";
+import { purgeUserData } from "../services/userPurge";
+import {
+  BadRequestError,
+  UnauthorizedError,
+  NotFoundError,
+  TooManyRequestsError,
+  ForbiddenError,
+} from "../errors";
 import { hashPassword, comparePasswords } from "../auth";
 import { nanoid } from "nanoid";
 import { config } from "../config";
@@ -86,62 +93,112 @@ async function issueSession(req: Request, userId: string, extra: Record<string, 
   return token;
 }
 
+// Deliberate product decision (not the previous default): this app has no
+// self-serve email/password signup anymore. A visitor can only get an
+// account via Google (already proves inbox ownership) or a Guest session
+// (no password to protect). Anyone submitting a plain email here still
+// gets an account row created, but it's inert — no password, emailVerified
+// false — until they click the emailed confirmation link and set a
+// password there, reusing the exact same token mechanism forgotPassword/
+// resetPassword already use rather than building a second one. This also
+// closes the gap a security-review pass on the Google-auth fix flagged
+// (server/auth.ts): signup used to let anyone register any email with a
+// password and no proof they own it.
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, firstName, lastName } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
+    const genericResponse = {
+      message: "Check your email to confirm your account and create a password.",
+    };
 
-    const existingUser = await UserModel.findOne({ email: normalizedEmail });
-    if (existingUser) {
-      if (existingUser.password) throw new BadRequestError("User already exists");
-      // Google-authed user with no password yet — this is an unauthenticated
-      // public endpoint, so we can't just set whatever password the caller
-      // supplied (that was a full account-takeover: anyone who knew a
-      // Google user's email could set their password here with no proof of
-      // ownership). Route through the same email-token flow forgotPassword
-      // already uses instead — it proves the caller controls the inbox
-      // before any password is set.
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      // The raw token only ever needs to exist in the emailed URL — storing
-      // it verbatim in Mongo means any DB read (backup, snapshot, breach)
-      // hands over a working account-takeover token for every pending
-      // reset. Store its hash instead, same pattern SessionModel.tokenHash
-      // already uses.
-      existingUser.resetPasswordToken = hashResetToken(resetToken);
-      existingUser.resetPasswordExpires = new Date(Date.now() + 3_600_000);
-      await existingUser.save();
-      const { sendPasswordResetEmail } = await import("../email");
-      await sendPasswordResetEmail(existingUser.email!, resetToken);
-      return res.status(200).json({
-        message: "This email already has an account. We've sent a link to set a password for it.",
-      });
+    let user = await UserModel.findOne({ email: normalizedEmail });
+    if (user && user.password && user.emailVerified) {
+      throw new BadRequestError("An account with this email already exists. Sign in instead.");
     }
 
-    let user;
-    try {
-      user = await UserModel.create({
-        _id: nanoid(),
-        email: normalizedEmail,
-        password: await hashPassword(password),
-        firstName,
-        lastName,
-      });
-    } catch (err: any) {
-      // The findOne check above and this create() aren't atomic — two
-      // concurrent signups with the same email can both pass the check.
-      // The unique index on email (shared/schema.ts) is what actually
-      // closes that race; translate its E11000 into the same user-facing
-      // error the findOne branch above already gives, instead of a raw 500.
-      if (err?.code === 11000) throw new BadRequestError("User already exists");
-      throw err;
+    if (!user) {
+      // Guest -> real conversion: /signup has no requireAuth (it's meant
+      // for anonymous visitors), so a live guest's cookie isn't decoded
+      // into req.user automatically here — check it directly. If found,
+      // re-key that SAME account instead of creating a new one at a new
+      // _id, so every trip/journal/pin/Atlas conversation the guest
+      // already made stays attached (same reasoning as the Google path
+      // in server/auth.ts — see its comment for the full rationale).
+      let guestUserId: string | null = null;
+      const cookieToken = req.cookies?.token;
+      if (cookieToken) {
+        try {
+          const decoded = jwt.verify(cookieToken, config.JWT_SECRET) as {
+            sub?: string;
+            isGuest?: boolean;
+          };
+          if (decoded?.isGuest && decoded.sub) guestUserId = decoded.sub;
+        } catch {
+          // Expired/invalid/no guest cookie — fall through to a normal new account.
+        }
+      }
+
+      if (guestUserId) {
+        const guestUser = await UserModel.findById(guestUserId);
+        if (guestUser?.isGuest) {
+          guestUser.email = normalizedEmail;
+          guestUser.firstName = firstName;
+          guestUser.lastName = lastName;
+          // isGuest stays true and emailVerified stays false until they
+          // actually click the link and set a password (resetPassword
+          // flips both) — same trust bar as a brand-new signup, not an
+          // instant conversion just for submitting an email.
+          user = guestUser;
+        }
+      }
+
+      if (!user) {
+        try {
+          user = await UserModel.create({
+            _id: nanoid(),
+            email: normalizedEmail,
+            firstName,
+            lastName,
+            emailVerified: false,
+          });
+        } catch (err: any) {
+          // findOne + create aren't atomic — same TOCTOU as before, same fix.
+          if (err?.code === 11000) {
+            throw new BadRequestError(
+              "An account with this email already exists. Sign in instead.",
+            );
+          }
+          throw err;
+        }
+      }
     }
 
-    const token = await issueSession(req, user.id);
-    setAuthCookie(req, res, token);
-    req.login(user, (err) => {
-      if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
-      res.status(201).json({ user, token });
-    });
+    // The raw token only ever needs to exist in the emailed URL — storing
+    // it verbatim in Mongo means any DB read (backup, snapshot, breach)
+    // hands over a working account-takeover token. Store its hash instead,
+    // same pattern SessionModel.tokenHash already uses.
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = hashResetToken(resetToken);
+    user.resetPasswordExpires = new Date(Date.now() + 3_600_000);
+    await user.save();
+    // Fire-and-forget — don't block the response on external email
+    // delivery (same reasoning as the new-login alert below: a slow or
+    // unreachable SMTP/Resend endpoint shouldn't turn into a slow or
+    // failed signup response).
+    import("../email")
+      .then(({ sendVerifyAccountEmail }) => sendVerifyAccountEmail(user!.email!, resetToken))
+      .catch(() => {});
+
+    // Test-only: the raw token only ever exists in the emailed link (the
+    // hash is what's stored) — the test suite has no inbox to read it
+    // from, so expose it here exactly like sendPasswordResetEmail already
+    // logs the real reset URL to the console as a "Dev/Test Helper".
+    // Gated strictly to NODE_ENV==="test", never development/production.
+    if (config.NODE_ENV === "test") {
+      return res.status(200).json({ ...genericResponse, _devToken: resetToken });
+    }
+    res.status(200).json(genericResponse);
   } catch (error) {
     next(error);
   }
@@ -156,6 +213,11 @@ export const guestSignin = async (req: Request, res: Response, next: NextFunctio
       firstName: "Guest",
       lastName: "Traveler",
       isGuest: true,
+      // Stamped here too, not just on subsequent requests (requireAuth) —
+      // a guest who signs in and never makes another authenticated call
+      // needs a real baseline, or the purge query's lastSeenAt < cutoff
+      // would never match a document where the field was never set.
+      lastSeenAt: new Date(),
     });
 
     const token = await issueSession(req, user.id, { isGuest: true });
@@ -175,12 +237,32 @@ export const signin = async (req: Request, res: Response, next: NextFunction) =>
     const normalizedEmail = email.toLowerCase().trim();
     const user = await UserModel.findOne({ email: normalizedEmail });
 
-    // Return same error for both "not found" and "wrong password" — prevents user enumeration
-    const invalidCreds = () => {
-      throw new UnauthorizedError("Invalid credentials");
-    };
+    // Explicit product decision, not the previous default: this app
+    // deliberately reveals "no account exists" instead of a generic error.
+    // That's normally an anti-enumeration anti-pattern — here it's a
+    // trusted-circle app (friends/family) where the clarity ("you need to
+    // sign up with Google") matters more than hiding the email list from
+    // an attacker who'd have to already be probing this specific app.
+    if (!user) throw new UnauthorizedError("No account exists with this email.");
 
-    if (!user || !user.password) return invalidCreds();
+    // Same bucket for two real cases: a brand-new signup that never
+    // finished confirming (no password yet), and — because emailVerified
+    // defaults false on any document that predates this field — every
+    // account that already had a password before this verification
+    // requirement existed. Both get the same "confirm your email" gate
+    // and a fresh confirmation link, reusing signup's exact mechanism.
+    if (!user.password || !user.emailVerified) {
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      user.resetPasswordToken = hashResetToken(resetToken);
+      user.resetPasswordExpires = new Date(Date.now() + 3_600_000);
+      await user.save();
+      import("../email")
+        .then(({ sendVerifyAccountEmail }) => sendVerifyAccountEmail(user.email!, resetToken))
+        .catch(() => {});
+      throw new UnauthorizedError(
+        "Please confirm your email first — we've sent a new confirmation link.",
+      );
+    }
 
     if (user.lockUntil && user.lockUntil.getTime() > Date.now()) {
       throw new TooManyRequestsError("Account temporarily locked. Please try again later.");
@@ -196,7 +278,7 @@ export const signin = async (req: Request, res: Response, next: NextFunction) =>
         user.failedLoginAttempts = nextAttempts;
       }
       await user.save();
-      return invalidCreds();
+      throw new UnauthorizedError("Incorrect password.");
     }
 
     // Reset lockout on success
@@ -204,8 +286,27 @@ export const signin = async (req: Request, res: Response, next: NextFunction) =>
     if (user.lockUntil) user.lockUntil = undefined;
     await user.save();
 
+    // New-login alert: check BEFORE issuing this signin's own session row,
+    // otherwise it would always find itself and never fire. Only real
+    // password-based signins get this check (not signup/guest, which are
+    // an account's first session, not a new one alongside existing ones).
+    // ponytail: exact User-Agent match is a coarse "new device" signal — a
+    // browser version bump changes the UA string and can trigger a false
+    // alert. Upgrade path if that proves noisy: parse UA into
+    // browser+OS+device-class and compare that instead of the raw string.
+    const userAgent = req.headers["user-agent"] || "unknown device";
+    const isKnownDevice = user.email
+      ? await SessionModel.exists({ userId: user.id, userAgent, revoked: false })
+      : true;
+
     const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
+
+    if (!isKnownDevice && user.email) {
+      const { sendNewLoginAlertEmail } = await import("../email");
+      sendNewLoginAlertEmail(user.email, req.ip || "unknown", userAgent).catch(() => {});
+    }
+
     req.login(user, (err) => {
       if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
       res.json({ user, token });
@@ -296,6 +397,18 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     user.password = await hashPassword(password);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+    // Clicking the emailed link and setting a password IS the inbox-
+    // ownership proof — this endpoint is now also where a brand-new
+    // email/password signup completes (see signup below), reusing the
+    // exact same token mechanism instead of building a second one.
+    user.emailVerified = true;
+    // If this account was a guest mid-conversion (signup re-keyed the
+    // guest's own row onto the submitted email instead of creating a new
+    // one — see signup's comment), this is the moment it actually
+    // becomes a real account. A no-op for every other caller (a normal
+    // forgot-password reset on an already-real account), since isGuest
+    // is already false there.
+    user.isGuest = false;
     await user.save();
     // changePassword already revokes the old session on rotation — a
     // forgot-password reset is the same kind of credential rotation and
@@ -347,7 +460,18 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
   try {
     const { currentPassword, newPassword } = req.body;
     const user = await UserModel.findById(req.user!._id);
-    if (!user || !user.password) throw new UnauthorizedError("Invalid user or credentials");
+    if (!user) throw new UnauthorizedError("Invalid user or credentials");
+    if (!user.password) {
+      // A Google-only account has never had a password to change — the
+      // old generic "Invalid user or credentials" here read as a
+      // security refusal, not "there's nothing to compare against yet",
+      // and the client bug that swallowed this message entirely (fixed
+      // this session, see Profile.tsx) meant a Google user clicking
+      // "Update Password" always got an unexplained failure.
+      throw new BadRequestError(
+        "This account doesn't have a password yet — use 'Forgot password?' on the sign-in page to set one.",
+      );
+    }
     const isMatch = await comparePasswords(currentPassword, user.password);
     if (!isMatch) throw new UnauthorizedError("Incorrect current password");
     user.password = await hashPassword(newPassword);
@@ -381,6 +505,12 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 
 export const uploadAvatar = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Guest accounts can't upload an avatar — up to 5MB base64-in-Mongo
+    // per anonymous one-click account, zero demo value for a trial
+    // session (product/security review this session).
+    if (req.user?.isGuest) {
+      throw new ForbiddenError("Sign in with Google to set a profile photo.");
+    }
     // req.file only — a JSON-body `avatar` string fallback used to be
     // accepted here too, but it bypassed multer's imageFileFilter
     // (MIME/extension check) and 5MB size limit entirely, and neither real
@@ -493,40 +623,12 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
     // Previously only User + Session rows were removed — every trip, journal
     // entry, packing list, Atlas conversation, notification, and feedback
     // row the account owned was left behind permanently (a GDPR right-to-
-    // erasure gap, and orphaned data that could resurface elsewhere, e.g. a
-    // deleted user's old trip still matching a collaborator-list query). A
-    // first pass at this cascade matched exportUserData's model list, but
-    // that list itself was incomplete — MapPin, CrowdDensity, AgentJob, and
-    // TripSuggestion all carry a userId field too and were still orphaned.
+    // erasure gap, and orphaned data that could resurface elsewhere). Now
+    // shared with server/scripts/purgeGuests.ts via purgeUserData — see
+    // server/services/userPurge.ts for why this is one implementation, not
+    // two copies that could silently drift.
     const deletedUserId = req.user!._id;
-    await Promise.all([
-      TripModel.deleteMany({ userId: deletedUserId }),
-      JournalEntryModel.deleteMany({ userId: deletedUserId }),
-      PackingListModel.deleteMany({ userId: deletedUserId }),
-      PackingListTemplateModel.deleteMany({ userId: deletedUserId }),
-      AtlasConversationModel.deleteMany({ userId: deletedUserId }),
-      NotificationModel.deleteMany({ userId: deletedUserId }),
-      FeedbackModel.deleteMany({ userId: deletedUserId }),
-      SessionModel.deleteMany({ userId: deletedUserId }),
-      MapPinModel.deleteMany({ userId: deletedUserId }),
-      // CrowdDensityModel deliberately excluded — ICrowdDensity has no
-      // userId field at all (it's anonymous by design: lat/lng/density/
-      // timestamp/placeId/source only), so a userId-keyed delete against it
-      // was a permanent, silent no-op that misrepresented the data model.
-      AgentJob.deleteMany({ userId: deletedUserId }),
-      TripSuggestion.deleteMany({ userId: deletedUserId }),
-      UserMemoryModel.deleteMany({ userId: deletedUserId }),
-      // TripModel.deleteMany above only removes trips this account owned —
-      // a trip they were invited onto as a collaborator belongs to someone
-      // else and stays, but the deleted account's userId was lingering
-      // forever in that trip's collaborators array (a phantom participant
-      // other real collaborators would still see listed).
-      TripModel.updateMany(
-        { "collaborators.userId": deletedUserId },
-        { $pull: { collaborators: { userId: deletedUserId } } },
-      ),
-    ]);
-    await UserModel.findByIdAndDelete(deletedUserId);
+    await purgeUserData(deletedUserId);
     clearAuthCookie(res);
     req.session.destroy(() => res.json({ message: "Account deleted successfully" }));
   } catch (error) {

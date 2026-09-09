@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as toolsController from "../controllers/tools.controller";
 import { requireAuth } from "../middleware/auth";
 import { generationLimiter, aiLimiter } from "../middleware/rateLimit.middleware";
+import { guestGenerationQuota, guestAiQuota } from "../middleware/guestQuota.middleware";
 
 const router = Router();
 
@@ -164,7 +165,13 @@ router.get("/currency/history", toolsController.currencyHistory);
  *       200:
  *         description: Conversion result
  */
-router.get("/currency/convert", requireAuth, toolsController.convertCurrency);
+router.get(
+  "/currency/convert",
+  requireAuth,
+  aiLimiter,
+  guestAiQuota,
+  toolsController.convertCurrency,
+);
 
 /**
  * @swagger
@@ -286,7 +293,7 @@ router.get("/proxy-image", requireAuth, toolsController.proxyImage);
  *                 translatedText: { type: string }
  *                 pronunciation: { type: string }
  */
-router.post("/translate", requireAuth, aiLimiter, toolsController.translateText);
+router.post("/translate", requireAuth, aiLimiter, guestAiQuota, toolsController.translateText);
 
 /**
  * @swagger
@@ -300,7 +307,13 @@ router.post("/translate", requireAuth, aiLimiter, toolsController.translateText)
  *       200:
  *         description: Emergency data
  */
-router.get("/emergency", requireAuth, toolsController.getEmergencyContacts);
+router.get(
+  "/emergency",
+  requireAuth,
+  aiLimiter,
+  guestAiQuota,
+  toolsController.getEmergencyContacts,
+);
 
 /**
  * @swagger
@@ -326,7 +339,17 @@ router.get("/emergency", requireAuth, toolsController.getEmergencyContacts);
  *       200:
  *         description: Generated trip plan
  */
-router.post("/planTrip", requireAuth, generationLimiter, toolsController.planTrip);
+router.post(
+  "/planTrip",
+  requireAuth,
+  generationLimiter,
+  guestGenerationQuota,
+  toolsController.planTrip,
+);
+// No guestAiQuota — getProactiveInsights is pure heuristics over an
+// already-cached weather() result, no model call, so it doesn't spend
+// any of the guest's lifetime AI-message budget (review finding this
+// session: charging quota for a free endpoint).
 router.get("/proactive-insights", requireAuth, aiLimiter, toolsController.getProactiveInsights);
 
 export default router;

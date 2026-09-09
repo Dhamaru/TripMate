@@ -12,6 +12,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { imageFileFilter } from "../middleware/imageUpload";
+import {
+  guestJournalPhotoQuota,
+  guestJournalPhotoQuotaPostUpload,
+} from "../middleware/guestQuota.middleware";
 
 const router = Router();
 
@@ -35,13 +39,25 @@ const upload = multer({
 
 router.use(requireAuth);
 
-router.post("/journal", upload.array("photos", 10), createEntry);
+router.post(
+  "/journal",
+  guestJournalPhotoQuota,
+  upload.array("photos", 10),
+  guestJournalPhotoQuotaPostUpload,
+  createEntry,
+);
 router.get("/journal", getEntries);
 // Must be registered before /journal/:id, or Express would match "photo"
 // as the :id param.
 router.get("/journal/photo/:filename", getJournalPhoto);
 router.get("/journal/:id", getEntry);
-router.put("/journal/:id", upload.array("photos", 10), updateEntry);
+router.put(
+  "/journal/:id",
+  guestJournalPhotoQuota,
+  upload.array("photos", 10),
+  guestJournalPhotoQuotaPostUpload,
+  updateEntry,
+);
 router.delete("/journal/:id", deleteEntry);
 
 export default router;

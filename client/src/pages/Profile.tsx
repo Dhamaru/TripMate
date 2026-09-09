@@ -107,7 +107,13 @@ export default function Profile() {
     onError: (err: any) => {
       toast({
         title: "Error",
-        description: err.response?.data?.message || "Could not update password",
+        // client.ts's response interceptor already unwraps a failed
+        // request into a plain { message, code, statusCode } object —
+        // err.response doesn't exist on it, so err.response?.data?.message
+        // was always undefined and this always showed the generic
+        // fallback, hiding the real reason (wrong current password, no
+        // password set on a Google-only account, etc.) — live-reported.
+        description: err.message || "Could not update password",
         variant: "destructive",
       });
     },
@@ -126,7 +132,7 @@ export default function Profile() {
     onError: (err: any) => {
       toast({
         title: "Error",
-        description: err.response?.data?.message || "Could not delete account",
+        description: err.message || "Could not delete account",
         variant: "destructive",
       });
     },

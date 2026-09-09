@@ -21,6 +21,7 @@
     "test:e2e": "playwright test",
     "db:seed": "tsx server/scripts/seed.ts",
     "db:clear": "tsx server/scripts/clearDb.ts",
+    "guests:purge": "tsx server/scripts/purgeGuests.ts",
     "test:parser": "tsx client/src/lib/__tests__/runParserTests.ts",
     "atlas:golden-eval": "tsx scripts/atlas-golden-eval.ts",
     "prepare": "husky"

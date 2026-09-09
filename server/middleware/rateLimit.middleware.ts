@@ -1,5 +1,21 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { Request } from "express";
 import { config } from "../config";
+
+// A fresh guest identity costs one click (guestSignin has no email/
+// password/captcha) — keying a limiter on req.user._id for guests means
+// re-guesting resets the bucket for free, making the limiter meaningless
+// for exactly the population it most needs to bound. Real signed-in
+// users get a personal, per-account budget (so one office/campus NAT
+// doesn't force everyone behind it to share one bucket); guests get
+// bounded by IP instead, same as an anonymous/unauthenticated request
+// (security review finding this session — importPlanLimiter already had
+// the per-user-id half of this right, aiLimiter/generationLimiter had
+// neither).
+function guestAwareKeyGenerator(req: Request): string {
+  if (req.user?.isGuest) return ipKeyGenerator(req.ip || "unknown");
+  return req.user?._id || ipKeyGenerator(req.ip || "unknown");
+}
 
 const rateLimitResponse = (retryAfter: number) => ({
   success: false,
@@ -76,12 +92,14 @@ export const authLimiter = rateLimit({
 export const aiLimiter = rateLimit({
   windowMs: config.AI_RATE_LIMIT_WINDOW_MS ?? 60 * 1000,
   max: testMultiplier(config.AI_RATE_LIMIT_MAX ?? 20),
+  keyGenerator: guestAwareKeyGenerator,
   handler: (req, res) => res.status(429).json(rateLimitResponse(60)),
 });
 
 export const generationLimiter = rateLimit({
   windowMs: config.GENERATION_RATE_LIMIT_WINDOW_MS ?? 60 * 60 * 1000,
   max: testMultiplier(config.GENERATION_RATE_LIMIT_MAX ?? 5),
+  keyGenerator: guestAwareKeyGenerator,
   handler: (req, res) => res.status(429).json(rateLimitResponse(60 * 60)),
 });
 
@@ -112,13 +130,7 @@ export const importPlanLimiter = rateLimit({
   max: testMultiplier(3),
   standardHeaders: true,
   legacyHeaders: false,
-  // ipKeyGenerator normalizes an IPv6 address before it's used as a key —
-  // a raw one otherwise fails express-rate-limit's own validation
-  // (ERR_ERL_KEY_GEN_IPV6), since different IPv6 representations of the
-  // same address would silently bypass the limit. This route sits
-  // behind requireAuth, so req.user is normally present; the IP fallback
-  // only matters if that ever isn't true.
-  keyGenerator: (req) => req.user?._id || ipKeyGenerator(req.ip || "unknown"),
+  keyGenerator: guestAwareKeyGenerator,
   handler: (req, res) =>
     res.status(429).json({
       success: false,

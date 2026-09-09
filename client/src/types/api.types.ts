@@ -88,6 +88,7 @@ export interface ItineraryActivity {
   localFoodRecommendations?: string[];
   votes?: number;
   vibeSignals?: string[];
+  bookingRequired?: boolean;
   routeFromPrevious?: {
     distance_km: number;
     travel_time_minutes: number;

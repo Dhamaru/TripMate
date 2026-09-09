@@ -7,6 +7,7 @@ import { config } from "../config";
 import OpenAI from "openai";
 import { dispatchTool } from "../agent/tools/executor";
 import { consumePendingAction } from "../agent/pendingActions";
+import { checkGuestAiQuota } from "../middleware/guestQuota.middleware";
 
 // OpenAI configuration is now handled natively within `agentLoop.ts`
 const emptyOpenai = null;
@@ -97,6 +98,19 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
     res.setHeader("X-Accel-Buffering", "no");
     req.socket.setNoDelay(true);
     res.flushHeaders();
+
+    // Guest lifetime AI-call cap. Must run after flushHeaders — a plain
+    // 402 status here is invisible to EventSource (it can't read a
+    // non-200 body), so the rejection is sent as a real SSE event
+    // instead, matching what the client's onmessage handler already
+    // parses everywhere else on this stream.
+    if (req.user?.isGuest) {
+      const quotaError = await checkGuestAiQuota(String(userId));
+      if (quotaError) {
+        res.write(`data: ${JSON.stringify({ type: "error", ...quotaError })}\n\n`);
+        return res.end();
+      }
+    }
 
     const tripIdStr = (tripId || req.query.currentTripId) as string;
     const messageStr = message as string;

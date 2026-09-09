@@ -263,15 +263,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {/* Right: notifications + user */}
           <div className="flex items-center gap-3">
             <NotificationBell />
+            {/* Product-review finding: this whole block was hidden below
+                md, so a guest on mobile — the device most guests would
+                actually use — had zero indication anywhere that their
+                session was temporary. The GUEST tag now renders at every
+                width; only the name/"Trial" text stays desktop-only. */}
             <Link href="/app/profile">
               <div className="flex items-center gap-3 cursor-pointer group">
+                {user?.isGuest && (
+                  <span className="bg-[var(--amber-dim)] text-[var(--amber)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
+                    GUEST
+                  </span>
+                )}
                 <div className="hidden md:flex flex-col items-end">
                   <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--amber)] transition-colors flex items-center gap-1.5 font-sans-clean">
-                    {user?.isGuest && (
-                      <span className="bg-[var(--amber-dim)] text-[var(--amber)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
-                        GUEST
-                      </span>
-                    )}
                     {user?.firstName} {user?.lastName}
                   </span>
                   <span className="label-xs text-[hsl(var(--muted-foreground))]">

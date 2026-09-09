@@ -1,55 +1,56 @@
 /** @vitest-environment node */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import request from 'supertest'
-import { app } from '../../server/index'
-import { connectDB, closeDB, clearDB } from '../helpers/db'
-import { createUser, createTrip, createJournalEntry } from '../helpers/factories'
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import request from "supertest";
+import { app } from "../../server/index";
+import { connectDB, closeDB, clearDB } from "../helpers/db";
+import { createUser, createTrip, createJournalEntry } from "../helpers/factories";
+import { signupAndLogin } from "../helpers/auth";
 
-describe('Journal API', () => {
-  let token: string
-  let userId: string
-  let tripId: string
+describe("Journal API", () => {
+  let token: string;
+  let userId: string;
+  let tripId: string;
 
-  beforeAll(async () => await connectDB())
-  afterAll(async () => await closeDB())
+  beforeAll(async () => await connectDB());
+  afterAll(async () => await closeDB());
 
   beforeEach(async () => {
-    await clearDB()
-    const userData = createUser()
-    const signupRes = await request(app).post('/api/v1/auth/signup').send(userData)
-    token = signupRes.body.token
-    userId = signupRes.body.user.id
+    await clearDB();
+    const userData = createUser();
+    const auth = await signupAndLogin(app, userData);
+    token = auth.token;
+    userId = auth.user.id;
 
     const tripRes = await request(app)
-      .post('/api/v1/trips')
-      .set('Authorization', `Bearer ${token}`)
-      .send(createTrip(userId))
-    tripId = tripRes.body.id
-  })
+      .post("/api/v1/trips")
+      .set("Authorization", `Bearer ${token}`)
+      .send(createTrip(userId));
+    tripId = tripRes.body.id;
+  });
 
-  it('should create a journey entry', async () => {
+  it("should create a journey entry", async () => {
     // journal.routes.ts defines /journal (not /trips/:id/journal) —
     // tripId travels in the body.
     const res = await request(app)
-      .post('/api/v1/journal')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ tripId, title: 'First Day in Tokyo', content: 'Beautiful sunset.' })
+      .post("/api/v1/journal")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ tripId, title: "First Day in Tokyo", content: "Beautiful sunset." });
 
-    expect(res.status).toBe(201)
-    expect(res.body.title).toBe('First Day in Tokyo')
-  })
+    expect(res.status).toBe(201);
+    expect(res.body.title).toBe("First Day in Tokyo");
+  });
 
-  it('should list all entries for a trip', async () => {
+  it("should list all entries for a trip", async () => {
     await request(app)
-      .post('/api/v1/journal')
-      .set('Authorization', `Bearer ${token}`)
-      .send(createJournalEntry(tripId, { title: 'Day 1' }))
+      .post("/api/v1/journal")
+      .set("Authorization", `Bearer ${token}`)
+      .send(createJournalEntry(tripId, { title: "Day 1" }));
 
     const res = await request(app)
       .get(`/api/v1/journal?tripId=${tripId}`)
-      .set('Authorization', `Bearer ${token}`)
+      .set("Authorization", `Bearer ${token}`);
 
-    expect(res.status).toBe(200)
-    expect(res.body.length).toBeGreaterThan(0)
-  })
-})
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+});
