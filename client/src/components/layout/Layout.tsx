@@ -70,6 +70,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // instead of a collapsed group with no active-state visible at all).
   const [toolsOpen, setToolsOpen] = useState(isOnToolRoute);
 
+  // The skip link only becomes visible after a real Tab press. Browsers
+  // (especially an installed PWA on launch) put focus on the first
+  // focusable element programmatically, which was painting the skip link
+  // over the logo even with :focus-visible.
+  const [kbdNav, setKbdNav] = useState(false);
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        setKbdNav(true);
+        window.removeEventListener("keydown", onKey);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Skip link — UX-audit finding: keyboard/screen-reader users had no
@@ -77,16 +93,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           walk through Home/Trips/Journal/Tools/Feedback before reaching
           content. Visually hidden until focused, first element in the
           DOM so it's always the first Tab stop. */}
-      <a
-        href="#main-content"
-        // focus-visible, not focus: on PWA/app launch the browser can put
-        // programmatic focus on the first focusable element — with plain
-        // `focus:` that painted the skip link right on top of the logo.
-        // Also nudged clear of the logo bar.
-        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-1/2 focus-visible:-translate-x-1/2 focus-visible:z-[120] focus-visible:rounded-lg focus-visible:bg-[var(--amber)] focus-visible:text-white focus-visible:px-4 focus-visible:py-2 focus-visible:text-sm focus-visible:font-semibold focus-visible:shadow-lg"
-      >
-        Skip to content
-      </a>
+      {kbdNav && (
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-1/2 focus:-translate-x-1/2 focus:z-[120] focus:rounded-lg focus:bg-[var(--amber)] focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:shadow-lg"
+        >
+          Skip to content
+        </a>
+      )}
 
       {/* Offline banner — UX-audit finding: previously nothing detected
           offline at all; the app just spun forever then bounced to
