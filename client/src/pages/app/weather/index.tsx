@@ -272,7 +272,7 @@ export default function WeatherPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">Weather Insights</h1>
         <p className="text-muted-foreground text-sm mt-0.5">
@@ -280,7 +280,7 @@ export default function WeatherPage() {
         </p>
       </div>
 
-      <div className="bg-card rounded-2xl border border p-4 max-w-2xl">
+      <div className="bg-card rounded-2xl border border p-4">
         <div className="flex gap-2">
           <Input
             aria-label="Search location"
