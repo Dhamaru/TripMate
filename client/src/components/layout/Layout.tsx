@@ -69,6 +69,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // directly, e.g. from a bookmark, and the sidebar shows where you are
   // instead of a collapsed group with no active-state visible at all).
   const [toolsOpen, setToolsOpen] = useState(isOnToolRoute);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   // The skip link only becomes visible after a real Tab press. Browsers
   // (especially an installed PWA on launch) put focus on the first
@@ -476,38 +477,97 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </AnimatePresence>
         </main>
 
+        {/* Mobile tools sheet — the bottom nav has no room for an inline
+            submenu, so tapping Tools opens this list instead of jumping
+            straight to one tool. */}
+        <AnimatePresence>
+          {mobileToolsOpen && (
+            <>
+              <motion.div
+                className="md:hidden fixed inset-0 z-[55] bg-black/40"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setMobileToolsOpen(false)}
+              />
+              <motion.div
+                className="md:hidden fixed bottom-[84px] left-3 right-3 z-[56] bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.4)] p-2"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 16 }}
+              >
+                {TOOL_ITEMS.map((tool) => {
+                  const active = location === tool.href || location.startsWith(tool.href + "/");
+                  return (
+                    <Link
+                      key={tool.href}
+                      href={tool.href}
+                      onClick={() => setMobileToolsOpen(false)}
+                    >
+                      <div
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium",
+                          active
+                            ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                            : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
+                        )}
+                      >
+                        <tool.icon className="h-[18px] w-[18px] flex-shrink-0" />
+                        {tool.label}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50">
           <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.35)] px-1 py-1.5 flex items-center justify-around">
             {NAV_ITEMS.map((item) => {
-              // Tools has no route of its own (sidebar dropdown, desktop
-              // only) — the bottom nav has no room for a submenu, so it
-              // links straight to the first tool, same fallback the
-              // collapsed desktop sidebar uses.
-              const href = item.href ?? item.children![0].href;
               const isActive =
                 item.children != null
                   ? isOnToolRoute
-                  : location === href || location.startsWith(href + "/");
-              return (
-                <Link key={item.label} href={href} className="flex-1">
-                  <div
-                    aria-current={isActive ? "page" : undefined}
+                  : location === item.href || location.startsWith(item.href + "/");
+
+              const inner = (
+                <div
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all duration-150",
+                    isActive
+                      ? "text-[var(--ink-blue)]"
+                      : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))]",
+                  )}
+                >
+                  <item.icon
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all duration-150",
-                      isActive
-                        ? "text-[var(--ink-blue)]"
-                        : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))]",
+                      "h-[18px] w-[18px]",
+                      isActive && "drop-shadow-[0_0_6px_rgb(var(--ink-blue-rgb)/0.6)]",
                     )}
+                  />
+                  <span className="label-xs">{item.label}</span>
+                </div>
+              );
+
+              if (item.children) {
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className="flex-1"
+                    aria-expanded={mobileToolsOpen}
+                    onClick={() => setMobileToolsOpen((v) => !v)}
                   >
-                    <item.icon
-                      className={cn(
-                        "h-[18px] w-[18px]",
-                        isActive && "drop-shadow-[0_0_6px_rgb(var(--ink-blue-rgb)/0.6)]",
-                      )}
-                    />
-                    <span className="label-xs">{item.label}</span>
-                  </div>
+                    {inner}
+                  </button>
+                );
+              }
+              return (
+                <Link key={item.label} href={item.href!} className="flex-1">
+                  {inner}
                 </Link>
               );
             })}

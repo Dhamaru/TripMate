@@ -454,17 +454,28 @@
   }
 }
 
-/* ── Leaflet map attribution clearance ───────────────────
-   The Maps page's map canvas fills to the container's bottom edge, but the
-   fixed mobile bottom nav (Layout.tsx) overlays that same zone — Leaflet's
-   default bottom-left attribution control rendered underneath/behind the
-   nav bar at mobile widths, invisible and layered wrong. Push it up above
-   the nav's real footprint (bottom-3 offset + ~64px bar height) on mobile;
-   desktop/tablet have no bottom nav so no clearance is needed there. */
+/* ── Leaflet map attribution ─────────────────────────────
+   Only the full-bleed Offline Maps page needs its bottom controls pushed
+   above the fixed mobile bottom nav — this used to be a GLOBAL rule, which
+   also shoved the attribution 84px up INTO the content of the smaller
+   in-card map on the Trip Detail page. Scoped to .offline-maps-root now. */
 @media (max-width: 767px) {
-  .leaflet-bottom {
+  .offline-maps-root .leaflet-bottom {
     bottom: 84px !important;
   }
+}
+/* Keep the attribution compact + tucked into the corner on every map —
+   the default renders as a wide bar that eats a small in-card map. */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  line-height: 1.3 !important;
+  padding: 1px 5px !important;
+  background: hsl(var(--card) / 0.82) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  max-width: 60vw;
+}
+.leaflet-control-attribution a {
+  color: hsl(var(--muted-foreground)) !important;
 }
 
 /* ── Scrollbar ────────────────────────────────────────── */

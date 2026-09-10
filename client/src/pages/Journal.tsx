@@ -369,8 +369,8 @@ export default function Journal() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Travel Journal</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             Capture your travel memories and experiences

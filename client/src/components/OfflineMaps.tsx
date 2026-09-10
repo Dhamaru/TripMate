@@ -974,7 +974,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   }
 
   return (
-    <div className={`relative h-full w-full flex flex-col overflow-hidden ${className}`}>
+    <div className={`offline-maps-root relative h-full w-full flex flex-col overflow-hidden ${className}`}>
       {/* Slim top bar — tabs + offline/dark-mode state, not a full page header */}
       <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card">
         <div className="flex space-x-1 bg-muted p-1 rounded-xl">
