@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 interface TripMateLogoProps {
   size?: 'sm' | 'md' | 'lg';
   showText?: boolean;
@@ -5,6 +7,12 @@ interface TripMateLogoProps {
 }
 
 export function TripMateLogo({ size = 'md', showText = true, className = '' }: TripMateLogoProps) {
+  // Unique per instance — an SVG gradient id is document-global, so two
+  // logos on the same page (e.g. Landing's header + footer) would otherwise
+  // collide and the second instance would silently render the first one's
+  // (possibly stale, possibly about-to-unmount) gradient.
+  const gradientId = `tripmate-logo-gradient-${useId()}`;
+
   const sizeClasses = {
     sm: 'w-6 h-6',
     md: 'w-8 h-8',
@@ -20,12 +28,19 @@ export function TripMateLogo({ size = 'md', showText = true, className = '' }: T
   return (
     <div className={`flex items-center space-x-2 ${className}`}>
       <div className={`${sizeClasses[size]} relative flex items-center justify-center`}>
-        {/* Orange rounded square + white paper-plane — matches the favicon
-            and the PWA app icons (client/public/pwa-*.png) so the tab icon,
-            the installed-app icon and this in-app mark are one identity. */}
+        {/* Same gradient-arrow mark used for the favicon and the Atlas chat
+            trigger — one consistent identity across the app instead of three
+            different logo designs (this, a plain "T" square, and the
+            favicon). */}
         <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <rect x="6" y="6" width="88" height="88" rx="22" fill="#c2410c" />
-          <path d="M20 80 L80 50 L20 20 L33 50 Z" fill="white" />
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1E3A8A" />
+              <stop offset="100%" stopColor="#F59E0B" />
+            </linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="50" fill={`url(#${gradientId})`} />
+          <path d="M30 35 L70 50 L30 65 L35 50 Z" fill="white" />
         </svg>
       </div>
       {showText && (
