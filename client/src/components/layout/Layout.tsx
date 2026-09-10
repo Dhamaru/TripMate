@@ -504,11 +504,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 onClick={() => setMobileToolsOpen(false)}
               />
               <motion.div
-                className="md:hidden fixed bottom-[84px] left-3 right-3 z-[56] bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.4)] p-2"
-                initial={{ opacity: 0, y: 16 }}
+                className="md:hidden fixed bottom-0 left-0 right-0 z-[56] bg-[hsl(var(--card))] border-t border-[hsl(var(--border))] rounded-t-2xl shadow-[0_-4px_32px_rgba(0,0,0,0.45)] px-3 pt-2 pb-[92px]"
+                initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 16 }}
+                exit={{ opacity: 0, y: 24 }}
               >
+                <div className="mx-auto mb-1 h-1 w-9 rounded-full bg-[hsl(var(--border))]" />
+                <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">
+                  Tools
+                </div>
                 {TOOL_ITEMS.map((tool) => {
                   const active = location === tool.href || location.startsWith(tool.href + "/");
                   return (
@@ -537,7 +541,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50">
+        <nav className="md:hidden fixed bottom-3 left-3 right-3 z-[57]">
           <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.35)] px-1 py-1.5 flex items-center justify-around">
             {NAV_ITEMS.map((item) => {
               const isActive =
