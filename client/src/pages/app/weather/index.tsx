@@ -311,7 +311,7 @@ export default function WeatherPage() {
               }
             }}
             placeholder="Search location (e.g., Goa, Tokyo)"
-            className="flex-1 min-w-0 bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
+            className="flex-1 min-w-0 bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[hsl(var(--ring))]"
             data-testid="input-weather-location"
           />
           <Button

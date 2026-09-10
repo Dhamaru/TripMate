@@ -203,44 +203,14 @@
   --ios-card: rgba(247, 240, 221, 0.85);
 }
 
-/* keep old .dark class working for existing toggle */
+/* `:root` already carries the full dark palette (dark is the default; `.light`
+   is the override). `.dark` exists only for the explicit toggle and must NOT
+   redefine the surface ramp — it previously pinned the pre-2026-09-08 flat
+   ramp (background 11% -> border 22%) and, since ThemeProvider always writes
+   `.dark` to <html>, that override silently shadowed the rebuilt `:root` ramp
+   above on every load. Keep this to `color-scheme` only; inherit the rest. */
 .dark {
   color-scheme: dark;
-  --background: 211 46% 11%;
-  --foreground: 38 25% 88%;
-  --card: 211 40% 15%;
-  --card-foreground: 38 25% 88%;
-  --popover: 211 40% 13%;
-  --popover-foreground: 38 25% 88%;
-  --primary: 211 68% 27%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 211 30% 18%;
-  --secondary-foreground: 38 20% 80%;
-  --muted: 211 30% 16%;
-  --muted-foreground: 210 14% 58%;
-  --accent: 211 30% 18%;
-  --accent-foreground: 38 20% 80%;
-  --destructive: 0 72% 45%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 211 24% 22%;
-  --input: 211 24% 19%;
-  --ring: 211 68% 27%;
-  --sidebar: 211 48% 9%;
-  --sidebar-foreground: 38 25% 88%;
-  --sidebar-primary: 211 68% 27%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 211 30% 16%;
-  --sidebar-accent-foreground: 38 20% 80%;
-  --sidebar-border: 211 24% 19%;
-  --sidebar-ring: 211 68% 27%;
-  --airbnb-ink: hsl(38, 25%, 88%);
-  --airbnb-canvas: hsl(211, 40%, 15%);
-  --airbnb-surface: hsl(211, 30%, 16%);
-  --airbnb-muted: hsl(210, 14%, 58%);
-  --airbnb-hairline: hsl(211, 24%, 22%);
-  --airbnb-hairline-soft: hsl(211, 24%, 22%);
-  --airbnb-body: hsl(38, 25%, 88%);
-  --ios-card: rgba(19, 33, 53, 0.92);
 }
 
 /* ── Base Styles ──────────────────────────────────────── */

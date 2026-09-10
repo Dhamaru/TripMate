@@ -261,18 +261,30 @@ export const toggleVote = async (req: Request, res: Response, next: NextFunction
       if (!activity)
         throw new NotFoundError("Trip not found, day/activity not found, or access denied");
 
-      const userVotes: Record<string, 1 | -1> = { ...(activity.userVotes || {}) };
-      const previous = userVotes[userId] || 0;
+      // `userId` is a raw email for Google-signup accounts (User._id = email).
+      // A `.` in a Mongo update path means nesting, so the old
+      // `...userVotes.${userId}` dynamic path wrote `userVotes: {a@gmail:{com:1}}`
+      // and the flat-key read below never matched — `previous` was always 0,
+      // so every click moved the count by ±1 with no cap, for every Google
+      // user. Key the map on a dot-free base64url token instead, rebuild the
+      // whole `userVotes` object in JS, and $set it wholesale (no dynamic path
+      // segment). Legacy malformed (nested) entries are dropped on the way
+      // through; `votes` is recomputed from the map so it self-heals.
+      const voteKey = Buffer.from(userId).toString("base64url");
+      const userVotes: Record<string, 1 | -1> = {};
+      for (const [k, v] of Object.entries(activity.userVotes || {})) {
+        if (v === 1 || v === -1) userVotes[k] = v;
+      }
+      const previous = userVotes[voteKey] || 0;
       if (previous === desired) {
         // No-op — already in the desired state. Nothing to write.
         const trip = await TripModel.findById(tripId);
         res.json(trip);
         return;
       }
-      if (desired === 0) delete userVotes[userId];
-      else userVotes[userId] = desired;
+      if (desired === 0) delete userVotes[voteKey];
+      else userVotes[voteKey] = desired;
 
-      const delta = desired - previous;
       const upCount = Object.values(userVotes).filter((v) => v === 1).length;
       const downCount = Object.values(userVotes).filter((v) => v === -1).length;
       const vibeSignals = [
@@ -280,20 +292,16 @@ export const toggleVote = async (req: Request, res: Response, next: NextFunction
         ...Array(downCount).fill("Low Vibe"),
       ];
 
-      const userVotePath = `itinerary.$[day].activities.$[act].userVotes.${userId}`;
-      const mongoUpdate: Record<string, unknown> = {
-        $inc: { "itinerary.$[day].activities.$[act].votes": delta },
-        $set: { "itinerary.$[day].activities.$[act].vibeSignals": vibeSignals },
-      };
-      if (desired === 0) {
-        mongoUpdate.$unset = { [userVotePath]: "" };
-      } else {
-        (mongoUpdate.$set as Record<string, unknown>)[userVotePath] = desired;
-      }
-
+      const base = "itinerary.$[day].activities.$[act]";
       const trip = await TripModel.findOneAndUpdate(
         { ...accessFilter, updatedAt: current.updatedAt },
-        mongoUpdate,
+        {
+          $set: {
+            [`${base}.votes`]: upCount - downCount,
+            [`${base}.vibeSignals`]: vibeSignals,
+            [`${base}.userVotes`]: userVotes,
+          },
+        },
         { new: true, arrayFilters: [{ "day.dayIndex": dayIndex }, { "act.id": activityId }] },
       );
 

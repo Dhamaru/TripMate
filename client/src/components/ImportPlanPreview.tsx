@@ -124,7 +124,7 @@ function DayCard({ day, defaultOpen }: { day: any; defaultOpen: boolean }) {
               )}
             </div>
             {day.departureReminder && (
-              <div className="mt-3 rounded-lg border border-[var(--ios-red)]/40 bg-[rgb(var(--ios-red-rgb)/10%)] px-3 py-2.5 flex items-start gap-2">
+              <div className="mt-3 rounded-lg border border-[rgb(var(--ios-red-rgb)/40%)] bg-[rgb(var(--ios-red-rgb)/10%)] px-3 py-2.5 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-[var(--ios-red)] shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <p className="font-semibold text-foreground">

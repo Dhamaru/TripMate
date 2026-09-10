@@ -809,15 +809,36 @@ export const insertFeedbackSchema = z.object({
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
 export type Feedback = IFeedback;
 
+// Single source of truth for notification types — imported by the server
+// trigger sites AND the client's mute-settings UI so the two can't drift.
+export const NOTIFICATION_TYPES = [
+  { value: "collaborator-invite", label: "Added to a trip" },
+  { value: "collaborator-removed", label: "Removed from a trip" },
+  { value: "itinerary-updated", label: "Itinerary changes" },
+  { value: "expense-updated", label: "Expense changes" },
+  { value: "packing-updated", label: "Packing list changes" },
+  { value: "journal-updated", label: "Journal entries" },
+  { value: "recap-generated", label: "Trip recaps" },
+  { value: "trip-updated", label: "Trip detail changes" },
+  { value: "trip-reminder", label: "Trip reminders" },
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number]["value"];
+
 export interface INotification extends Document {
   userId: string;
-  type: string; // "collaborator-invite" | "trip-mutation" | ...
+  type: string;
   title: string;
   message: string;
   link?: string;
   tripId?: string;
+  actorName?: string; // display name of whoever caused the event
+  groupKey?: string; // `${type}:${tripId}` — collapses a burst into one row
+  count?: number; // how many events this row represents (>=1)
   read: boolean;
+  readAt?: Date;
+  expiresAt?: Date; // TTL — auto-purged, see index below
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const notificationSchema = new Schema<INotification>(
@@ -828,7 +849,12 @@ const notificationSchema = new Schema<INotification>(
     message: { type: String, required: true },
     link: { type: String },
     tripId: { type: String },
+    actorName: { type: String },
+    groupKey: { type: String },
+    count: { type: Number, default: 1 },
     read: { type: Boolean, default: false, index: true },
+    readAt: { type: Date },
+    expiresAt: { type: Date },
   },
   { timestamps: true, toJSON: baseToJSON, versionKey: false },
 );
@@ -837,6 +863,10 @@ const notificationSchema = new Schema<INotification>(
 // the bell popover list) — a compound index makes that a covered index
 // scan instead of intersecting the two individual indexes above.
 notificationSchema.index({ userId: 1, read: 1 });
+// Grouping lookup: find the recent un-read row for this type+trip to bump.
+notificationSchema.index({ userId: 1, groupKey: 1, read: 1, createdAt: -1 });
+// TTL — Mongo purges rows once expiresAt passes (notifyUser sets it +90d).
+notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const NotificationModel: Model<INotification> = mongoose.model<INotification>(
   "Notification",

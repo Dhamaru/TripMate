@@ -115,7 +115,7 @@ export function TripCard({
 
   return (
     <div
-      className="group rounded-2xl overflow-hidden cursor-pointer bg-card border border-border shadow-[var(--shadow-card)] transition-colors duration-200 hover:border-[var(--ink-blue)]/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ink-blue)] focus-visible:outline-offset-2"
+      className="group rounded-2xl overflow-hidden cursor-pointer bg-card border border-border shadow-[var(--shadow-card)] transition-colors duration-200 hover:border-[rgb(var(--ink-blue-bright-rgb)/55%)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ink-blue)] focus-visible:outline-offset-2"
       onClick={goToTrip}
       role="link"
       tabIndex={0}

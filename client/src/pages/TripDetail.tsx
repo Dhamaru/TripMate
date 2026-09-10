@@ -76,7 +76,8 @@ export default function TripDetail() {
   const getWeatherIcon = (condition: string) => {
     const c = (condition || "").toLowerCase();
     if (c.includes("clear") || c.includes("sun")) return "fas fa-sun text-amber-500";
-    if (c.includes("rain") || c.includes("drizzle")) return "fas fa-cloud-rain text-[var(--customs-blue)]";
+    if (c.includes("rain") || c.includes("drizzle"))
+      return "fas fa-cloud-rain text-[var(--customs-blue)]";
     if (c.includes("snow")) return "fas fa-snowflake text-blue-200";
     if (c.includes("storm") || c.includes("thunder")) return "fas fa-bolt text-purple-400";
     return "fas fa-cloud text-muted-foreground";
@@ -1005,7 +1006,9 @@ export default function TripDetail() {
                 </Button>
               )}
               <Link href="/">
-                <Button className="bg-[var(--customs-blue-deep)] hover:bg-[var(--ink-blue-fill)]">Go Back Home</Button>
+                <Button className="bg-[var(--customs-blue-deep)] hover:bg-[var(--ink-blue-fill)]">
+                  Go Back Home
+                </Button>
               </Link>
             </div>
           </CardContent>
@@ -1151,7 +1154,9 @@ export default function TripDetail() {
                       className="w-1.5 h-1.5 bg-[var(--customs-blue-deep)] rounded-full"
                     />
                   </div>
-                  <span className="text-xs font-medium text-[var(--customs-blue)]">Atlas is thinking...</span>
+                  <span className="text-xs font-medium text-[var(--customs-blue)]">
+                    Atlas is thinking...
+                  </span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1588,7 +1593,7 @@ export default function TripDetail() {
                   .sort((x, y) => (x.mins as number) - (y.mins as number));
                 const nextUp = upcoming[0]?.a;
                 return (
-                  <Card className="bg-card border-[var(--transit-green)]/40 border-2">
+                  <Card className="bg-card border-[rgb(var(--transit-green-rgb)/40%)] border-2">
                     <CardHeader>
                       <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
                         <span className="stamp text-[10px] text-[var(--forest)]">Today</span>

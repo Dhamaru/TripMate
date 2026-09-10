@@ -179,7 +179,7 @@ export default function EmergencyPage() {
               }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="Search location (e.g., Goa, Mumbai, Tokyo)"
-              className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
+              className="bg-muted border text-foreground placeholder:text-muted-foreground focus-visible:ring-[hsl(var(--ring))]"
               data-testid="input-emergency-location"
             />
             <PlaceSearchDropdown

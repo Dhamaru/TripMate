@@ -406,7 +406,7 @@ export default function Journal() {
                   value={entryForm.title}
                   onChange={(e) => setEntryForm((prev) => ({ ...prev, title: e.target.value }))}
                   placeholder="Enter a title for your journal entry"
-                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground focus-visible:ring-[var(--ring)]/30"
+                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground focus-visible:ring-[hsl(var(--ring))]"
                   required
                   data-testid="input-title"
                 />
@@ -457,7 +457,7 @@ export default function Journal() {
                   value={entryForm.content}
                   onChange={(e) => setEntryForm((prev) => ({ ...prev, content: e.target.value }))}
                   placeholder="Share your travel experience, thoughts, and memories…"
-                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[140px] focus-visible:ring-[var(--ring)]/30"
+                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[140px] focus-visible:ring-[hsl(var(--ring))]"
                   required
                   data-testid="textarea-content"
                 />

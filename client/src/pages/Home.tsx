@@ -562,7 +562,7 @@ export default function Home() {
                       `anything time-sensitive, and how my budget and packing are looking.`,
                   );
                 }}
-                className="mt-2 w-full flex items-center gap-2 rounded-lg bg-[rgb(var(--ink-blue-rgb)/8%)] border border-[var(--ink-blue-bright)]/30 px-3 py-2.5 text-xs font-semibold text-[var(--ink-blue-bright)] font-sans-clean hover:bg-[rgb(var(--ink-blue-rgb)/14%)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
+                className="mt-2 w-full flex items-center gap-2 rounded-lg bg-[rgb(var(--ink-blue-rgb)/8%)] border border-[rgb(var(--ink-blue-bright-rgb)/30%)] px-3 py-2.5 text-xs font-semibold text-[var(--ink-blue-bright)] font-sans-clean hover:bg-[rgb(var(--ink-blue-rgb)/14%)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
               >
                 <Bot className="w-4 h-4" aria-hidden="true" />
                 Ask Atlas about this trip
@@ -593,7 +593,7 @@ export default function Home() {
                 <Link
                   key={t.id}
                   href={`/app/trips/${t.id}`}
-                  className="group rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden shadow-[var(--shadow-card)] hover:border-[var(--ink-blue-bright)]/50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
+                  className="group rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden shadow-[var(--shadow-card)] hover:border-[rgb(var(--ink-blue-bright-rgb)/50%)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
                 >
                   <div className="relative h-32 bg-[hsl(var(--muted))]">
                     {t.imageUrl ? (

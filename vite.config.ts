@@ -63,13 +63,15 @@ export default defineConfig({
             },
           },
           {
-            // CARTO basemap tiles. CacheFirst so any tile already fetched
-            // (either opportunistically while browsing, or via the explicit
+            // OpenStreetMap raster tiles. CacheFirst so any tile already
+            // fetched (opportunistically while browsing, or via the explicit
             // "Download for offline" flow in OfflineMaps.tsx, which writes
-            // into this exact cache name) is served offline without a
-            // network round-trip. cacheName must match TILE_CACHE_NAME in
-            // client/src/lib/offlineTiles.ts.
-            urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
+            // into this exact cache name) is served offline without a network
+            // round-trip. cacheName must match TILE_CACHE_NAME in
+            // client/src/lib/offlineTiles.ts, and the host must match the
+            // tile layers in OfflineMaps.tsx / TripMap.tsx / offlineTiles.ts
+            // (all `tile.openstreetmap.org` since the CartoDB migration).
+            urlPattern: /^https:\/\/tile\.openstreetmap\.org\/.*/i,
             handler: "CacheFirst",
             options: {
               cacheName: "map-tiles-cache",
