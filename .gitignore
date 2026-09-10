@@ -32,3 +32,4 @@ android.keystore
 
 # Tauri desktop wrapper — generated project is gitignored
 desktop/tripmate-desktop/
+desktop/.updater-secret

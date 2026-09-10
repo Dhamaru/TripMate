@@ -1,98 +1,102 @@
-# TripMate → frameless desktop app (Tauri, free)
+# TripMate → desktop app (Tauri, free)
 
-Wraps the deployed site (`https://tripmate-ylt6.onrender.com`) in a real
-native window — **no address bar, no ⋮ menu, no Chrome frame**. Produces a
-Windows `.exe` / `.msi` (and `.dmg` / `.AppImage` if you build on those
-OSes). Free. First launch shows a one-time "unknown publisher" warning
-(click "More info → Run anyway"); killing that needs a paid code-signing
-cert and is optional.
+Wraps the deployed site (`https://tripmate-ylt6.onrender.com`) in a native
+window — no URL bar, no tabs, no ⋮ menu, no extensions. Normal OS title bar
+(drag / minimize / maximize / resize / snap). Ships a Windows
+`.exe` installer with a built-in **auto-updater**. First launch shows a
+one-time "unknown publisher" warning (More info → Run anyway) — removing
+that needs a paid code-signing cert, optional.
 
-## 1. Install Rust (one time, free)
+## 1. Rust (one time)
 
-Windows: download and run <https://rustup.rs> → `rustup-init.exe` →
-accept the defaults. Reopen PowerShell after.
+<https://rustup.rs> → `rustup-init.exe` → accept defaults, reopen the
+shell. Needs the MS C++ Build Tools ("Desktop development with C++" in the
+Visual Studio Installer) — rustup prompts.
 
-```powershell
-rustc --version   # should print a version
-```
+`~/.cargo/bin` is not on PATH in non-interactive shells; prepend it there.
 
-You also need the **Microsoft C++ Build Tools** — rustup prompts for this;
-if not, get "Desktop development with C++" from the Visual Studio
-Installer.
-
-## 2. Create the Tauri project
-
-From the repo root:
+## 2. Scaffold
 
 ```powershell
-npm install -g @tauri-apps/cli
 cd desktop
 npm create tauri-app@latest tripmate-desktop -- --template vanilla --manager npm --yes
 cd tripmate-desktop
 ```
 
-## 3. Point it at the live site
+## 3. Apply the tracked customization
 
-Normal OS-decorated window (real title bar: drag, minimize, maximize,
-close, resize, Windows snap). No browser chrome — no URL bar, no tabs, no
-⋮ menu, no extensions. `src-tauri/src/lib.rs` stays at the scaffold
-default.
+Copy the three tracked files (in `desktop/`) into the scaffold:
 
-**`src-tauri/tauri.conf.json`** — `productName` `TripMate`, `identifier`
-`com.onrender.tripmate.desktop`, `version` `1.0.0`, and:
+| tracked                             | → destination                         |
+| ----------------------------------- | ------------------------------------- |
+| `desktop/lib.rs`                    | `src-tauri/src/lib.rs`                |
+| `desktop/tauri.conf.json`           | `src-tauri/tauri.conf.json`           |
+| `desktop/capabilities-default.json` | `src-tauri/capabilities/default.json` |
 
-```json
-"app": {
-  "withGlobalTauri": false,
-  "windows": [
-    {
-      "label": "main",
-      "title": "TripMate",
-      "url": "https://tripmate-ylt6.onrender.com",
-      "width": 1200, "height": 800,
-      "minWidth": 360, "minHeight": 600,
-      "resizable": true, "maximizable": true, "decorations": true
-    }
-  ],
-  "security": { "csp": null }
-}
-```
-
-Icons: copy `../icon-512.png` over `src-tauri/icons/icon.png`, then
-`npm run tauri icon ../icon-512.png`.
-
-> Frameless (`decorations: false`) was tried and reverted: a custom title
-> bar has to be injected into the remote page, and Tauri won't expose its
-> window API to a remote origin without extra capability config — the
-> injected buttons ended up dead and the window couldn't be moved or
-> closed. Not worth it for a web wrapper.
-
-## 4. Build
+Then:
 
 ```powershell
+npm install @tauri-apps/plugin-updater @tauri-apps/plugin-process
+cd src-tauri; cargo add tauri-plugin-updater tauri-plugin-dialog; cd ..
+npm run tauri icon ../icon-512.png
+```
+
+`lib.rs` defines the window (decorated, points at the live URL) and, on
+launch, checks `plugins.updater.endpoints` — if a newer signed build is
+published it shows a native "Update available → Install & restart" dialog.
+
+## 4. Build a signed release
+
+The updater only accepts builds signed with the key whose public half is in
+`tauri.conf.json > plugins.updater.pubkey`. Private key + password are in
+`desktop/.updater-secret` (gitignored). **Lose them and no installed copy
+can ever auto-update again.**
+
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content "$env:USERPROFILE\.tauri\tripmate-updater.key" -Raw
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<from desktop/.updater-secret>"
 npm run tauri build
 ```
 
-Output:
-`src-tauri/target/release/bundle/msi/TripMate_1.0.0_x64_en-US.msi`
-and a standalone `.exe` in `src-tauri/target/release/`.
+Produces `src-tauri/target/release/bundle/nsis/TripMate_<ver>_x64-setup.exe`
+and `…-setup.exe.sig`.
 
-Double-click the `.msi` to install → **TripMate** in the Start Menu, its
-own icon, its own frameless window.
+## 5. Publish (this is what makes auto-update work)
 
-## Updating
+Into `client/public/download/`, then commit + push (Render redeploys):
 
-Nothing to rebuild for web changes — it loads the live site. Rebuild only
-to change the icon, window size, or app version.
+1. `TripMate_<ver>_x64-setup.exe` — the versioned installer the updater fetches
+2. `TripMate-Setup.exe` — copy of the same, the stable "download now" link
+3. `latest.json` — the update manifest:
+
+```json
+{
+  "version": "1.0.1",
+  "notes": "…",
+  "pub_date": "<ISO-8601 UTC>",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "<full contents of the .sig file>",
+      "url": "https://tripmate-ylt6.onrender.com/download/TripMate_1.0.1_x64-setup.exe"
+    }
+  }
+}
+```
+
+Installed apps poll `…/download/latest.json` on launch; if its `version` is
+newer than theirs, the dialog appears.
+
+## Each new release
+
+Bump `version` in `desktop/tauri.conf.json` **and** the scaffold's
+`src-tauri/tauri.conf.json`, rebuild signed (step 4), redo step 5 with the
+new version number in all three places. Web-only changes need nothing — the
+window loads the live site.
 
 ## Notes
 
 - `desktop/tripmate-desktop/` is gitignored (generated). Tracked: this doc,
-  `icon-512.png`, and `lib.rs` (the customized window/title-bar source — copy
-  it into `src-tauri/src/lib.rs` after scaffolding).
-- The built installer is published at
-  `https://tripmate-ylt6.onrender.com/download` (served from
-  `client/public/download/TripMate-Setup.exe`). After a rebuild, copy the
-  new NSIS `-setup.exe` there and redeploy.
-- Tauri window is a system WebView (Edge WebView2 on Windows) — same
-  engine family as the PWA, so rendering matches.
+  `icon-512.png`, `lib.rs`, `tauri.conf.json`, `capabilities-default.json`.
+- The v1.0.0 installer (pre-updater) can't auto-update — that one machine
+  needs a manual reinstall of ≥1.0.1 once; after that it's automatic.
+- WebView2 (Edge) renders it — same engine family as the PWA.

@@ -1,0 +1,11 @@
+﻿{
+  "version": "1.0.1",
+  "notes": "Auto-update enabled. Bug fixes and improvements.",
+  "pub_date": "2026-09-10T15:45:27Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRjBNanFkQXlhMjZSb3BKT0lxTGw1MFVPNXozM1A4VS9GNTU5aFZQUlJaa2RraUR2b0VSTFV2TmM3NmdacXZjNkZnWE1ndWFPak1NR09Mb0w0ZnpXNllQVXkwSDJieFFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDU1MTE0CWZpbGU6VHJpcE1hdGVfMS4wLjFfeDY0LXNldHVwLmV4ZQpFTVd5S1JJRlhWZ1RsRjhRNnFTTE0rWk1FY3RQN3h4ampFMjAzWVQ0dTgwWkVlNlpjeExxbnFiRFFSRnZIZXNnYjFldTZnUjJwdjU5c05vRzF6S1BEZz09Cg==",
+      "url": "https://tripmate-ylt6.onrender.com/download/TripMate_1.0.1_x64-setup.exe"
+    }
+  }
+}
