@@ -31,6 +31,7 @@ export default function Profile() {
   });
 
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -696,6 +697,36 @@ export default function Profile() {
             >
               <Download className="w-4 h-4" />
               {isExporting ? "Exporting…" : "Export Data"}
+            </Button>
+          </div>
+          <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-foreground">App Version</h3>
+              <p className="text-sm text-muted-foreground">
+                Force the latest version if the app looks out of date after an update
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={isCheckingUpdate}
+              onClick={async () => {
+                setIsCheckingUpdate(true);
+                try {
+                  const regs = (await navigator.serviceWorker?.getRegistrations()) ?? [];
+                  await Promise.all(regs.map((r) => r.unregister()));
+                  if (window.caches) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map((k) => caches.delete(k)));
+                  }
+                } catch {
+                  /* still reload — a plain reload alone often picks up the new build */
+                }
+                toast({ title: "Updating…", description: "Reloading with the latest version." });
+                setTimeout(() => window.location.reload(), 500);
+              }}
+              className="flex items-center gap-2"
+            >
+              {isCheckingUpdate ? "Updating…" : "Check for updates"}
             </Button>
           </div>
           <div className="mt-8 pt-6 border-t border-red-500/20">
