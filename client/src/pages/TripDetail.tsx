@@ -691,9 +691,18 @@ export default function TripDetail() {
   const editDeepLinkHandled = useRef(false);
   useEffect(() => {
     if (editDeepLinkHandled.current) return;
-    if (new URLSearchParams(window.location.search).get("edit") === "1") {
-      editDeepLinkHandled.current = true;
+    editDeepLinkHandled.current = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("edit") === "1") {
       setIsEditing(true);
+    }
+    // ?tab=itinerary etc. — deep link straight to a tab (dashboard's
+    // "Full itinerary →" link).
+    const tab = params.get("tab");
+    if (tab && ["overview", "itinerary", "map", "budget", "places"].includes(tab)) {
+      setActiveMainTab(tab);
+    }
+    if (params.get("edit") === "1" || tab) {
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, []);

@@ -487,7 +487,7 @@ export default function Home() {
                 </h3>
               </div>
               <Link
-                href={`/app/trips/${currentTrip.id}`}
+                href={`/app/trips/${currentTrip.id}?tab=itinerary`}
                 className="text-[var(--ink-blue-bright)] text-xs font-semibold font-sans-clean hover:opacity-70 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
               >
                 Full itinerary →

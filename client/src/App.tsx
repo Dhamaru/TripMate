@@ -43,7 +43,6 @@ function App() {
     "/app/profile",
     "/app/planner",
     "/app/packing",
-    "/app/trips/",
   ];
   const showAtlasButton =
     showAtlas && !FAB_EXCLUDED_ROUTES.some((r) => location.startsWith(r)) && !isChatOpen;
