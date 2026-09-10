@@ -249,7 +249,7 @@ export default function Home() {
         : "text-[var(--ink-blue-bright)]";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10 pb-4">
+    <div className="mx-auto max-w-5xl space-y-10 pb-4 min-w-0 overflow-x-clip">
       {/* ── Masthead ─────────────────────────────────── */}
       <header className="animate-fade-up flex flex-wrap items-end justify-between gap-4 border-b border-[hsl(var(--border))] pb-6">
         <div>
@@ -334,13 +334,13 @@ export default function Home() {
 
                 {/* Stat row */}
                 <div className="grid grid-cols-3 gap-px bg-[hsl(var(--border))] rounded-lg overflow-hidden border border-[hsl(var(--border))]">
-                  <div className="bg-[hsl(var(--card))] p-3">
+                  <div className="bg-[hsl(var(--card))] p-3 min-w-0">
                     <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))] mb-1">
-                      <CalendarDays className="w-3.5 h-3.5" aria-hidden="true" />
+                      <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                       <Eyebrow>Dates</Eyebrow>
                     </div>
                     {toDate(currentTrip.startDate) ? (
-                      <div className="font-mono-data text-xs text-[hsl(var(--foreground))]">
+                      <div className="font-mono-data text-[11px] leading-tight text-[hsl(var(--foreground))]">
                         {toDate(currentTrip.startDate)!.toLocaleDateString(undefined, {
                           month: "short",
                           day: "numeric",
@@ -362,7 +362,7 @@ export default function Home() {
                       </Link>
                     )}
                   </div>
-                  <div className="bg-[hsl(var(--card))] p-3">
+                  <div className="bg-[hsl(var(--card))] p-3 min-w-0">
                     <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))] mb-1">
                       <Users className="w-3.5 h-3.5" aria-hidden="true" />
                       <Eyebrow>Party</Eyebrow>
@@ -373,7 +373,7 @@ export default function Home() {
                       {Number(currentTrip.groupSize ?? currentTrip.companions ?? 1) === 1 ? "" : "s"}
                     </div>
                   </div>
-                  <div className="bg-[hsl(var(--card))] p-3">
+                  <div className="bg-[hsl(var(--card))] p-3 min-w-0">
                     <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))] mb-1">
                       <Wallet className="w-3.5 h-3.5" aria-hidden="true" />
                       <Eyebrow>{budget.hasBudget ? "Left" : "Budget"}</Eyebrow>
@@ -466,7 +466,7 @@ export default function Home() {
       {currentTrip && (
         <section className="animate-fade-up animate-fade-up-delay-2 grid lg:grid-cols-[1fr_320px] gap-5">
           {/* Today's plan */}
-          <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 md:p-6">
+          <div className="min-w-0 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 md:p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <Eyebrow>
@@ -497,18 +497,18 @@ export default function Home() {
             {todayPlan && todayPlan.activities?.length > 0 ? (
               <ol className="relative border-l border-[hsl(var(--border))] ml-1.5 space-y-4">
                 {todayPlan.activities.slice(0, 6).map((a) => (
-                  <li key={a.id} className="pl-5 relative">
+                  <li key={a.id} className="pl-5 relative min-w-0">
                     <span className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-[var(--amber)] border-2 border-[hsl(var(--card))]" />
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-2 min-w-0">
                       <span className="font-mono-data text-[11px] text-[var(--ink-blue-bright)] flex-shrink-0">
                         {a.time || "—"}
                       </span>
-                      <span className="text-sm font-medium text-[hsl(var(--foreground))] font-sans-clean">
+                      <span className="text-sm font-medium text-[hsl(var(--foreground))] font-sans-clean truncate">
                         {a.placeName || a.title || "Activity"}
                       </span>
                     </div>
                     {a.address && (
-                      <div className="flex items-center gap-1 text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 font-sans-clean">
+                      <div className="flex items-center gap-1 text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 font-sans-clean min-w-0">
                         <MapPin className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
                         <span className="truncate">{a.address}</span>
                       </div>
@@ -530,7 +530,7 @@ export default function Home() {
           </div>
 
           {/* Right rail */}
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0">
             <TripWeather location={currentTrip.destination} />
             <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
               <Eyebrow>Quick links</Eyebrow>
