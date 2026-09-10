@@ -9,6 +9,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
+import { NOTIFICATION_TYPES } from "@shared/schema";
 
 interface NotificationItem {
   id: string;
@@ -16,20 +17,10 @@ interface NotificationItem {
   title: string;
   message: string;
   link?: string;
+  count?: number;
   read: boolean;
   createdAt: string;
 }
-
-// Kept in sync with the types actually fired server-side (server/notifications.ts
-// call sites) — collaborator-invite, collaborator-removed, itinerary-updated,
-// expense-updated, recap-generated.
-const NOTIFICATION_TYPES: { value: string; label: string }[] = [
-  { value: "collaborator-invite", label: "Added to a trip" },
-  { value: "collaborator-removed", label: "Removed from a trip" },
-  { value: "itinerary-updated", label: "Itinerary changes" },
-  { value: "expense-updated", label: "Expense changes" },
-  { value: "recap-generated", label: "Trip recaps" },
-];
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -48,18 +39,21 @@ export function NotificationBell() {
   const { toast } = useToast();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
 
   const { data } = useQuery<{
     notifications: NotificationItem[];
     unreadCount: number;
     hasMore?: boolean;
   }>({
-    queryKey: ["/api/v1/notifications"],
+    queryKey: ["/api/v1/notifications", filter],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/v1/notifications");
+      const qs = filter === "unread" ? "?read=unread" : "";
+      const res = await apiRequest("GET", `/api/v1/notifications${qs}`);
       return res.json();
     },
-    refetchOnWindowFocus: false,
+    // Cheap query, and read-state drifts between tabs/devices otherwise.
+    refetchOnWindowFocus: true,
   });
 
   // Shares the same cache entry Profile.tsx reads/writes for the rest of the
@@ -72,39 +66,53 @@ export function NotificationBell() {
   const unreadCount = data?.unreadCount ?? 0;
   const hasMore = data?.hasMore ?? false;
 
-  // Live push: a new notification arrives over the socket the instant it's
-  // created server-side, no reload or polling needed while the tab is open.
+  const notifKey = ["/api/v1/notifications", filter] as const;
+
+  // Live push: a new notification (or a grouped bump) arrives over the
+  // socket the instant it's created server-side. A second listener keeps
+  // read-state in sync when another tab/device marks things read.
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
-    const onNotification = (notif: NotificationItem) => {
-      queryClient.setQueryData(["/api/v1/notifications"], (prev: any) => ({
-        notifications: [notif, ...(prev?.notifications ?? [])],
-        unreadCount: (prev?.unreadCount ?? 0) + 1,
-        hasMore: prev?.hasMore ?? false,
-      }));
+    const onNotification = (notif: NotificationItem & { grouped?: boolean }) => {
+      queryClient.setQueryData(notifKey, (prev: any) => {
+        const list: NotificationItem[] = prev?.notifications ?? [];
+        if (notif.grouped) {
+          // Bump the existing row in place, keep it at the top.
+          const rest = list.filter((n) => n.id !== notif.id);
+          return { ...prev, notifications: [notif, ...rest] };
+        }
+        return {
+          notifications: [notif, ...list],
+          unreadCount: (prev?.unreadCount ?? 0) + 1,
+          hasMore: prev?.hasMore ?? false,
+        };
+      });
       toast({ title: notif.title, description: notif.message });
     };
+    const onRead = () => queryClient.invalidateQueries({ queryKey: ["/api/v1/notifications"] });
     socket.on("notification", onNotification);
+    socket.on("notification-read", onRead);
     return () => {
       socket.off("notification", onNotification);
+      socket.off("notification-read", onRead);
     };
-  }, [socketRef, queryClient, toast]);
+  }, [socketRef, queryClient, toast, filter]);
 
   const markRead = async (id: string) => {
-    await apiRequest("POST", `/api/v1/notifications/${id}/read`);
-    queryClient.setQueryData(["/api/v1/notifications"], (prev: any) => ({
+    queryClient.setQueryData(notifKey, (prev: any) => ({
       ...prev,
       notifications: (prev?.notifications ?? []).map((n: NotificationItem) =>
         n.id === id ? { ...n, read: true } : n,
       ),
       unreadCount: Math.max(0, (prev?.unreadCount ?? 1) - 1),
     }));
+    await apiRequest("POST", `/api/v1/notifications/${id}/read`);
+    queryClient.invalidateQueries({ queryKey: ["/api/v1/notifications"] });
   };
 
   const markAllRead = async () => {
-    await apiRequest("POST", "/api/v1/notifications/read-all");
-    queryClient.setQueryData(["/api/v1/notifications"], (prev: any) => ({
+    queryClient.setQueryData(notifKey, (prev: any) => ({
       ...prev,
       notifications: (prev?.notifications ?? []).map((n: NotificationItem) => ({
         ...n,
@@ -112,6 +120,8 @@ export function NotificationBell() {
       })),
       unreadCount: 0,
     }));
+    await apiRequest("POST", "/api/v1/notifications/read-all");
+    queryClient.invalidateQueries({ queryKey: ["/api/v1/notifications"] });
   };
 
   const loadMore = async () => {

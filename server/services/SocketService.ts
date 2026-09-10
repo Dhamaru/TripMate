@@ -207,11 +207,21 @@ export class SocketService {
       title: string;
       message: string;
       link?: string;
+      count?: number;
+      grouped?: boolean;
       createdAt: string;
     },
   ) {
     if (!this.io) return;
     this.io.to(`user:${userId}`).emit("notification", notification);
+  }
+
+  // Read-state changed on one of the user's devices — tell the others so
+  // the bell badge doesn't go stale until a reload. `id` is a notification
+  // id, or "all" for mark-all-read.
+  public pushNotificationRead(userId: string, id: string | "all") {
+    if (!this.io) return;
+    this.io.to(`user:${userId}`).emit("notification-read", { id });
   }
 }
 
