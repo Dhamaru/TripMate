@@ -86,6 +86,11 @@ Into `client/public/download/`, then commit + push (Render redeploys):
 Installed apps poll `…/download/latest.json` on launch; if its `version` is
 newer than theirs, the dialog appears.
 
+> Write `latest.json` as UTF-8 **without a BOM** — the updater's JSON parser
+> rejects a leading BOM. `Set-Content -Encoding utf8` in Windows PowerShell 5
+> adds one; use `[System.IO.File]::WriteAllText($path,$json)` or write it
+> from `node`/`python` instead.
+
 ## Each new release
 
 Bump `version` in `desktop/tauri.conf.json` **and** the scaffold's
