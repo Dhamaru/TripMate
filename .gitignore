@@ -23,3 +23,9 @@ uploads/
 # Playwright's own generated output (npm run test:e2e) — reproducible, not source
 playwright-report/
 test-results/
+# Bubblewrap / TWA Android build — keep only twa-manifest.json + the doc
+android/*
+!android/twa-manifest.json
+!android/BUILD_ANDROID_APK.md
+*.keystore
+android.keystore
