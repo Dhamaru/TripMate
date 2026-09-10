@@ -31,50 +31,41 @@ npm create tauri-app@latest tripmate-desktop -- --template vanilla --manager npm
 cd tripmate-desktop
 ```
 
-## 3. Point it at the live site — frameless, custom title bar
+## 3. Point it at the live site
 
-The window is **frameless** (`decorations: false`) with a slim dark title
-bar injected into the remote page (we can't edit that page, so we inject).
-Because the window is built in Rust (not `tauri.conf.json`) so it can carry
-an `initialization_script`, the config's `app.windows` array is left empty.
+Normal OS-decorated window (real title bar: drag, minimize, maximize,
+close, resize, Windows snap). No browser chrome — no URL bar, no tabs, no
+⋮ menu, no extensions. `src-tauri/src/lib.rs` stays at the scaffold
+default.
 
-**`src-tauri/tauri.conf.json`** — set `productName` `TripMate`, `identifier`
+**`src-tauri/tauri.conf.json`** — `productName` `TripMate`, `identifier`
 `com.onrender.tripmate.desktop`, `version` `1.0.0`, and:
 
 ```json
 "app": {
-  "withGlobalTauri": true,
-  "windows": [],
+  "withGlobalTauri": false,
+  "windows": [
+    {
+      "label": "main",
+      "title": "TripMate",
+      "url": "https://tripmate-ylt6.onrender.com",
+      "width": 1200, "height": 800,
+      "minWidth": 360, "minHeight": 600,
+      "resizable": true, "maximizable": true, "decorations": true
+    }
+  ],
   "security": { "csp": null }
 }
 ```
 
-`withGlobalTauri: true` is required — the injected bar calls
-`window.__TAURI__.window.getCurrentWindow()` for minimize/maximize/close.
-
-**`src-tauri/src/lib.rs`** — replace with the version tracked alongside this
-doc (`desktop/lib.rs`). It builds the `main` window pointing at the live
-URL, `decorations(false)`, and injects `TITLEBAR_JS`: a 32px fixed bar with
-`data-tauri-drag-region` (window drag) + `– □ ✕` buttons, plus
-`html{margin-top:32px}` so site content clears the bar. A `MutationObserver`
-re-injects it if the SPA wipes the DOM on navigation.
-
-**`src-tauri/capabilities/default.json`** — add the window permissions the
-buttons need:
-
-```json
-"permissions": [
-  "core:default",
-  "core:window:allow-minimize",
-  "core:window:allow-toggle-maximize",
-  "core:window:allow-close",
-  "core:window:allow-start-dragging",
-  "opener:default"
-]
-```
-
 Icons: copy `../icon-512.png` over `src-tauri/icons/icon.png`, then
 `npm run tauri icon ../icon-512.png`.
+
+> Frameless (`decorations: false`) was tried and reverted: a custom title
+> bar has to be injected into the remote page, and Tauri won't expose its
+> window API to a remote origin without extra capability config — the
+> injected buttons ended up dead and the window couldn't be moved or
+> closed. Not worth it for a web wrapper.
 
 ## 4. Build
 
