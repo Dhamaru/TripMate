@@ -8,8 +8,18 @@ import OpenAI from "openai";
 import { dispatchTool } from "../agent/tools/executor";
 import { consumePendingAction } from "../agent/pendingActions";
 
-// OpenAI configuration is now handled natively within `agentLoop.ts`
-const emptyOpenai = null;
+// The agent loop builds its own model clients (see agentLoop.ts). This one
+// is only for tool handlers that make their own LLM sub-call (e.g.
+// packingHandler generating categories) — point it at Gemini's
+// OpenAI-compatible endpoint so those keep working now the free chain is gone.
+const emptyOpenai = config.GEMINI_API_KEY
+  ? new OpenAI({
+      apiKey: config.GEMINI_API_KEY,
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      timeout: 30_000,
+      maxRetries: 1,
+    })
+  : null;
 const aiService = new AiUtilitiesService();
 
 export const chat = async (req: Request, res: Response, next: NextFunction) => {

@@ -18,6 +18,14 @@ import { TripModel } from "../../shared/schema";
 import { config } from "../config";
 
 const MAX_ITERATIONS = 10;
+// Atlas runs on Google Gemini via its OpenAI-compatible endpoint (billed
+// account, function-calling verified live 2026-09-10). The old free-tier
+// chain (OpenRouter / Groq / NVIDIA ×2) was pulled — providers kept
+// silently dropping models and exhausting quota, which put every prod
+// request into the no-tools fallback. Two Gemini model slots so the
+// existing per-index retry/circuit-breaker logic still has somewhere to
+// fall; both hit the same key + endpoint.
+// --- history of the retired free chain, kept for context ---
 // Verified live against NVIDIA's actual /v1/chat/completions (2026-08-12)
 // under both a realistic full-size prompt AND a real tool-calling request,
 // not just a trivial ping — two rounds of model swaps needed correcting:
@@ -53,24 +61,10 @@ const MAX_ITERATIONS = 10;
 // system-prompt rule ("call list_trips when asked about my trips") rather
 // than silently ignoring it — the exact failure class that has bitten
 // this fallback chain before.
-export const MODELS = [
-  "minimax/minimax-m2.7:free",
-  "openai/gpt-oss-120b",
-  "deepseek-ai/deepseek-v4-flash-0731",
-  "deepseek-ai/deepseek-v4-flash-0731",
-];
-export const MODEL_BASE_URLS = [
-  "https://openrouter.ai/api/v1",
-  "https://api.groq.com/openai/v1",
-  "https://integrate.api.nvidia.com/v1",
-  "https://integrate.api.nvidia.com/v1",
-];
-const MODEL_KEYS = [
-  config.OPENROUTER_API_KEY,
-  config.GROQ_API_KEY,
-  config.NVIDIA_API_KEY_1,
-  config.NVIDIA_API_KEY_2,
-];
+const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+export const MODELS = ["gemini-3.6-flash", "gemini-flash-latest"];
+export const MODEL_BASE_URLS = [GEMINI_OPENAI_BASE_URL, GEMINI_OPENAI_BASE_URL];
+const MODEL_KEYS = [config.GEMINI_API_KEY, config.GEMINI_API_KEY];
 
 // Computed once — TRIPMATE_TOOLS is static, no need to re-stringify it on
 // every single iteration of every request just to estimate its token cost.
@@ -182,16 +176,14 @@ export async function runAgentLoop(
   },
   deps: ExecutorDeps,
 ): Promise<AgentResponse> {
-  if (!MODEL_KEYS[0] && !config.NVIDIA_API_KEY) {
-    console.warn(
-      "[Agent] NVIDIA_API_KEY_1/NVIDIA_API_KEY_2 not set in env vars. Add them to Render environment variables.",
-    );
+  if (!config.GEMINI_API_KEY) {
+    console.warn("[Agent] GEMINI_API_KEY not set. Add it to Render environment variables.");
     throw new Error("AI service not configured. Please contact support.");
   }
   const clientsByModel = MODELS.map(
     (_, i) =>
       new OpenAI({
-        apiKey: MODEL_KEYS[i] || config.NVIDIA_API_KEY || "",
+        apiKey: MODEL_KEYS[i] || config.GEMINI_API_KEY || "",
         baseURL: MODEL_BASE_URLS[i],
         timeout: 25_000, // fail fast instead of hanging when the provider stalls under quota exhaustion
         maxRetries: 0, // we handle model fallback ourselves; the SDK's own retries would just multiply the hang
@@ -386,21 +378,29 @@ export async function runAgentLoop(
 
           if (delta?.tool_calls) {
             for (const tc of delta.tool_calls) {
-              if (tc.index !== undefined) {
-                if (!toolCalls[tc.index]) {
-                  toolCalls[tc.index] = {
-                    id: tc.id,
-                    type: "function",
-                    function: { name: "", arguments: "" },
-                  };
-                }
-                if (tc.id) toolCalls[tc.index].id = tc.id;
-                if (tc.function?.name) {
-                  toolCalls[tc.index].function.name = tc.function.name;
-                }
-                if (tc.function?.arguments) {
-                  toolCalls[tc.index].function.arguments += tc.function.arguments;
-                }
+              // OpenAI streams tool calls fragmented across deltas, each
+              // tagged with `index`. Gemini's OpenAI-compat endpoint omits
+              // `index` and sends each call whole in a single delta — fall
+              // back to appending in that case.
+              const idx = tc.index ?? toolCalls.length;
+              if (!toolCalls[idx]) {
+                toolCalls[idx] = {
+                  id: tc.id,
+                  type: "function",
+                  function: { name: "", arguments: "" },
+                };
+              }
+              if (tc.id) toolCalls[idx].id = tc.id;
+              if (tc.function?.name) {
+                toolCalls[idx].function.name = tc.function.name;
+              }
+              if (tc.function?.arguments) {
+                toolCalls[idx].function.arguments += tc.function.arguments;
+              }
+              // Gemini 3.x requires the thought_signature to be echoed back
+              // on the assistant turn or the next call 400s — carry it.
+              if ((tc as any).extra_content) {
+                toolCalls[idx].extra_content = (tc as any).extra_content;
               }
             }
           }

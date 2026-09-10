@@ -23,7 +23,7 @@ export async function packingHandler(
     if (!deps.openai) {
       return {
         success: false,
-        error: "OpenAI (NVIDIA NIM) not configured",
+        error: "AI provider not configured (GEMINI_API_KEY missing)",
         durationMs: Date.now() - start,
       };
     }
@@ -44,7 +44,7 @@ Example format:
 }`;
 
     const response = await deps.openai.chat.completions.create({
-      model: "meta/llama-3.3-70b-instruct",
+      model: "gemini-3.6-flash",
       messages: [
         {
           role: "system",
