@@ -14,6 +14,11 @@
    ───────────────────────────────────────────────────────── */
 
 :root {
+  /* Opt out of browser "auto dark theme" (Chrome/Samsung Internet) — the
+     app manages its own .dark / .light themes; without this, a phone in
+     dark mode force-darkens our UI on top of the theme we already set. */
+  color-scheme: dark;
+
   /* ── Official Ink Roles (Passport & Visa Stamp System) ──── */
   --ink-blue: #163f73; /* primary action ink */
   --ink-blue-rgb: 22 63 115;
@@ -154,6 +159,7 @@
 
 /* ── Light mode overrides — kraft/parchment passport page ─────────── */
 .light {
+  color-scheme: light;
   --background: 42 38% 90%; /* kraft/parchment paper    */
   --foreground: 211 40% 14%; /* ink-navy text            */
 
@@ -199,6 +205,7 @@
 
 /* keep old .dark class working for existing toggle */
 .dark {
+  color-scheme: dark;
   --background: 211 46% 11%;
   --foreground: 38 25% 88%;
   --card: 211 40% 15%;
