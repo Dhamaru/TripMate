@@ -29,3 +29,6 @@ android/*
 !android/BUILD_ANDROID_APK.md
 *.keystore
 android.keystore
+
+# Tauri desktop wrapper — generated project is gitignored
+desktop/tripmate-desktop/
