@@ -410,6 +410,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Right: notifications + user */}
           <div className="flex items-center gap-3">
+            {/* Theme toggle — the sidebar one is desktop-only, so mobile
+                users had no way to switch themes. */}
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-[18px] h-[18px]" />
+              ) : (
+                <Moon className="w-[18px] h-[18px]" />
+              )}
+            </button>
             <NotificationBell />
             {/* Product-review finding: this whole block was hidden below
                 md, so a guest on mobile — the device most guests would
