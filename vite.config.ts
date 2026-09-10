@@ -8,22 +8,29 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt", "apple-touch-icon.png"],
+      includeAssets: ["apple-touch-icon.png", "robots.txt"],
+      // Single manifest source (the old hand-written client/public/manifest.json
+      // + its hard-coded <link> in index.html were removed). Real PNG icons of
+      // the gradient-circle mark so the install prompt shows the logo, not "T".
       manifest: {
-        name: "TripMate - Smart Travel Companion",
+        name: "TripMate — Smart Travel Companion",
         short_name: "TripMate",
-        description: "AI-driven travel intelligence and budgeting.",
-        theme_color: "#007AFF",
+        description: "AI trip planning, budgeting, offline maps, and a travel assistant.",
+        id: "/",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        orientation: "portrait-primary",
+        theme_color: "#1E3A8A",
+        background_color: "#1E3A8A",
         icons: [
+          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
           {
-            src: "pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "pwa-512x512.png",
+            src: "pwa-maskable-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "maskable",
           },
         ],
       },
