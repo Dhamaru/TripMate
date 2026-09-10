@@ -218,6 +218,7 @@ export interface ITrip extends Document {
   status: TripStatus;
   startDate?: Date;
   endDate?: Date;
+  remindersSent?: string[];
   itinerary?: IItineraryDay[];
   // One-shot guard so the background coordinate-backfill (AI-generated
   // activities have no lat/lon until geocoded — see
@@ -277,6 +278,9 @@ const tripSchema = new Schema<ITrip>(
     },
     startDate: { type: Date },
     endDate: { type: Date },
+    // Milestones the daily reminder job has already sent for this trip
+    // ("T-7" / "T-3" / "T-1" / "start") — so a re-run never double-sends.
+    remindersSent: { type: [String], default: [] },
     itinerary: { type: Schema.Types.Mixed },
     coordsBackfillAttempted: { type: Boolean, default: false },
     expenses: [

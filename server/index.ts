@@ -202,6 +202,14 @@ async function startServer() {
     log(`serving on port ${port} pid=${process.pid}`);
   });
 
+  // Daily trip-reminder notifications. Skipped under Vite dev unless
+  // explicitly enabled, so local `npm run dev` doesn't fire real
+  // notifications into the shared DB on every restart.
+  if (config.NODE_ENV === "production" || process.env.ENABLE_SCHEDULER === "1") {
+    const { startScheduler } = await import("./scheduler");
+    startScheduler();
+  }
+
   const shutdown = (signal: string) => {
     log(`received ${signal}, starting graceful shutdown`);
     app.locals.ready = false;
