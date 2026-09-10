@@ -79,7 +79,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           DOM so it's always the first Tab stop. */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-[var(--ink-blue-fill)] focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold"
+        // focus-visible, not focus: on PWA/app launch the browser can put
+        // programmatic focus on the first focusable element — with plain
+        // `focus:` that painted the skip link right on top of the logo.
+        // Also nudged clear of the logo bar.
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-1/2 focus-visible:-translate-x-1/2 focus-visible:z-[120] focus-visible:rounded-lg focus-visible:bg-[var(--amber)] focus-visible:text-white focus-visible:px-4 focus-visible:py-2 focus-visible:text-sm focus-visible:font-semibold focus-visible:shadow-lg"
       >
         Skip to content
       </a>
