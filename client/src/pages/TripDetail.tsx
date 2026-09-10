@@ -54,23 +54,29 @@ import {
 import { Copy, Check } from "lucide-react";
 
 const travelStyles = [
-  { id: "adventure", icon: Mountain, name: "Adventure", color: "text-[#1D4E89]" },
+  { id: "adventure", icon: Mountain, name: "Adventure", color: "text-[var(--customs-blue)]" },
   { id: "relaxed", icon: Armchair, name: "Relaxed", color: "text-amber-500" },
-  { id: "cultural", icon: Landmark, name: "Cultural", color: "text-[#1D4E89]" },
+  { id: "cultural", icon: Landmark, name: "Cultural", color: "text-[var(--customs-blue)]" },
   { id: "culinary", icon: Utensils, name: "Culinary", color: "text-emerald-500" },
 ];
 
+// Tinted pills, not solid fills — matches the app-wide status treatment
+// (TripStatusBadge, .stamp). Solid navy + white text read as off-system
+// against the light paper ground.
 const statusColors = {
-  planning: "bg-[#1D4E89]",
-  active: "bg-[#3D9467]",
-  completed: "bg-[#B3261E]",
+  planning:
+    "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--customs-blue)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
+  active:
+    "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green)] border border-[rgb(var(--transit-green-rgb)/40%)]",
+  completed:
+    "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
 };
 
 export default function TripDetail() {
   const getWeatherIcon = (condition: string) => {
     const c = (condition || "").toLowerCase();
     if (c.includes("clear") || c.includes("sun")) return "fas fa-sun text-amber-500";
-    if (c.includes("rain") || c.includes("drizzle")) return "fas fa-cloud-rain text-[#1D4E89]";
+    if (c.includes("rain") || c.includes("drizzle")) return "fas fa-cloud-rain text-[var(--customs-blue)]";
     if (c.includes("snow")) return "fas fa-snowflake text-blue-200";
     if (c.includes("storm") || c.includes("thunder")) return "fas fa-bolt text-purple-400";
     return "fas fa-cloud text-muted-foreground";
@@ -206,6 +212,8 @@ export default function TripDetail() {
     travelStyle: "",
     status: "planning" as "planning" | "active" | "completed",
     notes: "",
+    startDate: "",
+    endDate: "",
   });
 
   const [aiBudget, setAiBudget] = useState("");
@@ -676,6 +684,20 @@ export default function TripDetail() {
     deleteActivityMutation.mutate({ dayIndex, activityId: activity.id });
   };
 
+  // Deep link from the dashboard's "Set dates" affordance: /app/trips/:id?edit=1
+  // opens straight into the edit form — ONCE. Strip the param immediately so
+  // it doesn't re-open the form every time `trip` refetches (e.g. right
+  // after a successful save, which was reopening the editor).
+  const editDeepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (editDeepLinkHandled.current) return;
+    if (new URLSearchParams(window.location.search).get("edit") === "1") {
+      editDeepLinkHandled.current = true;
+      setIsEditing(true);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     if (trip) {
       setTripForm({
@@ -687,6 +709,8 @@ export default function TripDetail() {
         travelStyle: trip.travelStyle,
         status: trip.status as "planning" | "active" | "completed",
         notes: trip.notes || "",
+        startDate: trip.startDate ? new Date(trip.startDate).toISOString().split("T")[0] : "",
+        endDate: trip.endDate ? new Date(trip.endDate).toISOString().split("T")[0] : "",
       });
       setAiBudget(trip.budget?.toString() || "");
       setAiGroupSize(trip.groupSize?.toString() || "");
@@ -721,6 +745,18 @@ export default function TripDetail() {
         | "culinary",
       status: tripForm.status,
       notes: tripForm.notes,
+      ...(tripForm.startDate
+        ? {
+            startDate: new Date(tripForm.startDate).toISOString(),
+            endDate: (() => {
+              const s = new Date(tripForm.startDate);
+              const e = tripForm.endDate
+                ? new Date(tripForm.endDate)
+                : new Date(s.getTime() + (parseInt(tripForm.days) - 1) * 86_400_000);
+              return e.toISOString();
+            })(),
+          }
+        : {}),
     };
 
     updateTripMutation.mutate(updates);
@@ -761,6 +797,8 @@ export default function TripDetail() {
         travelStyle: trip.travelStyle,
         status: trip.status as "planning" | "active" | "completed",
         notes: trip.notes || "",
+        startDate: trip.startDate ? new Date(trip.startDate).toISOString().split("T")[0] : "",
+        endDate: trip.endDate ? new Date(trip.endDate).toISOString().split("T")[0] : "",
       });
     }
     setIsEditing(false);
@@ -934,7 +972,7 @@ export default function TripDetail() {
       <div className=" flex items-center justify-center">
         <Card className="bg-card border-border max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="text-red-500 mb-4">
+            <div className="text-[var(--stamp-red)] mb-4">
               <i className="fas fa-exclamation-triangle text-5xl"></i>
             </div>
             <h2 className="text-xl font-bold text-foreground mb-2">
@@ -958,7 +996,7 @@ export default function TripDetail() {
                 </Button>
               )}
               <Link href="/">
-                <Button className="bg-[#1D4E89] hover:bg-[#163F73]">Go Back Home</Button>
+                <Button className="bg-[var(--customs-blue-deep)] hover:bg-[var(--ink-blue-fill)]">Go Back Home</Button>
               </Link>
             </div>
           </CardContent>
@@ -983,7 +1021,7 @@ export default function TripDetail() {
       <div className="">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1D4E89] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--customs-blue)] mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading trip details...</p>
           </div>
         </div>
@@ -1022,37 +1060,47 @@ export default function TripDetail() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24">
         {/* Trip Header */}
-        <div className="mb-4">
-          <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4">
-            <div>
+        <div className="mb-5 border-b border-border pb-5">
+          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans-clean mb-2.5">
+            <button
+              onClick={() => setLocation("/app/trips")}
+              className="hover:text-foreground transition-colors"
+            >
+              Trips
+            </button>
+            <span aria-hidden="true">/</span>
+            <span className="text-foreground truncate max-w-[220px]">{trip.destination}</span>
+          </nav>
+          <div className="flex flex-col md:flex-row md:items-start justify-between mb-1 gap-4">
+            <div className="min-w-0">
               <h1
-                className="text-2xl md:text-3xl font-bold text-foreground mb-2"
+                className="font-display text-[2.1rem] md:text-[2.6rem] leading-[1.05] font-semibold text-foreground"
                 data-testid="trip-title"
               >
                 {trip.destination}
               </h1>
-              <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm md:text-base text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground mt-1.5 font-sans-clean">
                 {trip.origin && (
                   <>
                     <span>from {trip.origin}</span>
-                    <span>•</span>
+                    <span aria-hidden="true">·</span>
                   </>
                 )}
-                <span>
+                <span className="font-mono-data text-xs">
                   {trip.days} {Number(trip.days) === 1 ? "day" : "days"}
                 </span>
-                <span>•</span>
-                <span>
+                <span aria-hidden="true">·</span>
+                <span className="font-mono-data text-xs">
                   {getCurrencySymbol(trip.currency)}
-                  {trip.budget} budget
+                  {Number(trip.budget || 0).toLocaleString()}
                 </span>
-                <span>•</span>
+                <span aria-hidden="true">·</span>
                 <span className="capitalize">
                   {String(trip.groupSize || "Solo").replace("-", " ")}
                   {/^\d+$/.test(String(trip.groupSize))
                     ? Number(trip.groupSize) === 1
-                      ? " traveler"
-                      : " travelers"
+                      ? " traveller"
+                      : " travellers"
                     : ""}
                 </span>
               </div>
@@ -1069,26 +1117,29 @@ export default function TripDetail() {
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                      className="w-1.5 h-1.5 bg-[#1D4E89] rounded-full"
+                      className="w-1.5 h-1.5 bg-[var(--customs-blue-deep)] rounded-full"
                     />
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                      className="w-1.5 h-1.5 bg-[#1D4E89] rounded-full"
+                      className="w-1.5 h-1.5 bg-[var(--customs-blue-deep)] rounded-full"
                     />
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                      className="w-1.5 h-1.5 bg-[#1D4E89] rounded-full"
+                      className="w-1.5 h-1.5 bg-[var(--customs-blue-deep)] rounded-full"
                     />
                   </div>
-                  <span className="text-xs font-medium text-[#1D4E89]">Atlas is thinking...</span>
+                  <span className="text-xs font-medium text-[var(--customs-blue)]">Atlas is thinking...</span>
                 </motion.div>
               )}
             </AnimatePresence>
             <div className="flex items-center gap-2 self-start flex-wrap">
               <Badge
-                className={`${statusColors[trip?.status as keyof typeof statusColors] || "bg-muted-foreground"} text-white`}
+                className={
+                  statusColors[trip?.status as keyof typeof statusColors] ||
+                  "bg-muted text-muted-foreground"
+                }
               >
                 {trip?.status
                   ? trip.status.charAt(0).toUpperCase() + trip.status.slice(1)
@@ -1112,7 +1163,7 @@ export default function TripDetail() {
                       onClick={() => setShareDialogOpen(true)}
                       variant="outline"
                       size="sm"
-                      className="bg-muted/50 border text-foreground hover:bg-card no-print"
+                      className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] no-print"
                       data-testid="button-share-trip"
                     >
                       <i className="fas fa-share-nodes md:mr-2"></i>
@@ -1129,7 +1180,7 @@ export default function TripDetail() {
                       onClick={() => window.print()}
                       variant="outline"
                       size="sm"
-                      className="bg-muted/50 border text-foreground hover:bg-card no-print"
+                      className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] no-print"
                       data-testid="button-print-itinerary"
                     >
                       <i className="fas fa-print md:mr-2"></i>
@@ -1147,7 +1198,7 @@ export default function TripDetail() {
                           onClick={() => setIsEditing(true)}
                           variant="outline"
                           size="sm"
-                          className="bg-muted/50 border text-foreground hover:bg-card "
+                          className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] "
                           data-testid="button-edit-trip"
                         >
                           <i className="fas fa-edit md:mr-2"></i>
@@ -1159,7 +1210,7 @@ export default function TripDetail() {
                           onClick={() => setDeleteConfirmOpen(true)}
                           variant="outline"
                           size="sm"
-                          className="bg-muted/50 border-red-400 text-red-500 hover:bg-red-500 hover:text-white "
+                          className="bg-muted/50 border-[var(--stamp-red)] text-[var(--stamp-red)] hover:bg-[var(--stamp-red-deep)] hover:text-white "
                           data-testid="button-delete-trip"
                         >
                           <i className="fas fa-trash md:mr-2"></i>
@@ -1188,7 +1239,7 @@ export default function TripDetail() {
                 {(trip as any).imageCaption && (
                   <div className="absolute bottom-4 left-4 z-10">
                     <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                      <i className="fas fa-camera text-[#1D4E89] text-xs"></i>
+                      <i className="fas fa-camera text-[var(--customs-blue)] text-xs"></i>
                       <span className="text-white text-xs font-medium tracking-wide drop-shadow-sm">
                         {(trip as any).imageCaption}
                       </span>
@@ -1267,7 +1318,7 @@ export default function TripDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
-                      Destination <span className="text-red-500">*</span>
+                      Destination <span className="text-[var(--stamp-red)]">*</span>
                     </label>
                     <Input
                       type="text"
@@ -1291,9 +1342,48 @@ export default function TripDetail() {
                       data-testid="input-edit-budget"
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label
+                        htmlFor="edit-start-date"
+                        className="block text-sm font-semibold text-foreground mb-2"
+                      >
+                        Start date
+                      </label>
+                      <Input
+                        id="edit-start-date"
+                        type="date"
+                        value={tripForm.startDate}
+                        onChange={(e) =>
+                          setTripForm((prev) => ({ ...prev, startDate: e.target.value }))
+                        }
+                        className="bg-muted/50 border text-foreground"
+                        data-testid="input-edit-start-date"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="edit-end-date"
+                        className="block text-sm font-semibold text-foreground mb-2"
+                      >
+                        End date
+                      </label>
+                      <Input
+                        id="edit-end-date"
+                        type="date"
+                        min={tripForm.startDate || undefined}
+                        value={tripForm.endDate}
+                        onChange={(e) =>
+                          setTripForm((prev) => ({ ...prev, endDate: e.target.value }))
+                        }
+                        className="bg-muted/50 border text-foreground"
+                        data-testid="input-edit-end-date"
+                      />
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
-                      Trip Duration <span className="text-red-500">*</span>
+                      Trip Duration <span className="text-[var(--stamp-red)]">*</span>
                     </label>
                     <div className="relative">
                       <Input
@@ -1322,7 +1412,7 @@ export default function TripDetail() {
                     {Array.isArray(trip.itinerary) &&
                       trip.itinerary.length > 0 &&
                       Number(tripForm.days) < trip.itinerary.length && (
-                        <p className="text-xs text-[var(--amber)] mt-1.5">
+                        <p className="text-xs text-[var(--ink-blue)] mt-1.5">
                           Your itinerary still has {trip.itinerary.length}{" "}
                           {trip.itinerary.length === 1 ? "day" : "days"} planned — reducing this
                           number won't remove them. Trim the extra days from the Itinerary tab if
@@ -1386,7 +1476,7 @@ export default function TripDetail() {
                     type="button"
                     onClick={handleSave}
                     disabled={updateTripMutation.isPending}
-                    className="flex-1 bg-[#1D4E89] hover:bg-[#163F73]"
+                    className="flex-1 bg-[var(--customs-blue-deep)] hover:bg-[var(--ink-blue-fill)]"
                     data-testid="button-save-trip"
                   >
                     {updateTripMutation.isPending ? (
@@ -1409,7 +1499,14 @@ export default function TripDetail() {
 
         {/* Trip Content — Tabbed */}
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-0">
-          <TabsList className="flex w-full bg-muted/50 rounded-xl mb-6 p-1 h-auto gap-0.5 overflow-x-auto">
+          <TabsList
+            // justify-start overrides TabsList's base justify-center: when the
+            // triggers overflow this strip at ~375px, centering pushes the first
+            // tab past the left edge where scrolling can never reach it
+            // (scrollLeft is already 0) — live-measured as the active tab
+            // rendering as "iew".
+            className="flex w-full justify-start bg-muted/50 rounded-xl mb-6 p-1 h-auto gap-0.5 overflow-x-auto"
+          >
             <TabsTrigger
               value="overview"
               className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
@@ -1519,12 +1616,12 @@ export default function TripDetail() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-muted/50 rounded-xl">
-                    <i className="fas fa-calendar text-[#1D4E89] text-xl mb-2"></i>
+                    <i className="fas fa-calendar text-[var(--customs-blue)] text-xl mb-2"></i>
                     <p className="text-sm text-muted-foreground">Duration</p>
                     <p className="font-bold text-foreground">{trip.days} days</p>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-xl">
-                    <i className="fas fa-rupee-sign text-emerald-500 text-xl mb-2"></i>
+                    <i className="fas fa-wallet text-[var(--transit-green)] text-xl mb-2"></i>
                     <p className="text-sm text-muted-foreground">Budget</p>
                     <p className="font-bold text-foreground">
                       {getCurrencySymbol(trip.currency)}
@@ -1564,7 +1661,7 @@ export default function TripDetail() {
                       </>
                     ) : weatherLoading ? (
                       <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1D4E89] mx-auto mb-2"></div>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--customs-blue)] mx-auto mb-2"></div>
                         <p className="text-sm text-muted-foreground">Weather</p>
                         <p className="font-bold text-foreground text-xs">Loading...</p>
                       </>
@@ -1579,7 +1676,7 @@ export default function TripDetail() {
                   {trip.transportMode && (
                     <div className="text-center p-4 bg-muted/50 rounded-xl">
                       <i
-                        className={`${trip.transportMode === "flight" ? "fas fa-plane" : trip.transportMode === "train" ? "fas fa-train" : trip.transportMode === "bus" ? "fas fa-bus" : trip.transportMode === "car" ? "fas fa-car-side" : "fas fa-ship"} text-[#1D4E89] text-xl mb-2`}
+                        className={`${trip.transportMode === "flight" ? "fas fa-plane" : trip.transportMode === "train" ? "fas fa-train" : trip.transportMode === "bus" ? "fas fa-bus" : trip.transportMode === "car" ? "fas fa-car-side" : "fas fa-ship"} text-[var(--customs-blue)] text-xl mb-2`}
                       ></i>
                       <p className="text-sm text-muted-foreground">Transport</p>
                       <p className="font-bold text-foreground capitalize">{trip.transportMode}</p>
@@ -1599,7 +1696,7 @@ export default function TripDetail() {
                 <Link href={`/app/packing?tripId=${id}`}>
                   <div className="mt-6 flex items-center justify-between p-4 bg-muted/50 hover:bg-muted rounded-xl cursor-pointer transition-colors group">
                     <div className="flex items-center gap-3">
-                      <i className="fas fa-suitcase-rolling text-[#1D4E89] text-lg"></i>
+                      <i className="fas fa-suitcase-rolling text-[var(--customs-blue)] text-lg"></i>
                       <div>
                         <p className="font-semibold text-foreground">Packing List</p>
                         <p className="text-xs text-muted-foreground">
@@ -1644,7 +1741,7 @@ export default function TripDetail() {
                         {hacks.economicalAlternatives.map((alt: string, i: number) => (
                           <div
                             key={i}
-                            className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-xs text-emerald-400"
+                            className="bg-[rgb(var(--transit-green-rgb)/10%)] border border-[rgb(var(--transit-green-rgb)/20%)] rounded-xl p-3 text-xs text-[var(--transit-green)]"
                           >
                             <i className="fas fa-wallet mr-2"></i>
                             {alt}
@@ -1660,7 +1757,7 @@ export default function TripDetail() {
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <i className="fas fa-leaf text-emerald-500"></i>
+                    <i className="fas fa-leaf text-[var(--transit-green)]"></i>
                     Escape the Crowds
                   </CardTitle>
                 </CardHeader>
@@ -1675,7 +1772,7 @@ export default function TripDetail() {
                           {spot.crowdLevel && (
                             <Badge
                               variant="outline"
-                              className="text-xs bg-green-900/20 text-green-400 border-green-900/50"
+                              className="text-xs bg-[rgb(var(--transit-green-rgb)/15%)] text-[var(--transit-green)] border-[rgb(var(--transit-green-rgb)/40%)]"
                             >
                               <i className="fas fa-users-slash mr-1"></i> {spot.crowdLevel} Crowds
                             </Badge>
@@ -1683,7 +1780,7 @@ export default function TripDetail() {
                           {spot.type && (
                             <Badge
                               variant="outline"
-                              className="text-xs bg-blue-900/20 text-blue-400 border-blue-900/50"
+                              className="text-xs bg-[rgb(var(--customs-blue-rgb)/15%)] text-[var(--customs-blue)] border-[rgb(var(--customs-blue-rgb)/40%)]"
                             >
                               {spot.type}
                             </Badge>
@@ -1691,14 +1788,14 @@ export default function TripDetail() {
                           {spot.bestTime && (
                             <Badge
                               variant="outline"
-                              className="text-xs bg-orange-900/20 text-orange-400 border-orange-900/50"
+                              className="text-xs bg-[rgb(var(--warning-amber-rgb)/15%)] text-[var(--warning-amber)] border-[rgb(var(--warning-amber-rgb)/40%)]"
                             >
                               <i className="fas fa-clock mr-1"></i> {spot.bestTime}
                             </Badge>
                           )}
                         </div>
 
-                        <div className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 p-2 rounded-lg">
+                        <div className="text-xs text-[var(--customs-blue)] bg-[rgb(var(--customs-blue-rgb)/10%)] border border-[rgb(var(--customs-blue-rgb)/20%)] p-2 rounded-lg">
                           <i className="fas fa-info-circle mr-2"></i>
                           {spot.reason}
                         </div>
@@ -1751,7 +1848,7 @@ export default function TripDetail() {
             <div id="suggested-places-section" className="space-y-6">
               <div className="flex flex-col items-center gap-4">
                 <h3 className="text-foreground font-semibold text-lg flex items-center gap-2">
-                  <i className="fas fa-map-marked-alt text-[#1D4E89]"></i>
+                  <i className="fas fa-map-marked-alt text-[var(--customs-blue)]"></i>
                   What are you looking for at your destination?
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg mx-auto">
@@ -1761,7 +1858,7 @@ export default function TripDetail() {
                       setPlacesTarget(null);
                     }}
                     variant={showHotels ? "default" : "outline"}
-                    className={` h-12 ${showHotels ? "bg-[#1D4E89] text-white hover:bg-[#1D4E89]/90" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
+                    className={` h-12 ${showHotels ? "bg-[var(--customs-blue-deep)] text-white hover:bg-[rgb(var(--customs-blue-deep-rgb)/90%)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
                     <i className="fas fa-bed mr-2"></i>
                     Hotels
@@ -1780,7 +1877,7 @@ export default function TripDetail() {
                   <Button
                     onClick={() => setShowSpots(!showSpots)}
                     variant={showSpots ? "default" : "outline"}
-                    className={` h-12 ${showSpots ? "bg-[#1D4E89] text-white hover:bg-[#163F73]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
+                    className={` h-12 ${showSpots ? "bg-[var(--customs-blue-deep)] text-white hover:bg-[var(--ink-blue-fill)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
                     <i className="fas fa-camera mr-2"></i>
                     Tourist Spots
@@ -1802,7 +1899,7 @@ export default function TripDetail() {
                       {(hotelsLoading || foodLoading || sightsLoading) &&
                       !(hotelResults || foodResults || sightsResults) ? (
                         <div className="flex justify-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1D4E89]"></div>
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--customs-blue)]"></div>
                         </div>
                       ) : (
                         <div
@@ -1819,7 +1916,7 @@ export default function TripDetail() {
                           {showHotels && (
                             <div>
                               <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
-                                <i className="fas fa-bed text-[#1D4E89]"></i> Hotels
+                                <i className="fas fa-bed text-[var(--customs-blue)]"></i> Hotels
                               </div>
                               {placesTarget?.category === "hotels" && (
                                 <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
@@ -2204,7 +2301,7 @@ export default function TripDetail() {
             <Button
               onClick={() => toggleShare(true)}
               disabled={shareLoading}
-              className="bg-[var(--ink-blue)] hover:bg-[#0F2C52] text-white w-full"
+              className="bg-[var(--ink-blue-fill)] hover:bg-[var(--ink-blue-active)] text-white w-full"
             >
               {shareLoading ? "Creating link…" : "Create public link"}
             </Button>

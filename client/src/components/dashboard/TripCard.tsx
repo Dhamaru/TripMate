@@ -2,48 +2,63 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useTripStore } from "../../store";
 import { OptimizedImage } from "../ui/OptimizedImage";
+import {
+  Sparkles,
+  Mountain,
+  Wallet,
+  Palmtree,
+  Theater,
+  Users,
+  Plane,
+  TrainFront,
+  Car,
+  Trash2,
+  Check,
+  RotateCw,
+  ImageOff,
+} from "lucide-react";
 
-const STYLE_ICONS: Record<string, string> = {
-  Luxury: "✨",
-  Adventure: "🏔",
-  Budget: "💰",
-  Relaxed: "🌴",
-  Cultural: "🎭",
-  Family: "👨👩👧",
+// No-Emoji Rule (DESIGN.md): real Lucide icons, one stroke-weight family.
+const STYLE_ICONS: Record<string, typeof Sparkles> = {
+  Luxury: Sparkles,
+  Adventure: Mountain,
+  Budget: Wallet,
+  Relaxed: Palmtree,
+  Cultural: Theater,
+  Family: Users,
 };
-const MEDIUM_ICONS: Record<string, string> = {
-  Flight: "✈️",
-  Train: "🚂",
-  RoadTrip: "🚗",
+const MEDIUM_ICONS: Record<string, typeof Plane> = {
+  Flight: Plane,
+  Train: TrainFront,
+  RoadTrip: Car,
 };
 
-// One .stamp status badge, keyed on the trip's own `status` field — the
-// authoritative source (design-audit finding: the app had 4 different
-// status-badge implementations; this is the one call site staying as
-// this component ships, the rest get consolidated separately). Was
-// previously computed from startDate/endDate via getTripStatus(), which
-// also crashed (Invalid Date -> toISOString() throws) on any trip
-// without persisted dates — a real shape on drafts/AI-generated trips,
-// not just a hypothetical.
+// Tinted pill keyed on the trip's own `status` field.
 const STATUS_STAMP: Record<string, { label: string; className: string }> = {
-  planning: { label: "Planning", className: "bg-[#1D4E89]/15 text-[#4F82C4] border-[#1D4E89]/50" },
+  planning: {
+    label: "Planning",
+    className:
+      "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--customs-blue)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
+  },
   active: {
     label: "Active",
-    className: "bg-[#3D9467]/15 text-[#3D9467] border-[#3D9467]/50 animate-pulse",
+    className:
+      "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green)] border border-[rgb(var(--transit-green-rgb)/40%)]",
   },
   completed: {
     label: "Completed",
-    className: "bg-[#B3261E]/15 text-[#B3261E] border-[#B3261E]/50",
+    className:
+      "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
   },
 };
 
 function formatDateRangeSafe(startDate?: Date | string, endDate?: Date | string): string {
-  if (!startDate || !endDate) return "Dates TBD";
+  if (!startDate || !endDate) return "Dates not set";
   const start = new Date(startDate);
   const end = new Date(endDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return "Dates TBD";
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return "Dates not set";
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  return `${start.toLocaleDateString("en-US", opts)} — ${end.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
+  return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
 }
 
 function durationDaysSafe(startDate?: Date | string, endDate?: Date | string, fallback?: number) {
@@ -81,6 +96,10 @@ export function TripCard({
   const tripId = trip.id ?? (trip._id != null ? String(trip._id) : undefined);
   const stamp = STATUS_STAMP[trip.status ?? "planning"] ?? STATUS_STAMP.planning;
   const duration = durationDaysSafe(trip.startDate, trip.endDate, trip.days);
+  const StyleIcon = trip.travelStyle ? (STYLE_ICONS[trip.travelStyle] ?? Sparkles) : null;
+  const MediumIcon = trip.transportMode ? (MEDIUM_ICONS[trip.transportMode] ?? Car) : null;
+
+  const goToTrip = () => tripId && navigate(`/app/trips/${tripId}`);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,76 +115,100 @@ export function TripCard({
 
   return (
     <div
-      className="relative group rounded-2xl overflow-hidden cursor-pointer aspect-[3/4] bg-card border border-border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
-      onClick={() => tripId && navigate(`/app/trips/${tripId}`)}
-      role="article"
+      className="group rounded-2xl overflow-hidden cursor-pointer bg-card border border-border shadow-[var(--shadow-card)] transition-colors duration-200 hover:border-[var(--ink-blue)]/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ink-blue)] focus-visible:outline-offset-2"
+      onClick={goToTrip}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          goToTrip();
+        }
+      }}
       aria-label={`Trip to ${trip.destination}`}
     >
-      {trip.imageUrl ? (
-        <OptimizedImage
-          src={trip.imageUrl}
-          alt={trip.destination}
-          className="absolute inset-0"
-          fallback={
-            <div className="absolute inset-0 bg-gradient-to-br from-[#1D4E89] to-blue-900" />
-          }
-        />
-      ) : (
-        <div
-          className="absolute inset-0 bg-gradient-to-br from-[#1D4E89] to-blue-900 flex items-center justify-center text-5xl opacity-20"
-          aria-hidden="true"
-        >
-          🌍
-        </div>
-      )}
+      {/* Photo band */}
+      <div className="relative aspect-[16/10] bg-[hsl(var(--muted))]">
+        {trip.imageUrl ? (
+          <OptimizedImage
+            src={trip.imageUrl}
+            alt={trip.destination}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center text-[hsl(var(--muted-foreground))]">
+                <ImageOff className="w-6 h-6" aria-hidden="true" />
+              </div>
+            }
+          />
+        ) : (
+          <div
+            className="absolute inset-0 flex items-center justify-center text-[hsl(var(--muted-foreground))]"
+            aria-hidden="true"
+          >
+            <ImageOff className="w-6 h-6" />
+          </div>
+        )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-      <div className="absolute top-3 right-3">
         <span
-          className={`stamp text-[10px] ${stamp.className}`}
+          className={`absolute top-2.5 right-2.5 text-[10px] font-mono-data uppercase tracking-[0.08em] px-2 py-0.5 rounded-full backdrop-blur-sm ${stamp.className}`}
           aria-label={`Trip status: ${stamp.label}`}
         >
           {stamp.label}
         </span>
+
+        <button
+          className={`absolute top-2.5 left-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${
+            showConfirm
+              ? "bg-[var(--stamp-red-deep)] text-white"
+              : "bg-black/45 text-white/80 hover:bg-[var(--stamp-red-deep)] hover:text-white backdrop-blur-sm"
+          }`}
+          onClick={handleDelete}
+          disabled={isDeleting}
+          aria-label={showConfirm ? "Confirm delete trip" : `Delete trip to ${trip.destination}`}
+        >
+          {isDeleting ? (
+            <RotateCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+          ) : showConfirm ? (
+            <Check className="w-4 h-4" aria-hidden="true" />
+          ) : (
+            <Trash2 className="w-4 h-4" aria-hidden="true" />
+          )}
+        </button>
       </div>
 
-      <button
-        className={`absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${showConfirm ? "bg-red-500 text-white" : "bg-black/40 text-white/60 hover:bg-red-500/80 hover:text-white"}`}
-        onClick={handleDelete}
-        disabled={isDeleting}
-        aria-label={showConfirm ? "Confirm delete trip" : `Delete trip to ${trip.destination}`}
-      >
-        {isDeleting ? "↻" : showConfirm ? "✓" : "🗑"}
-      </button>
-
-      <div className="absolute bottom-0 left-0 right-0 p-4 perforated-edge bg-black/40 backdrop-blur-sm border-t border-white/20">
-        <h3 className="text-white font-semibold font-display text-base leading-tight mb-1 line-clamp-2">
+      {/* Info */}
+      <div className="p-4">
+        <h3 className="font-display text-base font-semibold text-[hsl(var(--foreground))] leading-tight line-clamp-1">
           {trip.destination}
         </h3>
-        <p className="text-white/80 text-xs font-mono-data mb-3 tracking-wide">
+        <p className="text-xs font-mono-data text-[hsl(var(--muted-foreground))] mt-1">
           {formatDateRangeSafe(trip.startDate, trip.endDate)}
         </p>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            duration != null ? `${duration}d` : null,
-            trip.travelStyle
-              ? `${STYLE_ICONS[trip.travelStyle] ?? "🧳"} ${trip.travelStyle}`
-              : null,
-            trip.transportMode
-              ? `${MEDIUM_ICONS[trip.transportMode] ?? "🚀"} ${trip.transportMode}`
-              : null,
-            trip.groupSize != null ? `👥 ${trip.groupSize}` : null,
-          ]
-            .filter((chip): chip is string => Boolean(chip))
-            .map((chip, i) => (
-              <span
-                key={i}
-                className="text-xs px-2 py-0.5 rounded-[4px] font-mono-data bg-black/40 text-white/90 border border-white/20"
-              >
-                {chip}
-              </span>
-            ))}
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[11px] text-[hsl(var(--muted-foreground))] font-sans-clean">
+          {duration != null && (
+            <span className="font-mono-data">
+              {duration} {duration === 1 ? "day" : "days"}
+            </span>
+          )}
+          {trip.travelStyle && StyleIcon && (
+            <span className="inline-flex items-center gap-1">
+              <StyleIcon className="w-3 h-3" aria-hidden="true" />
+              {trip.travelStyle}
+            </span>
+          )}
+          {trip.transportMode && MediumIcon && (
+            <span className="inline-flex items-center gap-1">
+              <MediumIcon className="w-3 h-3" aria-hidden="true" />
+              {trip.transportMode}
+            </span>
+          )}
+          {trip.groupSize != null && (
+            <span className="inline-flex items-center gap-1">
+              <Users className="w-3 h-3" aria-hidden="true" />
+              {trip.groupSize}
+            </span>
+          )}
         </div>
       </div>
     </div>

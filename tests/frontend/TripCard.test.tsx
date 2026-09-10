@@ -35,7 +35,9 @@ describe('TripCard Component', () => {
         expect(screen.getByText('Tokyo')).toBeInTheDocument()
         expect(screen.getByText(/Luxury/i)).toBeInTheDocument()
         expect(screen.getByText(/Flight/i)).toBeInTheDocument()
-        expect(screen.getByText(/👥 2/i)).toBeInTheDocument()
+        // Group size chip is now a Lucide Users icon + plain text (No-Emoji
+        // Rule, DESIGN.md) — was a literal "👥 2" glyph string before.
+        expect(screen.getByText('2')).toBeInTheDocument()
     })
 
     it('should show delete confirmation when trash icon is clicked', () => {

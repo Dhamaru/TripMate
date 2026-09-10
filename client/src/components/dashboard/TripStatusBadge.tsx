@@ -1,9 +1,9 @@
 import type { TripStatus } from '../../utils/tripStatus'
 
 const CONFIG = {
-    upcoming: { label: 'Upcoming', className: 'bg-[#1D4E89]/15 text-[#4F82C4] border-[#1D4E89]/50' },
-    ongoing: { label: 'Ongoing', className: 'bg-[#3D9467]/15 text-[#3D9467] border-[#3D9467]/50 animate-pulse' },
-    past: { label: 'Past', className: 'bg-[#B3261E]/15 text-[#B3261E] border-[#B3261E]/50' },
+    upcoming: { label: 'Upcoming', className: 'bg-[rgb(var(--customs-blue-deep-rgb)/15%)] text-[#4F82C4] border-[rgb(var(--customs-blue-rgb)/50%)]' },
+    ongoing: { label: 'Ongoing', className: 'bg-[rgb(var(--transit-green-deep-rgb)/15%)] text-[var(--transit-green)] border-[rgb(var(--transit-green-rgb)/50%)] animate-pulse' },
+    past: { label: 'Past', className: 'bg-[rgb(var(--stamp-red-deep-rgb)/15%)] text-[var(--stamp-red)] border-[rgb(var(--stamp-red-rgb)/50%)]' },
 } as const
 
 export function TripStatusBadge({ status }: { status: TripStatus }) {

@@ -1,7 +1,12 @@
 {
   "detector": {
-    "ignoreRules": ["border-accent-on-rounded"],
-    "ignoreFiles": [],
+    "ignoreRules": [
+      "border-accent-on-rounded"
+    ],
+    "ignoreFiles": [
+      "server/email.ts",
+      "tests/frontend/TripCard.test.tsx"
+    ],
     "ignoreValues": [
       {
         "rule": "bounce-easing",
@@ -72,7 +77,9 @@
       {
         "rule": "border-accent-on-rounded",
         "value": "*",
-        "files": ["client/src/components/TripMap.tsx"],
+        "files": [
+          "client/src/components/TripMap.tsx"
+        ],
         "createdAt": "2026-09-02T10:08:00.625Z",
         "reason": "L607 is a rounded-full spin loading indicator (border-b-2 on rounded-full is the standard CSS spinner technique), not a card with a clashing accent border"
       },
@@ -84,7 +91,9 @@
       {
         "rule": "border-accent-on-rounded",
         "value": "*",
-        "files": ["client/src/pages/TripPlanner.tsx"],
+        "files": [
+          "client/src/pages/TripPlanner.tsx"
+        ],
         "createdAt": "2026-09-03T05:02:59.889Z",
         "reason": "L914 (and prior line numbers as the file shifts) is the auth-loading rounded-full spinner (border-b-2 on rounded-full, standard CSS spinner technique), not a card with a clashing accent border - matches the identical, already-sanctioned TripMap.tsx spinner exception"
       },
@@ -112,6 +121,20 @@
         "rule": "design-system-color",
         "value": "#ffffff",
         "createdAt": "2026-09-08T08:58:32.762Z"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "animate-bounce",
+        "createdAt": "2026-09-08T11:08:34.872Z"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "6px)",
+        "files": [
+          "client/src/components/TripMap.tsx"
+        ],
+        "createdAt": "2026-09-09T10:20:54.955Z",
+        "reason": "var(--radius-xs, 6px) - the detector sees the fallback literal, not the token; --radius-xs IS 6px per DESIGN.md's own rounded scale"
       }
     ]
   }

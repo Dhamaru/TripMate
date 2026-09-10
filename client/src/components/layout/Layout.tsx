@@ -14,19 +14,39 @@ import {
   Book,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Sun,
   Moon,
+  ListChecks,
+  DollarSign,
+  CloudSun,
+  Languages,
+  Map,
+  Siren,
 } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 import { WifiOff, Download } from "lucide-react";
 
+// Tools no longer has its own index page — it was one extra click to an
+// intermediate grid that just linked back out to these same six routes.
+// A dropdown surfaces them directly from the sidebar (user request this
+// session), same pattern Journal/Trips already use for direct navigation.
+const TOOL_ITEMS = [
+  { label: "Packing List", icon: ListChecks, href: "/app/packing" },
+  { label: "Currency Converter", icon: DollarSign, href: "/app/currency" },
+  { label: "Weather Forecast", icon: CloudSun, href: "/app/weather" },
+  { label: "Translator", icon: Languages, href: "/app/translate" },
+  { label: "Offline Maps", icon: Map, href: "/app/maps" },
+  { label: "Emergency Info", icon: Siren, href: "/app/emergency" },
+];
+
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: "/app/home" },
   { label: "Trips", icon: Compass, href: "/app/trips" },
   { label: "Journal", icon: Book, href: "/app/journal" },
-  { label: "Tools", icon: Grid, href: "/app/tools" },
+  { label: "Tools", icon: Grid, children: TOOL_ITEMS },
   { label: "Feedback", icon: MessageSquare, href: "/app/feedback" },
 ];
 
@@ -42,6 +62,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // padded/max-width/bottom-nav-clearance wrapper below would fight that, so
   // it opts out and takes the full content area itself.
   const isFullBleed = location.startsWith("/app/maps");
+  const isOnToolRoute = TOOL_ITEMS.some(
+    (t) => location === t.href || location.startsWith(t.href + "/"),
+  );
+  // Starts open if you're already on one of its routes (land on /app/weather
+  // directly, e.g. from a bookmark, and the sidebar shows where you are
+  // instead of a collapsed group with no active-state visible at all).
+  const [toolsOpen, setToolsOpen] = useState(isOnToolRoute);
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
@@ -52,7 +79,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           DOM so it's always the first Tab stop. */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-[var(--ink-blue)] focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-[var(--ink-blue-fill)] focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold"
       >
         Skip to content
       </a>
@@ -67,7 +94,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             initial={{ y: -40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -40, opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-[110] bg-[var(--stamp-red)] text-white text-xs font-semibold flex items-center justify-center gap-2 py-1.5"
+            className="fixed top-0 left-0 right-0 z-[110] bg-[var(--stamp-red-deep)] text-white text-xs font-semibold flex items-center justify-center gap-2 py-1.5"
             role="status"
           >
             <WifiOff className="w-3.5 h-3.5" />
@@ -108,8 +135,105 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-5 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-2 py-5 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {NAV_ITEMS.map((item) => {
+            if (item.children) {
+              // Tools has no page of its own anymore — it was one extra
+              // click to a grid that just linked back out to these same
+              // routes. Collapsed-sidebar mode has no room for an inline
+              // submenu, so it falls back to the first tool.
+              const isGroupActive = isOnToolRoute;
+              return (
+                <div key={item.label}>
+                  {collapsed ? (
+                    <Link href={item.children[0].href}>
+                      <div
+                        className={cn(
+                          "flex items-center justify-center h-10 cursor-pointer relative group rounded-lg transition-all duration-150",
+                          isGroupActive
+                            ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                            : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
+                        )}
+                        title={item.label}
+                        aria-current={isGroupActive ? "page" : undefined}
+                      >
+                        <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
+                      </div>
+                    </Link>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setToolsOpen((v) => !v)}
+                        aria-expanded={toolsOpen}
+                        className={cn(
+                          "w-full flex items-center gap-3 h-10 px-3 cursor-pointer relative group rounded-lg transition-all duration-150",
+                          isGroupActive
+                            ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                            : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
+                        )}
+                      >
+                        {isGroupActive && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[var(--amber)] rounded-r-full" />
+                        )}
+                        <item.icon
+                          className={cn(
+                            "h-[18px] w-[18px] flex-shrink-0 transition-all duration-150",
+                            isGroupActive ? "text-[var(--ink-blue)]" : "group-hover:scale-110",
+                          )}
+                        />
+                        <span className="text-[13px] font-medium tracking-wide whitespace-nowrap font-sans-clean flex-1 text-left">
+                          {item.label}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200",
+                            toolsOpen && "rotate-180",
+                          )}
+                        />
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {toolsOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.18 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pl-[34px] pr-1 py-0.5 space-y-0.5">
+                              {item.children.map((tool) => {
+                                const toolActive =
+                                  location === tool.href || location.startsWith(tool.href + "/");
+                                return (
+                                  <Link key={tool.href} href={tool.href}>
+                                    <div
+                                      aria-current={toolActive ? "page" : undefined}
+                                      className={cn(
+                                        "flex items-center gap-2.5 h-8 px-2 rounded-md cursor-pointer text-[12.5px] font-medium transition-colors duration-150",
+                                        toolActive
+                                          ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                                          : "text-[hsl(var(--foreground)/0.55)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
+                                      )}
+                                    >
+                                      <tool.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                                      <span className="whitespace-nowrap font-sans-clean">
+                                        {tool.label}
+                                      </span>
+                                    </div>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  )}
+                </div>
+              );
+            }
+
             const isActive = location === item.href || location.startsWith(item.href + "/");
             return (
               <Link key={item.href} href={item.href}>
@@ -118,10 +242,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     "flex items-center gap-3 h-10 cursor-pointer relative group transition-all duration-150 rounded-lg",
                     collapsed ? "px-0 justify-center" : "px-3",
                     isActive
-                      ? "text-[var(--amber)] bg-[var(--amber-dim)]"
-                      : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
+                      ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                      : // Senior-review finding: --muted-foreground reads fine
+                        // for body text but was borderline invisible on an
+                        // 18px icon glyph against the dark ground — icons
+                        // need more presence than prose at the same color.
+                        "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
                   )}
                   title={collapsed ? item.label : undefined}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {isActive && !collapsed && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[var(--amber)] rounded-r-full" />
@@ -129,7 +258,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <item.icon
                     className={cn(
                       "h-[18px] w-[18px] flex-shrink-0 transition-all duration-150",
-                      isActive ? "text-[var(--amber)]" : "group-hover:scale-110",
+                      isActive ? "text-[var(--ink-blue)]" : "group-hover:scale-110",
                     )}
                   />
                   {!collapsed && (
@@ -138,7 +267,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     </span>
                   )}
                   {collapsed && (
-                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg text-[11px] text-[hsl(var(--foreground))] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                    <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg text-[11px] text-[hsl(var(--foreground))] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-[var(--shadow-card)]">
                       {item.label}
                     </div>
                   )}
@@ -181,7 +310,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             title="Toggle theme"
           >
             {theme === "dark" ? (
-              <Sun className="h-[16px] w-[16px] text-[var(--amber)] flex-shrink-0" />
+              <Sun className="h-[16px] w-[16px] text-[var(--ink-blue)] flex-shrink-0" />
             ) : (
               <Moon className="h-[16px] w-[16px] flex-shrink-0" />
             )}
@@ -202,7 +331,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               <Avatar className="h-7 w-7 rounded-full border border-[hsl(var(--border))] flex-shrink-0">
                 <AvatarImage src={user?.profileImageUrl} className="object-cover" />
-                <AvatarFallback className="bg-[var(--amber)] text-black text-[11px] font-bold">
+                <AvatarFallback className="bg-[var(--amber)] text-white text-[11px] font-bold">
                   {user?.firstName?.[0] || "U"}
                 </AvatarFallback>
               </Avatar>
@@ -249,7 +378,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       >
         {/* Top bar */}
-        <header className="h-14 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
+        <header className="h-16 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] px-6 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
           {/* Mobile logo */}
           <div className="md:hidden flex items-center gap-2">
             <TripMateLogo size="sm" showText={false} />
@@ -263,24 +392,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {/* Right: notifications + user */}
           <div className="flex items-center gap-3">
             <NotificationBell />
+            {/* Product-review finding: this whole block was hidden below
+                md, so a guest on mobile — the device most guests would
+                actually use — had zero indication anywhere that their
+                session was temporary. The GUEST tag now renders at every
+                width; only the name/"Trial" text stays desktop-only. */}
             <Link href="/app/profile">
               <div className="flex items-center gap-3 cursor-pointer group">
+                {user?.isGuest && (
+                  <span className="bg-[var(--amber-dim)] text-[var(--ink-blue)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
+                    GUEST
+                  </span>
+                )}
                 <div className="hidden md:flex flex-col items-end">
-                  <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--amber)] transition-colors flex items-center gap-1.5 font-sans-clean">
-                    {user?.isGuest && (
-                      <span className="bg-[var(--amber-dim)] text-[var(--amber)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
-                        GUEST
-                      </span>
-                    )}
+                  <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--ink-blue)] transition-colors flex items-center gap-1.5 font-sans-clean">
                     {user?.firstName} {user?.lastName}
                   </span>
                   <span className="label-xs text-[hsl(var(--muted-foreground))]">
                     {user?.isGuest ? "Trial" : "Member"}
                   </span>
                 </div>
-                <Avatar className="h-8 w-8 rounded-full border border-[hsl(var(--border))] group-hover:border-[var(--amber)] transition-all duration-200">
+                <Avatar className="h-8 w-8 rounded-full border border-[hsl(var(--border))] group-hover:border-[var(--ink-blue)] transition-all duration-200">
                   <AvatarImage src={user?.profileImageUrl} className="object-cover" />
-                  <AvatarFallback className="bg-[var(--amber)] text-black text-[11px] font-bold">
+                  <AvatarFallback className="bg-[var(--amber)] text-white text-[11px] font-bold">
                     {user?.firstName?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>
@@ -290,14 +424,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        {/* pb-32 (128px) mobile clearance for the fixed bottom nav (bottom-3
-            offset + ~64px height ≈ 76px) — pb-24 measured 34px short on
-            pages whose last content sits close to the true page bottom. */}
+        {/* pb-36 (144px) mobile clearance for the fixed bottom nav AND the
+            Atlas FAB, which floats above it (bottom-[88px] + its own 52px
+            height = its top edge sits ~140px up) — pb-32 (128px) was 12px
+            short, so on any page whose last content lands close to the true
+            page bottom, the FAB's tap area silently sat on top of real
+            content underneath it (UX-audit finding this session, live-
+            measured on Home's quick-actions grid).
+            md:pb-20 (80px): the FAB never actually hides at any breakpoint
+            (AtlasTriggerButton.tsx has no md:hidden — it just moves to
+            bottom-6 on desktop, where its own footprint is still ~76px:
+            24px offset + 52px height). md:pb-8 (32px) was well short of
+            that, and the FAB was found overlapping Home's "See all"
+            control at exactly 768px (live-measured). */}
         <main
           id="main-content"
           tabIndex={-1}
           className={
-            isFullBleed ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto pb-32 md:pb-8"
+            isFullBleed ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto pb-36 md:pb-20"
           }
         >
           <AnimatePresence mode="wait">
@@ -318,21 +462,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <nav className="md:hidden fixed bottom-3 left-3 right-3 z-50">
           <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.35)] px-1 py-1.5 flex items-center justify-around">
             {NAV_ITEMS.map((item) => {
-              const isActive = location === item.href || location.startsWith(item.href + "/");
+              // Tools has no route of its own (sidebar dropdown, desktop
+              // only) — the bottom nav has no room for a submenu, so it
+              // links straight to the first tool, same fallback the
+              // collapsed desktop sidebar uses.
+              const href = item.href ?? item.children![0].href;
+              const isActive =
+                item.children != null
+                  ? isOnToolRoute
+                  : location === href || location.startsWith(href + "/");
               return (
-                <Link key={item.href} href={item.href} className="flex-1">
+                <Link key={item.label} href={href} className="flex-1">
                   <div
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all duration-150",
                       isActive
-                        ? "text-[var(--amber)]"
-                        : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+                        ? "text-[var(--ink-blue)]"
+                        : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))]",
                     )}
                   >
                     <item.icon
                       className={cn(
                         "h-[18px] w-[18px]",
-                        isActive && "drop-shadow-[0_0_6px_rgba(232,144,10,0.6)]",
+                        isActive && "drop-shadow-[0_0_6px_rgb(var(--ink-blue-rgb)/0.6)]",
                       )}
                     />
                     <span className="label-xs">{item.label}</span>
@@ -344,7 +497,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-all">
                 <Avatar className="h-[18px] w-[18px] rounded-full border border-[hsl(var(--border))]">
                   <AvatarImage src={user?.profileImageUrl} />
-                  <AvatarFallback className="bg-[var(--amber)] text-black text-[8px] font-bold">
+                  <AvatarFallback className="bg-[var(--amber)] text-white text-[8px] font-bold">
                     {user?.firstName?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>
