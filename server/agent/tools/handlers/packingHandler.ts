@@ -75,6 +75,7 @@ Example format:
     );
 
     let saved = false;
+    let addedCount = 0;
     if (tripId && args.userId && items.length > 0) {
       const trip = await TripModel.findOne({
         _id: tripId,
@@ -100,6 +101,7 @@ Example format:
         list.items.push(...(added as any));
         await list.save();
         saved = true;
+        addedCount = added.length;
         socketService.broadcastMutation(String(tripId), {
           type: "packing-updated",
           data: list,
@@ -113,7 +115,9 @@ Example format:
         categories,
         saved,
         message: saved
-          ? `Saved ${items.length} suggested items to this trip's packing list.`
+          ? addedCount > 0
+            ? `Added ${addedCount} new item${addedCount === 1 ? "" : "s"} to this trip's packing list.`
+            : "This trip's packing list already covers all the suggested items."
           : "Here's the packing list (not saved — open the trip's packing page to add items).",
         mutations: saved && tripId ? [{ type: "packing_list_updated", tripId }] : undefined,
       },
