@@ -16,7 +16,8 @@ const updateSW = registerSW({
     // Poll for a new service worker every 30 min and whenever the app is
     // brought back to the foreground, so updates actually land without a
     // manual cache wipe.
-    if (!reg) return;
+    if (!reg || (reg as any).__tmPoll) return;
+    (reg as any).__tmPoll = true;
     setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") reg.update().catch(() => {});

@@ -1243,7 +1243,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               md:bottom-0 because the desktop sidebar layout has no bottom nav
               to clear. */}
         <motion.div
-          className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-[500] bg-card border-t border-[#163F73]/40 rounded-t-2xl flex flex-col overflow-hidden"
+          className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-30 bg-card border-t border-[#163F73]/40 rounded-t-2xl flex flex-col overflow-hidden"
           animate={{ height: sheetExpanded ? "65%" : 56 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           style={{ maxHeight: "80%" }}
