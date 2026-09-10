@@ -11,6 +11,17 @@ import { ThemeProvider } from "./components/layout/ThemeProvider";
 // reloaded) can force it without digging into system settings.
 const updateSW = registerSW({
   immediate: true,
+  onRegisteredSW(_swUrl, reg) {
+    // Installed PWA/TWA windows can sit open for days on a stale cache.
+    // Poll for a new service worker every 30 min and whenever the app is
+    // brought back to the foreground, so updates actually land without a
+    // manual cache wipe.
+    if (!reg) return;
+    setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") reg.update().catch(() => {});
+    });
+  },
   onNeedRefresh() {
     if (document.getElementById("tm-update-banner")) return;
     const bar = document.createElement("div");
