@@ -33,11 +33,11 @@ describe("Home (Dashboard) Page", () => {
 
   it("should greet the user by first name", () => {
     render(<Home />);
-    expect(screen.getByText("Dhamaru")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Dhamaru's trips/i })).toBeInTheDocument();
   });
 
   it("should show a call to action to plan a new trip when there are no trips", () => {
     render(<Home />);
-    expect(screen.getByText(/Start planning/i)).toBeInTheDocument();
+    expect(screen.getByText(/Plan your first trip/i)).toBeInTheDocument();
   });
 });
