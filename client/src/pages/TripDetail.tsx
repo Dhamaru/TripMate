@@ -117,7 +117,7 @@ export default function TripDetail() {
   const activeToastId = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const socketRef = useSocket();
-  const { setContext } = useAgentStore();
+  const { setContext, toggleChat, sendMessage, isChatOpen } = useAgentStore();
 
   useEffect(() => {
     if (id) {
@@ -1702,20 +1702,31 @@ export default function TripDetail() {
                   </div>
                 )}
 
-                <Link href={`/app/packing?tripId=${id}`}>
-                  <div className="mt-6 flex items-center justify-between p-4 bg-muted/50 hover:bg-muted rounded-xl cursor-pointer transition-colors group">
-                    <div className="flex items-center gap-3">
-                      <i className="fas fa-suitcase-rolling text-[var(--customs-blue)] text-lg"></i>
-                      <div>
-                        <p className="font-semibold text-foreground">Packing List</p>
-                        <p className="text-xs text-muted-foreground">
-                          Smart checklist for this trip
-                        </p>
-                      </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContext({ currentTripId: id, currentPage: "trip-detail" });
+                    if (!isChatOpen) toggleChat();
+                    void sendMessage(
+                      `Suggest a packing list for my trip to ${trip.destination}. ` +
+                        `Check the weather there for the trip dates and tailor it — ` +
+                        `call out anything weather-specific (rain gear, warm layers, sun protection).`,
+                    );
+                  }}
+                  className="mt-6 w-full text-left flex items-center justify-between p-4 bg-muted/50 hover:bg-muted rounded-xl cursor-pointer transition-colors group"
+                  aria-label="Ask Atlas to suggest a weather-aware packing list"
+                >
+                  <div className="flex items-center gap-3">
+                    <i className="fas fa-suitcase-rolling text-[var(--customs-blue)] text-lg"></i>
+                    <div>
+                      <p className="font-semibold text-foreground">Smart packing list</p>
+                      <p className="text-xs text-muted-foreground">
+                        Atlas suggests items based on the destination's weather
+                      </p>
                     </div>
-                    <i className="fas fa-chevron-right text-muted-foreground group-hover:text-foreground transition-colors"></i>
                   </div>
-                </Link>
+                  <i className="fas fa-chevron-right text-muted-foreground group-hover:text-foreground transition-colors"></i>
+                </button>
               </CardContent>
             </Card>
 

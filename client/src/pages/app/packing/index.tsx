@@ -844,6 +844,19 @@ export default function PackingChecklist() {
   const mandatoryItems = items.filter((i) => i.is_mandatory);
   const packedCount = items.filter((i) => i.packed).length;
 
+  // Categories start collapsed — the user expands the ones they want to
+  // work on. Only auto-collapses the first time a set of categories shows
+  // up (didAutoCollapse guard) so it never fights a user who's since
+  // opened something.
+  const didAutoCollapse = useRef(false);
+  useEffect(() => {
+    const cats = Object.keys(itemsByCategory);
+    if (!didAutoCollapse.current && cats.length > 0) {
+      didAutoCollapse.current = true;
+      setCollapsedCategories(new Set(cats));
+    }
+  }, [itemsByCategory]);
+
   const getSeasonIcon = (season: Season) => {
     // No margin here — the TabsTrigger's flex `gap` already spaces icon
     // from label; a redundant mr-2 on top of that gap was eating the width
