@@ -73,7 +73,8 @@ function tripPhase(trip: Trip): Phase {
   const start = toDate(trip.startDate);
   const end = toDate(trip.endDate);
   const today = midnight(new Date());
-  if (!start) return { kind: "undated", label: "No dates set", detail: "add dates to track countdown" };
+  if (!start)
+    return { kind: "undated", label: "No dates set", detail: "add dates to track countdown" };
   if (today < midnight(start)) {
     const d = daysBetween(today, start);
     return {
@@ -192,6 +193,9 @@ export default function Home() {
   const { user } = useAuthStore();
   const { trips, fetchTrips, isLoading: tripsLoading, error } = useTripStore();
   const toggleAtlasChat = useAgentStore((s) => s.toggleChat);
+  const atlasIsChatOpen = useAgentStore((s) => s.isChatOpen);
+  const atlasSetContext = useAgentStore((s) => s.setContext);
+  const atlasSendMessage = useAgentStore((s) => s.sendMessage);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -370,7 +374,9 @@ export default function Home() {
                     <div className="font-mono-data text-xs text-[hsl(var(--foreground))]">
                       {currentTrip.groupSize ?? currentTrip.companions ?? 1}
                       {" traveller"}
-                      {Number(currentTrip.groupSize ?? currentTrip.companions ?? 1) === 1 ? "" : "s"}
+                      {Number(currentTrip.groupSize ?? currentTrip.companions ?? 1) === 1
+                        ? ""
+                        : "s"}
                     </div>
                   </div>
                   <div className="bg-[hsl(var(--card))] p-3 min-w-0">
@@ -407,7 +413,9 @@ export default function Home() {
                       </span>
                       <span
                         className={`font-mono-data ${
-                          budget.over ? "text-[var(--stamp-red)]" : "text-[hsl(var(--muted-foreground))]"
+                          budget.over
+                            ? "text-[var(--stamp-red)]"
+                            : "text-[hsl(var(--muted-foreground))]"
                         }`}
                       >
                         {Math.round(budget.pct)}%
@@ -469,9 +477,7 @@ export default function Home() {
           <div className="min-w-0 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 md:p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <Eyebrow>
-                  {phase?.kind === "active" ? "Today's plan" : "First day"}
-                </Eyebrow>
+                <Eyebrow>{phase?.kind === "active" ? "Today's plan" : "First day"}</Eyebrow>
                 <h3 className="font-display text-lg font-semibold text-[hsl(var(--foreground))] mt-0.5">
                   {todayPlan
                     ? `Day ${todayPlan.day}${
@@ -547,7 +553,15 @@ export default function Home() {
                 ))}
               </div>
               <button
-                onClick={toggleAtlasChat}
+                onClick={() => {
+                  atlasSetContext({ currentTripId: currentTrip.id, currentPage: "dashboard" });
+                  if (!atlasIsChatOpen) toggleAtlasChat();
+                  void atlasSendMessage(
+                    `Give me a quick briefing on my trip to ${currentTrip.destination}` +
+                      `${phase?.label ? ` (${phase.label.toLowerCase()})` : ""} — what should I be doing right now, ` +
+                      `anything time-sensitive, and how my budget and packing are looking.`,
+                  );
+                }}
                 className="mt-2 w-full flex items-center gap-2 rounded-lg bg-[rgb(var(--ink-blue-rgb)/8%)] border border-[var(--ink-blue-bright)]/30 px-3 py-2.5 text-xs font-semibold text-[var(--ink-blue-bright)] font-sans-clean hover:bg-[rgb(var(--ink-blue-rgb)/14%)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
               >
                 <Bot className="w-4 h-4" aria-hidden="true" />
@@ -648,8 +662,8 @@ export default function Home() {
             No trips yet
           </h2>
           <p className="text-sm text-[hsl(var(--muted-foreground))] max-w-sm mb-6 font-sans-clean">
-            Give TripMate a destination and rough dates — it drafts the day-by-day itinerary,
-            a budget, and a packing list you can adjust.
+            Give TripMate a destination and rough dates — it drafts the day-by-day itinerary, a
+            budget, and a packing list you can adjust.
           </p>
           <Button
             onClick={() => navigate("/app/planner")}
