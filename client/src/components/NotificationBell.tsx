@@ -213,6 +213,25 @@ export function NotificationBell() {
           </div>
         </div>
 
+        {!settingsOpen && (
+          <div className="flex gap-1 px-3 py-1.5 border-b border-[hsl(var(--border))]">
+            {(["all", "unread"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`text-[11px] px-2 py-0.5 rounded-full capitalize transition-colors ${
+                  filter === f
+                    ? "bg-[var(--ink-blue-bright)] text-white"
+                    : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"
+                }`}
+              >
+                {f}
+                {f === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
+              </button>
+            ))}
+          </div>
+        )}
+
         {settingsOpen && (
           <div className="px-3 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 space-y-2">
             <p className="text-[11px] font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
@@ -239,7 +258,7 @@ export function NotificationBell() {
         <div className="overflow-y-auto flex-1">
           {notifications.length === 0 ? (
             <div className="py-10 text-center text-sm text-[hsl(var(--muted-foreground))]">
-              No notifications yet
+              {filter === "unread" ? "You're all caught up" : "No notifications yet"}
             </div>
           ) : (
             <>

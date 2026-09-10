@@ -10,6 +10,7 @@ import {
   ImportPlanRequestLogModel,
 } from "@shared/schema";
 import { AiUtilitiesService } from "../AiUtilitiesService";
+import { notifyTripParticipants } from "../notifications";
 
 import { BadRequestError, NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
@@ -242,6 +243,21 @@ export const updateTrip = async (req: Request, res: Response, next: NextFunction
       { type: "trip-updated", data: trip },
       String(userId),
     );
+
+    // Only notify collaborators about changes that actually matter to
+    // their planning — dates, destination, budget — not every field poke.
+    const MEANINGFUL = ["startDate", "endDate", "destination", "budget", "totalBudget", "days"];
+    if (MEANINGFUL.some((f) => f in updates)) {
+      const tid = (trip as any)._id.toString();
+      await notifyTripParticipants(trip, String(userId), {
+        type: "trip-updated",
+        title: "Trip details changed",
+        message: `The dates, destination, or budget for your trip to ${trip.destination} were updated.`,
+        link: `/app/trips/${tid}`,
+        tripId: tid,
+        groupKey: `trip-updated:${tid}`,
+      });
+    }
 
     res.json(trip);
   } catch (error) {

@@ -5,6 +5,7 @@ import logger from "../logger";
 import { MasterOrchestrator } from "../agent/multiAgent/MasterOrchestrator";
 import { OrchestratorInput } from "../agent/multiAgent/types";
 import { socketService } from "../services/SocketService";
+import { notifyTripParticipants } from "../notifications";
 
 const orchestrator = new MasterOrchestrator();
 
@@ -131,6 +132,14 @@ export const generatePackingList = async (req: Request, res: Response, next: Nex
       { type: "packing-updated", data: packingList },
       String(userId),
     );
+    await notifyTripParticipants(trip, String(userId), {
+      type: "packing-updated",
+      title: "Packing list ready",
+      message: `A packing list was generated for your trip to ${trip.destination}.`,
+      link: `/app/packing?tripId=${tripId}`,
+      tripId: String(tripId),
+      groupKey: `packing-updated:${tripId}`,
+    });
     res.json({ success: true, data: packingList });
   } catch (err) {
     next(err);

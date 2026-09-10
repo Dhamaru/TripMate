@@ -74,6 +74,7 @@ export const addActivity = async (req: Request, res: Response, next: NextFunctio
       message: `${newActivity.title || "A new activity"} was added to your trip to ${trip.destination}.`,
       link: `/app/trips/${tripId}`,
       tripId,
+      groupKey: `itinerary-updated:${tripId}`,
     });
 
     res.status(201).json(trip);
@@ -124,6 +125,7 @@ export const updateActivity = async (req: Request, res: Response, next: NextFunc
       message: `${activity?.title || "An activity"} was updated on your trip to ${trip.destination}.`,
       link: `/app/trips/${tripId}`,
       tripId,
+      groupKey: `itinerary-updated:${tripId}`,
     });
 
     res.json(trip);
@@ -172,6 +174,7 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
         message: `${removed.title || "An activity"} was removed from your trip to ${trip.destination}.`,
         link: `/app/trips/${tripId}`,
         tripId,
+        groupKey: `itinerary-updated:${tripId}`,
       });
     }
 
@@ -212,6 +215,14 @@ export const reorderItinerary = async (req: Request, res: Response, next: NextFu
           { type: "itinerary-updated", data: trip.itinerary },
           String(userId),
         );
+        await notifyTripParticipants(trip, String(userId), {
+          type: "itinerary-updated",
+          title: "Itinerary reordered",
+          message: `The day plan for your trip to ${trip.destination} was rearranged.`,
+          link: `/app/trips/${tripId}?tab=itinerary`,
+          tripId,
+          groupKey: `itinerary-updated:${tripId}`,
+        });
         res.json(trip);
         return;
       }

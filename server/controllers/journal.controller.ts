@@ -3,6 +3,7 @@ import path from "path";
 import { JournalEntryModel, TripModel } from "@shared/schema";
 import { NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
+import { notifyTripParticipants } from "../notifications";
 
 function fileUrls(req: Request): string[] {
   const files = req.files as Express.Multer.File[] | undefined;
@@ -59,12 +60,13 @@ export const createEntry = async (req: Request, res: Response, next: NextFunctio
     const uploadedPhotos = fileUrls(req);
 
     // If tripId is provided, verify access
+    let accessTrip: any = null;
     if (entryData.tripId) {
-      const trip = await TripModel.findOne({
+      accessTrip = await TripModel.findOne({
         _id: entryData.tripId,
         $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
       });
-      if (!trip) throw new ForbiddenError("Trip access denied");
+      if (!accessTrip) throw new ForbiddenError("Trip access denied");
     }
 
     const entry = await JournalEntryModel.create({
@@ -73,12 +75,20 @@ export const createEntry = async (req: Request, res: Response, next: NextFunctio
       photos: uploadedPhotos,
     });
 
-    if (entry.tripId) {
+    if (entry.tripId && accessTrip) {
       socketService.broadcastMutation(
         entry.tripId.toString(),
         { type: "journal-updated", data: entry },
         String(userId),
       );
+      await notifyTripParticipants(accessTrip, String(userId), {
+        type: "journal-updated",
+        title: "New journal entry",
+        message: `A new entry was added to the journal for your trip to ${accessTrip.destination}.`,
+        link: `/app/journal`,
+        tripId: entry.tripId.toString(),
+        groupKey: `journal-updated:${entry.tripId.toString()}`,
+      });
     }
 
     res.status(201).json(entry);

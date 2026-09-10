@@ -6,6 +6,7 @@ import { TripModel } from "@shared/schema";
 import { nanoid } from "nanoid";
 import { FeasibilityModeler } from "../../../services/FeasibilityModeler";
 import { socketService } from "../../../services/SocketService";
+import { notifyTripParticipants } from "../../../notifications";
 
 // Atlas's own tool-call arguments sometimes come back shouting-case
 // ("SRI RUDRA BIRYANI PALACE") or with stray trailing punctuation ("The
@@ -275,6 +276,14 @@ export async function modifyItineraryHandler(
     socketService.broadcastMutation(tripId, {
       type: "itinerary-updated",
       data: written.itinerary,
+    });
+    await notifyTripParticipants(written, userId, {
+      type: "itinerary-updated",
+      title: "Itinerary updated",
+      message: `Atlas updated the plan for your trip to ${written.destination}.`,
+      link: `/app/trips/${tripId}?tab=itinerary`,
+      tripId,
+      groupKey: `itinerary-updated:${tripId}`,
     });
 
     return {

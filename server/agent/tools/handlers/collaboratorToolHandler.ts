@@ -5,6 +5,8 @@
 import type { ToolResult } from "../../types";
 import { TripModel, UserModel } from "@shared/schema";
 import { socketService } from "../../../services/SocketService";
+import { notifyUser } from "../../../notifications";
+import { sendCollaboratorInviteEmail } from "../../../email";
 
 export async function collaboratorToolHandler(args: {
   userId: string;
@@ -83,6 +85,38 @@ export async function collaboratorToolHandler(args: {
       );
       // No excludeUserId — see modifyItineraryHandler.ts's comment on the same pattern.
       socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updated });
+
+      // Tell the added person — same email + in-app notification the REST
+      // "add collaborator" path sends. Without this an Atlas-added
+      // collaborator has no way to know they were added.
+      setImmediate(async () => {
+        try {
+          const inviter = await UserModel.findById(userId);
+          const inviterName =
+            (inviter &&
+              (`${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() || inviter.email)) ||
+            "A TripMate user";
+          const destination = trip.destination || "a trip";
+          await sendCollaboratorInviteEmail(
+            args.email!.toLowerCase(),
+            inviterName,
+            destination,
+            tripId,
+            args.role || "editor",
+          );
+          await notifyUser({
+            userId: userToAddId,
+            type: "collaborator-invite",
+            title: "Added to a trip",
+            message: `${inviterName} added you as a${args.role === "viewer" ? " viewer" : "n editor"} on their trip to ${destination}.`,
+            link: `/app/trips/${tripId}`,
+            tripId,
+          });
+        } catch (e) {
+          console.error("[Atlas:Collaborator] Invite email/notification failed:", e);
+        }
+      });
+
       return {
         success: true,
         data: {
@@ -107,6 +141,12 @@ export async function collaboratorToolHandler(args: {
       );
       // No excludeUserId — see modifyItineraryHandler.ts's comment on the same pattern.
       socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updated });
+      await notifyUser({
+        userId: args.collaboratorId,
+        type: "collaborator-removed",
+        title: "Removed from a trip",
+        message: `You were removed as a collaborator on the trip to ${trip.destination}.`,
+      });
       return {
         success: true,
         data: { message: "Collaborator removed." },
