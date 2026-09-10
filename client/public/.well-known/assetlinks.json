@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.tripmate.app",
+      "package_name": "com.onrender.tripmate_ylt6.twa",
       "sha256_cert_fingerprints": [
-        "REPLACE_WITH_SHA256_FINGERPRINT_FROM_bubblewrap_init"
+        "REPLACE_WITH_SHA256_FINGERPRINT_FROM_bubblewrap_fingerprint_list"
       ]
     }
   }
