@@ -56,19 +56,11 @@ export async function setupVite(app: Express, server: Server) {
     }
 
     try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
+      const clientTemplate = path.resolve(import.meta.dirname, "..", "client", "index.html");
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
+      template = template.replace(`src="/src/main.tsx"`, `src="/src/main.tsx?v=${nanoid()}"`);
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
@@ -97,19 +89,29 @@ export function serveStatic(app: Express) {
     next();
   });
 
-  app.use(express.static(distPath, {
-    maxAge: "1y",
-    immutable: true,
-    // express.static's default `index: true` auto-serves index.html itself
-    // whenever a request resolves to it (including "/") — WITH the same 1y
-    // immutable cache meant for hashed asset filenames. Since that header is
-    // "public", any CDN/shared cache in front of the app can then keep
-    // serving a stale index.html (pointing at an old JS bundle) to every
-    // visitor for up to a year after a deploy. index.html must always be
-    // revalidated, so route it through the catch-all below instead, which
-    // sets Cache-Control: no-cache.
-    index: false,
-  }));
+  app.use(
+    express.static(distPath, {
+      maxAge: "1y",
+      immutable: true,
+      // express.static's default `index: true` auto-serves index.html itself
+      // whenever a request resolves to it (including "/") — WITH the same 1y
+      // immutable cache meant for hashed asset filenames. Since that header is
+      // "public", any CDN/shared cache in front of the app can then keep
+      // serving a stale index.html (pointing at an old JS bundle) to every
+      // visitor for up to a year after a deploy. index.html must always be
+      // revalidated, so route it through the catch-all below instead, which
+      // sets Cache-Control: no-cache.
+      index: false,
+    }),
+  );
+
+  // Static download page lives at /download/index.html; serve it for the
+  // bare /download URL too (express.static has index:false, so a directory
+  // request would otherwise fall through to the SPA shell below).
+  app.get(["/download", "/download/"], (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.resolve(distPath, "download", "index.html"));
+  });
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (req, res) => {
