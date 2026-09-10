@@ -1080,14 +1080,26 @@ export default function TripDetail() {
             <span aria-hidden="true">/</span>
             <span className="text-foreground truncate max-w-[220px]">{trip.destination}</span>
           </nav>
-          <div className="flex flex-col md:flex-row md:items-start justify-between mb-1 gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between mb-1 gap-4">
             <div className="min-w-0">
-              <h1
-                className="font-display text-[2.1rem] md:text-[2.6rem] leading-[1.05] font-semibold text-foreground"
-                data-testid="trip-title"
-              >
-                {trip.destination}
-              </h1>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1
+                  className="font-display text-[1.9rem] sm:text-[2.2rem] lg:text-[2.5rem] leading-[1.05] font-semibold text-foreground"
+                  data-testid="trip-title"
+                >
+                  {trip.destination}
+                </h1>
+                <Badge
+                  className={
+                    statusColors[trip?.status as keyof typeof statusColors] ||
+                    "bg-muted text-muted-foreground"
+                  }
+                >
+                  {trip?.status
+                    ? trip.status.charAt(0).toUpperCase() + trip.status.slice(1)
+                    : "Planning"}
+                </Badge>
+              </div>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground mt-1.5 font-sans-clean">
                 {trip.origin && (
                   <>
@@ -1144,16 +1156,6 @@ export default function TripDetail() {
               )}
             </AnimatePresence>
             <div className="flex items-center gap-2 self-start flex-wrap">
-              <Badge
-                className={
-                  statusColors[trip?.status as keyof typeof statusColors] ||
-                  "bg-muted text-muted-foreground"
-                }
-              >
-                {trip?.status
-                  ? trip.status.charAt(0).toUpperCase() + trip.status.slice(1)
-                  : "Planning"}
-              </Badge>
               {!isEditing && (
                 <div className="flex flex-wrap items-center gap-2">
                   {id && trip && (
@@ -1634,7 +1636,7 @@ export default function TripDetail() {
                     <p className="text-sm text-muted-foreground">Budget</p>
                     <p className="font-bold text-foreground">
                       {getCurrencySymbol(trip.currency)}
-                      {trip.budget}
+                      {Number(trip.budget || 0).toLocaleString()}
                     </p>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-xl">
@@ -1708,13 +1710,16 @@ export default function TripDetail() {
                     setContext({ currentTripId: id, currentPage: "trip-detail" });
                     if (!isChatOpen) toggleChat();
                     void sendMessage(
-                      `Suggest a packing list for my trip to ${trip.destination}. ` +
-                        `Check the weather there for the trip dates and tailor it — ` +
-                        `call out anything weather-specific (rain gear, warm layers, sun protection).`,
+                      `Generate a packing list for my trip to ${trip.destination} and save it to this trip. ` +
+                        `Check the destination's weather for the trip dates first and tailor the list to it ` +
+                        `(rain gear, warm layers, sun protection as appropriate).`,
                     );
+                    // Land on the packing page with this trip pre-selected so
+                    // the list Atlas saves shows up where the user works on it.
+                    setLocation(`/app/packing?tripId=${id}`);
                   }}
                   className="mt-6 w-full text-left flex items-center justify-between p-4 bg-muted/50 hover:bg-muted rounded-xl cursor-pointer transition-colors group"
-                  aria-label="Ask Atlas to suggest a weather-aware packing list"
+                  aria-label="Have Atlas build a weather-aware packing list for this trip"
                 >
                   <div className="flex items-center gap-3">
                     <i className="fas fa-suitcase-rolling text-[var(--customs-blue)] text-lg"></i>
