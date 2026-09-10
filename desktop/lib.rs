@@ -38,11 +38,20 @@ const TITLEBAR_JS: &str = r#"
       '<button id="__tm_close" title="Close" aria-label="Close">✕</button>' +
       '</div>';
     document.body.appendChild(bar);
-
-    var w = window.__TAURI__.window.getCurrentWindow();
+    wire(bar);
+  }
+  function wire(bar) {
+    var T = window.__TAURI__;
+    if (!T || !T.window) { setTimeout(function () { wire(bar); }, 150); return; }
+    var w = T.window.getCurrentWindow();
     document.getElementById('__tm_min').onclick = function () { w.minimize(); };
     document.getElementById('__tm_max').onclick = function () { w.toggleMaximize(); };
     document.getElementById('__tm_close').onclick = function () { w.close(); };
+    // Drag + double-click-to-maximize (not when the buttons are the target).
+    bar.addEventListener('mousedown', function (e) {
+      if (e.button !== 0 || e.target.closest('#__tm_btns')) return;
+      if (e.detail === 2) { w.toggleMaximize(); } else { w.startDragging(); }
+    });
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', build);
