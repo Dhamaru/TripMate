@@ -514,10 +514,19 @@ export async function runAgentLoop(
     // separate quota from NVIDIA) so the user still gets an answer. No
     // tool-calling on this path, just a direct response.
     try {
+      const priorTurns = messages
+        .filter(
+          (m): m is { role: "user" | "assistant"; content: string } =>
+            (m.role === "user" || m.role === "assistant") &&
+            typeof m.content === "string" &&
+            m.content.length > 0,
+        )
+        .slice(-8);
       const fallbackText = await deps.aiService.generateFallbackReply(
         input.message,
         systemPrompt +
-          "\n\nNote: live trip data/tools are temporarily unavailable — answer from general travel knowledge and say so if the question needs live data.",
+          "\n\nNote: live trip data/tools are temporarily unavailable — answer from general travel knowledge, using the conversation so far for context, and say so if the question needs live data. Never reply with raw JSON; format any list as plain bullet points.",
+        priorTurns,
       );
       if (fallbackText) {
         input.onToken?.(fallbackText);

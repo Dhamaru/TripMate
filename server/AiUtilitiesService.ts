@@ -2794,16 +2794,25 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   }
 
   /** Plain-text last-resort reply when the primary chat model(s) are unavailable — no tool-calling, no JSON parsing, just the best available provider's raw answer. */
-  async generateFallbackReply(userMessage: string, systemPrompt: string): Promise<string | null> {
+  async generateFallbackReply(
+    userMessage: string,
+    systemPrompt: string,
+    priorMessages?: Array<{ role: "user" | "assistant"; content: string }>,
+  ): Promise<string | null> {
+    // When the tool-calling chain is down we still want the reply to keep
+    // the thread's context — otherwise Atlas asks "which list?" right after
+    // producing one. Carry the recent turns through if given.
+    const convo =
+      priorMessages && priorMessages.length
+        ? priorMessages
+        : [{ role: "user" as const, content: userMessage }];
+
     try {
       if (this.openai) {
         const completion = await this.openai.chat.completions.create({
           model: "gpt-4o-mini",
           temperature: 0.4,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
+          messages: [{ role: "system", content: systemPrompt }, ...convo],
         });
         const text = completion.choices?.[0]?.message?.content?.trim();
         if (text) return text;
@@ -2813,7 +2822,8 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     }
 
     try {
-      const text = await this.generateWithGemini(userMessage, systemPrompt);
+      const transcript = convo.map((m) => `${m.role}: ${m.content}`).join("\n");
+      const text = await this.generateWithGemini(transcript, systemPrompt);
       if (text && text.trim()) return text.trim();
     } catch (e) {
       console.error("[AiUtilities] Fallback reply via Gemini failed:", e);

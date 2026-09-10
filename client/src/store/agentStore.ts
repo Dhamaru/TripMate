@@ -87,10 +87,16 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   // internal general:${userId} key — see agent.controller.ts.
   loadConversation: async () => {
     const key = get().context.currentTripId || "general";
+    // A send fired from another screen (e.g. the trip page's "Smart packing
+    // list" button, which navigates away immediately) races this hydration:
+    // the optimistic user message is already on screen but the server hasn't
+    // persisted the turn yet, so a fetch here would return the OLD history
+    // and wipe it. Skip while a send for this same conversation is in flight.
+    if (get().isLoading && key === get().conversationId) return;
     set({ isHistoryLoading: true });
     try {
       const history: any = await agentApi.getConversation(key);
-      const messages: AgentMessage[] = (Array.isArray(history) ? history : [])
+      const fetched: AgentMessage[] = (Array.isArray(history) ? history : [])
         // tool/system turns are the model's own internal reasoning steps,
         // never meant to render as chat bubbles — same filter the live
         // send/stream paths implicitly apply by only ever constructing
@@ -102,7 +108,14 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
           content: m.content || "",
           timestamp: m.timestamp || new Date().toISOString(),
         }));
-      set({ messages, conversationId: key, isHistoryLoading: false });
+      // Don't let a stale/slower fetch shrink a conversation we're already
+      // showing more of (same race as above, just landing a beat later).
+      const cur = get();
+      if (key === cur.conversationId && fetched.length < cur.messages.length) {
+        set({ isHistoryLoading: false });
+        return;
+      }
+      set({ messages: fetched, conversationId: key, isHistoryLoading: false });
     } catch {
       // A failed hydration shouldn't wipe out whatever's already on
       // screen (e.g. messages from earlier this session) — just stop
