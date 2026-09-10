@@ -4,8 +4,22 @@ import { useAgentStore } from "../../store";
 import { ToolCallBadge } from "./ToolCallBadge";
 import { TypingIndicator } from "./TypingIndicator";
 
+const TRIP_STARTERS = [
+  "What's the weather like for my trip?",
+  "Build me a packing list for this trip and save it",
+  "How is my budget looking?",
+  "Suggest a few things to do at my destination",
+];
+const GENERIC_STARTERS = [
+  "Help me plan a 3-day trip",
+  "What should I pack for a beach vacation?",
+  "Convert 100 USD to EUR",
+  "Suggest a weekend itinerary for Tokyo",
+];
+
 export function ChatMessageList() {
-  const { messages, isLoading, isHistoryLoading, confirmPendingAction, context } = useAgentStore();
+  const { messages, isLoading, isHistoryLoading, confirmPendingAction, context, streamMessage } =
+    useAgentStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,6 +69,18 @@ export function ChatMessageList() {
               weather, budgets, and packing lists have somewhere to attach.
             </p>
           )}
+          <div className="flex flex-col gap-1.5 w-full max-w-[280px] mt-3">
+            {(context.currentTripId ? TRIP_STARTERS : GENERIC_STARTERS).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => void streamMessage(s)}
+                className="text-left text-xs px-3 py-2 rounded-lg border border-border bg-card hover:border-[var(--explorer-blue)] hover:text-[var(--explorer-blue)] text-muted-foreground transition-colors"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {messages.map((msg) =>
