@@ -92,13 +92,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
   const { theme } = useTheme();
-  const resolvedTheme =
-    theme === "system"
-      ? window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light"
-      : theme;
-  const [darkMode, setDarkMode] = useState(resolvedTheme === "dark");
+  const [darkMode, setDarkMode] = useState(theme === "dark");
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pendingPinCenter, setPendingPinCenter] = useState<{ lat: number; lng: number } | null>(
     null,
@@ -107,15 +101,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [offlineModeRegion, setOfflineModeRegion] = useState<MapRegion | null>(null);
 
   useEffect(() => {
-    setDarkMode(resolvedTheme === "dark");
-  }, [resolvedTheme]);
-
-  useEffect(() => {
-    if (theme !== "system") return;
-    const mql = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => setDarkMode(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
+    setDarkMode(theme === "dark");
   }, [theme]);
 
   function openOfflineMap(region: MapRegion) {
@@ -974,7 +960,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   }
 
   return (
-    <div className={`offline-maps-root relative h-full w-full flex flex-col overflow-hidden ${className}`}>
+    <div
+      className={`offline-maps-root relative h-full w-full flex flex-col overflow-hidden ${className}`}
+    >
       {/* Slim top bar — tabs + offline/dark-mode state, not a full page header */}
       <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card">
         <div className="flex space-x-1 bg-muted p-1 rounded-xl">

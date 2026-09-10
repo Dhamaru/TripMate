@@ -61,12 +61,7 @@ export function TripMap({
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [geocodeError, setGeocodeError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { theme } = useTheme();
-  const mapTheme = useMemo<"light" | "dark">(() => {
-    if (theme === "system")
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    return theme;
-  }, [theme]);
+  const { theme: mapTheme } = useTheme();
   const [isAddMode, setIsAddMode] = useState(false);
   const [addSpotDialogOpen, setAddSpotDialogOpen] = useState(false);
   const [pendingAddSpot, setPendingAddSpot] = useState<{
