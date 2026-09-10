@@ -31,33 +31,50 @@ npm create tauri-app@latest tripmate-desktop -- --template vanilla --manager npm
 cd tripmate-desktop
 ```
 
-## 3. Point it at the live site
+## 3. Point it at the live site — frameless, custom title bar
 
-Edit `tripmate-desktop/src-tauri/tauri.conf.json`:
+The window is **frameless** (`decorations: false`) with a slim dark title
+bar injected into the remote page (we can't edit that page, so we inject).
+Because the window is built in Rust (not `tauri.conf.json`) so it can carry
+an `initialization_script`, the config's `app.windows` array is left empty.
 
-- Under `app.windows[0]`, set:
-  ```json
-  "url": "https://tripmate-ylt6.onrender.com",
-  "title": "TripMate",
-  "width": 1200,
-  "height": 800,
-  "minWidth": 360,
-  "minHeight": 600,
-  "resizable": true
-  ```
-- Set `productName` to `TripMate` and `identifier` to
-  `com.onrender.tripmate.desktop`.
-- (Optional, for a custom title bar / fully borderless later:
-  `"decorations": false` — but then you must draw your own drag region.)
+**`src-tauri/tauri.conf.json`** — set `productName` `TripMate`, `identifier`
+`com.onrender.tripmate.desktop`, `version` `1.0.0`, and:
 
-Replace the generated icons: copy `../icon-512.png` over
-`src-tauri/icons/icon.png`, then run `npm run tauri icon ../icon-512.png`
-(regenerates `.ico` / `.icns` / all sizes).
+```json
+"app": {
+  "withGlobalTauri": true,
+  "windows": [],
+  "security": { "csp": null }
+}
+```
 
-Allow the remote origin: in
-`src-tauri/capabilities/default.json`, no change needed for a plain web
-view — but if any Tauri API is called, add the origin to
-`app.security.csp` / `remoteDomains` per the Tauri v2 docs.
+`withGlobalTauri: true` is required — the injected bar calls
+`window.__TAURI__.window.getCurrentWindow()` for minimize/maximize/close.
+
+**`src-tauri/src/lib.rs`** — replace with the version tracked alongside this
+doc (`desktop/lib.rs`). It builds the `main` window pointing at the live
+URL, `decorations(false)`, and injects `TITLEBAR_JS`: a 32px fixed bar with
+`data-tauri-drag-region` (window drag) + `– □ ✕` buttons, plus
+`html{margin-top:32px}` so site content clears the bar. A `MutationObserver`
+re-injects it if the SPA wipes the DOM on navigation.
+
+**`src-tauri/capabilities/default.json`** — add the window permissions the
+buttons need:
+
+```json
+"permissions": [
+  "core:default",
+  "core:window:allow-minimize",
+  "core:window:allow-toggle-maximize",
+  "core:window:allow-close",
+  "core:window:allow-start-dragging",
+  "opener:default"
+]
+```
+
+Icons: copy `../icon-512.png` over `src-tauri/icons/icon.png`, then
+`npm run tauri icon ../icon-512.png`.
 
 ## 4. Build
 
@@ -79,7 +96,12 @@ to change the icon, window size, or app version.
 
 ## Notes
 
-- `desktop/tripmate-desktop/` is gitignored (generated). Only this doc and
-  `icon-512.png` are tracked.
+- `desktop/tripmate-desktop/` is gitignored (generated). Tracked: this doc,
+  `icon-512.png`, and `lib.rs` (the customized window/title-bar source — copy
+  it into `src-tauri/src/lib.rs` after scaffolding).
+- The built installer is published at
+  `https://tripmate-ylt6.onrender.com/download` (served from
+  `client/public/download/TripMate-Setup.exe`). After a rebuild, copy the
+  new NSIS `-setup.exe` there and redeploy.
 - Tauri window is a system WebView (Edge WebView2 on Windows) — same
   engine family as the PWA, so rendering matches.
