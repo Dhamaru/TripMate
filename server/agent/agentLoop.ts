@@ -251,6 +251,13 @@ export async function runAgentLoop(
   let lastIteration = 0;
 
   let currentModelIndex = 0;
+  // A rate-limit/timeout on Gemini is usually transient — one short backoff
+  // retry on the SAME model recovers most of them, which matters because
+  // both model slots share one API key (and one quota), so advancing the
+  // index on a 429 just hits the same limit again and dumps the user into
+  // the no-tools fallback. Reset whenever the model index actually moves.
+  let sameModelRetries = 0;
+  let retryGuardIndex = 0;
 
   // Fail fast instead of fail slow: if every provider is simultaneously
   // circuit-open (recent failures) or out of tracked token budget, the
@@ -348,6 +355,20 @@ export async function runAgentLoop(
       } catch (apiErr: any) {
         const { shouldFallback, reason } = classifyFallbackError(apiErr);
         if (shouldFallback) {
+          if (retryGuardIndex !== currentModelIndex) {
+            retryGuardIndex = currentModelIndex;
+            sameModelRetries = 0;
+          }
+          if (sameModelRetries < 2) {
+            sameModelRetries++;
+            const backoff = 700 * sameModelRetries + Math.floor(Math.random() * 400);
+            console.warn(
+              `[Atlas:Loop] ${reason} on ${MODELS[currentModelIndex]} (${apiErr?.message}). Retry ${sameModelRetries}/2 in ${backoff}ms.`,
+            );
+            await new Promise((r) => setTimeout(r, backoff));
+            iteration--;
+            continue;
+          }
           recordFailure(currentModelIndex, reason);
           if (currentModelIndex < MODELS.length - 1) {
             console.warn(
@@ -416,6 +437,20 @@ export async function runAgentLoop(
         // the whole iteration retries fresh against the next model.
         const { shouldFallback, reason } = classifyFallbackError(streamErr);
         if (shouldFallback) {
+          if (retryGuardIndex !== currentModelIndex) {
+            retryGuardIndex = currentModelIndex;
+            sameModelRetries = 0;
+          }
+          if (sameModelRetries < 2) {
+            sameModelRetries++;
+            const backoff = 700 * sameModelRetries + Math.floor(Math.random() * 400);
+            console.warn(
+              `[Atlas:Loop] ${reason} mid-stream on ${MODELS[currentModelIndex]} (${streamErr?.message}). Retry ${sameModelRetries}/2 in ${backoff}ms.`,
+            );
+            await new Promise((r) => setTimeout(r, backoff));
+            iteration--;
+            continue;
+          }
           recordFailure(currentModelIndex, reason);
           if (currentModelIndex < MODELS.length - 1) {
             console.warn(
