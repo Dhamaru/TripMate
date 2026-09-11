@@ -63,3 +63,37 @@ export const markAllNotificationsRead = async (req: Request, res: Response, next
     next(error);
   }
 };
+
+// Notifications are never auto-expired or silently pruned — they persist
+// until the user explicitly removes them. This is the one path that does.
+export const deleteNotification = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = String(req.user?._id || req.user?.id);
+    const { id } = req.params;
+    const deleted = await NotificationModel.findOneAndDelete({ _id: id, userId });
+    if (!deleted) return res.status(404).json({ error: "Notification not found" });
+    socketService.pushNotificationDeleted(userId, id);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// One endpoint for both "delete these selected ones" and "clear all" —
+// `ids` deletes exactly that set (still scoped to the caller's own
+// userId, so an id belonging to someone else is silently a no-op rather
+// than an IDOR delete); omitting it clears everything.
+export const deleteNotifications = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = String(req.user?._id || req.user?.id);
+    const ids = Array.isArray(req.body?.ids) ? (req.body.ids as string[]).map(String) : null;
+    const query: Record<string, unknown> = { userId };
+    if (ids && ids.length > 0) query._id = { $in: ids };
+
+    const result = await NotificationModel.deleteMany(query);
+    socketService.pushNotificationDeleted(userId, ids && ids.length > 0 ? ids : "all");
+    res.json({ ok: true, deletedCount: result.deletedCount });
+  } catch (error) {
+    next(error);
+  }
+};

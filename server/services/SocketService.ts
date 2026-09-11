@@ -223,6 +223,15 @@ export class SocketService {
     if (!this.io) return;
     this.io.to(`user:${userId}`).emit("notification-read", { id });
   }
+
+  // Same idea as pushNotificationRead — a notification deleted (or
+  // cleared) on one device shouldn't linger in another tab's list until
+  // its next reload. `id` is a notification id, an array of ids (bulk
+  // delete), or "all" (clear all).
+  public pushNotificationDeleted(userId: string, id: string | string[] | "all") {
+    if (!this.io) return;
+    this.io.to(`user:${userId}`).emit("notification-deleted", { id });
+  }
 }
 
 export const socketService = SocketService.getInstance();
