@@ -9,7 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/layout/ThemeProvider";
-import { computeTileUrls, downloadTiles, deleteTiles, formatBytes } from "@/lib/offlineTiles";
+import {
+  computeTileUrls,
+  downloadTiles,
+  deleteTiles,
+  formatBytes,
+  TILE_CACHE_NAME,
+} from "@/lib/offlineTiles";
 import { apiRequest } from "@/lib/queryClient";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import L from "leaflet";
@@ -124,6 +130,29 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       description: "You are now viewing the offline map area.",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // "Downloaded" here only means it was written to Cache Storage at
+    // download time — the browser can evict it under storage pressure, or
+    // the user can clear site data, and the region's saved state has no
+    // way to know that happened. Spot-check one tile so a since-evicted
+    // "downloaded" region doesn't silently show blank squares offline with
+    // no explanation.
+    if (region.downloaded && region.tileUrls?.[0] && !navigator.onLine) {
+      caches
+        .open(TILE_CACHE_NAME)
+        .then((cache) => cache.match(region.tileUrls[0]))
+        .then((hit) => {
+          if (!hit) {
+            toast({
+              title: "Tiles may be missing",
+              description:
+                "This region's offline tiles seem to have been cleared. Download it again for offline use.",
+              variant: "destructive",
+            });
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   function exitOfflineMap() {
@@ -245,6 +274,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
   const [placesResults, setPlacesResults] = useState<PlaceResult[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState<string | null>(null);
+  const [placesSearched, setPlacesSearched] = useState(false);
   // Maps here is a standalone, not-tied-to-one-trip page — bias search
   // toward wherever the user actually is, not a trip's destination (that
   // biasing happens in TripMap.tsx, which is opened from within a trip).
@@ -447,22 +478,6 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
 
     mapInstanceRef.current = map;
-
-    // Map Click Listener for Custom Pins
-    map.on("click", (e) => {
-      // Accessing activeTab from ref would be better but for simplicity in this effect:
-      // We rely on the button add approach or prompt if mode is enabled.
-      // Actually checking a ref or global var is safer in closures.
-      // For now, I'll add a separate "Add Pin" mode toggle or just check tab in a ref if I had one.
-      // Simpler: Just rely on the UI button to add pin at center, or use a specific event if "Saved" tab is active.
-
-      const isSavedTab = document.getElementById("tab-indicator-saved") !== null; // Hacky check if we don't have ref
-
-      // Let's use a cleaner approach: user clicks "Add Pin" button, then clicks map.
-      // Or just prompt on click if in 'saved' tab.
-      // Since state `activeTab` isn't accessible in this closure easily without ref,
-      // I will rely on a "Add Pin Current Location" button in the UI instead of click-map for stability.
-    });
 
     // Initial state: Prioritize Geolocation — but never override the
     // saved-pins auto-fit above (pinsFitOnceRef) if that already won the
@@ -764,6 +779,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   async function fetchPlaces(query: string) {
     if (!query || query.length < 2) return;
     setPlacesLoading(true);
+    setPlacesError(null);
     try {
       // The backend's place search has no category filter — it's a raw text
       // search passthrough. The only way the Food/Hotels/Sights checkboxes can
@@ -815,9 +831,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       setPlacesResults(merged);
       setTotal(totalCount);
     } catch {
-      // Silent fail
+      setPlacesError("Search failed. Check your connection and try again.");
+      setPlacesResults([]);
     } finally {
       setPlacesLoading(false);
+      setPlacesSearched(true);
     }
   }
 
@@ -1349,6 +1367,12 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       </label>
                     </div>
 
+                    {!placesLoading && placesSearched && placesResults.length === 0 && (
+                      <div className="text-center py-4 text-sm text-muted-foreground">
+                        {placesError ?? `No results for "${searchQuery}".`}
+                      </div>
+                    )}
+
                     {placesResults.length > 0 && (
                       <div className="grid gap-2 max-h-60 overflow-y-auto">
                         {placesResults.map((p) => (
@@ -1427,7 +1451,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     className="h-2 bg-muted [&>div]:bg-[#163F73]"
                   />
                   <p className="text-[10px] text-muted-foreground mt-2 text-right">
-                    Offline maps auto-expire after 30 days of inactivity
+                    Offline maps auto-expire 30 days after download
                   </p>
                 </CardContent>
               </Card>
