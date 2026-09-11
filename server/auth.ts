@@ -13,6 +13,7 @@ import { getBackendBaseUrl } from "./urls";
 
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "./email";
+import { sendWelcomeNotification } from "./welcome";
 
 export async function hashPassword(password: string) {
   return await bcrypt.hash(password, 10);
@@ -114,6 +115,7 @@ export async function setupAuth(app: Express) {
                 googleConnected: true,
                 googleId: profile.id,
               });
+              void sendWelcomeNotification(user.id, user.firstName);
             } else if (user.password && !user.googleConnected) {
               // Fixing the lookup above made this branch reachable for the
               // first time — and reaching it silently would have been a

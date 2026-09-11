@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
-import { Lightbulb, Bug, Sparkles, FileText, Paperclip, X } from "lucide-react";
+import { Lightbulb, Bug, Sparkles, FileText, Paperclip, X, Heart } from "lucide-react";
 
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB, matches the server's multer limit
@@ -26,7 +26,28 @@ export default function Feedback() {
     subject: "",
     description: "",
     email: user?.email || "",
+    tripId: "",
   });
+
+  // The post-trip "how was your trip" reminder (server/scheduler.ts) links
+  // here with ?tripId=&type=trip-experience&destination= — prefill the
+  // form into that flow instead of a blank generic report. Read once on
+  // mount; a user who then changes the Type dropdown away isn't fought.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tripId = params.get("tripId");
+    const type = params.get("type");
+    const destination = params.get("destination");
+    if (type === "trip-experience" || tripId) {
+      setForm((prev) => ({
+        ...prev,
+        type: "trip-experience",
+        category: "trip-experience",
+        subject: destination ? `My trip to ${destination}` : prev.subject,
+        tripId: tripId || "",
+      }));
+    }
+  }, []);
   const [loading, setLoading] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -116,14 +137,18 @@ export default function Feedback() {
     setLoading(true);
 
     try {
+      // tripId is "" for every ordinary (non-trip-experience) report —
+      // send it only when it's actually set, so the field stays genuinely
+      // absent rather than an empty string on most rows.
+      const payload = form.tripId ? form : { ...form, tripId: undefined };
       let response: Response;
       if (attachments.length > 0) {
         const fd = new FormData();
-        Object.entries(form).forEach(([key, value]) => fd.append(key, value));
+        Object.entries(payload).forEach(([key, value]) => value && fd.append(key, value));
         attachments.forEach((file) => fd.append("attachments", file));
         response = await apiRequest("POST", "/api/v1/feedback", fd);
       } else {
-        response = await apiRequest("POST", "/api/v1/feedback", form);
+        response = await apiRequest("POST", "/api/v1/feedback", payload);
       }
 
       if (response.ok) {
@@ -137,6 +162,7 @@ export default function Feedback() {
           subject: "",
           description: "",
           email: user?.email || "",
+          tripId: "",
         });
         setAttachments([]);
       } else {
@@ -184,6 +210,17 @@ export default function Feedback() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border">
+                    <SelectItem
+                      value="trip-experience"
+                      className="text-foreground hover:bg-muted cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-[rgba(61,148,103,0.12)] flex items-center justify-center">
+                          <Heart className="w-4 h-4 text-[var(--emerald-horizon)]" />
+                        </div>
+                        Share a Trip Experience
+                      </div>
+                    </SelectItem>
                     <SelectItem
                       value="feedback"
                       className="text-foreground hover:bg-muted cursor-pointer"
@@ -255,6 +292,9 @@ export default function Feedback() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border">
+                    <SelectItem value="trip-experience" className="text-foreground hover:bg-muted">
+                      Trip Experience
+                    </SelectItem>
                     <SelectItem value="trip-planner" className="text-foreground hover:bg-muted">
                       Trip Planner
                     </SelectItem>
@@ -353,7 +393,9 @@ export default function Feedback() {
                   placeholder={
                     form.type === "bug"
                       ? "Please describe the issue:\n\n1. What were you trying to do?\n2. What happened instead?\n3. Steps to reproduce (if applicable)"
-                      : "Please provide detailed information about your feedback or suggestion"
+                      : form.type === "trip-experience"
+                        ? "How was the trip? Favorite moments, anything that surprised you, what you'd tell a friend planning the same trip..."
+                        : "Please provide detailed information about your feedback or suggestion"
                   }
                   value={form.description}
                   onChange={(e) => {
@@ -439,7 +481,11 @@ export default function Feedback() {
                 ) : (
                   <>
                     <i className="fas fa-paper-plane mr-2"></i>
-                    Submit {form.type === "bug" ? "Bug Report" : "Feedback"}
+                    {form.type === "bug"
+                      ? "Submit Bug Report"
+                      : form.type === "trip-experience"
+                        ? "Share My Experience"
+                        : "Submit Feedback"}
                   </>
                 )}
               </Button>

@@ -16,6 +16,7 @@ import { TripSuggestion } from "../models/TripSuggestion";
 import { UserMemoryModel } from "../services/UserMemoryService";
 import { BadRequestError, UnauthorizedError, NotFoundError, TooManyRequestsError } from "../errors";
 import { hashPassword, comparePasswords } from "../auth";
+import { sendWelcomeNotification } from "../welcome";
 import { nanoid } from "nanoid";
 import { config } from "../config";
 import crypto from "crypto";
@@ -138,6 +139,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
 
     const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
+    void sendWelcomeNotification(user.id, user.firstName);
     req.login(user, (err) => {
       if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
       res.status(201).json({ user, token });

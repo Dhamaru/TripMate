@@ -775,6 +775,11 @@ export interface IFeedback extends Document {
   description: string;
   email: string;
   userId?: string;
+  // Set when submitted from the post-trip "how was your trip" flow
+  // (scheduler.ts's post-trip reminder links to /app/feedback?tripId=...)
+  // — lets a real trip experience be told apart from a generic bug/
+  // feature report without a separate collection.
+  tripId?: string;
   status: string;
   attachments?: string[];
   agentReviewed: boolean;
@@ -792,6 +797,7 @@ const feedbackSchema = new Schema<IFeedback>(
     // Indexed — the account-deletion cascade does FeedbackModel.deleteMany
     // ({ userId }), which was a full collection scan without this.
     userId: { type: String, index: true },
+    tripId: { type: String },
     status: { type: String, default: "open" },
     attachments: { type: [String], default: undefined },
     // Set by the automated feedback-triage routine once it has investigated
@@ -815,6 +821,7 @@ export const insertFeedbackSchema = z.object({
   subject: z.string(),
   description: z.string(),
   email: z.string().email(),
+  tripId: z.string().optional(),
   attachments: z.array(z.string()).optional(),
 });
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
