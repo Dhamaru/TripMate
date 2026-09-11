@@ -260,6 +260,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         const cartoRe =
           /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/(?:light|dark)_all\/(\d+)\/(\d+)\/(\d+)\.png$/;
         function migrateUrl(url: string): string {
+          // USE_MAPTILER is temporarily false (see offlineTiles.ts) — the app
+          // is actually serving OSM tiles right now, so rewriting stored OSM
+          // URLs to MapTiler here would point cached regions at a provider
+          // nothing else requests, going blank instead of staying cached.
+          if (!USE_MAPTILER) return url;
           const osmM = url.match(osmRe);
           if (osmM) {
             const [, z, x, y] = osmM;

@@ -129,6 +129,15 @@ export const getTopDestinations = async (_req: Request, res: Response, next: Nex
 };
 
 const DESTINATION_IMAGE_ALLOWED_HOSTS = new Set(["maps.googleapis.com", "upload.wikimedia.org"]);
+// Wikipedia's pageimages API answers with thumb.wikimedia.org (a separate CDN
+// host from upload.wikimedia.org) for the thumbnail size we request — live-
+// reported as "Host not allowed" 400s on the landing page for any destination
+// whose representative trip's imageUrl came from that endpoint. Any
+// *.wikimedia.org host is Wikimedia's own CDN, so allow the whole domain
+// instead of chasing individual subdomains as they add more.
+function isAllowedImageHost(hostname: string): boolean {
+  return DESTINATION_IMAGE_ALLOWED_HOSTS.has(hostname) || hostname.endsWith(".wikimedia.org");
+}
 
 export const getDestinationImage = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -181,8 +190,7 @@ export const getDestinationImage = async (req: Request, res: Response, next: Nex
         throw new BadRequestError("Stored image URL is malformed");
       }
       if (target.protocol !== "https:") throw new BadRequestError("Only https URLs are allowed");
-      if (!DESTINATION_IMAGE_ALLOWED_HOSTS.has(target.hostname))
-        throw new BadRequestError("Host not allowed");
+      if (!isAllowedImageHost(target.hostname)) throw new BadRequestError("Host not allowed");
     }
 
     // Unlike the avatar proxy above, Google's Places Photo endpoint
