@@ -26,9 +26,28 @@ function lonLatToTile(lon: number, lat: number, z: number) {
 // real key is missing, every caller here should visibly fail instead of
 // silently working against someone else's shared quota.
 export const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
+
+// Temporary rollback (2026-09-11): the configured MapTiler key renders
+// MapTiler's own "Invalid key" placeholder tile on production (confirmed
+// live, screenshot) — the key itself is bad on MapTiler's side (wrong
+// credential copied, or not activated for the Maps product), not a CSP/
+// network issue, both of which are already fixed. Falling back to OSM
+// until a real key is verified locally. All the MapTiler plumbing below
+// (CSP entries, dark-tile URLs, this flag) is left in place — flip this
+// back to true once VITE_MAPTILER_KEY is confirmed valid.
+const USE_MAPTILER = false;
+
 function tileUrl(darkMode: boolean, z: number, x: number, y: number): string {
+  if (!USE_MAPTILER) return osmTileUrl(z, x, y);
   const style = darkMode ? "streets-v2-dark" : "streets-v2";
   return `https://api.maptiler.com/maps/${style}/${z}/${x}/${y}.png?key=${MAPTILER_KEY || ""}`;
+}
+
+// OSM only serves one (light) style — dark mode falls back to the CSS
+// invert-hue filter applied to the tile pane at render time (OfflineMaps.tsx/
+// TripMap.tsx), same as before the MapTiler migration.
+export function osmTileUrl(z: number, x: number, y: number): string {
+  return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 }
 
 /** Tile URLs covering a square region centered on (lat, lng), across zoomMin..zoomMax. */
@@ -121,7 +140,10 @@ export async function exportRegionToZip(
 ): Promise<Blob> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
-  const tileUrlRe = /\/maps\/([^/]+)\/(\d+)\/(\d+)\/(\d+)\.png/;
+  // Matches the last z/x/y segments before .png regardless of provider
+  // shape — MapTiler's /maps/{style}/{z}/{x}/{y}.png or plain OSM's
+  // /{z}/{x}/{y}.png both end the same way.
+  const tileUrlRe = /\/(\d+)\/(\d+)\/(\d+)\.png(?:\?|$)/;
 
   zip.file(
     "manifest.json",
@@ -152,9 +174,7 @@ export async function exportRegionToZip(
       if (!response) response = await fetch(url, { mode: "cors" });
       if (response.ok || response.type === "opaque") {
         const blob = await response.blob();
-        const path = match
-          ? `tiles/${match[1]}/${match[2]}/${match[3]}/${match[4]}.png`
-          : `tiles/${done}.png`;
+        const path = match ? `tiles/${match[1]}/${match[2]}/${match[3]}.png` : `tiles/${done}.png`;
         zip.file(path, blob);
       }
     } catch {

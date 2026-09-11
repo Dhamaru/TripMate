@@ -58,11 +58,12 @@ registerRoute(
   }),
 );
 
-// MapTiler raster tiles — cacheName MUST match TILE_CACHE_NAME in
+// Map tiles — cacheName MUST match TILE_CACHE_NAME in
 // client/src/lib/offlineTiles.ts (the explicit "Download for offline"
-// flow writes into this exact cache).
+// flow writes into this exact cache). Matches both providers since
+// offlineTiles.ts's USE_MAPTILER flag can point at either one.
 registerRoute(
-  ({ url }) => url.hostname === "api.maptiler.com",
+  ({ url }) => url.hostname === "api.maptiler.com" || url.hostname === "tile.openstreetmap.org",
   new CacheFirst({
     cacheName: "map-tiles-cache",
     plugins: [

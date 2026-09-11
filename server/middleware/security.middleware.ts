@@ -22,6 +22,7 @@ const devCsp = {
     "https:",
     "blob:",
     "https://api.maptiler.com",
+    "https://tile.openstreetmap.org",
     "https://cdnjs.cloudflare.com",
   ],
   "connect-src": [
@@ -34,6 +35,7 @@ const devCsp = {
     "https://api.frankfurter.app",
     "https://router.project-osrm.org",
     "https://api.maptiler.com",
+    "https://tile.openstreetmap.org",
     "wss:",
     "ws:",
   ],
@@ -58,6 +60,7 @@ const prodCsp = {
     "https:",
     "blob:",
     "https://api.maptiler.com",
+    "https://tile.openstreetmap.org",
     "https://cdnjs.cloudflare.com",
   ],
   "connect-src": [
@@ -70,6 +73,7 @@ const prodCsp = {
     "https://api.frankfurter.app",
     "https://router.project-osrm.org",
     "https://api.maptiler.com",
+    "https://tile.openstreetmap.org",
     "wss:",
   ],
   "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],

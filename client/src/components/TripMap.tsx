@@ -13,12 +13,21 @@ import { Slider } from "@/components/ui/slider";
 import { nextAvailableTime } from "@/lib/time";
 
 // MapTiler provides separate light and dark tile styles, so dark mode uses
-// a real dark tile URL rather than a CSS invert-hue filter.
+// a real dark tile URL rather than a CSS invert-hue filter — once it's
+// actually serving tiles. Temporary rollback (2026-09-11, see
+// offlineTiles.ts's USE_MAPTILER comment): the configured key renders
+// MapTiler's "Invalid key" placeholder on production. Flip this back to
+// true once that's resolved.
+const USE_MAPTILER = false;
 const MT_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
 const MT_LIGHT_URL = `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
 const MT_DARK_URL = `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
 const MT_ATTRIBUTION =
   '\u0026copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> \u0026copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>';
+const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_ATTRIBUTION = "&copy; OpenStreetMap contributors";
+// Faked dark mode over OSM tiles — standard invert-hue trick.
+const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
 
 interface TripMapProps {
   destination: string;
@@ -253,13 +262,14 @@ export function TripMap({
     const map = mapInstanceRef.current;
     if (!map) return;
     if (tileLayerRef.current) tileLayerRef.current.remove();
-    const url = mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL;
+    const url = USE_MAPTILER ? (mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL) : OSM_URL;
     tileLayerRef.current = L.tileLayer(url, {
-      attribution: MT_ATTRIBUTION,
+      attribution: USE_MAPTILER ? MT_ATTRIBUTION : OSM_ATTRIBUTION,
       maxZoom: 19,
     }).addTo(map);
     const tilePane = map.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = "";
+    if (tilePane)
+      tilePane.style.filter = USE_MAPTILER ? "" : mapTheme === "dark" ? DARK_TILE_FILTER : "";
   }, [mapTheme]);
 
   // Initialize or Update Map
@@ -279,14 +289,14 @@ export function TripMap({
 
       const map = L.map(mapContainerRef.current).setView([coords.lat, coords.lon], 12);
 
-      // MapTiler: native light + dark tile styles, no CSS filter needed.
-      const tileUrl = mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL;
+      const tileUrl = USE_MAPTILER ? (mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL) : OSM_URL;
       tileLayerRef.current = L.tileLayer(tileUrl, {
-        attribution: MT_ATTRIBUTION,
+        attribution: USE_MAPTILER ? MT_ATTRIBUTION : OSM_ATTRIBUTION,
         maxZoom: 19,
       }).addTo(map);
       const tilePane = map.getPane("tilePane");
-      if (tilePane) tilePane.style.filter = "";
+      if (tilePane)
+        tilePane.style.filter = USE_MAPTILER ? "" : mapTheme === "dark" ? DARK_TILE_FILTER : "";
 
       // Restrict map to city bounds (approx +/- 0.1 degree)
       const southWest = L.latLng(coords.lat - 0.1, coords.lon - 0.1);

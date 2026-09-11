@@ -27,12 +27,20 @@ const REGION_RADIUS_DEG = 0.05; // ~5.5km — matches the padding used in openOf
 const REGION_ZOOM_MIN = 12;
 const REGION_ZOOM_MAX = 15;
 const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "auto-expire" copy
-// MapTiler provides real light + dark tile styles — no CSS filter needed.
+// MapTiler provides real light + dark tile styles — no CSS filter needed,
+// once it's actually serving tiles. Temporary rollback (2026-09-11, see
+// offlineTiles.ts's USE_MAPTILER comment): flip back to true once the
+// configured key is confirmed valid (currently renders MapTiler's own
+// "Invalid key" placeholder).
+const USE_MAPTILER = false;
 const MT_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
 const MT_LIGHT_URL = `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
 const MT_DARK_URL = `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
 const MT_ATTRIBUTION =
   '\u0026copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> \u0026copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>';
+const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_ATTRIBUTION = "&copy; OpenStreetMap contributors";
+const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
 
 interface MapRegion {
   id: string;
@@ -494,17 +502,16 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       maxBoundsViscosity: 1.0,
     }).setView([20, 0], 2);
 
-    // MapTiler: real light + dark tile styles, no CSS filter needed.
-    const url = darkMode ? MT_DARK_URL : MT_LIGHT_URL;
+    const url = USE_MAPTILER ? (darkMode ? MT_DARK_URL : MT_LIGHT_URL) : OSM_URL;
     const layer = L.tileLayer(url, {
-      attribution: MT_ATTRIBUTION,
+      attribution: USE_MAPTILER ? MT_ATTRIBUTION : OSM_ATTRIBUTION,
       maxZoom: 19,
       noWrap: true,
     }).addTo(map);
 
     tileLayerRef.current = layer;
     const tilePane = map.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = "";
+    if (tilePane) tilePane.style.filter = USE_MAPTILER ? "" : darkMode ? DARK_TILE_FILTER : "";
 
     mapInstanceRef.current = map;
 
@@ -555,11 +562,17 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Toggle dark mode — MapTiler has a real dark tile style, so this swaps
-  // the tile layer rather than faking it with a CSS filter.
+  // Toggle dark mode — MapTiler has a real dark tile style (swap the tile
+  // layer); the OSM fallback has only one style, so it's a CSS filter on
+  // the tile pane instead.
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !tileLayerRef.current) return;
+    if (!USE_MAPTILER) {
+      const tilePane = map.getPane("tilePane");
+      if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+      return;
+    }
     map.removeLayer(tileLayerRef.current);
     tileLayerRef.current = L.tileLayer(darkMode ? MT_DARK_URL : MT_LIGHT_URL, {
       attribution: MT_ATTRIBUTION,
