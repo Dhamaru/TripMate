@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AuthUser } from "../types/api.types";
 import { authApi } from "../lib/api";
+import { queryClient } from "../lib/queryClient";
 
 interface AuthStore {
   user: AuthUser | null;
@@ -63,6 +64,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
   guestSignIn: async () => {
+    // Clear any cached data from a previous authenticated session so the
+    // guest never sees another user's profile, trips, or personal data.
+    queryClient.clear();
     const { user } = await authApi.guestSignIn();
     set({ user, isAuthenticated: true, isLoading: false });
   },

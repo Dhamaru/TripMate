@@ -31,10 +31,14 @@ export default function Profile() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
+  const isGuest = !!user?.isGuest;
+
   const queryClient = useQueryClient();
+  // Never fetch real user data for a guest — they have no profile, and the
+  // cache may still contain a previous user's personal details.
   const { data: userData } = useQuery<User>({
     queryKey: ["/api/v1/auth/user"],
-    enabled: true,
+    enabled: !isGuest,
   });
 
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -326,6 +330,40 @@ export default function Profile() {
   const openFileDialog = () => {
     fileInputRef.current?.click();
   };
+
+  // Guest users have no real profile — show a sign-up prompt instead.
+  if (isGuest) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Your Profile</h1>
+          <p className="text-muted-foreground">Manage your account settings and preferences</p>
+        </div>
+        <Card className="bg-card border-border">
+          <CardContent className="flex flex-col items-center gap-6 py-16 text-center">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-4xl">
+              👤
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-foreground">Guest Account</h2>
+              <p className="text-muted-foreground max-w-sm">
+                You&apos;re exploring as a guest. Create a free account to save your trips, set
+                preferences, and access your profile across all devices.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={() => navigate("/auth/signup")} className="px-8">
+                Create Account
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/auth/signin")}>
+                Sign In
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
