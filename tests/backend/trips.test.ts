@@ -64,6 +64,16 @@ describe("Trips API", () => {
     // Note: /generate-itinerary is a standalone endpoint (not tied to an
     // existing trip id) that plans a trip from raw params before it's saved.
     // This hits real AI/geocoding providers, so give it more than the 5s default.
+    //
+    // 30s wasn't enough once server/AiUtilitiesService.ts's CriticAgent/
+    // FormattingAgent client actually got routed to Gemini (previously
+    // pointed at real OpenAI, which had run out of credits, so those two
+    // stages 429'd instantly and fell back to a fast stub without doing
+    // real work). Now the full Draft -> Critique -> Format pipeline runs
+    // for real, and FormattingAgent's structural self-correction step in
+    // particular sends the whole draft payload + Zod error list as one
+    // large prompt when the draft doesn't match the schema on the first
+    // try -- legitimately slower than the earlier broken-fast-fail path.
     const res = await request(app)
       .post("/api/v1/trips/generate-itinerary")
       .set("Authorization", `Bearer ${token}`)
@@ -72,7 +82,7 @@ describe("Trips API", () => {
     expect(res.status).toBe(200);
     expect(res.body.itinerary).toBeDefined();
     expect(Array.isArray(res.body.itinerary)).toBe(true);
-  }, 30000);
+  }, 100000);
 
   it("self-heals a legacy day-only itinerary (no dayIndex field) on GET, so addActivity lands on the real day instead of creating a phantom one", async () => {
     // Reproduces a live-reported bug: AiUtilitiesService.planTrip/

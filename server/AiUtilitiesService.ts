@@ -47,8 +47,22 @@ export class AiUtilitiesService {
   private inflight = new Map<string, Promise<any>>();
 
   constructor(apiKey?: string) {
-    const key = apiKey || config.OPENAI_API_KEY;
-    this.openai = key ? new OpenAI({ apiKey: key }) : null;
+    // Was real OpenAI (config.OPENAI_API_KEY) — the rest of the agent stack
+    // (planner.controller.ts, journal_ai.controller.ts, agentLoop.ts,
+    // agent.controller.ts) already migrated to Gemini's OpenAI-compatible
+    // endpoint, but this client — which CriticAgent, DraftingAgent, and
+    // FormattingAgent all receive as `services.openai` — was left pointed
+    // at real OpenAI, so the multi-agent trip-planning pipeline kept
+    // failing with 429s once that account ran out of credits even though
+    // the rest of the app had already moved off it. Point it at Gemini
+    // like everywhere else.
+    const key = apiKey || config.GEMINI_API_KEY;
+    this.openai = key
+      ? new OpenAI({
+          apiKey: key,
+          baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+        })
+      : null;
   }
 
   // Fallback map for major cities to ensure transit calculation never fails
@@ -317,7 +331,7 @@ export class AiUtilitiesService {
       // translatedText below.
       const prompt = `Translate the following text from ${LANGUAGE_NAMES[from] || from} to ${LANGUAGE_NAMES[to] || to}. Write the translation in the native script of ${LANGUAGE_NAMES[to] || to} (not a Romanized transliteration). Respond with ONLY a JSON object of the exact shape {"translatedText": string, "pronunciation": string | null} — no other keys, no prose.`;
       const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gemini-3.6-flash",
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
@@ -669,7 +683,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       if (this.openai) {
         try {
           const completion = await this.openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gemini-3.6-flash",
             temperature: 0,
             messages: [
               { role: "system", content: prompt },
@@ -896,7 +910,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       const client = this.openai!;
       const prompt = `Convert ${amt} from ${from} to ${to} using approximate real market exchange rates as of ${today}. Return JSON: { rate, convertedAmount, currencyName, disclaimer }.`;
       const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gemini-3.6-flash",
         temperature: 0,
         messages: [
           { role: "system", content: prompt },
@@ -1100,7 +1114,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       const client = this.openai!;
       const prompt = `Provide the most likely major hospitals, emergency services, police contact numbers, and embassy information for the location ${loc}. Return JSON with name, type, phone, address, coordinates (approx), and safety notes.`;
       const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gemini-3.6-flash",
         temperature: 0,
         messages: [
           { role: "system", content: prompt },
@@ -2572,7 +2586,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       let content = "";
       if (this.openai) {
         const aiPromise = this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gemini-3.6-flash",
           temperature: 0.7,
           messages: [
             { role: "system", content: "You are a travel expert. Return only valid JSON." },
@@ -2760,7 +2774,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       if (this.openai) {
         try {
           const completion = await this.openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gemini-3.6-flash",
             temperature: 0.7,
             messages: [
               {
@@ -2821,7 +2835,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     try {
       if (this.openai) {
         const completion = await this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gemini-3.6-flash",
           temperature: 0.4,
           messages: [{ role: "system", content: systemPrompt }, ...convo],
         });
@@ -2861,7 +2875,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       const rawContent = this.openai
         ? (
             await this.openai.chat.completions.create({
-              model: "gpt-4o-mini",
+              model: "gemini-3.6-flash",
               temperature: 0.6,
               messages: [
                 { role: "system", content: system },
@@ -3067,7 +3081,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       let content = "";
       if (this.openai) {
         const aiPromise = this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gemini-3.6-flash",
           temperature: 0.5,
           messages: [
             {
@@ -3385,7 +3399,7 @@ Start: ${startDate || "not specified"} | Group: ${groupSize} | Budget: ${budget 
       } catch (nvidiaError) {
         if (this.openai) {
           const res = await this.openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gemini-3.6-flash",
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
@@ -3393,7 +3407,7 @@ Start: ${startDate || "not specified"} | Group: ${groupSize} | Budget: ${budget 
             temperature: 0.3,
           });
           raw = res.choices[0]?.message?.content || "{}";
-          usedModel = "gpt-4o-mini";
+          usedModel = "gemini-3.6-flash";
           tokensUsed = res.usage?.total_tokens;
         } else {
           throw new Error("No AI provider available");

@@ -167,9 +167,12 @@ export class DraftingAgent {
         const fallbackRes: any = await withRetries(
           () =>
             this.openai.chat.completions.create({
-              model: "gpt-4o-mini",
+              model: "gemini-3.6-flash",
               response_format: { type: "json_object" },
-              messages: [{ role: "system", content: prompt }],
+              // System-only messages 400 on Gemini's OpenAI-compat endpoint
+              // (empty `contents` once the system turn is stripped out) —
+              // no separate system/user split here, so send it as user.
+              messages: [{ role: "user", content: prompt }],
             }),
           2,
           3000,
