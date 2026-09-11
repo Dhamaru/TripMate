@@ -12,6 +12,20 @@ RUN npm ci --legacy-peer-deps
 # Copy the rest of the application code
 COPY . .
 
+# Client-side (VITE_*) env vars are baked into the bundle at BUILD time by
+# Vite, not read at container runtime — Render's dashboard env vars are
+# otherwise only injected into the running container, never into a Docker
+# build stage. Render DOES forward its dashboard env vars as --build-arg
+# for any ARG declared here with a matching name, so each one needed at
+# build time must be declared explicitly (live-confirmed missing: the
+# MapTiler migration shipped with an empty key because this Dockerfile had
+# no ARG for it, and Docker's layer cache had no way to know the env
+# changed, so `RUN npm run build` kept reusing its old cached output).
+ARG VITE_MAPTILER_KEY
+ENV VITE_MAPTILER_KEY=$VITE_MAPTILER_KEY
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application
 RUN npm run build
 
