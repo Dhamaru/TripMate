@@ -1465,6 +1465,80 @@ export default function TripDetail() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground mb-2">
+                      Group Size <span className="text-[var(--stamp-red)]">*</span>
+                    </label>
+                    {/* Live-reported: this field was required by handleSave's
+                        validation and included in every PUT payload, but had
+                        no input anywhere in this form — travelStyle right
+                        below had the identical bug. Both silently re-saved
+                        whatever the trip already had, with no way to
+                        actually change either through Edit Trip. */}
+                    <Select
+                      value={tripForm.groupSize}
+                      onValueChange={(value) =>
+                        setTripForm((prev) => ({ ...prev, groupSize: value }))
+                      }
+                    >
+                      <SelectTrigger
+                        className="bg-muted/50 border text-foreground"
+                        data-testid="select-edit-group-size"
+                      >
+                        <SelectValue placeholder="Select group size" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-muted/50 border">
+                        <SelectItem value="1" className="text-foreground hover:bg-card">
+                          Solo traveler
+                        </SelectItem>
+                        <SelectItem value="2" className="text-foreground hover:bg-card">
+                          Couple (2 people)
+                        </SelectItem>
+                        <SelectItem value="4" className="text-foreground hover:bg-card">
+                          Small group (3–5 people)
+                        </SelectItem>
+                        <SelectItem value="8" className="text-foreground hover:bg-card">
+                          Large group (6+ people)
+                        </SelectItem>
+                        <SelectItem value="15" className="text-foreground hover:bg-card">
+                          Big group (10–20 people)
+                        </SelectItem>
+                        <SelectItem value="30" className="text-foreground hover:bg-card">
+                          Group tour (20+ people)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">
+                    Travel Style <span className="text-[var(--stamp-red)]">*</span>
+                  </label>
+                  {/* Live-reported (friend's feedback): "the Travel Style
+                      section shows only one option" — this used to be true:
+                      the only travelStyle UI in this form was the read-only
+                      icon+name badge elsewhere on the page, with no picker
+                      to actually change it despite Save requiring a value.
+                      Same 4-option set TripPlanner.tsx's own picker uses. */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {travelStyles.map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => setTripForm((prev) => ({ ...prev, travelStyle: style.id }))}
+                        className={`stamp-press relative overflow-hidden rounded-xl h-24 flex flex-col items-center justify-center gap-2 transition-all duration-200 border-2 bg-[hsl(var(--card))] ${
+                          tripForm.travelStyle === style.id
+                            ? "border-[var(--amber)] scale-[1.02]"
+                            : "border-[hsl(var(--border))] hover:border-[var(--amber-hover-border)]"
+                        }`}
+                        data-testid={`edit-travel-style-${style.id}`}
+                      >
+                        <style.icon className={`${style.color} w-6 h-6`} />
+                        <span className="text-sm font-bold text-foreground">{style.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
