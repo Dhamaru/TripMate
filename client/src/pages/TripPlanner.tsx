@@ -98,6 +98,17 @@ const CURRENCY_FORMAT: Record<string, { symbol: string; locale: string }> = {
   CNY: { symbol: "¥", locale: "zh-CN" },
 };
 
+// Derives the trip's end date from a start date + day count — "5 days"
+// starting on the 1st ends on the 5th (inclusive), not the 6th.
+function computeEndDate(startDate: string, days: number): string | undefined {
+  if (!startDate) return undefined;
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return undefined;
+  const end = new Date(start);
+  end.setDate(end.getDate() + Math.max(1, days) - 1);
+  return end.toISOString().slice(0, 10);
+}
+
 function formatMoney(amount: number, currency: string | undefined) {
   const fmt = CURRENCY_FORMAT[currency || "INR"] || CURRENCY_FORMAT.INR;
   return `${fmt.symbol}${Number(amount || 0).toLocaleString(fmt.locale)}`;
@@ -116,6 +127,7 @@ export default function TripPlanner() {
     budget: "",
     currency: guessDefaultCurrency(),
     days: "",
+    startDate: "",
     groupSize: "",
     travelStyle: "",
     transportMode: "",
@@ -841,6 +853,8 @@ export default function TripPlanner() {
           ? parseFloat(tripForm.budget)
           : planData.costBreakdown?.totalINR || planData.costBreakdown?.total || 0,
         days: parseInt(tripForm.days) || 1,
+        startDate: tripForm.startDate || undefined,
+        endDate: computeEndDate(tripForm.startDate, parseInt(tripForm.days) || 1),
         groupSize: parseInt(tripForm.groupSize) || 1,
         travelStyle: styleMap[selectedStyle] || "standard",
         transportMode: tripForm.transportMode || undefined,
@@ -1276,6 +1290,34 @@ export default function TripPlanner() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
+                      Start Date{" "}
+                      <span className="text-muted-foreground font-normal">(optional)</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={tripForm.startDate}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) =>
+                        setTripForm((prev) => ({ ...prev, startDate: e.target.value }))
+                      }
+                      className="bg-muted border text-foreground placeholder:text-muted-foreground"
+                      data-testid="input-start-date"
+                    />
+                    {tripForm.startDate && tripForm.days && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Ends{" "}
+                        {new Date(
+                          computeEndDate(tripForm.startDate, parseInt(tripForm.days) || 1)!,
+                        ).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground mb-2">
                       Group Size <span className="text-red-500">*</span>
                     </label>
                     <Select
@@ -1665,6 +1707,8 @@ export default function TripPlanner() {
                           destination: tripForm.destination,
                           budget: tripForm.budget ? Number(tripForm.budget) : 0,
                           days: Number(tripForm.days || 1),
+                          startDate: tripForm.startDate || undefined,
+                          endDate: computeEndDate(tripForm.startDate, Number(tripForm.days || 1)),
                           groupSize: Number(tripForm.groupSize || 1),
                           travelStyle: styleMap[selectedStyle] || "standard",
                           transportMode: tripForm.transportMode || undefined,
