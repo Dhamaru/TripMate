@@ -25,8 +25,14 @@ const REGION_RADIUS_DEG = 0.05; // ~5.5km — matches the padding used in openOf
 const REGION_ZOOM_MIN = 12;
 const REGION_ZOOM_MAX = 15;
 const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "auto-expire" copy
-// Faked dark mode over OSM's (light-only) tiles — standard invert-hue trick.
-const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
+// CARTO provides separate Positron (light) and Dark Matter (dark) tile sets,
+// so dark mode uses a real dark URL, not a CSS invert-hue filter.
+const CARTO_LIGHT_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+const CARTO_DARK_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const CARTO_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// Kept for compatibility — no longer used.
+const DARK_TILE_FILTER = "";
 
 interface MapRegion {
   id: string;
@@ -460,22 +466,19 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       maxBoundsViscosity: 1.0,
     }).setView([20, 0], 2);
 
-    // CARTO's free basemap CDN now requires a registered API key (started
-    // returning a watermarked "API KEY REQUIRED" placeholder tile instead of
-    // real map data, live-confirmed). OpenStreetMap's own tile server needs
-    // no key/signup; dark mode is faked with a CSS filter on the tile pane
-    // instead of switching tile sets, so toggling doesn't reload tiles.
-    const osmUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+    // CARTO Positron / Dark Matter — free, no API key required, CORS-enabled.
+    const osmUrl = darkMode ? CARTO_DARK_URL : CARTO_LIGHT_URL;
 
     const layer = L.tileLayer(osmUrl, {
-      attribution: "&copy; OpenStreetMap contributors",
+      attribution: CARTO_ATTRIBUTION,
+      subdomains: "abcd",
       maxZoom: 19,
       noWrap: true,
     }).addTo(map);
 
     tileLayerRef.current = layer;
     const tilePane = map.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+    if (tilePane) tilePane.style.filter = "";
 
     mapInstanceRef.current = map;
 

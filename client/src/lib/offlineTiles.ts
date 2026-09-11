@@ -1,13 +1,12 @@
 // Real offline map tile caching via the Cache Storage API. Must use the same
-// cache name as the "map-tiles-cache" runtimeCaching rule in vite.config.ts
+// cache name as the "map-tiles-cache" runtimeCaching rule in sw.ts
 // so tiles fetched here are served by the CacheFirst strategy when offline,
 // and tiles the service worker opportunistically caches while browsing are
 // visible here too.
 export const TILE_CACHE_NAME = "map-tiles-cache";
 
-// Rough average size of an OSM PNG raster tile. Cross-origin tile requests
-// come back as opaque responses when CORS fails, which have no readable
-// content-length — this is the fallback used for those.
+// Rough average size of a CARTO PNG raster tile used as fallback when the
+// content-length header is absent.
 const ESTIMATED_TILE_BYTES = 15_000;
 
 function lonLatToTile(lon: number, lat: number, z: number) {
@@ -18,12 +17,14 @@ function lonLatToTile(lon: number, lat: number, z: number) {
   return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) };
 }
 
-// OSM only serves one (light) style — dark mode is a CSS filter applied to
-// the tile pane at render time (see OfflineMaps.tsx), not a different tile
-// set, so darkMode has no effect on which tile gets cached here. Kept as a
-// parameter so cached dark/light "regions" still address the same tiles.
-function tileUrl(_darkMode: boolean, z: number, x: number, y: number): string {
-  return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+// CARTO has separate Positron (light) and Dark Matter (dark) tile sets, so
+// dark and light mode will download different tiles. A round-robin over the
+// four CARTO subdomains (a–d) spreads load and avoids rate-limiting.
+const CARTO_SUBDOMAINS = ["a", "b", "c", "d"];
+function tileUrl(darkMode: boolean, z: number, x: number, y: number): string {
+  const sub = CARTO_SUBDOMAINS[(x + y) % 4];
+  const style = darkMode ? "dark_all" : "light_all";
+  return `https://${sub}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}.png`;
 }
 
 /** Tile URLs covering a square region centered on (lat, lng), across zoomMin..zoomMax. */

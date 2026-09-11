@@ -12,8 +12,15 @@ import { Search } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { nextAvailableTime } from "@/lib/time";
 
-// Faked dark mode over OSM's (light-only) tiles — standard invert-hue trick.
-const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
+// CARTO provides separate light (Positron) and dark (Dark Matter) tile sets,
+// so we use the correct URL per theme rather than the CSS invert-hue trick.
+// No API key required for open/non-commercial use.
+const CARTO_LIGHT_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+const CARTO_DARK_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const CARTO_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// Kept for reference (no longer used — CARTO has a real dark tile set).
+const DARK_TILE_FILTER = "";
 
 interface TripMapProps {
   destination: string;
@@ -240,11 +247,22 @@ export function TripMap({
     }
   };
 
-  // Theme change: OSM only has one (light) tile style, so dark mode is a
-  // CSS filter on the tile pane, not a different tile layer/reload.
+  // Theme change: CARTO has separate light (Positron) and dark (Dark Matter)
+  // tile sets, so we swap the tile layer URL rather than using a CSS filter.
   useEffect(() => {
-    const tilePane = mapInstanceRef.current?.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = mapTheme === "dark" ? DARK_TILE_FILTER : "";
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+    const tileUrl = mapTheme === "dark" ? CARTO_DARK_URL : CARTO_LIGHT_URL;
+    tileLayerRef.current = L.tileLayer(tileUrl, {
+      attribution: CARTO_ATTRIBUTION,
+      subdomains: "abcd",
+      maxZoom: 19,
+    }).addTo(map);
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = "";
   }, [mapTheme]);
 
   // Initialize or Update Map
@@ -264,15 +282,17 @@ export function TripMap({
 
       const map = L.map(mapContainerRef.current).setView([coords.lat, coords.lon], 12);
 
-      // CARTO's free basemap CDN now requires a registered API key
-      // (live-confirmed: returns a watermarked placeholder tile, not
-      // real map data). OSM needs no key; dark mode is a CSS filter.
-      tileLayerRef.current = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
+      // CARTO Positron / Dark Matter — free, no API key required, CORS-enabled,
+      // and compliant with OSM's tile usage policy.
+      const tileUrl = mapTheme === "dark" ? CARTO_DARK_URL : CARTO_LIGHT_URL;
+      tileLayerRef.current = L.tileLayer(tileUrl, {
+        attribution: CARTO_ATTRIBUTION,
+        subdomains: "abcd",
         maxZoom: 19,
       }).addTo(map);
+      // Clear any lingering CSS filter (no longer needed with native dark tiles).
       const tilePane = map.getPane("tilePane");
-      if (tilePane) tilePane.style.filter = mapTheme === "dark" ? DARK_TILE_FILTER : "";
+      if (tilePane) tilePane.style.filter = "";
 
       // Restrict map to city bounds (approx +/- 0.1 degree)
       const southWest = L.latLng(coords.lat - 0.1, coords.lon - 0.1);

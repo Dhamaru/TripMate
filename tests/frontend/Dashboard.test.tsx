@@ -38,6 +38,10 @@ describe("Home (Dashboard) Page", () => {
 
   it("should show a call to action to plan a new trip when there are no trips", () => {
     render(<Home />);
-    expect(screen.getByText(/Plan your first trip/i)).toBeInTheDocument();
+    // getByText(/Plan your first trip/i) used to match this button alone,
+    // but the empty-dashboard feature-spotlight section's own subtitle
+    // ("...once you plan your first trip.") now contains the same phrase,
+    // so a loose text match finds two elements. Target the button itself.
+    expect(screen.getByRole("button", { name: /Plan your first trip/i })).toBeInTheDocument();
   });
 });
