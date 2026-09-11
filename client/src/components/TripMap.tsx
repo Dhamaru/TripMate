@@ -110,6 +110,13 @@ export function TripMap({
   const lastRouteFetchRef = useRef<{ origin: { lat: number; lon: number }; at: number } | null>(
     null,
   );
+  const liveMarkerRef = useRef<L.CircleMarker | null>(null);
+  const routeLineLayersRef = useRef<L.Polyline[]>([]);
+  // The route to check live position drift against — deliberately the LAST
+  // fetched route, not the one about to be recomputed FROM the current
+  // position (which would always start exactly on it, making an off-route
+  // check against it a no-op).
+  const primaryRouteRef = useRef<[number, number][] | null>(null);
 
   // Same "today's day, next activity by time" logic as TripDetail.tsx's
   // "Today" overview panel — only an active trip has a meaningful "next
@@ -641,28 +648,54 @@ export function TripMap({
   // for being hammered every few seconds.
   useEffect(() => {
     if (!navLayerRef.current) return;
-    navLayerRef.current.clearLayers();
+
     if (!showLiveNav || !liveCoords || !nextActivity) {
+      navLayerRef.current.clearLayers();
+      liveMarkerRef.current = null;
+      routeLineLayersRef.current = [];
+      primaryRouteRef.current = null;
+      lastRouteFetchRef.current = null;
       setLiveEta(null);
       wasOffRouteRef.current = false;
       return;
     }
 
+    // Update (or create) the live position marker in place — this effect
+    // reruns on every GPS tick, and clearing+redrawing the whole nav layer
+    // every time would make the just-drawn route flicker away between the
+    // much rarer refetches below.
+    if (liveMarkerRef.current) {
+      liveMarkerRef.current.setLatLng([liveCoords.lat, liveCoords.lon]);
+    } else {
+      liveMarkerRef.current = L.circleMarker([liveCoords.lat, liveCoords.lon], {
+        radius: 7,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#2563eb",
+        fillOpacity: 1,
+      })
+        .bindTooltip("You are here", { direction: "top" })
+        .addTo(navLayerRef.current);
+    }
+
+    // Check drift against the LAST fetched route, not one about to be
+    // recomputed from this same position (which would trivially start on
+    // it, making that comparison a no-op every time).
+    if (primaryRouteRef.current) {
+      const offRoute = distanceToPolylineMeters(liveCoords, primaryRouteRef.current) > 100;
+      if (offRoute && !wasOffRouteRef.current) {
+        toast({
+          title: "Off the planned route",
+          description: `You've drifted from the route to ${nextActivity.label}.`,
+          variant: "destructive",
+        });
+      }
+      wasOffRouteRef.current = offRoute;
+    }
+
     const last = lastRouteFetchRef.current;
     const movedEnoughOrStale =
       !last || Date.now() - last.at > 25_000 || haversineMeters(liveCoords, last.origin) > 150;
-
-    // Always show a live "you are here" marker even between route refetches.
-    L.circleMarker([liveCoords.lat, liveCoords.lon], {
-      radius: 7,
-      color: "#ffffff",
-      weight: 2,
-      fillColor: "#2563eb",
-      fillOpacity: 1,
-    })
-      .bindTooltip("You are here", { direction: "top" })
-      .addTo(navLayerRef.current);
-
     if (!movedEnoughOrStale) return;
     lastRouteFetchRef.current = { origin: liveCoords, at: Date.now() };
 
@@ -677,16 +710,19 @@ export function TripMap({
         const routes = json?.routes ?? [];
         if (!routes.length) return;
 
+        routeLineLayersRef.current.forEach((l) => navLayerRef.current!.removeLayer(l));
+        routeLineLayersRef.current = [];
         routes.forEach((r: any, i: number) => {
           const line: [number, number][] =
             r.geometry?.coordinates?.map(([lng, lat]: [number, number]) => [lat, lng]) ?? [];
           if (!line.length) return;
-          L.polyline(line, {
+          const poly = L.polyline(line, {
             color: i === 0 ? "#2563eb" : "#94a3b8",
             weight: i === 0 ? 5 : 3,
             opacity: i === 0 ? 0.85 : 0.5,
             dashArray: i === 0 ? undefined : "4, 6",
           }).addTo(navLayerRef.current!);
+          routeLineLayersRef.current.push(poly);
         });
 
         const primary = routes[0];
@@ -694,18 +730,8 @@ export function TripMap({
           km: primary.distance / 1000,
           min: Math.round(primary.duration / 60),
         });
-
-        const primaryLine: [number, number][] =
-          primary.geometry?.coordinates?.map(([lng, lat]: [number, number]) => [lat, lng]) ?? [];
-        const offRoute = distanceToPolylineMeters(liveCoords, primaryLine) > 100;
-        if (offRoute && !wasOffRouteRef.current) {
-          toast({
-            title: "Off the planned route",
-            description: `You've drifted from the route to ${nextActivity.label}.`,
-            variant: "destructive",
-          });
-        }
-        wasOffRouteRef.current = offRoute;
+        primaryRouteRef.current =
+          primary.geometry?.coordinates?.map(([lng, lat]: [number, number]) => [lat, lng]) ?? null;
       })
       .catch(() => {
         /* leave last-known route/marker on the map, no need to alarm the user over one failed refetch */
