@@ -15,6 +15,8 @@ import {
   deleteTiles,
   formatBytes,
   TILE_CACHE_NAME,
+  exportRegionToZip,
+  saveBlobToDevice,
 } from "@/lib/offlineTiles";
 import { apiRequest } from "@/lib/queryClient";
 import { useUserLocation } from "@/hooks/useUserLocation";
@@ -25,8 +27,12 @@ const REGION_RADIUS_DEG = 0.05; // ~5.5km — matches the padding used in openOf
 const REGION_ZOOM_MIN = 12;
 const REGION_ZOOM_MAX = 15;
 const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "auto-expire" copy
-// Faked dark mode over OSM's (light-only) tiles — standard invert-hue trick.
-const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
+// MapTiler provides real light + dark tile styles — no CSS filter needed.
+const MT_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
+const MT_LIGHT_URL = `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
+const MT_DARK_URL = `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
+const MT_ATTRIBUTION =
+  '\u0026copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> \u0026copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>';
 
 interface MapRegion {
   id: string;
@@ -226,6 +232,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   // Cache Storage. Cache eviction is async and can't happen inside the
   // synchronous useState initializer below.
   const staleTileUrlsToPurgeRef = useRef<string[]>([]);
+  // Region id currently being zipped for "Save to device" — one at a time,
+  // since zipping hundreds of tiles in memory is the expensive part.
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   const [mapRegions, setMapRegions] = useState<MapRegion[]>(() => {
     try {
@@ -234,21 +243,25 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         const parsed = JSON.parse(raw) as Array<Partial<MapRegion> & { size?: string }>;
         const now = Date.now();
 
-        // ── OSM → CARTO URL migration ────────────────────────────────────────
-        // Previously tile URLs were stored as tile.openstreetmap.org paths.
-        // OSM now blocks those requests (403). Rewrite them in-place to CARTO
-        // Positron (light) URLs so cached tiles can still be served by the SW
-        // under the new route rule without re-downloading.
-        // URL shape was:  https://tile.openstreetmap.org/{z}/{x}/{y}.png
-        // New shape:      https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png
+        // ── OSM / CARTO → MapTiler URL migration ────────────────────────────
+        // Tile URLs saved from older sessions pointed at OSM or CARTO.
+        // Rewrite them to the equivalent MapTiler URL (same z/x/y coords)
+        // so previously downloaded regions don't go blank after the switch.
         const osmRe = /^https:\/\/tile\.openstreetmap\.org\/(\d+)\/(\d+)\/(\d+)\.png$/;
-        const SUBS = ["a", "b", "c", "d"] as const;
+        const cartoRe =
+          /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/(?:light|dark)_all\/(\d+)\/(\d+)\/(\d+)\.png$/;
         function migrateUrl(url: string): string {
-          const m = url.match(osmRe);
-          if (!m) return url;
-          const [, z, x, y] = m;
-          const sub = SUBS[(Number(x) + Number(y)) % 4];
-          return `https://${sub}.basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`;
+          const osmM = url.match(osmRe);
+          if (osmM) {
+            const [, z, x, y] = osmM;
+            return `https://api.maptiler.com/maps/streets-v2/${z}/${x}/${y}.png?key=${MT_KEY}`;
+          }
+          const cartoM = url.match(cartoRe);
+          if (cartoM) {
+            const [, z, x, y] = cartoM;
+            return `https://api.maptiler.com/maps/streets-v2/${z}/${x}/${y}.png?key=${MT_KEY}`;
+          }
+          return url;
         }
         // ────────────────────────────────────────────────────────────────────
 
@@ -481,19 +494,17 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       maxBoundsViscosity: 1.0,
     }).setView([20, 0], 2);
 
-    // OSM needs no key/signup; dark mode is faked with a CSS filter on the tile pane
-    // instead of switching tile sets, so toggling doesn't reload tiles.
-    const osmUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-
-    const layer = L.tileLayer(osmUrl, {
-      attribution: "&copy; OpenStreetMap contributors",
+    // MapTiler: real light + dark tile styles, no CSS filter needed.
+    const url = darkMode ? MT_DARK_URL : MT_LIGHT_URL;
+    const layer = L.tileLayer(url, {
+      attribution: MT_ATTRIBUTION,
       maxZoom: 19,
       noWrap: true,
     }).addTo(map);
 
     tileLayerRef.current = layer;
     const tilePane = map.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+    if (tilePane) tilePane.style.filter = "";
 
     mapInstanceRef.current = map;
 
@@ -544,11 +555,17 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Toggle Dark Mode — invert the OSM tile pane via CSS instead of loading a
-  // separate dark tile set (there isn't a no-key one anymore).
+  // Toggle dark mode — MapTiler has a real dark tile style, so this swaps
+  // the tile layer rather than faking it with a CSS filter.
   useEffect(() => {
-    const tilePane = mapInstanceRef.current?.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+    const map = mapInstanceRef.current;
+    if (!map || !tileLayerRef.current) return;
+    map.removeLayer(tileLayerRef.current);
+    tileLayerRef.current = L.tileLayer(darkMode ? MT_DARK_URL : MT_LIGHT_URL, {
+      attribution: MT_ATTRIBUTION,
+      maxZoom: 19,
+      noWrap: true,
+    }).addTo(map);
   }, [darkMode]);
 
   // Live Navigation Logic
@@ -976,6 +993,34 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
     setMapRegions((prev) => prev.filter((r) => r.id !== regionId));
     toast({ title: "Map Deleted", description: "Offline map removed." });
+  }
+
+  // Packages an already-downloaded region into a real .zip file the browser
+  // saves to the device's Downloads folder — unlike the Cache Storage the
+  // "Download" button above writes to, this is a real file the user can see
+  // in their file manager, move, or share, and it survives clearing site
+  // data (the cache doesn't).
+  async function exportRegion(regionId: string) {
+    const region = mapRegions.find((r) => r.id === regionId);
+    if (!region || !region.tileUrls?.length) return;
+    setExportingId(regionId);
+    try {
+      const blob = await exportRegionToZip(region, region.tileUrls);
+      const safeName = region.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
+      saveBlobToDevice(blob, `TripMate-${safeName || "region"}.zip`);
+      toast({
+        title: "Saved to device",
+        description: `${region.name} exported as a .zip — check your Downloads folder.`,
+      });
+    } catch (e) {
+      toast({
+        title: "Export Failed",
+        description: e instanceof Error ? e.message : "Could not export this region.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingId(null);
+    }
   }
 
   // Stats
@@ -1527,14 +1572,29 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                             </div>
 
                             {r.downloaded ? (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => openOfflineMap(r)}
-                                className="w-full rounded-xl bg-[#3D9467]/10 text-[#3D9467] hover:bg-[#3D9467]/20 border border-[#3D9467]/60 transition-all font-semibold"
-                              >
-                                <i className="fas fa-map-marked-alt mr-2"></i> Open Map
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => openOfflineMap(r)}
+                                  className="flex-1 rounded-xl bg-[#3D9467]/10 text-[#3D9467] hover:bg-[#3D9467]/20 border border-[#3D9467]/60 transition-all font-semibold"
+                                >
+                                  <i className="fas fa-map-marked-alt mr-2"></i> Open Map
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={exportingId === r.id}
+                                  onClick={() => exportRegion(r.id)}
+                                  title="Save as a .zip file to your device's Downloads folder"
+                                  className="flex-1 rounded-xl border-[#1D4E89] text-[#1D4E89] hover:bg-[#1D4E89] hover:text-white transition-colors"
+                                >
+                                  <i
+                                    className={`fas ${exportingId === r.id ? "fa-spinner fa-spin" : "fa-file-download"} mr-2`}
+                                  ></i>
+                                  {exportingId === r.id ? "Saving…" : "Save to Device"}
+                                </Button>
+                              </div>
                             ) : r.downloading ? (
                               <div className="space-y-1">
                                 <div className="flex justify-between text-[10px] font-mono text-[#1D4E89]">

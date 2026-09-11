@@ -58,11 +58,11 @@ registerRoute(
   }),
 );
 
-// OpenStreetMap raster tiles — cacheName MUST match TILE_CACHE_NAME in
+// MapTiler raster tiles — cacheName MUST match TILE_CACHE_NAME in
 // client/src/lib/offlineTiles.ts (the explicit "Download for offline"
 // flow writes into this exact cache).
 registerRoute(
-  ({ url }) => url.origin === "https://tile.openstreetmap.org",
+  ({ url }) => url.hostname === "api.maptiler.com",
   new CacheFirst({
     cacheName: "map-tiles-cache",
     plugins: [

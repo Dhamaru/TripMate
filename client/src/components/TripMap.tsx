@@ -12,8 +12,13 @@ import { Search } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { nextAvailableTime } from "@/lib/time";
 
-// Faked dark mode over OSM's (light-only) tiles — standard invert-hue trick.
-const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
+// MapTiler provides separate light and dark tile styles, so dark mode uses
+// a real dark tile URL rather than a CSS invert-hue filter.
+const MT_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
+const MT_LIGHT_URL = `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
+const MT_DARK_URL = `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
+const MT_ATTRIBUTION =
+  '\u0026copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> \u0026copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>';
 
 interface TripMapProps {
   destination: string;
@@ -242,9 +247,19 @@ export function TripMap({
 
   // Theme change: OSM only has one (light) tile style, so dark mode is a
   // CSS filter on the tile pane, not a different tile layer/reload.
+  // Theme change: swap the MapTiler tile layer between light (streets-v2)
+  // and dark (streets-v2-dark) — no CSS filter needed.
   useEffect(() => {
-    const tilePane = mapInstanceRef.current?.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = mapTheme === "dark" ? DARK_TILE_FILTER : "";
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (tileLayerRef.current) tileLayerRef.current.remove();
+    const url = mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL;
+    tileLayerRef.current = L.tileLayer(url, {
+      attribution: MT_ATTRIBUTION,
+      maxZoom: 19,
+    }).addTo(map);
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = "";
   }, [mapTheme]);
 
   // Initialize or Update Map
@@ -264,13 +279,14 @@ export function TripMap({
 
       const map = L.map(mapContainerRef.current).setView([coords.lat, coords.lon], 12);
 
-      // OSM needs no key; dark mode is a CSS filter.
-      tileLayerRef.current = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
+      // MapTiler: native light + dark tile styles, no CSS filter needed.
+      const tileUrl = mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL;
+      tileLayerRef.current = L.tileLayer(tileUrl, {
+        attribution: MT_ATTRIBUTION,
         maxZoom: 19,
       }).addTo(map);
       const tilePane = map.getPane("tilePane");
-      if (tilePane) tilePane.style.filter = mapTheme === "dark" ? DARK_TILE_FILTER : "";
+      if (tilePane) tilePane.style.filter = "";
 
       // Restrict map to city bounds (approx +/- 0.1 degree)
       const southWest = L.latLng(coords.lat - 0.1, coords.lon - 0.1);

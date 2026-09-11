@@ -17,12 +17,18 @@ function lonLatToTile(lon: number, lat: number, z: number) {
   return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) };
 }
 
-// OSM only serves one (light) style — dark mode is a CSS filter applied to
-// the tile pane at render time (see OfflineMaps.tsx), not a different tile
-// set, so darkMode has no effect on which tile gets cached here. Kept as a
-// parameter so cached dark/light "regions" still address the same tiles.
-function tileUrl(_darkMode: boolean, z: number, x: number, y: number): string {
-  return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+// MapTiler raster tiles — light (streets-v2) or dark (streets-v2-dark).
+// The key is injected at build time from VITE_MAPTILER_KEY (vite.config.ts's
+// envDir points at the repo root .env, not client/.env, so this actually
+// gets picked up). No hardcoded fallback key — a demo key baked into
+// shipped source is exactly the API-key-leak pattern this codebase has
+// already been burned by (see CONTEXT.md's GOOGLE_API_KEY history); if the
+// real key is missing, every caller here should visibly fail instead of
+// silently working against someone else's shared quota.
+export const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
+function tileUrl(darkMode: boolean, z: number, x: number, y: number): string {
+  const style = darkMode ? "streets-v2-dark" : "streets-v2";
+  return `https://api.maptiler.com/maps/${style}/${z}/${x}/${y}.png?key=${MAPTILER_KEY || ""}`;
 }
 
 /** Tile URLs covering a square region centered on (lat, lng), across zoomMin..zoomMax. */
@@ -97,6 +103,89 @@ export async function deleteTiles(urls: string[]): Promise<void> {
   if (!("caches" in window)) return;
   const cache = await caches.open(TILE_CACHE_NAME);
   await Promise.all(urls.map((u) => cache.delete(u)));
+}
+
+// A tile cached via the Cache Storage API only ever lives inside the
+// browser's own storage — invisible to the OS file manager, not shareable,
+// gone if the user clears site data. This packages an already-downloaded
+// region into one real .zip file (tiles/{z}/{x}/{y}.png + a manifest) that
+// the browser's normal download flow saves to the device's Downloads
+// folder, same as any other file download — the user can move, share, or
+// back it up like any other file. Reads from the cache first (already on
+// disk from the "Download for offline" step); falls back to a fresh fetch
+// for any tile that's missing so a partial region can still be exported.
+export async function exportRegionToZip(
+  region: { id: string; name: string; country: string; lat: number; lng: number; zoom: number },
+  tileUrls: string[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<Blob> {
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  const tileUrlRe = /\/maps\/([^/]+)\/(\d+)\/(\d+)\/(\d+)\.png/;
+
+  zip.file(
+    "manifest.json",
+    JSON.stringify(
+      {
+        app: "TripMate",
+        exportedAt: new Date().toISOString(),
+        region: {
+          name: region.name,
+          country: region.country,
+          lat: region.lat,
+          lng: region.lng,
+          zoom: region.zoom,
+        },
+        tileCount: tileUrls.length,
+      },
+      null,
+      2,
+    ),
+  );
+
+  const cache = "caches" in window ? await caches.open(TILE_CACHE_NAME) : null;
+  let done = 0;
+  for (const url of tileUrls) {
+    const match = tileUrlRe.exec(url);
+    try {
+      let response = cache ? await cache.match(url) : undefined;
+      if (!response) response = await fetch(url, { mode: "cors" });
+      if (response.ok || response.type === "opaque") {
+        const blob = await response.blob();
+        const path = match
+          ? `tiles/${match[1]}/${match[2]}/${match[3]}/${match[4]}.png`
+          : `tiles/${done}.png`;
+        zip.file(path, blob);
+      }
+    } catch {
+      // Skip tiles that can't be read/fetched — a partial export is still
+      // a usable archive of everything that did come through.
+    }
+    done++;
+    onProgress?.(done, tileUrls.length);
+  }
+
+  return zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+}
+
+// Triggers the browser's normal save-file flow — lands in the device's
+// Downloads folder (or wherever the browser/OS routes downloads), exactly
+// like downloading any other file from the web.
+export function saveBlobToDevice(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoke on a delay, not immediately — some browsers read the blob URL
+  // asynchronously after the click before actually starting the download.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 export function formatBytes(bytes: number): string {

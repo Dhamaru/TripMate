@@ -79,15 +79,13 @@ export default defineConfig({
             },
           },
           {
-            // OpenStreetMap raster tiles. CacheFirst so any tile already
+            // MapTiler raster tiles. CacheFirst so any tile already
             // fetched (opportunistically while browsing, or via the explicit
             // "Download for offline" flow in OfflineMaps.tsx, which writes
             // into this exact cache name) is served offline without a network
             // round-trip. cacheName must match TILE_CACHE_NAME in
-            // client/src/lib/offlineTiles.ts, and the host must match the
-            // tile layers in OfflineMaps.tsx / TripMap.tsx / offlineTiles.ts
-            // (all `tile.openstreetmap.org` since the CartoDB migration).
-            urlPattern: /^https:\/\/tile\.openstreetmap\.org\/.*/i,
+            // client/src/lib/offlineTiles.ts.
+            urlPattern: /^https:\/\/api\.maptiler\.com\/.*/i,
             handler: "CacheFirst",
             options: {
               cacheName: "map-tiles-cache",
@@ -110,6 +108,7 @@ export default defineConfig({
       "@shared": path.resolve(import.meta.dirname, "shared"),
     },
   },
+  envDir: path.resolve(import.meta.dirname),
   root: path.resolve(import.meta.dirname, "client"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),

@@ -131,6 +131,13 @@
         "files": ["client/public/download/index.html"],
         "createdAt": "2026-09-10T14:52:19.861Z",
         "reason": "standalone static download page, outside the React app + design-token system; self-contained inline styles by design"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": ["client/src/components/TripMap.tsx"],
+        "createdAt": "2026-09-11T07:55:01.728Z",
+        "reason": "pre-existing 8-color activity-type/day-route category legend, documented in CONTEXT.md as an intentional out-of-scope exception; not introduced or touched by this session's MapTiler migration"
       }
     ]
   }
