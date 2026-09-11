@@ -10,6 +10,7 @@ import {
   sendAgentTriagePlanEmail,
 } from "../email";
 import { requireAdminSecret } from "../middleware/adminAuth.middleware";
+import { feedbackLimiter } from "../middleware/rateLimit.middleware";
 import { NotFoundError, BadRequestError } from "../errors";
 import { imageFileFilter } from "../middleware/imageUpload";
 
@@ -33,7 +34,7 @@ const upload = multer({
   fileFilter: imageFileFilter,
 });
 
-router.post("/", upload.array("attachments", 3), async (req, res, next) => {
+router.post("/", feedbackLimiter, upload.array("attachments", 3), async (req, res, next) => {
   try {
     const userId = req.user ? (req.user as any).id || (req.user as any)._id : undefined;
     // Served through the admin-only proxy below, not the old

@@ -127,3 +127,17 @@ export const importPlanLimiter = rateLimit({
       retryAfter: 60,
     }),
 });
+
+// POST /feedback is unauthenticated by design (a bug reporter shouldn't need
+// an account) and accepts an arbitrary `email` it then sends a confirmation
+// to — acceptance-review finding: bounded only by the shared 100/15min
+// generalLimiter, that's an open relay for spamming arbitrary third-party
+// addresses from TripMate's own transactional sender. A real bug reporter
+// never needs more than a couple of submissions in an hour.
+export const feedbackLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: testMultiplier(5),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json(rateLimitResponse(60 * 60)),
+});

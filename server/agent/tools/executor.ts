@@ -34,6 +34,15 @@ import {
 const CONFIRM_REQUIRED: Record<string, (args: Record<string, unknown>) => boolean> = {
   manage_expense: (args) => args.action === "remove",
   manage_collaborator: () => true,
+  // Acceptance-review finding, live-reproduced: asked only to add one
+  // activity, Atlas also removed an unrelated one elsewhere on the
+  // itinerary and disclosed it after the fact — a destructive edit outside
+  // the requested scope, already applied. Same gate as an expense removal:
+  // the model can still propose it, but only a real button click executes
+  // it. replace_day/add_activity/swap_activities are left ungated — they're
+  // the normal shape of an asked-for edit, including a legitimate full-day
+  // AI rewrite.
+  modify_itinerary: (args) => args.action === "remove_activity",
 };
 
 function summarizeGatedAction(name: string, args: Record<string, unknown>): string {
@@ -45,6 +54,11 @@ function summarizeGatedAction(name: string, args: Record<string, unknown>): stri
       return `Add ${args.email ?? "this person"} as a${args.role === "viewer" ? " viewer" : "n editor"} on this trip?`;
     }
     return `Remove this collaborator from the trip?`;
+  }
+  if (name === "modify_itinerary" && args.action === "remove_activity") {
+    return `Remove "${args.activityId ?? "this activity"}" from Day ${
+      typeof args.dayIndex === "number" ? (args.dayIndex as number) + 1 : "?"
+    }?`;
   }
   return `Confirm this action: ${name}`;
 }

@@ -154,15 +154,36 @@ export const getDestinationImage = async (req: Request, res: Response, next: Nex
     // null/empty, not malformed), so `new URL()` throws a native
     // TypeError - not an AppError, so the global error handler had no
     // statusCode to read and defaulted to 500 instead of a clean 400.
+    //
+    // Acceptance-review follow-up (2026-09-11): that turned the 500 into a
+    // clean 400, but never made the image load — a Google-Places-sourced
+    // trip stores imageUrl as OUR OWN relative proxy path
+    // (`/api/v1/places/photo?ref=...`, see trips.controller.ts /
+    // places.routes.ts:148 — the point of that is keeping GOOGLE_API_KEY out
+    // of client-visible URLs), which is a perfectly valid stored value but
+    // isn't parseable as an absolute URL at all. That was 4 of 8 landing-page
+    // destinations. Reconstruct the real Google Photo URL directly for that
+    // shape instead of trying to treat it as absolute.
     let target: URL;
-    try {
-      target = new URL(rawUrl);
-    } catch {
-      throw new BadRequestError("Stored image URL is malformed");
+    if (rawUrl.startsWith("/api/v1/places/photo")) {
+      const params = new URLSearchParams(rawUrl.split("?")[1] || "");
+      const ref = params.get("ref");
+      if (!ref) throw new BadRequestError("Stored image URL is malformed");
+      const w = Math.min(1600, Math.max(1, parseInt(params.get("w") || "400", 10) || 400));
+      if (!config.GOOGLE_API_KEY) throw new BadRequestError("Image provider not configured");
+      target = new URL(
+        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${w}&photo_reference=${encodeURIComponent(ref)}&key=${config.GOOGLE_API_KEY}`,
+      );
+    } else {
+      try {
+        target = new URL(rawUrl);
+      } catch {
+        throw new BadRequestError("Stored image URL is malformed");
+      }
+      if (target.protocol !== "https:") throw new BadRequestError("Only https URLs are allowed");
+      if (!DESTINATION_IMAGE_ALLOWED_HOSTS.has(target.hostname))
+        throw new BadRequestError("Host not allowed");
     }
-    if (target.protocol !== "https:") throw new BadRequestError("Only https URLs are allowed");
-    if (!DESTINATION_IMAGE_ALLOWED_HOSTS.has(target.hostname))
-      throw new BadRequestError("Host not allowed");
 
     // Unlike the avatar proxy above, Google's Places Photo endpoint
     // always answers with a 302 to its actual CDN URL — redirect:

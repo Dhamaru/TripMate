@@ -734,37 +734,66 @@ export default function Profile() {
             <p className="text-sm text-muted-foreground mb-4">
               Permanently delete your account and all associated data. This action cannot be undone.
             </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (
-                  window.confirm(
-                    "Are you sure you want to delete your account? This action cannot be undone.",
-                  )
-                ) {
-                  const form = e.currentTarget as HTMLFormElement & {
-                    deletePassword?: { value: string };
-                  };
-                  deleteMutation.mutate({ password: form.deletePassword?.value || "" });
-                }
-              }}
-              className="flex items-end gap-4"
-            >
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
-                  Confirm Password
-                </label>
-                <Input
-                  type="password"
-                  name="deletePassword"
-                  placeholder="Enter password to confirm"
-                  required={!userData?.googleConnected}
-                />
-              </div>
-              <Button type="submit" variant="destructive" disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
-              </Button>
-            </form>
+            {(() => {
+              // A guest account (and a pure Google/OAuth account) has no
+              // `password` on the server, so the API branches to a typed
+              // "DELETE" confirmation instead — but this form only ever
+              // rendered a password field, required for anyone who wasn't
+              // Google-connected. A guest could neither fill it in (nothing
+              // to type) nor skip it (required blocked submission), leaving
+              // guests with no way to remove their own account at all.
+              const hasPassword = !userData?.googleConnected && !userData?.isGuest;
+              return (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (
+                      !window.confirm(
+                        "Are you sure you want to delete your account? This action cannot be undone.",
+                      )
+                    )
+                      return;
+                    const form = e.currentTarget as HTMLFormElement & {
+                      deletePassword?: { value: string };
+                      deleteConfirm?: { value: string };
+                    };
+                    deleteMutation.mutate(
+                      hasPassword
+                        ? { password: form.deletePassword?.value || "" }
+                        : { confirm: form.deleteConfirm?.value || "" },
+                    );
+                  }}
+                  className="flex items-end gap-4"
+                >
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      {hasPassword ? "Confirm Password" : 'Type "DELETE" to confirm'}
+                    </label>
+                    {hasPassword ? (
+                      <Input
+                        type="password"
+                        name="deletePassword"
+                        placeholder="Enter password to confirm"
+                        required
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        name="deleteConfirm"
+                        placeholder="DELETE"
+                        autoComplete="off"
+                        pattern="DELETE"
+                        title="Type DELETE in capital letters"
+                        required
+                      />
+                    )}
+                  </div>
+                  <Button type="submit" variant="destructive" disabled={deleteMutation.isPending}>
+                    {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
+                  </Button>
+                </form>
+              );
+            })()}
           </div>
         </CardContent>
       </Card>

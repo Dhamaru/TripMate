@@ -8,6 +8,8 @@ import {
   AtlasConversationModel,
   ImportPlanCacheModel,
   ImportPlanRequestLogModel,
+  JournalEntryModel,
+  PackingListModel,
 } from "@shared/schema";
 import { AiUtilitiesService } from "../AiUtilitiesService";
 import { notifyTripParticipants } from "../notifications";
@@ -161,23 +163,44 @@ export const getTrip = async (req: Request, res: Response, next: NextFunction) =
     // Backfill coordinates for trips created before backfillActivityCoords
     // existed (or whose itinerary was generated before this activity had
     // any coords to begin with) — same self-heal-on-read pattern as the
-    // missing-id fix above. Atomic claim on the flag so concurrent views
-    // of the same trip (multiple tabs, a fast refresh) can't both kick off
-    // a duplicate background job.
-    if (!trip.coordsBackfillAttempted) {
+    // missing-id fix above. Re-arms whenever the itinerary has grown since
+    // the last attempt (see coordsBackfillActivityCount's comment in
+    // shared/schema.ts) so an activity added after the trip's first view —
+    // e.g. by Atlas's modify_itinerary, whose own inline geocode attempt is
+    // best-effort — still gets a real chance instead of being permanently
+    // stuck with no map pin.
+    const totalActivityCount = (trip.itinerary || []).reduce(
+      (n: number, day: any) => n + (day?.activities?.length || 0),
+      0,
+    );
+    if ((trip.coordsBackfillActivityCount || 0) < totalActivityCount) {
       const hasMissingCoords = (trip.itinerary || []).some((day: any) =>
         (day.activities || []).some(
           (act: any) => act && (act.lat == null || act.lon == null) && (act.location || act.title),
         ),
       );
       if (hasMissingCoords) {
+        // Atomic claim so concurrent views of the same trip (multiple
+        // tabs, a fast refresh) can't both kick off a duplicate job.
         const claimed = await TripModel.updateOne(
-          { _id: trip.id, coordsBackfillAttempted: { $ne: true } },
-          { $set: { coordsBackfillAttempted: true } },
+          { _id: trip.id, coordsBackfillActivityCount: { $lt: totalActivityCount } },
+          {
+            $set: {
+              coordsBackfillActivityCount: totalActivityCount,
+              coordsBackfillAttempted: true,
+            },
+          },
         );
         if (claimed.modifiedCount > 0) {
           setImmediate(() => backfillActivityCoords(String(trip.id), trip.destination));
         }
+      } else {
+        // Nothing missing right now — still record the count so a later
+        // activity addition is what re-arms this, not every single read.
+        await TripModel.updateOne(
+          { _id: trip.id },
+          { $set: { coordsBackfillActivityCount: totalActivityCount } },
+        ).catch(() => {});
       }
     }
 
@@ -271,13 +294,19 @@ export const deleteTrip = async (req: Request, res: Response, next: NextFunction
     const result = await TripModel.deleteOne({ _id: req.params.id, userId });
     if (result.deletedCount === 0) throw new NotFoundError("Trip not found");
     // Found while wiring up per-trip Atlas chat persistence: this route
-    // never cascaded anything (still true for JournalEntryModel/
-    // PackingListModel too — same gap, separate from this fix). Once the
-    // chat thread became something a real user could actually see and
-    // return to, an orphaned Mongo doc a deleted trip's tripId now points
-    // at nothing would just sit there forever with no way to reach it —
-    // low-stakes on its own, but free to close while touching this.
+    // never cascaded anything. Once the chat thread became something a
+    // real user could actually see and return to, an orphaned Mongo doc a
+    // deleted trip's tripId now points at nothing would just sit there
+    // forever with no way to reach it.
     await AtlasConversationModel.deleteOne({ tripId: req.params.id, userId }).catch(() => {});
+    // Acceptance-review finding: this same gap was still open for
+    // JournalEntryModel/PackingListModel — live-reproduced (delete a trip,
+    // its packing list survives pointing at a tripId that no longer
+    // exists). Both fields are optional on their schema (a season-template
+    // packing list or a non-trip journal entry has no tripId at all), so
+    // this only ever touches docs that were actually tied to this trip.
+    await JournalEntryModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
+    await PackingListModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
     res.status(204).send();
   } catch (error) {
     next(error);

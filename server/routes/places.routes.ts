@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { optionalAuth } from "../middleware/auth";
+import { optionalAuth, requireAuth } from "../middleware/auth";
 import { apiProxyLimiter, placesPhotoLimiter } from "../middleware/rateLimit.middleware";
 import { config } from "../config";
 
@@ -55,7 +55,15 @@ router.get("/photo", placesPhotoLimiter, async (req, res) => {
   }
 });
 
-router.get("/search", async (req, res) => {
+// /search and /tourist-attractions each make a BILLED Google Places call.
+// `optionalAuth` (router-wide, above) only decodes a session if present —
+// it never blocks an anonymous caller, so both were reachable by anyone,
+// throttled only by the shared per-IP apiProxyLimiter. Trivial IP rotation
+// bills the Google account with no account of ours required. /nearby (below)
+// hits the free OSM Overpass API, not Google — left open on purpose.
+// /photo also stays optionalAuth-only: it's the same route public
+// trip-share pages load images through for signed-out viewers.
+router.get("/search", requireAuth, async (req, res) => {
   try {
     const { query: queryParam, q, pageSize = 10, lat, lon, type } = req.query;
     const query = (queryParam || q) as string;
@@ -202,7 +210,7 @@ router.get("/nearby", async (req, res) => {
   }
 });
 
-router.get("/tourist-attractions", async (req, res) => {
+router.get("/tourist-attractions", requireAuth, async (req, res) => {
   try {
     const { location, pageSize = 20 } = req.query;
     if (!location) return res.status(400).json({ error: "Location is required" });

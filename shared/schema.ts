@@ -220,12 +220,18 @@ export interface ITrip extends Document {
   endDate?: Date;
   remindersSent?: string[];
   itinerary?: IItineraryDay[];
-  // One-shot guard so the background coordinate-backfill (AI-generated
-  // activities have no lat/lon until geocoded — see
-  // backfillActivityCoords in trips.controller.ts) runs at most once per
-  // trip instead of re-attempting on every view for activities whose
-  // location text just doesn't geocode.
+  // Guard so the background coordinate-backfill (AI-generated activities
+  // have no lat/lon until geocoded — see backfillActivityCoords in
+  // trips.controller.ts) doesn't re-attempt on every view for activities
+  // whose location text just doesn't geocode. Was a plain one-shot
+  // boolean — acceptance-review finding: that made it a ONE-SHOT PER
+  // TRIP, EVER, so a trip already viewed once (backfill ran, flag set)
+  // permanently stopped backfilling any activity added afterwards —
+  // live-reproduced with an Atlas-added activity that never got a map
+  // pin. Now records the activity count the last attempt covered;
+  // getTrip re-arms whenever that count has grown.
   coordsBackfillAttempted?: boolean;
+  coordsBackfillActivityCount?: number;
   expenses?: IExpense[];
   collaborators?: ICollaborator[];
   notes?: string;
@@ -283,6 +289,7 @@ const tripSchema = new Schema<ITrip>(
     remindersSent: { type: [String], default: [] },
     itinerary: { type: Schema.Types.Mixed },
     coordsBackfillAttempted: { type: Boolean, default: false },
+    coordsBackfillActivityCount: { type: Number, default: 0 },
     expenses: [
       {
         id: { type: String, required: true },

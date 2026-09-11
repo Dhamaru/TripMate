@@ -225,6 +225,20 @@ export default function PackingChecklist() {
   const [localGearItems, setLocalGearItems] = useState<PackingItem[]>([]);
   const [isDirtyGear, setIsDirtyGear] = useState(false);
 
+  // Save is deliberately manual (see handleSave below) — but a silent
+  // reload/tab-close was the actual live-reported bug: check off items,
+  // refresh, they're gone with zero warning. This doesn't change the
+  // manual-save design, it just stops the loss from being silent.
+  useEffect(() => {
+    if (!isDirtyGear && !isDirtyDocs) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirtyGear, isDirtyDocs]);
+
   // "Which season/trip am I looking at" — switching this must always show
   // that context's own gear list, never leave the previous context's
   // (possibly unsaved) items on screen. A draft cache keyed by this means
@@ -959,6 +973,7 @@ export default function PackingChecklist() {
               variant="outline"
               size="icon"
               title="Smart Suggest (AI)"
+              aria-label="Smart Suggest (AI)"
               onClick={handleSmartSuggest}
               className="border-[var(--amber-hover-border)] text-[var(--amber)] hover:bg-[var(--amber-dim)] hover:text-[var(--amber)]"
             >
@@ -967,7 +982,8 @@ export default function PackingChecklist() {
             <Button
               variant="outline"
               size="icon"
-              title="Save List"
+              title={isDirtyGear || isDirtyDocs ? "Save List (unsaved changes)" : "Save List"}
+              aria-label={isDirtyGear || isDirtyDocs ? "Save List (unsaved changes)" : "Save List"}
               onClick={handleSave}
               className={`border hover:bg-muted/50 ${isDirtyGear || isDirtyDocs ? "text-[var(--explorer-blue)] border-[var(--explorer-blue)]" : "text-muted-foreground"}`}
             >
@@ -977,6 +993,7 @@ export default function PackingChecklist() {
               variant="outline"
               size="icon"
               title="Duplicate List"
+              aria-label="Duplicate List"
               onClick={handleDuplicate}
               className="border hover:bg-muted/50"
             >
@@ -986,6 +1003,7 @@ export default function PackingChecklist() {
               variant="outline"
               size="icon"
               title="Copy Items to Clipboard"
+              aria-label="Copy Items to Clipboard"
               onClick={handleCopyToClipboard}
               className="border hover:bg-muted/50"
             >
@@ -995,6 +1013,7 @@ export default function PackingChecklist() {
               variant="outline"
               size="icon"
               title="Paste Items from Clipboard"
+              aria-label="Paste Items from Clipboard"
               onClick={handlePasteFromClipboard}
               className="border hover:bg-muted/50"
             >
@@ -1004,6 +1023,7 @@ export default function PackingChecklist() {
               variant="outline"
               size="icon"
               title="Print"
+              aria-label="Print"
               onClick={handlePrint}
               className="border hover:bg-muted/50"
             >
@@ -1015,6 +1035,7 @@ export default function PackingChecklist() {
                   variant="outline"
                   size="icon"
                   title="Templates"
+                  aria-label="Templates"
                   className="border hover:bg-muted/50"
                 >
                   <FolderOpen className="w-4 h-4 text-muted-foreground" />
