@@ -58,11 +58,11 @@ registerRoute(
   }),
 );
 
-// CARTO raster tiles (Positron light + Dark Matter dark) — cacheName MUST
-// match TILE_CACHE_NAME in client/src/lib/offlineTiles.ts (the explicit
-// "Download for offline" flow writes into this exact cache).
+// OpenStreetMap raster tiles — cacheName MUST match TILE_CACHE_NAME in
+// client/src/lib/offlineTiles.ts (the explicit "Download for offline"
+// flow writes into this exact cache).
 registerRoute(
-  ({ url }) => url.hostname.endsWith(".basemaps.cartocdn.com"),
+  ({ url }) => url.origin === "https://tile.openstreetmap.org",
   new CacheFirst({
     cacheName: "map-tiles-cache",
     plugins: [
