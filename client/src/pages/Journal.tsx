@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import {
   Plus,
   Book,
   Mic,
+  Square,
   Sparkles,
 } from "lucide-react";
 
@@ -115,6 +116,7 @@ export default function Journal() {
   const [photos, setPhotos] = useState<FileList | null>(null);
   const [keptPhotos, setKeptPhotos] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const [isAugmenting, setIsAugmenting] = useState(false);
 
   useEffect(() => {
@@ -260,24 +262,51 @@ export default function Journal() {
   };
 
   const startListening = () => {
-    if ("webkitSpeechRecognition" in window) {
-      const recognition = new (window as any).webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setEntryForm((prev) => ({ ...prev, content: (prev.content + " " + transcript).trim() }));
-      };
-      recognition.start();
-    } else {
+    if (isListening) return;
+    if (!("webkitSpeechRecognition" in window)) {
       toast({
         title: "Not Supported",
         description: "Voice recognition not supported in this browser.",
         variant: "destructive",
       });
+      return;
     }
+    const recognition = new (window as any).webkitSpeechRecognition();
+    // Continuous + a manual Stop button — the old one-shot mode ended
+    // itself after the first pause, which read as broken for anyone
+    // dictating more than a sentence. Base text is captured once at start
+    // so re-appending doesn't duplicate already-finalized phrases as more
+    // results arrive.
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    const baseContent = entryForm.content;
+    let finalTranscript = "";
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    recognition.onresult = (event: any) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + " ";
+        }
+      }
+      setEntryForm((prev) => ({
+        ...prev,
+        content: `${baseContent} ${finalTranscript}`.trim(),
+      }));
+    };
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -445,19 +474,27 @@ export default function Journal() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={startListening}
+                      onClick={isListening ? stopListening : startListening}
                       className={`h-7 text-xs gap-1 ${isListening ? "text-destructive animate-pulse" : "text-[var(--explorer-blue)] hover:bg-[var(--amber-dim)]"}`}
                     >
-                      <Mic className="w-3 h-3" />
-                      {isListening ? "Listening…" : "Dictate"}
+                      {isListening ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                      {isListening ? "Stop" : "Dictate"}
                     </Button>
                   </div>
                 </div>
                 <Textarea
                   value={entryForm.content}
                   onChange={(e) => setEntryForm((prev) => ({ ...prev, content: e.target.value }))}
-                  placeholder="Share your travel experience, thoughts, and memories…"
-                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[140px] focus-visible:ring-[hsl(var(--ring))]"
+                  placeholder={
+                    isListening
+                      ? "Listening… tap Stop when you're done."
+                      : "Share your travel experience, thoughts, and memories…"
+                  }
+                  // Typing while dictation is live raced the recognition
+                  // callback's own append, producing scrambled/duplicated
+                  // text — lock the field until Stop is pressed.
+                  disabled={isListening}
+                  className="bg-muted/50 border text-foreground placeholder:text-muted-foreground min-h-[140px] focus-visible:ring-[hsl(var(--ring))] disabled:opacity-80 disabled:cursor-not-allowed"
                   required
                   data-testid="textarea-content"
                 />

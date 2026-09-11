@@ -1006,7 +1006,7 @@ export default function TripDetail() {
                 </Button>
               )}
               <Link href="/">
-                <Button className="bg-[var(--customs-blue-deep)] hover:bg-[var(--ink-blue-fill)]">
+                <Button className="bg-[var(--customs-blue)] hover:bg-[var(--amber)]">
                   Go Back Home
                 </Button>
               </Link>
@@ -1141,17 +1141,17 @@ export default function TripDetail() {
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                      className="w-1.5 h-1.5 bg-[var(--customs-blue-deep)] rounded-full"
+                      className="w-1.5 h-1.5 bg-[var(--customs-blue)] rounded-full"
                     />
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                      className="w-1.5 h-1.5 bg-[var(--customs-blue-deep)] rounded-full"
+                      className="w-1.5 h-1.5 bg-[var(--customs-blue)] rounded-full"
                     />
                     <motion.div
                       animate={{ opacity: [0.3, 1, 0.3] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                      className="w-1.5 h-1.5 bg-[var(--customs-blue-deep)] rounded-full"
+                      className="w-1.5 h-1.5 bg-[var(--customs-blue)] rounded-full"
                     />
                   </div>
                   <span className="text-xs font-medium text-[var(--customs-blue)]">
@@ -1492,7 +1492,7 @@ export default function TripDetail() {
                     type="button"
                     onClick={handleSave}
                     disabled={updateTripMutation.isPending}
-                    className="flex-1 bg-[var(--customs-blue-deep)] hover:bg-[var(--ink-blue-fill)]"
+                    className="flex-1 bg-[var(--customs-blue)] hover:bg-[var(--amber)]"
                     data-testid="button-save-trip"
                   >
                     {updateTripMutation.isPending ? (
@@ -1888,7 +1888,7 @@ export default function TripDetail() {
                       setPlacesTarget(null);
                     }}
                     variant={showHotels ? "default" : "outline"}
-                    className={` h-12 ${showHotels ? "bg-[var(--customs-blue-deep)] text-white hover:bg-[rgb(var(--customs-blue-deep-rgb)/90%)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
+                    className={` h-12 ${showHotels ? "bg-[var(--customs-blue)] text-white hover:bg-[rgb(var(--customs-blue-rgb)/90%)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
                     <i className="fas fa-bed mr-2"></i>
                     Hotels
@@ -1907,7 +1907,7 @@ export default function TripDetail() {
                   <Button
                     onClick={() => setShowSpots(!showSpots)}
                     variant={showSpots ? "default" : "outline"}
-                    className={` h-12 ${showSpots ? "bg-[var(--customs-blue-deep)] text-white hover:bg-[var(--ink-blue-fill)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
+                    className={` h-12 ${showSpots ? "bg-[var(--customs-blue)] text-white hover:bg-[var(--amber)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
                     <i className="fas fa-camera mr-2"></i>
                     Tourist Spots
@@ -2331,7 +2331,7 @@ export default function TripDetail() {
             <Button
               onClick={() => toggleShare(true)}
               disabled={shareLoading}
-              className="bg-[var(--ink-blue-fill)] hover:bg-[var(--ink-blue-active)] text-white w-full"
+              className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white w-full"
             >
               {shareLoading ? "Creating link…" : "Create public link"}
             </Button>
