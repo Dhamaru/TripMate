@@ -67,10 +67,9 @@ async function broadcastFixAnnouncement(): Promise<string> {
     users.map((u) => ({
       userId: u._id,
       type: "announcement",
-      title: "Welcome back — TripMate just got a round of fixes",
+      title: "Thanks for your feedback",
       message:
-        "Thanks for using TripMate! We just shipped a batch of fixes: destination photos on the homepage, a dark-mode display bug, safer trip voting, offline map tiles, a Windows desktop app with auto-update, and journal photos now stored more reliably. Please refresh the app (or update the desktop app if you installed it) to get the latest version.",
-      link: "/app/home",
+        "Thanks for using TripMate! Based on your feedback, we've resolved and updated several issues. Please refresh the app (or update the desktop app if you installed it) to get the latest version.",
     })),
   );
   return `broadcast to ${users.length} real user(s)`;

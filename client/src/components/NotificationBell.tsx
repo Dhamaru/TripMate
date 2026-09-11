@@ -48,7 +48,7 @@ function timeAgo(iso: string): string {
 export function NotificationBell() {
   const queryClient = useQueryClient();
   const socketRef = useSocket();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -503,14 +503,26 @@ export function NotificationBell() {
                           <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
                             {timeAgo(notif.createdAt)}
                           </span>
-                          {isExpanded && notif.link && !selectMode && (
-                            <button
-                              onClick={(e) => handleOpen(e, notif.link!)}
-                              className="text-[11px] font-medium text-[var(--ink-blue-bright)] hover:underline"
-                            >
-                              Open &rarr;
-                            </button>
-                          )}
+                          {isExpanded &&
+                            notif.link &&
+                            !selectMode &&
+                            // Navigating to the page you're already on is a
+                            // no-op — live-reported as "this button doesn't
+                            // do anything" from a notification whose link was
+                            // the current page. Only offer it when it would
+                            // actually go somewhere.
+                            (notif.link === location ? (
+                              <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+                                You're already here
+                              </span>
+                            ) : (
+                              <button
+                                onClick={(e) => handleOpen(e, notif.link!)}
+                                className="text-[11px] font-medium text-[var(--ink-blue-bright)] hover:underline"
+                              >
+                                Open &rarr;
+                              </button>
+                            ))}
                         </div>
                       </div>
                       {!selectMode && (
