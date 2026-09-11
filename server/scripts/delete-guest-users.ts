@@ -19,6 +19,7 @@ import {
   FeedbackModel,
   SessionModel,
   MapPinModel,
+  connectMongo,
 } from "@shared/schema";
 import { AgentJob } from "../models/AgentJob";
 import { TripSuggestion } from "../models/TripSuggestion";
@@ -27,7 +28,11 @@ import { UserMemoryModel } from "../services/UserMemoryService";
 const APPLY = process.argv.includes("--apply");
 
 async function main() {
-  await mongoose.connect(config.MONGODB_URI!);
+  // Plain mongoose.connect() here previously connected to the driver's
+  // default db ("test"), not the "tripmate" db the app actually uses (that
+  // dbName is set inside connectMongo, shared/schema.ts) — the script always
+  // reported "Found 0 guest account(s)" against production data as a result.
+  await connectMongo(config.MONGODB_URI!);
 
   const guests = await UserModel.find({ isGuest: true }).select("_id email createdAt").lean();
   console.log(`Found ${guests.length} guest account(s).`);
