@@ -44,6 +44,14 @@ const envSchema = z.object({
   // in a scheduled cloud-agent's stored config. Unset by default so the
   // admin feedback endpoints fail closed until this is explicitly set.
   ADMIN_SECRET: z.string().optional(),
+  // Web push (server/push.ts). Generated once with web-push's
+  // generateVAPIDKeys() — see desktop/.updater-secret for the equivalent
+  // pattern with the desktop app's signing key. Optional: push is a no-op
+  // (not a crash) when unset, same fail-soft posture as every other
+  // optional provider key in this file.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   TRANSLATE_API_URL: z.string().optional(),
   TRANSLATE_API_KEY: z.string().optional(),

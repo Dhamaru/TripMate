@@ -879,11 +879,54 @@ notificationSchema.index({ userId: 1, groupKey: 1, read: 1, createdAt: -1 });
 // TTL — Mongo purges rows once expiresAt passes (notifyUser sets it +90d).
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// Fire-once hook so real OS-level push notifications piggyback on every
+// Notification write, from any call site (notifyTripParticipants,
+// notifyUser, a direct NotificationModel.create/insertMany like the
+// startup migrations use) with zero changes to any of them. `shared/` has
+// no business importing server code, so this is a plain registry instead
+// of an import: server/push.ts registers itself here once at boot.
+type NotificationHook = (doc: INotification) => void;
+const notificationHooks: NotificationHook[] = [];
+export function onNotificationCreated(fn: NotificationHook) {
+  notificationHooks.push(fn);
+}
+notificationSchema.post("save", function (doc) {
+  notificationHooks.forEach((fn) => fn(doc));
+});
+notificationSchema.post("insertMany", function (docs: INotification[]) {
+  for (const doc of docs) notificationHooks.forEach((fn) => fn(doc));
+});
+
 export const NotificationModel: Model<INotification> = mongoose.model<INotification>(
   "Notification",
   notificationSchema,
 );
 export type Notification = INotification;
+
+// One row per browser/device subscription (a user can have several — phone,
+// laptop, a second browser). `endpoint` is globally unique per the Push API
+// spec, so it doubles as the natural dedupe key on re-subscribe.
+export interface IPushSubscription extends Document {
+  userId: string;
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  createdAt: Date;
+}
+const pushSubscriptionSchema = new Schema<IPushSubscription>(
+  {
+    userId: { type: String, required: true, index: true },
+    endpoint: { type: String, required: true, unique: true },
+    keys: {
+      p256dh: { type: String, required: true },
+      auth: { type: String, required: true },
+    },
+  },
+  { timestamps: { createdAt: true, updatedAt: false }, toJSON: baseToJSON, versionKey: false },
+);
+export const PushSubscriptionModel: Model<IPushSubscription> = mongoose.model<IPushSubscription>(
+  "PushSubscription",
+  pushSubscriptionSchema,
+);
 
 // Custom map pins — previously localStorage-only (client/src/components/
 // OfflineMaps.tsx), meaning a signed-in user's saved pins didn't sync

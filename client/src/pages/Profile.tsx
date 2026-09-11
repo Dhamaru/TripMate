@@ -18,6 +18,13 @@ import {
 import { LogOut, Link as LinkIcon, AlertTriangle, Download } from "lucide-react";
 import { authApi } from "@/lib/api/auth.api";
 import { apiRequest, getCsrfToken } from "@/lib/queryClient";
+import { Switch } from "@/components/ui/switch";
+import {
+  isPushSupported,
+  getCurrentPushSubscription,
+  enablePushNotifications,
+  disablePushNotifications,
+} from "@/lib/push";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -32,6 +39,47 @@ export default function Profile() {
 
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
+  const [pushEnabled, setPushEnabled] = useState<boolean>(false);
+  const [pushBusy, setPushBusy] = useState<boolean>(false);
+  const pushSupported = useMemo(() => isPushSupported(), []);
+  useEffect(() => {
+    if (!pushSupported) return;
+    getCurrentPushSubscription()
+      .then((sub) => setPushEnabled(!!sub))
+      .catch(() => {});
+  }, [pushSupported]);
+  const togglePush = async (checked: boolean) => {
+    setPushBusy(true);
+    try {
+      if (checked) {
+        const result = await enablePushNotifications();
+        if (result.ok) {
+          setPushEnabled(true);
+          toast({ title: "Push notifications enabled" });
+        } else {
+          const reason =
+            result.reason === "denied"
+              ? "Notification permission was denied — enable it in your browser's site settings."
+              : result.reason === "not-configured"
+                ? "Push notifications aren't set up on the server yet."
+                : "Your browser doesn't support push notifications.";
+          toast({ title: "Couldn't enable push", description: reason, variant: "destructive" });
+        }
+      } else {
+        await disablePushNotifications();
+        setPushEnabled(false);
+        toast({ title: "Push notifications turned off" });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Couldn't update push notification settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setPushBusy(false);
+    }
+  };
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -729,6 +777,23 @@ export default function Profile() {
               {isCheckingUpdate ? "Updating…" : "Check for updates"}
             </Button>
           </div>
+          {pushSupported && (
+            <div className="mt-8 pt-6 border-t border-border flex items-center justify-between gap-4">
+              <div>
+                <h3 className="font-medium text-foreground">Push Notifications</h3>
+                <p className="text-sm text-muted-foreground">
+                  Get notified on this device even when TripMate isn't open — trip updates,
+                  collaborator activity, reminders.
+                </p>
+              </div>
+              <Switch
+                checked={pushEnabled}
+                disabled={pushBusy}
+                onCheckedChange={togglePush}
+                aria-label="Toggle push notifications"
+              />
+            </div>
+          )}
           <div className="mt-8 pt-6 border-t border-red-500/20">
             <h3 className="font-medium text-red-500 mb-2">Danger Zone</h3>
             <p className="text-sm text-muted-foreground mb-4">

@@ -8,6 +8,22 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // Switched from the auto-generated service worker (generateSW) to a
+      // hand-written one (injectManifest) so it can carry real `push` /
+      // `notificationclick` listeners for web-push notifications —
+      // generateSW's workbox config has no hook for custom event handlers.
+      // Registration (main.tsx's registerSW/updateSW, the "Check for
+      // updates" button) is unchanged — that API is identical either way.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      injectManifest: {
+        // Same rationale as the old build.chunkSizeWarningLimit: this repo
+        // ships one ~1.7-2MB vendor chunk on purpose (see the comment
+        // below on manualChunks) — the precache manifest needs to accept
+        // it instead of silently dropping it from the offline cache.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       includeAssets: ["apple-touch-icon.png", "robots.txt"],
       // Single manifest source (the old hand-written client/public/manifest.json
       // + its hard-coded <link> in index.html were removed). Real PNG icons of

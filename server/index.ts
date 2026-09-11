@@ -45,7 +45,13 @@ import weatherRoutes from "./routes/weather.routes";
 import crowdRoutes from "./routes/crowd.routes";
 import logsRoutes from "./routes/logs.routes";
 import mapPinsRoutes from "./routes/mapPins.routes";
+import pushRoutes from "./routes/push.routes";
 import { socketService } from "./services/SocketService";
+// Side-effect import: registers the push-on-notification-created hook
+// (shared/schema.ts's onNotificationCreated) so real OS-level pushes fire
+// for every notification, from any call site, without those call sites
+// knowing push exists.
+import "./push";
 
 const app = express();
 export { app };
@@ -130,6 +136,7 @@ app.use("/api/v1/agent", agentRoutes);
 app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/notifications", notificationsRoutes);
 app.use("/api/v1/crowd", crowdRoutes);
+app.use("/api/v1/push", pushRoutes);
 // journalRoutes defines its own full sub-paths (/journal) — mount at the
 // bare /api/v1 prefix. It carries the real multer photo-upload middleware
 // that shared.routes.ts's identical-looking /journal paths lack, so it
