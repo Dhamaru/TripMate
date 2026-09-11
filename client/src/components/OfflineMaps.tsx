@@ -243,6 +243,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   // Region id currently being zipped for "Save to device" — one at a time,
   // since zipping hundreds of tiles in memory is the expensive part.
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState(0);
 
   const [mapRegions, setMapRegions] = useState<MapRegion[]>(() => {
     try {
@@ -1017,8 +1018,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const region = mapRegions.find((r) => r.id === regionId);
     if (!region || !region.tileUrls?.length) return;
     setExportingId(regionId);
+    setExportProgress(0);
     try {
-      const blob = await exportRegionToZip(region, region.tileUrls);
+      const blob = await exportRegionToZip(region, region.tileUrls, (done, total) =>
+        setExportProgress(Math.round((done / total) * 100)),
+      );
       const safeName = region.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
       saveBlobToDevice(blob, `TripMate-${safeName || "region"}.zip`);
       toast({
@@ -1605,7 +1609,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                                   <i
                                     className={`fas ${exportingId === r.id ? "fa-spinner fa-spin" : "fa-file-download"} mr-2`}
                                   ></i>
-                                  {exportingId === r.id ? "Saving…" : "Save to Device"}
+                                  {exportingId === r.id
+                                    ? `Saving… ${exportProgress}%`
+                                    : "Save to Device"}
                                 </Button>
                               </div>
                             ) : r.downloading ? (

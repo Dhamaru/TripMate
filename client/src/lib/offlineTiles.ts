@@ -171,8 +171,17 @@ export async function exportRegionToZip(
     const match = tileUrlRe.exec(url);
     try {
       let response = cache ? await cache.match(url) : undefined;
-      if (!response) response = await fetch(url, { mode: "cors" });
-      if (response.ok || response.type === "opaque") {
+      // A region can have gaps (a tile that failed during the original
+      // download — downloadTiles already tolerates this). Only attempt a
+      // network fetch for a missing tile when actually online; this is the
+      // exact export most people run WHILE offline (you already have the
+      // region, you're saving it before/during a trip), and a live-
+      // reported bug confirmed the naive always-fetch version made every
+      // gap in a region wait out a real network attempt before failing —
+      // dozens of gaps turned "Saving..." into a stuck-looking multi-
+      // minute spinner instead of a fast, correct partial export.
+      if (!response && navigator.onLine) response = await fetch(url, { mode: "cors" });
+      if (response && (response.ok || response.type === "opaque")) {
         const blob = await response.blob();
         const path = match ? `tiles/${match[1]}/${match[2]}/${match[3]}.png` : `tiles/${done}.png`;
         zip.file(path, blob);
