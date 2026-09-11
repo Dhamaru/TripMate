@@ -27,7 +27,6 @@ const devCsp = {
   ],
   "connect-src": [
     "'self'",
-    "https://api.groq.com",
     "https://generativelanguage.googleapis.com",
     "https://maps.googleapis.com",
     "https://api.open-meteo.com",
@@ -65,7 +64,6 @@ const prodCsp = {
   ],
   "connect-src": [
     "'self'",
-    "https://api.groq.com",
     "https://generativelanguage.googleapis.com",
     "https://maps.googleapis.com",
     "https://api.open-meteo.com",

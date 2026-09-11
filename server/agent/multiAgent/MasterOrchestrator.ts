@@ -12,7 +12,7 @@ import { JournalAgent } from "./agents/JournalAgent";
 
 import { AgentJob } from "../../models/AgentJob";
 import crypto from "crypto";
-import Groq from "groq-sdk";
+import OpenAI from "openai";
 import { config } from "../../config";
 
 export class MasterOrchestrator {
@@ -28,11 +28,17 @@ export class MasterOrchestrator {
     PackingAgent: new PackingAgent(),
     JournalAgent: new JournalAgent(),
   };
-  private groq: Groq | null = null;
+  // Was Groq — removed along with every other non-Google/Gemini LLM
+  // provider in this codebase. Same OpenAI-compat-endpoint trick
+  // BaseAgent.ts already uses to talk to Gemini.
+  private llm: OpenAI | null = null;
 
   constructor() {
-    if (config.GROQ_API_KEY) {
-      this.groq = new Groq({ apiKey: config.GROQ_API_KEY });
+    if (config.GEMINI_API_KEY) {
+      this.llm = new OpenAI({
+        apiKey: config.GEMINI_API_KEY,
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      });
     }
   }
 
@@ -214,14 +220,11 @@ export class MasterOrchestrator {
    */
   private async classifyIntent(message: string): Promise<string[]> {
     if (!message) return [];
-    if (!this.groq) return [];
+    if (!this.llm) return [];
 
     try {
-      const response = await this.groq.chat.completions.create({
-        // llama-3.3-70b-versatile no longer exists on Groq's
-        // catalog (confirmed live, 404) — see agentLoop.ts for the
-        // full investigation.
-        model: "openai/gpt-oss-120b",
+      const response = await this.llm.chat.completions.create({
+        model: "gemini-3.6-flash",
         messages: [
           {
             role: "system",

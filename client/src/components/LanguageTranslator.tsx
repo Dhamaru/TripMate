@@ -35,7 +35,7 @@ const LANGUAGES = [
 interface TranslationResult {
   translatedText: string;
   pronunciation?: string;
-  source?: "openai" | "google" | "nvidia" | "mymemory";
+  source?: "google" | "gemini" | "mymemory";
 }
 
 async function runTranslate(
@@ -205,7 +205,7 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
             <div className="flex items-center justify-between gap-2">
               <strong className="text-[var(--explorer-blue)]">Result:</strong>
               {translation.source &&
-                translation.source !== "openai" &&
+                translation.source !== "gemini" &&
                 translation.source !== "google" && (
                   <span
                     className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--amber-dim)] text-[var(--amber)]"

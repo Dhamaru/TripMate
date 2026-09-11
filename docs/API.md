@@ -27,15 +27,15 @@ JWT token required. Pass as:
 
 ## Error Codes
 
-| Code               | HTTP Status | Description                                              |
-| ------------------ | ----------- | -------------------------------------------------------- |
-| `VALIDATION_ERROR` | 400         | Invalid request body                                     |
-| `UNAUTHORIZED`     | 401         | Missing or invalid token                                 |
-| `FORBIDDEN`        | 403         | Token valid but access denied                            |
-| `NOT_FOUND`        | 404         | Resource does not exist                                  |
-| `CONFLICT`         | 409         | Chronological conflict in itinerary                      |
-| `RATE_LIMITED`     | 429         | Too many requests                                        |
-| `AI_SERVICE_ERROR` | 503         | All Atlas providers (OpenRouter/Groq/NVIDIA) unavailable |
+| Code               | HTTP Status | Description                         |
+| ------------------ | ----------- | ----------------------------------- |
+| `VALIDATION_ERROR` | 400         | Invalid request body                |
+| `UNAUTHORIZED`     | 401         | Missing or invalid token            |
+| `FORBIDDEN`        | 403         | Token valid but access denied       |
+| `NOT_FOUND`        | 404         | Resource does not exist             |
+| `CONFLICT`         | 409         | Chronological conflict in itinerary |
+| `RATE_LIMITED`     | 429         | Too many requests                   |
+| `AI_SERVICE_ERROR` | 503         | Gemini unavailable                  |
 
 ---
 

@@ -1,7 +1,7 @@
 # TripMate - Project Rules
 
 - **Project name:** TripMate
-- **Stack:** React + TypeScript + Vite (frontend), Node.js + Express (backend), MongoDB/Mongoose, Socket.io (real-time collaboration), OpenRouter/Groq/NVIDIA NIM/Gemini (Atlas's multi-provider LLM fallback chain — OpenAI is wired but currently unfunded/inactive), Google Places/Maps/Translation API, OpenStreetMap (Leaflet tiles), @dnd-kit, JWT sessions (Passport.js retained for OAuth only)
+- **Stack:** React + TypeScript + Vite (frontend), Node.js + Express (backend), MongoDB/Mongoose, Socket.io (real-time collaboration), Google Gemini (every AI call in the app — Atlas, trip planning, utilities; every other LLM provider tried has been removed), Google Places/Maps/Translation API, OpenStreetMap (Leaflet tiles), @dnd-kit, JWT sessions (Passport.js retained for OAuth only)
 - **Test command:** npm test
 - **Dev command:** npm run dev
 - **Build command:** npm run build

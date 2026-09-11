@@ -9,8 +9,8 @@ type CacheEntry<T> = { data: T; expiresAt: number };
 
 // MyMemory's anonymous quota is 100 requests/day; a registered `de` email
 // param raises that to 10,000 words/day at no cost. Only used as the last
-// fallback (GPT-4o-mini and NVIDIA are tried first) but real usage was
-// hitting the anonymous ceiling under light load.
+// fallback (Gemini and Google Translate are tried first) but real usage
+// was hitting the anonymous ceiling under light load.
 const MYMEMORY_CONTACT_EMAIL = "kasivasi2005@gmail.com";
 
 function sanitize(input: string, max = 2000): string {
@@ -128,47 +128,6 @@ export class AiUtilitiesService {
       console.error("[AiUtilities] Gemini Error:", error);
       throw error;
     }
-  }
-
-  // NVIDIA's OpenAI-compatible chat endpoint — the same provider the main
-  // itinerary-generation pipeline (agentLoop.ts) uses as its primary model,
-  // but this service's other text-generation methods only ever fell back to
-  // Gemini then OpenAI. When both of those are quota-exhausted, those
-  // methods have no working provider left even though NVIDIA is reachable.
-  private async generateWithNvidia(
-    prompt: string,
-    systemPrompt?: string,
-    temperature = 0.3,
-    model = "meta/llama-3.1-8b-instruct",
-  ): Promise<string> {
-    const nvidiaKey = config.NVIDIA_API_KEY;
-    if (!nvidiaKey) throw new Error("nvidia_disabled");
-
-    const messages = systemPrompt
-      ? [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
-        ]
-      : [{ role: "user", content: prompt }];
-
-    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaKey}` },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`NVIDIA status ${response.status}: ${await response.text()}`);
-    }
-
-    const json = await response.json();
-    const text = json.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error("NVIDIA returned an empty response");
-    return text;
   }
 
   private getCached<T>(key: string): T | null {
@@ -308,7 +267,7 @@ export class AiUtilitiesService {
   ): Promise<{
     translatedText: string;
     pronunciation?: string;
-    source?: "openai" | "google" | "nvidia" | "mymemory";
+    source?: "google" | "gemini" | "mymemory";
   }> {
     const t = sanitize(text);
     const from = sanitize(sourceLang, 32);
@@ -317,7 +276,7 @@ export class AiUtilitiesService {
     const cached = this.getCached<{
       translatedText: string;
       pronunciation?: string;
-      source?: "openai" | "google" | "nvidia" | "mymemory";
+      source?: "google" | "gemini" | "mymemory";
     }>(key);
     if (cached) return cached;
 
@@ -325,7 +284,7 @@ export class AiUtilitiesService {
       if (!this.openai) throw new Error("ai_disabled");
       const client = this.openai!;
       // Pin the exact JSON shape explicitly (key name, no prose) and force
-      // response_format: json_object — without both, gpt-4o-mini sometimes
+      // response_format: json_object — without both, the model sometimes
       // returns the translation under a different key ("translation",
       // "text") or wrapped in prose, which silently produced an empty
       // translatedText below.
@@ -346,13 +305,13 @@ export class AiUtilitiesService {
       const translatedText = String(json.translatedText || json.translation || json.text || "");
       // A malformed/differently-shaped JSON reply (wrong key name, empty
       // object) previously became a "successful" result with an empty
-      // translatedText — no exception was thrown, so the NVIDIA/MyMemory
+      // translatedText — no exception was thrown, so the Google/MyMemory
       // fallbacks below never ran. Treat an empty result as a real failure.
-      if (!translatedText) throw new Error("empty_gpt_translation");
+      if (!translatedText) throw new Error("empty_translation");
       const result = {
         translatedText,
         pronunciation: json.pronunciation ? String(json.pronunciation) : undefined,
-        source: "openai" as const,
+        source: "gemini" as const,
       };
       return this.setCached(key, result);
     } catch {
@@ -391,15 +350,18 @@ export class AiUtilitiesService {
           }
         }
       } catch {
-        /* fall through to NVIDIA */
+        /* fall through to Gemini */
       }
 
-      // Fallback 2: NVIDIA (reliable LLM translation). MyMemory's free
+      // Fallback 2: Gemini (reliable LLM translation). MyMemory's free
       // crowd-sourced translation memory can return confidently wrong
       // results even for common phrases — e.g. "Thank you" -> a sentence
-      // about reciting a poem, with match:1 (max confidence). NVIDIA gives
+      // about reciting a poem, with match:1 (max confidence). Gemini gives
       // a real translation instead of a lookup, so try it before falling
-      // all the way to MyMemory.
+      // all the way to MyMemory. Was NVIDIA (integrate.api.nvidia.com) —
+      // removed along with every other non-Google/Gemini LLM provider in
+      // this codebase; the prompt engineering below (subject-identification
+      // step, native-script instruction) is unchanged, only the transport is.
       try {
         // Small instruct models are unreliable with bare ISO codes (observed:
         // asking for "te" produced Hindi written in Roman transliteration,
@@ -445,16 +407,16 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         // subject-identification prompt and temperature 0 above are kept
         // since they're still real improvements even though they don't
         // fully fix the WH-word confusion on this smaller model.
-        const nvidiaRaw = await this.generateWithNvidia(t, prompt, 0);
-        const translationLine = nvidiaRaw.split("\n").find((l) => /^TRANSLATION:/i.test(l.trim()));
-        const nvidiaText = translationLine
+        const geminiRaw = await this.generateWithGemini(t, prompt);
+        const translationLine = geminiRaw.split("\n").find((l) => /^TRANSLATION:/i.test(l.trim()));
+        const geminiText = translationLine
           ? translationLine.replace(/^TRANSLATION:/i, "").trim()
-          : nvidiaRaw.trim();
-        if (nvidiaText) {
+          : geminiRaw.trim();
+        if (geminiText) {
           const result = {
-            translatedText: nvidiaText,
+            translatedText: geminiText,
             pronunciation: undefined,
-            source: "nvidia" as const,
+            source: "gemini" as const,
           };
           return this.setCached(key, result);
         }
@@ -2765,12 +2727,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     try {
       let rawContent = "";
-      // Try OpenAI first if configured, but don't let a bad/expired/rate-
-      // limited OPENAI_API_KEY take the whole feature down — Gemini is the
-      // app's other configured provider and covers this fine. Previously a
-      // failed OpenAI call threw straight to the outer catch with no
-      // fallback, surfacing as "Internal server error" even though Gemini
-      // was healthy the whole time (live-reported).
+      // Two Gemini transports, not two providers — the OpenAI-compat chat-
+      // completions client (this.openai) is tried first, and a
+      // raw-generateContent call (generateWithGemini) below covers it if
+      // that fails, so one transport hiccup doesn't take the whole feature
+      // down. Was genuinely OpenAI-then-Gemini before that provider was
+      // removed; kept the two-attempt shape since it's still useful
+      // resilience against a single transport failing.
       if (this.openai) {
         try {
           const completion = await this.openai.chat.completions.create({
@@ -2786,7 +2749,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           });
           rawContent = completion.choices?.[0]?.message?.content?.trim() || "";
         } catch (e) {
-          console.error("[AiUtilities] augmentJournalEntry via OpenAI failed, trying Gemini:", e);
+          console.error(
+            "[AiUtilities] augmentJournalEntry: first Gemini attempt failed, retrying:",
+            e,
+          );
         }
       }
       if (!rawContent) {
@@ -3388,30 +3354,24 @@ Start: ${startDate || "not specified"} | Group: ${groupSize} | Budget: ${budget 
     const fallbackPrompt = `Return ONLY valid JSON, no other text. Same structure as before. Parse this schedule: ${scheduleText.slice(0, 1500)} | ${groupSize} people | ${budgetBracket} budget | Start ${startDate || "unspecified"}`;
     try {
       raw = await this.generateWithGemini(userPrompt, systemPrompt);
-    } catch (geminiError) {
-      // Fallback to NVIDIA, then OpenAI, if Gemini fails — same shorter,
-      // stricter retry prompt on either, since a smaller/weaker model is
-      // more likely to wander from the full rule list than to fail on
-      // basic JSON-only compliance.
-      try {
-        raw = await this.generateWithNvidia(fallbackPrompt, systemPrompt);
-        usedModel = "meta/llama-3.1-8b-instruct";
-      } catch (nvidiaError) {
-        if (this.openai) {
-          const res = await this.openai.chat.completions.create({
-            model: "gemini-3.6-flash",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.3,
-          });
-          raw = res.choices[0]?.message?.content || "{}";
-          usedModel = "gemini-3.6-flash";
-          tokensUsed = res.usage?.total_tokens;
-        } else {
-          throw new Error("No AI provider available");
-        }
+    } catch {
+      // Fallback to a second Gemini transport/model if the first fails —
+      // was NVIDIA-then-OpenAI here; both removed along with every other
+      // non-Google/Gemini LLM provider in this codebase.
+      if (this.openai) {
+        const res = await this.openai.chat.completions.create({
+          model: "gemini-3.6-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.3,
+        });
+        raw = res.choices[0]?.message?.content || "{}";
+        usedModel = "gemini-3.6-flash";
+        tokensUsed = res.usage?.total_tokens;
+      } else {
+        throw new Error("No AI provider available");
       }
     }
 

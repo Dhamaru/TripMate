@@ -1,4 +1,4 @@
-// Packing List Handler — Groq sub-call for structured categories
+// Packing List Handler — Gemini sub-call for structured categories
 
 import type { ToolResult } from "../../types";
 import OpenAI from "openai";

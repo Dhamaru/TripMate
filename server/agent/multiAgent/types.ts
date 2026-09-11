@@ -1,26 +1,24 @@
-import { Groq } from 'groq-sdk';
-
 /** Types of triggers that start the orchestrator pipeline */
-export type OrchestratorTrigger = 
-  | 'dashboard_load'
-  | 'trip_create'
-  | 'trip_view'
-  | 'chat_message'
-  | 'journal_entry'
-  | 'preferences_change'
-  | 'packing_request'
-  | 'expense_audit';
+export type OrchestratorTrigger =
+  | "dashboard_load"
+  | "trip_create"
+  | "trip_view"
+  | "chat_message"
+  | "journal_entry"
+  | "preferences_change"
+  | "packing_request"
+  | "expense_audit";
 
 /** Names of the 7 specialized agents */
-export type AgentName = 
-  | 'SuggestionAgent'
-  | 'HeroImageAgent'
-  | 'ItineraryAgent'
-  | 'BudgetAgent'
-  | 'MapAgent'
-  | 'PackingAgent'
-  | 'JournalAgent'
-  | 'MasterOrchestrator';
+export type AgentName =
+  | "SuggestionAgent"
+  | "HeroImageAgent"
+  | "ItineraryAgent"
+  | "BudgetAgent"
+  | "MapAgent"
+  | "PackingAgent"
+  | "JournalAgent"
+  | "MasterOrchestrator";
 
 /** Standardized output schema for all agents */
 export interface AgentResult<T = any> {
@@ -36,7 +34,7 @@ export interface AgentResult<T = any> {
 
 export interface UserPreferences {
   travelStyles: string[];
-  budgetTier: 'budget' | 'moderate' | 'luxury';
+  budgetTier: "budget" | "moderate" | "luxury";
   currency: string;
   preferredTemperatures: string[];
   dietaryRestrictions: string[];
@@ -65,7 +63,7 @@ export interface TripContext {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
 }
 

@@ -90,15 +90,12 @@ export function getHealthSnapshot(models: string[], baseUrls: string[]) {
 // to succeed. This tracks our own estimate of recent usage per provider so
 // a request can be routed to a provider with real headroom BEFORE calling
 // it, not after it fails.
-const TPM_LIMITS: Record<number, number> = {
-  // Index 0 (OpenRouter) has no confirmed hard token ceiling — its free
-  // models are shared-pool rate-limited (observed as HTTP 429, caught by
-  // the circuit breaker) rather than a measured TPM number like Groq's.
-  1: 12_000, // Groq free tier — confirmed via x-ratelimit-limit-tokens header
-  // NVIDIA slots (2, 3) have no confirmed token ceiling — their failures
-  // observed so far are timeouts, not quota, so they're left untracked
-  // (unlimited) here; the circuit breaker still protects against those.
-};
+// Both model slots (agentLoop.ts's MODELS) are Gemini now, with no
+// confirmed hard TPM ceiling the way Groq's free tier had one — leaving
+// this empty rather than carrying over a stale Groq/NVIDIA-era number that
+// would incorrectly throttle a Gemini slot. The circuit breaker above
+// still protects against real failures either way.
+const TPM_LIMITS: Record<number, number> = {};
 const WINDOW_MS = 60_000;
 const usageLog = new Map<number, { at: number; tokens: number }[]>();
 

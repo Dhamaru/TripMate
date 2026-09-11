@@ -2,7 +2,7 @@
 
 ## Overview
 
-Atlas runs a 4-provider fallback chain, in order: **OpenRouter → Groq → NVIDIA NIM (×2 keys)**, with a circuit breaker and per-provider token-budget admission control (`server/agent/agentLoop.ts`, `providerHealth.ts`). Separate AI utility calls (weather estimates, travel hacks, journal enhancement — not the Atlas chat loop itself) use **Gemini** (`gemini-3.5-flash-lite`) via `AiUtilitiesService`, falling back to OpenAI only where configured (unfunded by default).  
+Atlas runs on two Gemini model slots (`gemini-3.6-flash`, `gemini-flash-latest`), with a circuit breaker and per-slot token-budget admission control (`server/agent/agentLoop.ts`, `providerHealth.ts`). Separate AI utility calls (weather estimates, travel hacks, journal enhancement — not the Atlas chat loop itself) also use **Gemini** (`gemini-3.5-flash-lite`) via `AiUtilitiesService`. Every other LLM provider this app tried (OpenRouter, Groq, NVIDIA, real OpenAI) has been removed.  
 All prompts are in `/server/agent/prompts/`.
 
 Context window management: if estimated tokens > 4000, `summarizeIfNeeded()` in  

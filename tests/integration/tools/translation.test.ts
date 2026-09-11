@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { translateHandler } from "../../../server/agent/tools/handlers/translateHandler";
 
-// This hits live external translation providers (GPT-4o-mini -> NVIDIA ->
+// This hits live external translation providers (Gemini -> Google Translate ->
 // MyMemory, via AiUtilitiesService.translate()) — real network conditions
 // and per-query provider flakiness (MyMemory in particular is documented
 // elsewhere in this codebase as returning confidently empty/wrong matches

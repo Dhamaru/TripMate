@@ -1,6 +1,6 @@
 # TripMate — System Architecture
 
-> **Stack**: React 18 · Express 4 · MongoDB · Socket.io · OpenRouter → Groq → NVIDIA NIM×2 fallback chain (Atlas) + Gemini (utility calls, OpenAI wired but unfunded) · PWA
+> **Stack**: React 18 · Express 4 · MongoDB · Socket.io · Google Gemini (every AI call — Atlas chat, multi-agent trip planning, utility calls) · PWA
 
 ---
 
@@ -21,9 +21,9 @@ TripMate is a full-stack AI-driven travel planning platform. Users create trips,
 └────┬──────────────┬──────────────┬───────────────────────┘
      │              │              │
 ┌────▼────┐  ┌──────▼──────┐  ┌───▼─────────────────────┐
-│ MongoDB │  │  Socket.io  │  │   AI Providers           │
-│Mongoose │  │  (Presence/ │  │ OpenRouter→Groq→NVIDIA×2 │
-│  ODM    │  │  collab)    │  │ (Atlas) + Gemini (utils) │
+│ MongoDB │  │  Socket.io  │  │   AI Provider            │
+│Mongoose │  │  (Presence/ │  │ Google Gemini            │
+│  ODM    │  │  collab)    │  │ (Atlas + all utilities)  │
 └─────────┘  └─────────────┘  └─────────────────────────┘
 ```
 
@@ -51,7 +51,7 @@ TripMate/
 │       └── main.tsx            # App entry
 ├── server/
 │   ├── agent/
-│   │   ├── agentLoop.ts         # Atlas: OpenRouter→Groq→NVIDIA×2 fallback chain
+│   │   ├── agentLoop.ts         # Atlas: two Gemini model slots
 │   │   ├── tools/handlers/      # weatherHandler, currencyHandler, placesHandler,
 │   │   │                        # journalToolHandler, modifyItineraryHandler,
 │   │   │                        # expenseToolHandler, collaboratorToolHandler, etc.
@@ -241,7 +241,7 @@ errorHandler              → Global async error handler
 
 Two separate systems, both under `server/agent/`:
 
-1. **Atlas chat** (`agentLoop.ts`) — conversational tool-using agent behind `/api/v1/agent/chat`. Provider fallback chain: OpenRouter → Groq → NVIDIA NIM×2, with a circuit breaker (`providerHealth.ts`) and per-provider token-budget admission control. Executes tools via `Tool Executor` (~19 tools), gating destructive ones (expense removal, collaborator changes) behind a `CONFIRM_REQUIRED` step.
+1. **Atlas chat** (`agentLoop.ts`) — conversational tool-using agent behind `/api/v1/agent/chat`. Runs on two Gemini model slots, with a circuit breaker (`providerHealth.ts`) and per-slot token-budget admission control. Executes tools via `Tool Executor` (~19 tools), gating destructive ones (expense removal, collaborator changes) behind a `CONFIRM_REQUIRED` step.
 2. **MasterOrchestrator** (`server/agent/multiAgent/MasterOrchestrator.ts`) — a separate, non-chat pipeline that dispatches to specialized domain agents and tracks each run as an `AgentJob` record:
 
 ```
@@ -547,11 +547,9 @@ npm test       →  vitest
 MONGODB_URI          MongoDB connection string
 JWT_SECRET           JWT signing key
 SESSION_SECRET       Session signing key
-OPENROUTER_API_KEY   Atlas provider (1st in fallback chain)
-GROQ_API_KEY         Atlas provider (2nd in fallback chain)
-NVIDIA_API_KEY_1/2   Atlas provider (3rd/4th in fallback chain)
-GEMINI_API_KEY       Gemini — must be an AI-Studio-issued key, not a plain
-                      Cloud Console key
+GEMINI_API_KEY       Powers every AI call in the app (Atlas, trip planning,
+                      utilities) — must be an AI-Studio-issued key, not a
+                      plain Cloud Console key
 GOOGLE_API_KEY       Places / Maps / Cloud Translation
 OPENAI_API_KEY       Optional; wired but not required (unfunded by default)
 OPENWEATHER_API_KEY  Weather API

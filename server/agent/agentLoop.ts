@@ -1,4 +1,4 @@
-// Atlas Agent — Core Agent Loop (Groq Implementation)
+// Atlas Agent — Core Agent Loop (Gemini)
 
 import OpenAI from "openai";
 import type { AgentInput, AgentResponse, AgentStructuredData, Message, Mutation } from "./types";
@@ -167,7 +167,7 @@ async function summarizeIfNeeded(
 }
 
 /**
- * Runs the Atlas agent loop using Groq.
+ * Runs the Atlas agent loop using Gemini.
  */
 export async function runAgentLoop(
   input: AgentInput & {
@@ -225,7 +225,7 @@ export async function runAgentLoop(
   // Add conversation history
   if (input.conversationHistory) {
     for (const msg of input.conversationHistory) {
-      // Map roles if necessary, though Groq uses standard OpenAI roles
+      // Map roles if necessary — Gemini's OpenAI-compat endpoint uses standard OpenAI roles
       messages.push({
         role: msg.role as any,
         content: msg.content,

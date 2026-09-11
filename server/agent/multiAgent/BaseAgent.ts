@@ -82,9 +82,9 @@ export abstract class BaseAgent<T = any> {
   }
 
   /**
-   * Core execution loop making the Groq call and handling tool usage.
+   * Core execution loop making the Gemini call and handling tool usage.
    */
-  protected async groqCall(
+  protected async llmCall(
     input: OrchestratorInput,
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
     toolsToUse?: string[],

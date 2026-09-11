@@ -1,12 +1,11 @@
 # TripMate — AI Travel Planner
 
-> **Agentic AI travel planning powered by Atlas, a multi-provider travel intelligence agent (OpenRouter → Groq → NVIDIA NIM fallback chain, with Gemini used separately for utility calls), with real-time collaboration via Socket.io.**
+> **Agentic AI travel planning powered by Atlas, a travel intelligence agent running entirely on Google Gemini, with real-time collaboration via Socket.io.**
 
 ## Prerequisites
 
 - Node.js 20+
 - MongoDB (local) or MongoDB Atlas free tier
-- At least one LLM provider key: OpenRouter, Groq, and/or NVIDIA NIM (Atlas falls back across whichever are configured)
 - Gemini API key — an **AI-Studio-issued key** (format `AQ.xxx`), not a plain Cloud-Console key; only AI-Studio keys actually work against the Gemini Developer API
 - Google API key (Places, Maps, Cloud Translation)
 
@@ -34,19 +33,15 @@ npm run dev
 
 ## Environment Variables
 
-| Variable                                | Required       | Description                                                                                                                                          |
-| --------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MONGODB_URI`                           | ✅             | MongoDB connection string (not `DATABASE_URL`)                                                                                                       |
-| `SESSION_SECRET`                        | ✅             | Random string for session signing                                                                                                                    |
-| `JWT_SECRET`                            | ✅             | Random string for JWT signing                                                                                                                        |
-| `OPENROUTER_API_KEY`                    | Atlas provider | First in the fallback chain                                                                                                                          |
-| `GROQ_API_KEY`                          | Atlas provider | Second in the fallback chain (12k TPM free-tier ceiling)                                                                                             |
-| `NVIDIA_API_KEY_1` / `NVIDIA_API_KEY_2` | Atlas provider | Third/fourth fallback                                                                                                                                |
-| `GEMINI_API_KEY`                        | Recommended    | AI-Studio-issued key — used by AiUtilitiesService (weather/travel-hacks/journal AI, translation fallback), independent of Atlas's own fallback chain |
-| `GOOGLE_API_KEY`                        | Recommended    | Places search, Maps, Cloud Translation — a plain Cloud Console key works for this (unlike `GEMINI_API_KEY`)                                          |
-| `OPENAI_API_KEY`                        | Optional       | Wired as a fallback in a few places but not required — the app runs fully on the above without it                                                    |
-| `NODE_ENV`                              | ✅             | `development`, `production`, or `test`                                                                                                               |
-| `VITE_API_URL`                          | Dev only       | Frontend API base: `http://localhost:5000`                                                                                                           |
+| Variable         | Required    | Description                                                                                                                                                                                                                                     |
+| ---------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI`    | ✅          | MongoDB connection string (not `DATABASE_URL`)                                                                                                                                                                                                  |
+| `SESSION_SECRET` | ✅          | Random string for session signing                                                                                                                                                                                                               |
+| `JWT_SECRET`     | ✅          | Random string for JWT signing                                                                                                                                                                                                                   |
+| `GEMINI_API_KEY` | ✅          | AI-Studio-issued key — powers Atlas chat, the trip-planning multi-agent pipeline, and every AI utility (weather/travel-hacks/journal/translation). Every other LLM provider this app tried (OpenAI, NVIDIA, Groq, OpenRouter) has been removed. |
+| `GOOGLE_API_KEY` | Recommended | Places search, Maps, Cloud Translation — a plain Cloud Console key works for this (unlike `GEMINI_API_KEY`)                                                                                                                                     |
+| `NODE_ENV`       | ✅          | `development`, `production`, or `test`                                                                                                                                                                                                          |
+| `VITE_API_URL`   | Dev only    | Frontend API base: `http://localhost:5000`                                                                                                                                                                                                      |
 
 See `server/config.ts` for the complete, authoritative list (SMTP, admin/feedback-routine secrets, rate-limit tuning, etc.) — this table covers what you need for local dev, not every optional var.
 
@@ -81,8 +76,8 @@ Express API (Node.js :5000)
         │── Helmet, CSRF, mongo-sanitize, hpp
         │
         │── Agent Router ──────► Atlas Agent Loop
-        │                              │── Provider fallback: OpenRouter → Groq → NVIDIA×2
-        │                              │   (circuit breaker + per-provider token-budget admission)
+        │                              │── Two Gemini model slots (circuit breaker +
+        │                              │   per-slot token-budget admission)
         │                              │── Tool Executor (~19 tools, CONFIRM_REQUIRED gate on
         │                              │   destructive ones — manage_expense removal, manage_collaborator)
         │                                    │── weatherHandler, currencyHandler, translateHandler

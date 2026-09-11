@@ -14,17 +14,16 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(5000),
   MONGODB_URI: z.string().min(1),
-  OPENAI_API_KEY: z.string().optional(),
+  // Every non-Google/Gemini LLM provider this codebase has tried (OpenAI,
+  // NVIDIA, Groq, OpenRouter) has been removed — Atlas and the trip
+  // planner run entirely on Gemini now (via its OpenAI-compatible
+  // endpoint, using the `openai` SDK as a transport, not real OpenAI).
   GEMINI_API_KEY: z.string().optional().default(""),
-  GROQ_API_KEY: z.string().optional().default(""),
-  OPENROUTER_API_KEY: z.string().optional().default(""),
   GOOGLE_API_KEY: z.string().optional(),
   SESSION_SECRET: z.string().default(randomSecret),
   JWT_SECRET: z.string().default(randomSecret),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
-  NVIDIA_API_KEY_1: z.string().optional(),
-  NVIDIA_API_KEY_2: z.string().optional(),
   FRONTEND_URL: z.string().optional(),
   BACKEND_URL: z.string().optional(),
   OPENWEATHER_API_KEY: z.string().optional(),
@@ -85,8 +84,6 @@ const _config = envSchema.parse(processEnv);
 
 const derivedConfig = {
   CSRF_ENABLED: _config.CSRF_ENABLED ?? _config.NODE_ENV === "production",
-  // NVIDIA_API_KEY_2 (Llama) is the primary model; NVIDIA_API_KEY_1 (Qwen) is the fallback model.
-  NVIDIA_API_KEY: _config.NVIDIA_API_KEY_2 || _config.NVIDIA_API_KEY_1,
 };
 
 // Transition placeholders to mandatory for production. Checks the RAW env
