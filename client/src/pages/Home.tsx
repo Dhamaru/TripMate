@@ -19,6 +19,9 @@ import {
   Clock,
   ImageOff,
   CloudSun,
+  WifiOff,
+  Shield,
+  Route,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { logError } from "@/lib/logger";
@@ -41,6 +44,63 @@ const QUICK_LINKS = [
   { title: "Packing list", icon: ListChecks, href: "/app/packing" },
   { title: "Offline maps", icon: Map, href: "/app/maps" },
   { title: "Journal", icon: BookOpen, href: "/app/journal" },
+];
+
+// Shown on the empty dashboard (no trips yet) so a new or guest user sees
+// what actually sets TripMate apart before they've planned anything —
+// same "Built for the road" spotlight this app has shown before, not new
+// copy. Each tile links to the real page/tool it describes; Atlas has no
+// standalone route (it's the floating chat panel on every page) so it's
+// informational only.
+const HIGHLIGHT_FEATURES: Array<{
+  title: string;
+  description: string;
+  icon: typeof Bot;
+  tint: string;
+  href?: string;
+}> = [
+  {
+    title: "Atlas, your AI travel agent",
+    description: "Chat to build or edit your itinerary, log an expense, or ask anything — anytime.",
+    icon: Bot,
+    tint: "icon-tint-green",
+  },
+  {
+    title: "AI-drafted itineraries",
+    description:
+      "A destination and rough dates get you a real day-by-day plan, budget, and packing list.",
+    icon: Route,
+    tint: "icon-tint-amber",
+    href: "/app/planner",
+  },
+  {
+    title: "Offline maps",
+    description: "Download a region before you fly and keep navigating with zero signal.",
+    icon: WifiOff,
+    tint: "icon-tint-amber",
+    href: "/app/maps",
+  },
+  {
+    title: "Travel journal",
+    description: "Capture each day with photos and notes, then get an AI recap of the whole trip.",
+    icon: BookOpen,
+    tint: "icon-tint-blue",
+    href: "/app/journal",
+  },
+  {
+    title: "Weather & packing",
+    description: "A 7-day forecast per destination, folded straight into what to pack.",
+    icon: CloudSun,
+    tint: "icon-tint-blue",
+    href: "/app/weather",
+  },
+  {
+    title: "Emergency info",
+    description: "Local emergency numbers and nearby hospitals for wherever you land.",
+    icon: Shield,
+    tint: "icon-tint-red",
+    href: "/app/emergency",
+  },
 ];
 
 function toDate(d?: string | Date | null): Date | null {
@@ -671,6 +731,46 @@ export default function Home() {
           >
             Plan your first trip
           </Button>
+        </section>
+      )}
+
+      {/* ── Built for the road — feature spotlight, empty dashboard only ── */}
+      {!tripsLoading && (!trips || trips.length === 0) && (
+        <section className="animate-fade-up animate-fade-up-delay-1">
+          <h2 className="font-display text-xl font-semibold text-[hsl(var(--foreground))] mb-1">
+            Built for the road
+          </h2>
+          <p className="text-sm text-[hsl(var(--muted-foreground))] mb-5 font-sans-clean">
+            A quick look at what's waiting once you plan your first trip.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {HIGHLIGHT_FEATURES.map((feature) => {
+              const card = (
+                <div className="h-full bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] p-5 flex flex-col gap-3 card-hover-glow">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${feature.tint}`}
+                  >
+                    <feature.icon className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] font-sans-clean mb-1">
+                      {feature.title}
+                    </h3>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))] font-sans-clean leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              );
+              return feature.href ? (
+                <Link key={feature.title} href={feature.href} className="group cursor-pointer">
+                  {card}
+                </Link>
+              ) : (
+                <div key={feature.title}>{card}</div>
+              );
+            })}
+          </div>
         </section>
       )}
     </div>
