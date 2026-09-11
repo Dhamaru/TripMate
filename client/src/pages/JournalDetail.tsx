@@ -9,7 +9,16 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useAuth } from "@/hooks/useAuth";
 import type { JournalEntry, User } from "@shared/schema";
-import { ChevronLeft, Edit, Trash2, MapPin, Calendar, Clock, Share2 } from "lucide-react";
+import {
+  ChevronLeft,
+  Edit,
+  Trash2,
+  MapPin,
+  Calendar,
+  Clock,
+  Share2,
+  Image as ImageIcon,
+} from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function JournalDetail() {
@@ -23,6 +32,9 @@ export default function JournalDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  // A journal photo can 404 (file no longer exists server-side) — the bare
+  // browser broken-image icon + raw alt text read as a rendering bug.
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set());
 
   const {
     data: entry,
@@ -337,7 +349,18 @@ export default function JournalDetail() {
                           key={i}
                           className="relative w-20 h-20 rounded-xl overflow-hidden group"
                         >
-                          <img src={photo} alt="" className="w-full h-full object-cover" />
+                          {failedPhotos.has(photo) ? (
+                            <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
+                              <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          ) : (
+                            <img
+                              src={photo}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={() => setFailedPhotos((prev) => new Set(prev).add(photo))}
+                            />
+                          )}
                           <button
                             type="button"
                             onClick={() =>
@@ -375,20 +398,29 @@ export default function JournalDetail() {
         ) : (
           <motion.div variants={containerVariants} initial="hidden" animate="visible">
             {/* Hero Section - Photos */}
-            {entry.photos && entry.photos.length > 0 ? (
+            {entry.photos && entry.photos.filter((p) => !failedPhotos.has(p)).length > 0 ? (
               <motion.div
                 variants={itemVariants}
                 className="relative h-64 md:h-96 rounded-3xl overflow-hidden mb-8 border border-[hsl(var(--border))]"
               >
-                <motion.img
-                  key={activePhotoIndex}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 1 }}
-                  src={entry.photos[activePhotoIndex]}
-                  alt={entry.title}
-                  className="w-full h-full object-cover"
-                />
+                {failedPhotos.has(entry.photos[activePhotoIndex]) ? (
+                  <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
+                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                ) : (
+                  <motion.img
+                    key={activePhotoIndex}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1 }}
+                    src={entry.photos[activePhotoIndex]}
+                    alt={entry.title}
+                    className="w-full h-full object-cover"
+                    onError={() =>
+                      setFailedPhotos((prev) => new Set(prev).add(entry.photos![activePhotoIndex]))
+                    }
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
 
                 {entry.photos.length > 1 && (

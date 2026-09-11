@@ -41,16 +41,22 @@ const JournalImageCarousel = ({
   height?: string;
 }) => {
   const [index, setIndex] = useState(0);
+  // A journal photo can 404 (the file no longer exists server-side) — the
+  // bare browser broken-image icon + raw alt text looked like a rendering
+  // bug rather than a missing file. Fall back to the same empty-state
+  // placeholder used when there are no photos at all.
+  const [failed, setFailed] = useState<Set<string>>(new Set());
+  const livePhotos = photos.filter((p) => !failed.has(p));
 
   useEffect(() => {
-    if (photos.length <= 1) return;
+    if (livePhotos.length <= 1) return;
     const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % photos.length);
+      setIndex((prev) => (prev + 1) % livePhotos.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, [photos.length]);
+  }, [livePhotos.length]);
 
-  if (!photos || photos.length === 0) {
+  if (!livePhotos || livePhotos.length === 0) {
     return (
       <div
         className={`${height} overflow-hidden relative bg-[hsl(var(--muted))] flex items-center justify-center`}
@@ -61,29 +67,31 @@ const JournalImageCarousel = ({
     );
   }
 
+  const safeIndex = index % livePhotos.length;
   return (
     <div className={`${height} overflow-hidden relative bg-[hsl(var(--muted))]`}>
       <AnimatePresence mode="wait">
         <motion.img
-          key={photos[index]}
+          key={livePhotos[safeIndex]}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          src={photos[index]}
-          alt={`${title} ${index + 1}`}
+          src={livePhotos[safeIndex]}
+          alt={`${title} ${safeIndex + 1}`}
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
+          onError={() => setFailed((prev) => new Set(prev).add(livePhotos[safeIndex]))}
         />
       </AnimatePresence>
       <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-      {photos.length > 1 && (
+      {livePhotos.length > 1 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-          {photos.map((_, i) => (
+          {livePhotos.map((_, i) => (
             <div
               key={i}
-              className={`h-1 rounded-full transition-all duration-300 ${i === index ? "bg-card w-4" : "bg-card/40 w-1"}`}
+              className={`h-1 rounded-full transition-all duration-300 ${i === safeIndex ? "bg-card w-4" : "bg-card/40 w-1"}`}
             />
           ))}
         </div>
@@ -115,6 +123,7 @@ export default function Journal() {
   });
   const [photos, setPhotos] = useState<FileList | null>(null);
   const [keptPhotos, setKeptPhotos] = useState<string[]>([]);
+  const [failedKeptPhotos, setFailedKeptPhotos] = useState<Set<string>>(new Set());
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const [isAugmenting, setIsAugmenting] = useState(false);
@@ -537,11 +546,18 @@ export default function Journal() {
                         key={i}
                         className="relative w-20 h-20 rounded-xl overflow-hidden group border border"
                       >
-                        <img
-                          src={photo}
-                          alt={`Existing ${i}`}
-                          className="w-full h-full object-cover"
-                        />
+                        {failedKeptPhotos.has(photo) ? (
+                          <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
+                            <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        ) : (
+                          <img
+                            src={photo}
+                            alt={`Existing ${i}`}
+                            className="w-full h-full object-cover"
+                            onError={() => setFailedKeptPhotos((prev) => new Set(prev).add(photo))}
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() =>
