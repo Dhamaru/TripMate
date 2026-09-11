@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import {
   TripModel,
-  UserModel,
   CrowdDensityModel,
   ICrowdDensity,
   AtlasConversationModel,
@@ -62,15 +61,6 @@ export const createTrip = async (req: Request, res: Response, next: NextFunction
     if (!userId) {
       console.error("[CreateTrip] Unauthorized attempt - req.user:", !!req.user);
       throw new ForbiddenError("Authentication required to save trips");
-    }
-
-    // Guest Limitation: Max 1 Trip
-    const user = await UserModel.findById(userId);
-    if (user?.isGuest) {
-      const existingTripsCount = await TripModel.countDocuments({ userId });
-      if (existingTripsCount >= 1) {
-        throw new ForbiddenError("Guest limit reached: Max 1 trip allowed.");
-      }
     }
 
     const tripData = insertTripSchema.parse({
