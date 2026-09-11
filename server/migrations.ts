@@ -75,7 +75,47 @@ async function broadcastFixAnnouncement(): Promise<string> {
   return `broadcast to ${users.length} real user(s)`;
 }
 
+// A personal note to the two people who actually built this, not a
+// broadcast — explicitly asked to reach only these two accounts, nobody
+// else. Matched by name rather than a hardcoded id (no confirmed email on
+// file for either), so this is deliberately conservative: each candidate
+// must match on BOTH first and last name, and if a name resolves to zero
+// or more than one account, it's skipped and reported rather than guessed
+// — a personal message going to the wrong real stranger is worse than one
+// not sending at all.
+async function notifyFounders(): Promise<string> {
+  const candidates: Array<{ label: string; query: Record<string, unknown> }> = [
+    { label: "Dhamaru", query: { email: "kasivasi2005@gmail.com" } },
+    { label: "Sai", query: { firstName: /sai/i, lastName: /bandangi/i } },
+  ];
+
+  const message =
+    "From everyone who's used TripMate: congratulations. Building an app that " +
+    "actually plans a real trip, edits it on request, and keeps working while you're " +
+    "traveling is a lot of real engineering for two people to pull off — and it shows. " +
+    "Thank you for building something worth carrying on a trip. Here's to everywhere " +
+    "this goes next.";
+
+  const results: string[] = [];
+  for (const c of candidates) {
+    const matches = await UserModel.find(c.query).select("_id firstName lastName email");
+    if (matches.length !== 1) {
+      results.push(`${c.label}: ${matches.length} match(es), skipped`);
+      continue;
+    }
+    await NotificationModel.create({
+      userId: matches[0]._id,
+      type: "announcement",
+      title: "A message from your users",
+      message,
+    });
+    results.push(`${c.label}: notified ${matches[0]._id}`);
+  }
+  return results.join("; ");
+}
+
 export async function runStartupMigrations() {
   await runOnce("2026-09-11-notify-legacy-journal-photos", notifyLegacyJournalPhotoUsers);
   await runOnce("2026-09-11-broadcast-fix-announcement", broadcastFixAnnouncement);
+  await runOnce("2026-09-11-notify-founders", notifyFounders);
 }
