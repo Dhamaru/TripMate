@@ -1865,6 +1865,7 @@ export default function TripDetail() {
               onDeleteActivity={handleMapDeleteActivity}
               onViewInItinerary={handleViewInItinerary}
               focusTarget={mapFocusTarget}
+              tripStatus={trip.status}
             />
           </TabsContent>
 

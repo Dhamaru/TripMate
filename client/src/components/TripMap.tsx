@@ -11,6 +11,8 @@ import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
 import { Search } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { nextAvailableTime } from "@/lib/time";
+import { useLiveLocation } from "@/hooks/useLiveLocation";
+import { distanceToPolylineMeters, haversineMeters } from "@/lib/geo";
 
 // MapTiler provides separate light and dark tile styles, so dark mode uses
 // a real dark tile URL rather than a CSS invert-hue filter — once it's
@@ -46,6 +48,10 @@ interface TripMapProps {
   // a Places-tab search result) — see the focus effect below for why it's
   // needed.
   focusTarget?: { lat: number; lon: number; label?: string } | null;
+  // Gates live navigation (next-leg routing, off-route alerts, live ETA) —
+  // only meaningful while a trip is actually being traveled, same condition
+  // TripDetail.tsx's "Today"/"Next up" panel already uses.
+  tripStatus?: string;
 }
 
 export function TripMap({
@@ -56,6 +62,7 @@ export function TripMap({
   onDeleteActivity,
   onViewInItinerary,
   focusTarget,
+  tripStatus,
 }: TripMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -93,6 +100,56 @@ export function TripMap({
   const [showPaths, setShowPaths] = useState(true);
   const { toast } = useToast();
   const [reportDensity, setReportDensity] = useState(5);
+
+  // ── Live navigation: next-activity leg, off-route alert, live ETA ──────
+  const navLayerRef = useRef<L.LayerGroup | null>(null);
+  const [showLiveNav, setShowLiveNav] = useState(false);
+  const { coords: liveCoords, error: liveLocationError } = useLiveLocation(showLiveNav);
+  const [liveEta, setLiveEta] = useState<{ km: number; min: number } | null>(null);
+  const wasOffRouteRef = useRef(false);
+  const lastRouteFetchRef = useRef<{ origin: { lat: number; lon: number }; at: number } | null>(
+    null,
+  );
+
+  // Same "today's day, next activity by time" logic as TripDetail.tsx's
+  // "Today" overview panel — only an active trip has a meaningful "next
+  // leg" to navigate toward.
+  const nextActivity = useMemo(() => {
+    if (tripStatus !== "active" || !Array.isArray(itinerary)) return null;
+    const todayStr = new Date().toDateString();
+    const todayDay = itinerary.find(
+      (d: any) => d.date && new Date(d.date).toDateString() === todayStr,
+    );
+    if (!todayDay || !Array.isArray(todayDay.activities)) return null;
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const toMinutes = (t?: string) => {
+      if (!t) return null;
+      const m = /^(\d{1,2}):(\d{2})/.exec(t);
+      if (!m) return null;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    };
+    const upcoming = todayDay.activities
+      .map((a: any) => {
+        const lat = Number(a.lat ?? a.latitude ?? a.coords?.lat);
+        const lon = Number(a.lon ?? a.lng ?? a.longitude ?? a.coords?.lon);
+        return { a, mins: toMinutes(a.time), lat, lon };
+      })
+      .filter(
+        (x: { mins: number | null; lat: number; lon: number }) =>
+          x.mins != null &&
+          x.mins >= nowMinutes &&
+          Number.isFinite(x.lat) &&
+          Number.isFinite(x.lon),
+      )
+      .sort(
+        (x: { mins: number | null }, y: { mins: number | null }) =>
+          (x.mins as number) - (y.mins as number),
+      );
+    const next = upcoming[0];
+    if (!next) return null;
+    return { lat: next.lat, lon: next.lon, label: next.a.title || next.a.placeName || "next stop" };
+  }, [itinerary, tripStatus]);
 
   // Load leaflet.heat after mount so window.L is already set
   useEffect(() => {
@@ -312,6 +369,9 @@ export function TripMap({
 
       const pathLayer = L.layerGroup().addTo(map);
       pathLayerRef.current = pathLayer;
+
+      const navLayer = L.layerGroup().addTo(map);
+      navLayerRef.current = navLayer;
 
       // Map Click Handler for Adding Locations - REMOVED per user request
       // map.on('click', async (e) => { ... });
@@ -573,6 +633,89 @@ export function TripMap({
     };
   }, [showPaths, itinerary]);
 
+  // Live navigation leg — the route from wherever the user actually is
+  // right now to their next scheduled activity, drawn distinct from the
+  // static day paths above. Recomputed only on meaningful movement (150m)
+  // or after a stale interval (25s), not on every GPS tick — the public
+  // OSRM demo server this app already relies on for day paths has no SLA
+  // for being hammered every few seconds.
+  useEffect(() => {
+    if (!navLayerRef.current) return;
+    navLayerRef.current.clearLayers();
+    if (!showLiveNav || !liveCoords || !nextActivity) {
+      setLiveEta(null);
+      wasOffRouteRef.current = false;
+      return;
+    }
+
+    const last = lastRouteFetchRef.current;
+    const movedEnoughOrStale =
+      !last || Date.now() - last.at > 25_000 || haversineMeters(liveCoords, last.origin) > 150;
+
+    // Always show a live "you are here" marker even between route refetches.
+    L.circleMarker([liveCoords.lat, liveCoords.lon], {
+      radius: 7,
+      color: "#ffffff",
+      weight: 2,
+      fillColor: "#2563eb",
+      fillOpacity: 1,
+    })
+      .bindTooltip("You are here", { direction: "top" })
+      .addTo(navLayerRef.current);
+
+    if (!movedEnoughOrStale) return;
+    lastRouteFetchRef.current = { origin: liveCoords, at: Date.now() };
+
+    let cancelled = false;
+    const waypoints = `${liveCoords.lon},${liveCoords.lat};${nextActivity.lon},${nextActivity.lat}`;
+    fetch(
+      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&alternatives=true`,
+    )
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled || !navLayerRef.current) return;
+        const routes = json?.routes ?? [];
+        if (!routes.length) return;
+
+        routes.forEach((r: any, i: number) => {
+          const line: [number, number][] =
+            r.geometry?.coordinates?.map(([lng, lat]: [number, number]) => [lat, lng]) ?? [];
+          if (!line.length) return;
+          L.polyline(line, {
+            color: i === 0 ? "#2563eb" : "#94a3b8",
+            weight: i === 0 ? 5 : 3,
+            opacity: i === 0 ? 0.85 : 0.5,
+            dashArray: i === 0 ? undefined : "4, 6",
+          }).addTo(navLayerRef.current!);
+        });
+
+        const primary = routes[0];
+        setLiveEta({
+          km: primary.distance / 1000,
+          min: Math.round(primary.duration / 60),
+        });
+
+        const primaryLine: [number, number][] =
+          primary.geometry?.coordinates?.map(([lng, lat]: [number, number]) => [lat, lng]) ?? [];
+        const offRoute = distanceToPolylineMeters(liveCoords, primaryLine) > 100;
+        if (offRoute && !wasOffRouteRef.current) {
+          toast({
+            title: "Off the planned route",
+            description: `You've drifted from the route to ${nextActivity.label}.`,
+            variant: "destructive",
+          });
+        }
+        wasOffRouteRef.current = offRoute;
+      })
+      .catch(() => {
+        /* leave last-known route/marker on the map, no need to alarm the user over one failed refetch */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showLiveNav, liveCoords, nextActivity, toast]);
+
   if (!destination) return null;
 
   if (!loading && geocodeError)
@@ -727,6 +870,28 @@ export function TripMap({
                 {showPaths ? "Hide Route" : "Show Route"}
               </Button>
 
+              {nextActivity && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowLiveNav((v) => !v);
+                    if (liveLocationError) {
+                      toast({
+                        title: "Location unavailable",
+                        description: liveLocationError,
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  title={`Navigate live to your next stop: ${nextActivity.label}`}
+                  className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showLiveNav ? "bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)]" : "text-muted-foreground hover:text-[var(--explorer-blue)] hover:bg-[rgb(var(--explorer-blue-rgb)/10%)]"}`}
+                >
+                  <i className="fas fa-location-crosshairs text-[11px]"></i>
+                  {showLiveNav ? "Stop Live Nav" : "Live Nav"}
+                </Button>
+              )}
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -782,6 +947,15 @@ export function TripMap({
             </div>
           )}
           <div ref={mapContainerRef} className="w-full h-full" />
+          {showLiveNav && liveEta && nextActivity && (
+            <div className="absolute bottom-3 left-3 z-[500] bg-card/95 border border-border rounded-xl px-3 py-2 shadow-lg text-xs">
+              <p className="font-semibold text-foreground flex items-center gap-1.5">
+                <i className="fas fa-car text-[var(--explorer-blue)]"></i>
+                {liveEta.min} min · {liveEta.km.toFixed(1)} km
+              </p>
+              <p className="text-muted-foreground">to {nextActivity.label}</p>
+            </div>
+          )}
         </div>
       </CardContent>
 

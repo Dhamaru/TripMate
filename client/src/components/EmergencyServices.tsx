@@ -272,27 +272,37 @@ export function EmergencyServices({
                 transition={{ duration: 0.3, delay: idx * 0.05 }}
                 viewport={{ once: true }}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`text-xl ${serviceIcons[service.type].color} bg-muted p-2 rounded-lg`}
-                    >
-                      <i className={serviceIcons[service.type].icon}></i>
+                {(() => {
+                  // Live-crash found (2026-09-11): the nearby-search API proxies
+                  // real OSM amenity types (clinic, dentist, veterinary, ...),
+                  // not just this component's 5 known keys — an unrecognized
+                  // type threw "Cannot read properties of undefined" and took
+                  // down the whole page via the error boundary. Fall back to
+                  // the hospital icon rather than assuming the API's type set
+                  // matches this list exactly.
+                  const icon = serviceIcons[service.type] ?? serviceIcons.hospital;
+                  return (
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-3">
+                        <div className={`text-xl ${icon.color} bg-muted p-2 rounded-lg`}>
+                          <i className={icon.icon}></i>
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-foreground">{service.name}</h3>
+                          <p className="text-sm text-muted-foreground line-clamp-1">
+                            {service.address}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                            <i className="fas fa-map-marker-alt mr-1"></i> {service.distance}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-[#1D4E89] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
+                        {service.type.charAt(0).toUpperCase() + service.type.slice(1)}
+                      </span>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-foreground">{service.name}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-1">
-                        {service.address}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1 flex items-center">
-                        <i className="fas fa-map-marker-alt mr-1"></i> {service.distance}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-[#1D4E89] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
-                    {service.type.charAt(0).toUpperCase() + service.type.slice(1)}
-                  </span>
-                </div>
+                  );
+                })()}
 
                 <div className="flex space-x-2 mt-3 pt-2 border-t border">
                   <Button

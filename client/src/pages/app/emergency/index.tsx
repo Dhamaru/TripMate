@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { useLocation, Link } from "wouter";
 import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
 import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
 import { friendlyGeolocationError } from "@/lib/geolocationMessage";
+import { useLiveLocation } from "@/hooks/useLiveLocation";
 
 export default function EmergencyPage() {
   const { user } = useAuth() as { user: any };
@@ -20,6 +21,14 @@ export default function EmergencyPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // "Nearest emergency services while traveling" — a continuous GPS watch
+  // that re-searches as the user moves, instead of the one-shot locateMe()
+  // below. Rounded to a ~111m grid cell before triggering a re-search/
+  // reverse-geocode so normal GPS jitter (a few meters per tick) doesn't
+  // spam the backend on every watchPosition callback.
+  const [liveTracking, setLiveTracking] = useState(false);
+  const { coords: liveCoords, error: liveLocationError } = useLiveLocation(liveTracking);
+  const lastLiveCellRef = useRef<string | null>(null);
   // Biases toward wherever locateMe() already resolved (or the last
   // searched location) — nearest-first suggestions while typing a
   // replacement, not just an exact-match-on-Enter search bar.
@@ -120,6 +129,28 @@ export default function EmergencyPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!liveTracking || !liveCoords) return;
+    const cell = `${liveCoords.lat.toFixed(3)},${liveCoords.lon.toFixed(3)}`;
+    if (cell === lastLiveCellRef.current) return;
+    lastLiveCellRef.current = cell;
+    setCoords({ lat: liveCoords.lat, lon: liveCoords.lon });
+    (async () => {
+      try {
+        const r = await fetch(
+          `/api/v1/reverse-geocode?lat=${liveCoords.lat}&lon=${liveCoords.lon}`,
+        );
+        const j = await r.json().catch(() => null);
+        const parsed = parseGeocodeResponse(j);
+        setDisplayName(parsed?.displayName ?? "Current location");
+        setShortName(parsed?.shortName ?? "Current location");
+        setSearchLocation(parsed?.displayName ?? "Current location");
+      } catch {
+        /* silent — coords already updated, services still refresh */
+      }
+    })();
+  }, [liveTracking, liveCoords]);
 
   async function handleSearch(q?: string) {
     const query = (q ?? searchLocation).trim();
@@ -224,14 +255,33 @@ export default function EmergencyPage() {
           >
             <i className="fas fa-location-arrow text-[var(--amber)]" />
           </Button>
+          <Button
+            onClick={() => {
+              setLiveTracking((v) => !v);
+              if (!liveTracking) lastLiveCellRef.current = null;
+              if (liveLocationError) setMessage(liveLocationError);
+            }}
+            variant={liveTracking ? "default" : "outline"}
+            className={
+              liveTracking
+                ? "bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
+                : "border text-foreground hover:bg-muted"
+            }
+            title="Keep this list updated as you travel"
+            disabled={loading}
+          >
+            <i className={`fas fa-satellite-dish ${liveTracking ? "" : "text-[var(--amber)]"}`} />
+          </Button>
         </div>
         {message && <p className="text-destructive mt-2 text-sm">{message}</p>}
         <div className="text-sm text-muted-foreground mt-2">
           {loading
             ? "Searching…"
-            : coords
-              ? `Emergency services near ${displayName}`
-              : "Search a location to find nearby emergency services"}
+            : liveTracking
+              ? `Tracking live — nearest services near ${displayName || "your location"}`
+              : coords
+                ? `Emergency services near ${displayName}`
+                : "Search a location to find nearby emergency services"}
         </div>
       </div>
 
