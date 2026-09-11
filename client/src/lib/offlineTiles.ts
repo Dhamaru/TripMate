@@ -50,6 +50,17 @@ export function osmTileUrl(z: number, x: number, y: number): string {
   return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 }
 
+/** Tile x/y range covering a square region centered on (lat, lng) at one zoom. */
+export function tileRange(lat: number, lng: number, radiusDeg: number, z: number) {
+  const tl = lonLatToTile(lng - radiusDeg, lat + radiusDeg, z);
+  const br = lonLatToTile(lng + radiusDeg, lat - radiusDeg, z);
+  return { minX: tl.x, maxX: br.x, minY: tl.y, maxY: br.y };
+}
+
+export function getTileUrl(darkMode: boolean, z: number, x: number, y: number): string {
+  return tileUrl(darkMode, z, x, y);
+}
+
 /** Tile URLs covering a square region centered on (lat, lng), across zoomMin..zoomMax. */
 export function computeTileUrls(
   lat: number,
@@ -124,80 +135,71 @@ export async function deleteTiles(urls: string[]): Promise<void> {
   await Promise.all(urls.map((u) => cache.delete(u)));
 }
 
+const TILE_PX = 256;
+
 // A tile cached via the Cache Storage API only ever lives inside the
 // browser's own storage — invisible to the OS file manager, not shareable,
-// gone if the user clears site data. This packages an already-downloaded
-// region into one real .zip file (tiles/{z}/{x}/{y}.png + a manifest) that
-// the browser's normal download flow saves to the device's Downloads
-// folder, same as any other file download — the user can move, share, or
-// back it up like any other file. Reads from the cache first (already on
-// disk from the "Download for offline" step); falls back to a fresh fetch
-// for any tile that's missing so a partial region can still be exported.
-export async function exportRegionToZip(
-  region: { id: string; name: string; country: string; lat: number; lng: number; zoom: number },
-  tileUrls: string[],
+// gone if the user clears site data. This stitches one zoom level of an
+// already-downloaded region into a single flat PNG (one <canvas>, one
+// image) that the browser's normal download flow saves to the device's
+// Downloads folder — a real, single file the user can open directly with
+// no unzipping or browsing a tiles/{z}/{x}/{y} tree to find anything.
+// First version zipped the raw tile files instead (see git history) —
+// live feedback was that a folder-of-many-small-files, even as a single
+// .zip, wasn't what "download the map" meant to a real user; one picture
+// of the region is. Reads tiles from the cache first (already on disk
+// from the "Download for offline" step); falls back to a fresh fetch for
+// any tile that's missing, but only when online (a region always has some
+// gaps, and this export is exactly the flow most people run offline —
+// waiting out a real network attempt per gap is what made the earlier
+// zip version look stuck).
+export async function exportRegionToImage(
+  region: { lat: number; lng: number },
+  radiusDeg: number,
+  zoom: number,
+  darkMode: boolean,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
-  const { default: JSZip } = await import("jszip");
-  const zip = new JSZip();
-  // Matches the last z/x/y segments before .png regardless of provider
-  // shape — MapTiler's /maps/{style}/{z}/{x}/{y}.png or plain OSM's
-  // /{z}/{x}/{y}.png both end the same way.
-  const tileUrlRe = /\/(\d+)\/(\d+)\/(\d+)\.png(?:\?|$)/;
+  const { minX, maxX, minY, maxY } = tileRange(region.lat, region.lng, radiusDeg, zoom);
+  const cols = maxX - minX + 1;
+  const rows = maxY - minY + 1;
 
-  zip.file(
-    "manifest.json",
-    JSON.stringify(
-      {
-        app: "TripMate",
-        exportedAt: new Date().toISOString(),
-        region: {
-          name: region.name,
-          country: region.country,
-          lat: region.lat,
-          lng: region.lng,
-          zoom: region.zoom,
-        },
-        tileCount: tileUrls.length,
-      },
-      null,
-      2,
-    ),
-  );
+  const canvas = document.createElement("canvas");
+  canvas.width = cols * TILE_PX;
+  canvas.height = rows * TILE_PX;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas rendering is unavailable in this browser");
 
   const cache = "caches" in window ? await caches.open(TILE_CACHE_NAME) : null;
+  const total = cols * rows;
   let done = 0;
-  for (const url of tileUrls) {
-    const match = tileUrlRe.exec(url);
-    try {
-      let response = cache ? await cache.match(url) : undefined;
-      // A region can have gaps (a tile that failed during the original
-      // download — downloadTiles already tolerates this). Only attempt a
-      // network fetch for a missing tile when actually online; this is the
-      // exact export most people run WHILE offline (you already have the
-      // region, you're saving it before/during a trip), and a live-
-      // reported bug confirmed the naive always-fetch version made every
-      // gap in a region wait out a real network attempt before failing —
-      // dozens of gaps turned "Saving..." into a stuck-looking multi-
-      // minute spinner instead of a fast, correct partial export.
-      if (!response && navigator.onLine) response = await fetch(url, { mode: "cors" });
-      if (response && (response.ok || response.type === "opaque")) {
-        const blob = await response.blob();
-        const path = match ? `tiles/${match[1]}/${match[2]}/${match[3]}.png` : `tiles/${done}.png`;
-        zip.file(path, blob);
+
+  for (let x = minX; x <= maxX; x++) {
+    for (let y = minY; y <= maxY; y++) {
+      const url = tileUrl(darkMode, zoom, x, y);
+      try {
+        let response = cache ? await cache.match(url) : undefined;
+        if (!response && navigator.onLine) response = await fetch(url, { mode: "cors" });
+        if (response && (response.ok || response.type === "opaque")) {
+          const blob = await response.blob();
+          const bitmap = await createImageBitmap(blob);
+          ctx.drawImage(bitmap, (x - minX) * TILE_PX, (y - minY) * TILE_PX, TILE_PX, TILE_PX);
+          bitmap.close();
+        }
+      } catch {
+        // Leave that cell blank — a partial image is still a usable map,
+        // same graceful-degradation the zoomed tile grid already has.
       }
-    } catch {
-      // Skip tiles that can't be read/fetched — a partial export is still
-      // a usable archive of everything that did come through.
+      done++;
+      onProgress?.(done, total);
     }
-    done++;
-    onProgress?.(done, tileUrls.length);
   }
 
-  return zip.generateAsync({
-    type: "blob",
-    compression: "DEFLATE",
-    compressionOptions: { level: 6 },
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Failed to render image"))),
+      "image/png",
+    );
   });
 }
 

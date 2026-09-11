@@ -15,7 +15,7 @@ import {
   deleteTiles,
   formatBytes,
   TILE_CACHE_NAME,
-  exportRegionToZip,
+  exportRegionToImage,
   saveBlobToDevice,
 } from "@/lib/offlineTiles";
 import { apiRequest } from "@/lib/queryClient";
@@ -1009,25 +1009,34 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     toast({ title: "Map Deleted", description: "Offline map removed." });
   }
 
-  // Packages an already-downloaded region into a real .zip file the browser
-  // saves to the device's Downloads folder — unlike the Cache Storage the
-  // "Download" button above writes to, this is a real file the user can see
-  // in their file manager, move, or share, and it survives clearing site
-  // data (the cache doesn't).
+  // Stitches an already-downloaded region into one real .png file the
+  // browser saves to the device's Downloads folder — unlike the Cache
+  // Storage the "Download" button above writes to, this is a real file the
+  // user can see in their file manager, move, or share, and it survives
+  // clearing site data. First version zipped the raw tile files; live
+  // feedback was that a folder of small tile images (even inside one .zip)
+  // wasn't what "download the map" meant — a single picture of the region
+  // is. Uses REGION_ZOOM_MAX for real street-level detail rather than the
+  // region's stored zoom (usually 12, the initial search zoom — a nearly
+  // blank overview at that level).
   async function exportRegion(regionId: string) {
     const region = mapRegions.find((r) => r.id === regionId);
-    if (!region || !region.tileUrls?.length) return;
+    if (!region) return;
     setExportingId(regionId);
     setExportProgress(0);
     try {
-      const blob = await exportRegionToZip(region, region.tileUrls, (done, total) =>
-        setExportProgress(Math.round((done / total) * 100)),
+      const blob = await exportRegionToImage(
+        region,
+        REGION_RADIUS_DEG,
+        REGION_ZOOM_MAX,
+        darkMode,
+        (done, total) => setExportProgress(Math.round((done / total) * 100)),
       );
       const safeName = region.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
-      saveBlobToDevice(blob, `TripMate-${safeName || "region"}.zip`);
+      saveBlobToDevice(blob, `TripMate-${safeName || "region"}.png`);
       toast({
         title: "Saved to device",
-        description: `${region.name} exported as a .zip — check your Downloads folder.`,
+        description: `${region.name} exported as an image — check your Downloads folder.`,
       });
     } catch (e) {
       toast({
@@ -1603,7 +1612,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                                   variant="outline"
                                   disabled={exportingId === r.id}
                                   onClick={() => exportRegion(r.id)}
-                                  title="Save as a .zip file to your device's Downloads folder"
+                                  title="Save as one image file to your device's Downloads folder"
                                   className="flex-1 rounded-xl border-[#1D4E89] text-[#1D4E89] hover:bg-[#1D4E89] hover:text-white transition-colors"
                                 >
                                   <i
