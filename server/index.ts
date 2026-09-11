@@ -63,11 +63,20 @@ app.disable("x-powered-by");
 // 1. Global Middleware (Attach synchronously)
 app.use(corsMiddleware);
 app.use(helmetMiddleware);
-app.use(mongoSanitizeMiddleware);
-app.use(hppMiddleware);
 
+// Security audit finding: mongoSanitizeMiddleware/hppMiddleware were mounted
+// BEFORE express.json(), so req.body didn't exist yet when they ran —
+// express-mongo-sanitize is a one-shot pass over body/params/headers/query,
+// so req.body sanitization silently no-op'd (confirmed live: a crafted
+// `{$ne: null}` body value passed through untouched while the same shape
+// in the query string was correctly stripped). No live exploit found today
+// (every unvalidated body-into-query path is additionally scoped by a
+// token-derived userId), but the codebase is written assuming this runs on
+// the body too — moved after the body parsers so it actually does.
 app.use(express.json({ limit: config.BODY_JSON_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: config.BODY_URLENCODED_LIMIT }));
+app.use(mongoSanitizeMiddleware);
+app.use(hppMiddleware);
 app.use(cookieParser(config.SESSION_SECRET));
 app.use(requestIdMiddleware);
 app.use(requestLoggerMiddleware);

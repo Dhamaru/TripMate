@@ -52,7 +52,12 @@ router.put(
 router.delete("/packing/:id", packingController.deletePackingList);
 router.delete("/packing-lists/:id", packingController.deletePackingList);
 // Packing AI — generate smart list for a trip
-router.post("/packing/generate/:id", packingController.generatePackingList);
+// Security audit finding: runs the full multi-agent orchestrator (several
+// sequential LLM calls) with no dedicated limiter, unlike every sibling AI
+// route on this file below — an authenticated user (including a free
+// guest account) could fan out ~100 of these every 15 min under just the
+// general limiter.
+router.post("/packing/generate/:id", generationLimiter, packingController.generatePackingList);
 router.post("/packing-lists/generate/:id", packingController.generatePackingList);
 
 // Journal CRUD is registered in journal.routes.ts (mounted earlier at the

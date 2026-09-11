@@ -9,10 +9,15 @@ covered here — only go read them if this file doesn't answer the question.
 
 ## Stack (one line)
 
-React 18 + Express 4 + MongoDB/Mongoose + Socket.io. Atlas (chat agent) runs
-OpenRouter → Groq → NVIDIA NIM×2 fallback chain; Gemini (`gemini-3.5-flash-lite`)
-handles separate AI utility calls (weather/travel-hacks/journal); OpenAI wired
-but unfunded. Deployed on Render: https://tripmate-ylt6.onrender.com
+React 18 + Express 4 + MongoDB/Mongoose + Socket.io. Every AI call in this
+codebase — Atlas chat, the trip-planning multi-agent pipeline, journal/
+translation utilities — runs on Google Gemini (`gemini-3.6-flash` /
+`gemini-3.5-flash-lite`, via Gemini's OpenAI-compatible endpoint using the
+`openai` SDK as transport where a chat-completions shape is convenient).
+OpenRouter, Groq, NVIDIA, and real OpenAI have all been fully removed
+(2026-09-11) — a leaked NVIDIA key sitting in old git history was the trigger;
+see "Known open issues" for the one action item that leaves (key rotation).
+Deployed on Render: https://tripmate-ylt6.onrender.com
 
 ## Where things live
 
@@ -42,7 +47,9 @@ but unfunded. Deployed on Render: https://tripmate-ylt6.onrender.com
 
 ## Known open issues + live snapshot (read this before anything else — not yet fixed or not yet live-verified; don't re-discover or re-verify from scratch)
 
-- **The OpenAI account backing `OPENAI_API_KEY` is out of credits** (confirmed live 2026-09-02, literal 429 "no credits remaining" from OpenAI's own billing page). Weather was fixed to fall over to Gemini on a runtime OpenAI failure, not just a missing key, but the same "if (this.openai) {...} else {gemini}"-with-no-runtime-fallback pattern exists at several other `AiUtilitiesService.ts` call sites (itinerary generation, translation, journal recap) — those will fail the same way until either the account is topped up or each site gets the same runtime-fallback treatment weather got. Not fixed everywhere; only what was reported/reproduced this round.
+- **RESOLVED 2026-09-11**: real OpenAI is fully removed from this codebase (was the fix for the 429-no-credits issue previously noted here). Every AI call now runs on Gemini. See work log entry below for the full removal (NVIDIA/Groq/OpenRouter too) and the NVIDIA-key-leak action item this triggered.
+- **ACTION NEEDED: rotate the NVIDIA API key.** A security audit (2026-09-11) found an NVIDIA NIM key hardcoded in this repo's git history (commit `591c6da`, later removed from HEAD but never rotated) — the repo is public on GitHub, so the raw file at that old commit is still fetchable by anyone (confirmed live: fetched the raw file, did not use the key). Deleting it from later commits did NOT invalidate it. This needs rotating in the NVIDIA dashboard directly — not something fixable from the codebase.
+- **mongoose/nodemailer CVE bumps deliberately NOT applied (2026-09-11).** `npm audit fix` cleanly patched `multer` (2.0.2→2.3.0) but bumping `mongoose` 8.18.0→8.24.4 broke 6 unrelated type errors across `storage.ts`/`journal.controller.ts`/`shared/schema.ts` — a real pre-existing gap (`IUser`'s `_id: string` override vs `Document`'s `ObjectId` generic default) that version's stricter type-checking exposed, not something the patch itself caused. `nodemailer` 7→10 dropped the `nodemailer` type namespace `email.ts` imports (`Cannot find namespace 'nodemailer'`). Both reverted to their last clean-typechecking version. The security audit found no live exploit path for either CVE today (mongoose: every unvalidated body-into-query site is already scoped by a token-derived userId). Real follow-up work, not urgent: fix `IUser`'s `_id` typing properly (parameterize `Document<string>` instead of overriding `_id` — same fix BaseAgent-adjacent files don't need since they don't touch Mongoose types), then the mongoose bump should apply cleanly; check nodemailer's v10 migration guide for its new type export shape before retrying that one.
 - **`tests/e2e/fixall-batch.spec.ts` has never completed a full clean run**, though a real root cause for repeated rate-limit exhaustion was found and fixed 2026-09-03/04 (the `logsLimiter` router-wide-mount bug — see work log) — worth a fresh attempt now that that's closed, not assumed fixed until it actually completes 12/12.
 - **`AiUtilitiesService.isPlanSuspiciouslyShort` is now LIVE-verified**, not just unit-tested (2026-09-04, real 10-day Rajasthan Import My Plan returned all 10 days) — the earlier "not yet live-verified" note here is resolved, removed.
 - **MapTiler migration (2026-09-11) is verified locally (real e2e run against the live MapTiler API, real key) but NOT yet confirmed live on Render.** `VITE_MAPTILER_KEY` must be set in Render's _build-time_ environment variables (Vite bakes it into the bundle at build, not read at server runtime) — if it's only in the local `.env`, the deployed bundle ships with an empty key and every tile 400s, reproducing the exact "blank offline maps" bug this session just fixed. Confirm by checking the deployed CSP header includes `api.maptiler.com` (it will, that part's code-only) AND that a real tile request from the live site returns 200, not 400/403. Push notifications have the same category of gap: `VITE_MAPTILER_KEY`/`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` are all build/runtime env vars that need to exist on Render, not just locally.

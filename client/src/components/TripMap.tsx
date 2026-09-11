@@ -454,11 +454,30 @@ export function TripMap({
 
           activities.forEach((act, idx) => {
             const item = document.createElement("div");
-            item.innerHTML = `
-                            <div style="font-weight: bold; color: ${typeConfig[act.type?.toLowerCase()]?.color || "#333"}">Day ${act.dayIndex + 1}: ${act.placeName || act.title}</div>
-                            <div style="font-size: 0.8em; color: #666; margin-top:2px;">${(act.type || "Activity").charAt(0).toUpperCase() + (act.type || "Activity").slice(1)}</div>
-                            ${act.time ? `<div style="font-size: 0.85em; margin-top:2px;">⏰ ${act.time}</div>` : ""}
-                        `;
+
+            // Security-audit finding: this used to build the popup via
+            // innerHTML with act.placeName/title/type/time interpolated
+            // directly — those fields are written by collaborators, by
+            // Atlas from model output, and by Import-My-Plan, none of it
+            // sanitized. Same textContent-based pattern the action buttons
+            // below already use, just applied here too.
+            const titleLine = document.createElement("div");
+            titleLine.style.cssText = `font-weight: bold; color: ${typeConfig[act.type?.toLowerCase()]?.color || "#333"};`;
+            titleLine.textContent = `Day ${act.dayIndex + 1}: ${act.placeName || act.title}`;
+            item.appendChild(titleLine);
+
+            const typeLine = document.createElement("div");
+            typeLine.style.cssText = "font-size: 0.8em; color: #666; margin-top:2px;";
+            const typeLabel = act.type || "Activity";
+            typeLine.textContent = typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1);
+            item.appendChild(typeLine);
+
+            if (act.time) {
+              const timeLine = document.createElement("div");
+              timeLine.style.cssText = "font-size: 0.85em; margin-top:2px;";
+              timeLine.textContent = `⏰ ${act.time}`;
+              item.appendChild(timeLine);
+            }
 
             const actionsRow = document.createElement("div");
             actionsRow.style.cssText = "display: flex; gap: 10px; margin-top: 4px;";
@@ -814,12 +833,23 @@ export function TripMap({
                             // just empty". Also showed a static "Found
                             // Location" instead of the place actually
                             // searched for.
-                            popupContent.innerHTML = `
-                                                            <strong style="color: #1a1a1a; display: block; margin-bottom: 5px; max-width: 200px;">${shortName}</strong>
-                                                            <div id="add-search-spot" style="background: var(--explorer-blue); color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-top: 5px; display: inline-block;">
-                                                                <i class="fas fa-plus mr-1"></i> Add to Trip
-                                                            </div>
-                                                        `;
+                            // Security-audit finding: shortName comes from
+                            // Nominatim's display_name — third-party, not
+                            // sanitized. Was innerHTML; built via DOM +
+                            // textContent instead, same pattern as the
+                            // activity-marker popup above.
+                            const nameEl = document.createElement("strong");
+                            nameEl.style.cssText =
+                              "color: #1a1a1a; display: block; margin-bottom: 5px; max-width: 200px;";
+                            nameEl.textContent = shortName;
+                            popupContent.appendChild(nameEl);
+
+                            const addBtn = document.createElement("div");
+                            addBtn.id = "add-search-spot";
+                            addBtn.style.cssText =
+                              "background: var(--explorer-blue); color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-top: 5px; display: inline-block;";
+                            addBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add to Trip';
+                            popupContent.appendChild(addBtn);
 
                             const marker = L.marker([lat, lon], { icon: searchIcon })
                               .addTo(mapInstanceRef.current)

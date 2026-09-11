@@ -1,7 +1,12 @@
 import { Router } from "express";
 import * as toolsController from "../controllers/tools.controller";
 import { requireAuth } from "../middleware/auth";
-import { generationLimiter, aiLimiter } from "../middleware/rateLimit.middleware";
+import {
+  generationLimiter,
+  aiLimiter,
+  placesPhotoLimiter,
+  apiProxyLimiter,
+} from "../middleware/rateLimit.middleware";
 
 const router = Router();
 
@@ -70,7 +75,11 @@ router.get("/public/top-destinations", toolsController.getTopDestinations);
  *       200:
  *         description: image bytes
  */
-router.get("/public/destination-image", toolsController.getDestinationImage);
+// Security audit finding: this makes one billed Google Places Photo call
+// per request (same expensive shape /places/photo already got a dedicated
+// limiter for) but had no dedicated ceiling — an attacker could loop it
+// unauthenticated for real, unbounded billing. Same limiter as that route.
+router.get("/public/destination-image", placesPhotoLimiter, toolsController.getDestinationImage);
 
 /**
  * @swagger
@@ -182,7 +191,13 @@ router.get("/currency/convert", requireAuth, toolsController.convertCurrency);
  *       200:
  *         description: Array of Nominatim results
  */
-router.get("/geocode", toolsController.geocode);
+// Security audit finding: silently falls back to billed Google Places
+// Text/Nearby Search when Nominatim errors, with no dedicated rate limit —
+// a burst from one attacker can push the server's shared Nominatim quota
+// into 429s, forcing every subsequent request (including real users') onto
+// the billed path. /places/search got requireAuth for the same reason;
+// apiProxyLimiter is the minimum bound for an unauthenticated route.
+router.get("/geocode", apiProxyLimiter, toolsController.geocode);
 
 /**
  * @swagger
@@ -203,7 +218,7 @@ router.get("/geocode", toolsController.geocode);
  *       200:
  *         description: Nominatim address object
  */
-router.get("/reverse-geocode", toolsController.reverseGeocode);
+router.get("/reverse-geocode", apiProxyLimiter, toolsController.reverseGeocode);
 
 // ─── Protected tool endpoints (auth required) ──────────────────────────────
 

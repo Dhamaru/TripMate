@@ -94,7 +94,6 @@
     "express-rate-limit": "^8.2.2",
     "express-session": "^1.18.1",
     "framer-motion": "^11.13.1",
-    "groq-sdk": "^1.1.1",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "input-otp": "^1.4.2",
