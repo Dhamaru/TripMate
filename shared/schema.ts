@@ -917,6 +917,24 @@ mapPinSchema.index({ userId: 1, createdAt: -1 });
 export const MapPinModel: Model<IMapPin> = mongoose.model<IMapPin>("MapPin", mapPinSchema);
 export type MapPin = IMapPin;
 
+// One-off, run-once-ever server-startup tasks (see server/migrations.ts) —
+// a data backfill or a one-time user announcement, gated so a redeploy or
+// a spin-down/wake cycle never re-runs one. Deliberately not admin-secret-
+// gated like the feedback-triage endpoints: this only ever runs from the
+// server's own boot sequence, never from an inbound HTTP request.
+export interface IMigration extends Document {
+  key: string;
+  runAt: Date;
+}
+const migrationSchema = new Schema<IMigration>({
+  key: { type: String, required: true, unique: true },
+  runAt: { type: Date, default: Date.now },
+});
+export const MigrationModel: Model<IMigration> = mongoose.model<IMigration>(
+  "Migration",
+  migrationSchema,
+);
+
 export async function connectMongo(uri: string) {
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(uri, {

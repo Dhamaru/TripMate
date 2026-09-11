@@ -5,6 +5,7 @@ import path from "path";
 import { createServer } from "http";
 import { setupAuth } from "./auth";
 import { connectDB } from "./db";
+import { runStartupMigrations } from "./migrations";
 import { setupVite, serveStatic, log } from "./vite";
 import cookieParser from "cookie-parser";
 import compression from "compression";
@@ -161,6 +162,9 @@ async function startServer() {
   console.log("[Server] Connecting to MongoDB...");
   await connectDB();
   console.log("[Server] MongoDB connection sequence finished.");
+  // Fire-and-forget: gated by MigrationModel so it's a genuine no-op on
+  // every boot after the first, never blocks startup on itself.
+  runStartupMigrations().catch((err) => console.error("[Server] Startup migrations failed:", err));
   console.log("[Server] Current NODE_ENV:", config.NODE_ENV);
 
   console.log("[Server] Initializing Atlas Skills...");

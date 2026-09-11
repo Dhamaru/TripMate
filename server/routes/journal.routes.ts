@@ -9,27 +9,22 @@ import {
 } from "../controllers/journal.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { imageFileFilter } from "../middleware/imageUpload";
 
 const router = Router();
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    const dir = path.join(process.cwd(), "server", "uploads", "journal");
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `journal-${unique}${path.extname(file.originalname)}`);
-  },
-});
-
+// Acceptance-review finding: journal photos were written to Render's web
+// service disk (server/uploads/journal), which is ephemeral — wiped on
+// every redeploy and on spin-down after 15 minutes idle. A journal photo
+// could 404 permanently within minutes of being uploaded, with nothing in
+// the UI warning it would happen. Same fix already applied to avatars
+// (auth.routes.ts): memoryStorage + a base64 data URI stored directly on
+// the Mongo document instead of a file on disk. 5MB/photo (down from the
+// old 10MB disk limit — base64 inflates ~33%, and up to 10 photos land in
+// one document, which has to stay well under Mongo's 16MB doc cap).
 const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: imageFileFilter,
 });
 

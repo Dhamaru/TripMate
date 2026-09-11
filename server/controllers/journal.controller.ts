@@ -8,15 +8,23 @@ import { notifyTripParticipants } from "../notifications";
 function fileUrls(req: Request): string[] {
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files || !files.length) return [];
-  // Served through the authenticated proxy below, not the old
-  // unauthenticated /uploads static mount — journal photos are personal
-  // travel photos and were reachable by anyone with the URL, which is
-  // only ~30 bits of entropy (Date.now() + Math.random()*1e9), not truly
-  // private. getJournalPhoto checks the requester actually owns (or
-  // collaborates on) the entry before streaming the file.
-  return files.map((f) => `/api/v1/journal/photo/${f.filename}`);
+  // Was written to disk and served through the authenticated proxy below —
+  // acceptance-review finding: Render's web service disk is ephemeral
+  // (wiped on every redeploy and on 15-minute idle spin-down), so a journal
+  // photo could 404 permanently within minutes. Stored as a base64 data URI
+  // directly on the document now, same fix already applied to avatars
+  // (auth.controller.ts's uploadAvatar) — Mongo is the one persistent thing
+  // in this stack. <img src> renders a data: URI exactly like a normal URL,
+  // no client changes needed, and no per-request auth-and-stream round trip.
+  return files.map((f) => `data:${f.mimetype};base64,${f.buffer.toString("base64")}`);
 }
 
+// Legacy fallback only — no new upload has written a disk-backed photo
+// since the base64 migration above. Kept so any journal entry whose photos
+// still reference the old /api/v1/journal/photo/:filename shape (and whose
+// disk file happens not to have been wiped yet) keeps working until it's
+// naturally replaced; the client already treats a 404 here as a graceful
+// placeholder, not a broken-image icon.
 export const getJournalPhoto = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id || req.user?.id;
