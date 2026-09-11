@@ -3,254 +3,267 @@
 import { Request, Response, NextFunction } from "express";
 import { JournalEntryModel, TripModel } from "@shared/schema";
 import { NotFoundError, InternalServerError, ForbiddenError, BadRequestError } from "../errors";
-import OpenAI from 'openai';
+import OpenAI from "openai";
 import { runAgentLoop } from "../agent/agentLoop";
-import { buildContextualizationPrompt, buildEnhancementPrompt, buildRecapPrompt } from "../agent/prompts/journalPrompts";
+import {
+  buildContextualizationPrompt,
+  buildEnhancementPrompt,
+  buildRecapPrompt,
+} from "../agent/prompts/journalPrompts";
 import { AiUtilitiesService } from "../AiUtilitiesService";
 import { config } from "../config";
 import logger from "../logger";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
 
+// Was pointed at NVIDIA (integrate.api.nvidia.com) — that key was removed
+// when the agent moved to Gemini (see agentLoop.ts), leaving this client
+// with an empty apiKey and every runJournalAgent call (contextualize,
+// enhance, recap) failing outright. Point it at Gemini's OpenAI-compatible
+// endpoint like the rest of the agent stack.
 const openai = new OpenAI({
-    apiKey: config.NVIDIA_API_KEY_2 || config.NVIDIA_API_KEY || '',
-    baseURL: 'https://integrate.api.nvidia.com/v1',
-    timeout: 25_000,
-    maxRetries: 0,
+  apiKey: config.GEMINI_API_KEY || "",
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+  timeout: 25_000,
+  maxRetries: 0,
 });
 const aiService = new AiUtilitiesService();
 
 async function runJournalAgent(prompt: string, userId: string): Promise<string> {
-    const result = await runAgentLoop(
-        { message: prompt, userId, context: { userId } },
-        { openai, aiService: aiService as any }
-    );
-    return result.message;
+  const result = await runAgentLoop(
+    { message: prompt, userId, context: { userId } },
+    { openai, aiService: aiService as any },
+  );
+  return result.message;
 }
 
 export const augmentEntry = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { content, destination } = req.body as { content?: string; destination?: string };
-        if (!content || !content.trim()) throw new BadRequestError("Content is required");
+  try {
+    const { content, destination } = req.body as { content?: string; destination?: string };
+    if (!content || !content.trim()) throw new BadRequestError("Content is required");
 
-        const result = await aiService.augmentJournalEntry(content, destination);
-        res.json(result);
-    } catch (err) {
-        next(err);
-    }
+    const result = await aiService.augmentJournalEntry(content, destination);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const contextualizeEntry = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user!._id;
-        const entry = await JournalEntryModel.findById(req.params.id);
-        if (!entry) throw new NotFoundError("Entry not found");
+  try {
+    const userId = req.user!._id;
+    const entry = await JournalEntryModel.findById(req.params.id);
+    if (!entry) throw new NotFoundError("Entry not found");
 
-        // Check access: Author OR any editor of the associated trip
-        if (entry.userId !== userId.toString()) {
-            if (entry.tripId) {
-                const trip = await TripModel.findOne({
-                    _id: entry.tripId,
-                    $or: [
-                        { userId },
-                        { collaborators: { $elemMatch: { userId, role: "editor" } } }
-                    ]
-                });
-                if (!trip) throw new ForbiddenError("Insufficient permissions");
-            } else {
-                throw new ForbiddenError("Insufficient permissions");
-            }
-        }
-
-        const tripId = entry.tripId;
-        const trip = tripId ? await TripModel.findById(tripId) : null;
-
-        const itinerary = (trip?.itinerary ?? []).map((day: { dayIndex?: number; activities?: Array<{ title?: string; location?: string }> }, idx: number) => ({
-            dayIndex: day.dayIndex ?? idx,
-            date: `Day ${(day.dayIndex ?? idx) + 1}`,
-            activities: (day.activities ?? []).map((a: { title?: string; location?: string }) => ({
-                title: a.title ?? "Activity",
-                location: a.location ?? "",
-            })),
-        }));
-
-        const prompt = buildContextualizationPrompt(
-            entry.content ?? (entry as any).text ?? "",
-            entry.createdAt ? new Date(entry.createdAt).toISOString() : new Date().toISOString(),
-            itinerary
-        );
-
-        if (tripId) socketService.broadcastAtlasThinking(tripId.toString(), true);
-        const raw = await runJournalAgent(prompt, String(userId));
-        if (tripId) socketService.broadcastAtlasThinking(tripId.toString(), false);
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) as { dayIndex: number; confidence: string; reasoning: string } : null;
-        if (!parsed) throw new InternalServerError("Failed to contextualize entry");
-
-        const updated = await JournalEntryModel.findByIdAndUpdate(
-            entry._id,
-            {
-                dayIndex: parsed.dayIndex,
-                contextConfidence: parsed.confidence,
-                contextReasoning: parsed.reasoning,
-            },
-            { new: true, runValidators: true }
-        );
-
-        logger.info(`[journal] Contextualized entry ${entry._id} → day ${parsed.dayIndex}`);
-        res.json({ success: true, data: updated });
-    } catch (err) {
-        next(err);
+    // Check access: Author OR any editor of the associated trip
+    if (entry.userId !== userId.toString()) {
+      if (entry.tripId) {
+        const trip = await TripModel.findOne({
+          _id: entry.tripId,
+          $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+        });
+        if (!trip) throw new ForbiddenError("Insufficient permissions");
+      } else {
+        throw new ForbiddenError("Insufficient permissions");
+      }
     }
+
+    const tripId = entry.tripId;
+    const trip = tripId ? await TripModel.findById(tripId) : null;
+
+    const itinerary = (trip?.itinerary ?? []).map(
+      (
+        day: { dayIndex?: number; activities?: Array<{ title?: string; location?: string }> },
+        idx: number,
+      ) => ({
+        dayIndex: day.dayIndex ?? idx,
+        date: `Day ${(day.dayIndex ?? idx) + 1}`,
+        activities: (day.activities ?? []).map((a: { title?: string; location?: string }) => ({
+          title: a.title ?? "Activity",
+          location: a.location ?? "",
+        })),
+      }),
+    );
+
+    const prompt = buildContextualizationPrompt(
+      entry.content ?? (entry as any).text ?? "",
+      entry.createdAt ? new Date(entry.createdAt).toISOString() : new Date().toISOString(),
+      itinerary,
+    );
+
+    if (tripId) socketService.broadcastAtlasThinking(tripId.toString(), true);
+    const raw = await runJournalAgent(prompt, String(userId));
+    if (tripId) socketService.broadcastAtlasThinking(tripId.toString(), false);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch
+      ? (JSON.parse(jsonMatch[0]) as { dayIndex: number; confidence: string; reasoning: string })
+      : null;
+    if (!parsed) throw new InternalServerError("Failed to contextualize entry");
+
+    const updated = await JournalEntryModel.findByIdAndUpdate(
+      entry._id,
+      {
+        dayIndex: parsed.dayIndex,
+        contextConfidence: parsed.confidence,
+        contextReasoning: parsed.reasoning,
+      },
+      { new: true, runValidators: true },
+    );
+
+    logger.info(`[journal] Contextualized entry ${entry._id} → day ${parsed.dayIndex}`);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const enhanceEntry = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user!._id;
-        const entry = await JournalEntryModel.findById(req.params.id);
-        if (!entry) throw new NotFoundError("Entry not found");
+  try {
+    const userId = req.user!._id;
+    const entry = await JournalEntryModel.findById(req.params.id);
+    if (!entry) throw new NotFoundError("Entry not found");
 
-        if (entry.userId !== userId.toString()) {
-            if (entry.tripId) {
-                const trip = await TripModel.findOne({
-                    _id: entry.tripId,
-                    $or: [
-                        { userId },
-                        { collaborators: { $elemMatch: { userId, role: "editor" } } }
-                    ]
-                });
-                if (!trip) throw new ForbiddenError("Insufficient permissions");
-            } else {
-                throw new ForbiddenError("Insufficient permissions");
-            }
-        }
-
-        const originalText = entry.content ?? (entry as any).text ?? "";
-        const prompt = buildEnhancementPrompt(originalText);
-        if (entry.tripId) socketService.broadcastAtlasThinking(entry.tripId.toString(), true);
-        const raw = await runJournalAgent(prompt, String(userId));
-        if (entry.tripId) socketService.broadcastAtlasThinking(entry.tripId.toString(), false);
-
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) as { enhanced: string; changesSummary: string } : null;
-        if (!parsed) throw new InternalServerError("Failed to enhance entry");
-
-        logger.info(`[journal] Enhanced entry ${entry._id}`);
-        res.json({ success: true, data: { ...parsed, original: originalText } });
-    } catch (err) {
-        next(err);
+    if (entry.userId !== userId.toString()) {
+      if (entry.tripId) {
+        const trip = await TripModel.findOne({
+          _id: entry.tripId,
+          $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+        });
+        if (!trip) throw new ForbiddenError("Insufficient permissions");
+      } else {
+        throw new ForbiddenError("Insufficient permissions");
+      }
     }
+
+    const originalText = entry.content ?? (entry as any).text ?? "";
+    const prompt = buildEnhancementPrompt(originalText);
+    if (entry.tripId) socketService.broadcastAtlasThinking(entry.tripId.toString(), true);
+    const raw = await runJournalAgent(prompt, String(userId));
+    if (entry.tripId) socketService.broadcastAtlasThinking(entry.tripId.toString(), false);
+
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch
+      ? (JSON.parse(jsonMatch[0]) as { enhanced: string; changesSummary: string })
+      : null;
+    if (!parsed) throw new InternalServerError("Failed to enhance entry");
+
+    logger.info(`[journal] Enhanced entry ${entry._id}`);
+    res.json({ success: true, data: { ...parsed, original: originalText } });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const confirmEnhancement = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user!._id;
-        const { text } = req.body as { text: string };
+  try {
+    const userId = req.user!._id;
+    const { text } = req.body as { text: string };
 
-        // Authorization must be checked BEFORE any write — the previous
-        // version updated the entry first (matching any entry with a
-        // tripId, no ownership filter at all) and only checked permissions
-        // afterward, so a viewer collaborator (or anyone who could guess/
-        // enumerate an entry id) could overwrite another user's journal
-        // entry and get a 403 back while the write had already committed.
-        const entry = await JournalEntryModel.findById(req.params.id);
-        if (!entry) throw new NotFoundError("Entry not found");
+    // Authorization must be checked BEFORE any write — the previous
+    // version updated the entry first (matching any entry with a
+    // tripId, no ownership filter at all) and only checked permissions
+    // afterward, so a viewer collaborator (or anyone who could guess/
+    // enumerate an entry id) could overwrite another user's journal
+    // entry and get a 403 back while the write had already committed.
+    const entry = await JournalEntryModel.findById(req.params.id);
+    if (!entry) throw new NotFoundError("Entry not found");
 
-        const isAuthor = entry.userId === userId.toString();
-        if (!isAuthor) {
-            const trip = await TripModel.findOne({
-                _id: entry.tripId,
-                collaborators: { $elemMatch: { userId, role: "editor" } }
-            });
-            if (!trip) throw new ForbiddenError("Insufficient permissions");
-        }
-
-        const updated = await JournalEntryModel.findOneAndUpdate(
-            { _id: req.params.id },
-            { content: text, enhanced: true },
-            { new: true }
-        );
-
-        res.json({ success: true, data: updated });
-    } catch (err) {
-        next(err);
+    const isAuthor = entry.userId === userId.toString();
+    if (!isAuthor) {
+      const trip = await TripModel.findOne({
+        _id: entry.tripId,
+        collaborators: { $elemMatch: { userId, role: "editor" } },
+      });
+      if (!trip) throw new ForbiddenError("Insufficient permissions");
     }
+
+    const updated = await JournalEntryModel.findOneAndUpdate(
+      { _id: req.params.id },
+      { content: text, enhanced: true },
+      { new: true },
+    );
+
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const generateRecap = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user!._id;
-        const { tripId } = req.params;
+  try {
+    const userId = req.user!._id;
+    const { tripId } = req.params;
 
-        const trip = await TripModel.findOne({
-            _id: tripId,
-            $or: [
-                { userId },
-                { "collaborators.userId": userId }
-            ]
-        });
-        if (!trip) throw new NotFoundError("Trip not found or access denied");
+    const trip = await TripModel.findOne({
+      _id: tripId,
+      $or: [{ userId }, { "collaborators.userId": userId }],
+    });
+    if (!trip) throw new NotFoundError("Trip not found or access denied");
 
-        const entries = await JournalEntryModel.find({ tripId }).sort({ createdAt: 1 });
-        if (entries.length < 3) {
-            return res.status(400).json({ success: false, error: "At least 3 journal entries are required for a recap" });
-        }
-
-        const entriesMapped = entries.map(e => ({
-            text: e.content ?? (e as any).text ?? "",
-            entryDate: (e.createdAt ? new Date(e.createdAt) : new Date()).toISOString(),
-            assignedDayIndex: e.dayIndex,
-        }));
-
-        const prompt = buildRecapPrompt(entriesMapped, {
-            destination: trip.destination,
-            startDate: (trip.startDate ?? new Date()).toISOString(),
-            endDate: (trip.endDate ?? new Date()).toISOString(),
-        });
-
-        socketService.broadcastAtlasThinking(tripId, true);
-        const raw = await runJournalAgent(prompt, String(userId));
-        socketService.broadcastAtlasThinking(tripId, false);
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) as {
-            title: string;
-            summary: string;
-            highlights: string[];
-            memorableMoment: string;
-            travelTip: string;
-            awards: Array<{ title: string; icon: string; description: string }>;
-            visualVibe: string;
-        } : null;
-
-        if (!parsed) throw new InternalServerError("Failed to generate recap");
-
-        // Save as a special journal entry
-        const recapEntry = await JournalEntryModel.create({
-            userId,
-            tripId,
-            title: parsed.title,
-            content: parsed.summary,
-            isRecap: true,
-            recapMeta: { 
-                title: parsed.title, 
-                highlights: parsed.highlights, 
-                memorableMoment: parsed.memorableMoment, 
-                travelTip: parsed.travelTip,
-                awards: parsed.awards,
-                visualVibe: parsed.visualVibe
-            },
-        });
-
-        logger.info(`[journal] Generated recap for trip ${tripId}`);
-        await notifyTripParticipants(trip, String(userId), {
-            type: "recap-generated",
-            title: "Trip recap ready",
-            message: `A new recap "${parsed.title}" was generated for your trip to ${trip.destination}.`,
-            link: `/app/trips/${tripId}`,
-            tripId,
-        });
-        return res.json({ success: true, data: { recap: recapEntry } });
-    } catch (err) {
-        return next(err);
+    const entries = await JournalEntryModel.find({ tripId }).sort({ createdAt: 1 });
+    if (entries.length < 3) {
+      return res
+        .status(400)
+        .json({ success: false, error: "At least 3 journal entries are required for a recap" });
     }
+
+    const entriesMapped = entries.map((e) => ({
+      text: e.content ?? (e as any).text ?? "",
+      entryDate: (e.createdAt ? new Date(e.createdAt) : new Date()).toISOString(),
+      assignedDayIndex: e.dayIndex,
+    }));
+
+    const prompt = buildRecapPrompt(entriesMapped, {
+      destination: trip.destination,
+      startDate: (trip.startDate ?? new Date()).toISOString(),
+      endDate: (trip.endDate ?? new Date()).toISOString(),
+    });
+
+    socketService.broadcastAtlasThinking(tripId, true);
+    const raw = await runJournalAgent(prompt, String(userId));
+    socketService.broadcastAtlasThinking(tripId, false);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch
+      ? (JSON.parse(jsonMatch[0]) as {
+          title: string;
+          summary: string;
+          highlights: string[];
+          memorableMoment: string;
+          travelTip: string;
+          awards: Array<{ title: string; icon: string; description: string }>;
+          visualVibe: string;
+        })
+      : null;
+
+    if (!parsed) throw new InternalServerError("Failed to generate recap");
+
+    // Save as a special journal entry
+    const recapEntry = await JournalEntryModel.create({
+      userId,
+      tripId,
+      title: parsed.title,
+      content: parsed.summary,
+      isRecap: true,
+      recapMeta: {
+        title: parsed.title,
+        highlights: parsed.highlights,
+        memorableMoment: parsed.memorableMoment,
+        travelTip: parsed.travelTip,
+        awards: parsed.awards,
+        visualVibe: parsed.visualVibe,
+      },
+    });
+
+    logger.info(`[journal] Generated recap for trip ${tripId}`);
+    await notifyTripParticipants(trip, String(userId), {
+      type: "recap-generated",
+      title: "Trip recap ready",
+      message: `A new recap "${parsed.title}" was generated for your trip to ${trip.destination}.`,
+      link: `/app/trips/${tripId}`,
+      tripId,
+    });
+    return res.json({ success: true, data: { recap: recapEntry } });
+  } catch (err) {
+    return next(err);
+  }
 };

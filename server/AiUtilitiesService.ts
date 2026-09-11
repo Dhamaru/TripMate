@@ -2751,20 +2751,31 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     try {
       let rawContent = "";
+      // Try OpenAI first if configured, but don't let a bad/expired/rate-
+      // limited OPENAI_API_KEY take the whole feature down — Gemini is the
+      // app's other configured provider and covers this fine. Previously a
+      // failed OpenAI call threw straight to the outer catch with no
+      // fallback, surfacing as "Internal server error" even though Gemini
+      // was healthy the whole time (live-reported).
       if (this.openai) {
-        const completion = await this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          temperature: 0.7,
-          messages: [
-            {
-              role: "system",
-              content: "You are a creative travel journal assistant. Return only valid JSON.",
-            },
-            { role: "user", content: content + "\n\n" + prompt },
-          ],
-        });
-        rawContent = completion.choices?.[0]?.message?.content?.trim() || "{}";
-      } else {
+        try {
+          const completion = await this.openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            temperature: 0.7,
+            messages: [
+              {
+                role: "system",
+                content: "You are a creative travel journal assistant. Return only valid JSON.",
+              },
+              { role: "user", content: content + "\n\n" + prompt },
+            ],
+          });
+          rawContent = completion.choices?.[0]?.message?.content?.trim() || "";
+        } catch (e) {
+          console.error("[AiUtilities] augmentJournalEntry via OpenAI failed, trying Gemini:", e);
+        }
+      }
+      if (!rawContent) {
         rawContent = await this.generateWithGemini(
           content + "\n\n" + prompt,
           "You are a creative travel journal assistant. Return only valid JSON.",
