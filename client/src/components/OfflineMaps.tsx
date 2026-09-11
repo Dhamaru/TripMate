@@ -239,6 +239,25 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       if (raw) {
         const parsed = JSON.parse(raw) as Array<Partial<MapRegion> & { size?: string }>;
         const now = Date.now();
+
+        // ── OSM → CARTO URL migration ────────────────────────────────────────
+        // Previously tile URLs were stored as tile.openstreetmap.org paths.
+        // OSM now blocks those requests (403). Rewrite them in-place to CARTO
+        // Positron (light) URLs so cached tiles can still be served by the SW
+        // under the new route rule without re-downloading.
+        // URL shape was:  https://tile.openstreetmap.org/{z}/{x}/{y}.png
+        // New shape:      https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png
+        const osmRe = /^https:\/\/tile\.openstreetmap\.org\/(\d+)\/(\d+)\/(\d+)\.png$/;
+        const SUBS = ["a", "b", "c", "d"] as const;
+        function migrateUrl(url: string): string {
+          const m = url.match(osmRe);
+          if (!m) return url;
+          const [, z, x, y] = m;
+          const sub = SUBS[(Number(x) + Number(y)) % 4];
+          return `https://${sub}.basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`;
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         return parsed.map((r) => {
           // Regions saved before real tile caching (or downloaded >30 days
           // ago) have no actual cached tiles — don't claim they're offline.
@@ -248,12 +267,14 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           if (hasRealTiles && isStale) {
             staleTileUrlsToPurgeRef.current.push(...r.tileUrls!);
           }
+          // Migrate any stored OSM tile URLs to CARTO before hydrating state.
+          const migratedUrls = stillDownloaded ? r.tileUrls!.map(migrateUrl) : [];
           return {
             id: r.id!,
             name: r.name!,
             country: r.country || "Unknown",
             bytes: typeof r.bytes === "number" ? r.bytes : 0,
-            tileUrls: stillDownloaded ? r.tileUrls! : [],
+            tileUrls: migratedUrls,
             downloaded: stillDownloaded,
             downloading: false,
             progress: stillDownloaded ? 100 : 0,
