@@ -115,6 +115,10 @@ export interface Trip {
   totalBudget: number;
   budget?: number; // Backwards compatibility for TipDetail
   travelStyle: TravelStyle;
+  // Multiple moods selected at once (e.g. cultural AND culinary) — additive
+  // to travelStyle above, which stays the "primary"/first pick for any
+  // consumer that only ever wanted one value.
+  travelStyles?: TravelStyle[];
   travelMedium: TravelMedium;
   transportMode?: TravelMedium;
   companions: number;

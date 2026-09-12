@@ -31,6 +31,21 @@ export const createTripSchema = z.object({
         "culinary",
       ])
       .default("standard"),
+    travelStyles: z
+      .array(
+        z.enum([
+          "budget",
+          "standard",
+          "luxury",
+          "adventure",
+          "relaxed",
+          "family",
+          "cultural",
+          "culinary",
+        ]),
+      )
+      .min(1)
+      .optional(),
     transportMode: z.string().optional(),
     budget: z.coerce.number().min(0).optional(),
     currency: z.string().default("INR"),
@@ -90,6 +105,7 @@ export const updateTripSchema = z.object({
       days: z.coerce.number().int().min(1).optional(),
       groupSize: z.coerce.number().int().min(1).optional(),
       travelStyle: z.string().optional(),
+      travelStyles: z.array(z.string()).min(1).optional(),
       status: z.enum(["planning", "active", "completed"]).optional(),
       budget: z.coerce.number().min(0).optional(),
       startDate: z.coerce.date().optional(),

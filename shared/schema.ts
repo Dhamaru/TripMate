@@ -207,6 +207,13 @@ export interface ITrip extends Document {
   days: number;
   groupSize: number;
   travelStyle: TravelStyle;
+  // Live-reported: a traveler planning both a cultural AND a culinary trip
+  // had no way to pick both — the picker only ever let one style through.
+  // Additive, not a replacement for travelStyle above: every existing
+  // consumer that reads the singular field keeps working unchanged (it's
+  // kept as travelStyles[0], the "primary" style) while the itinerary
+  // generator and Atlas read the full list when it's present.
+  travelStyles?: TravelStyle[];
   transportMode?: string;
   isInternational?: boolean;
   // What was asked at trip-creation time — kept independent of the user's
@@ -270,6 +277,20 @@ const tripSchema = new Schema<ITrip>(
         "culinary",
       ],
       default: "standard",
+    },
+    travelStyles: {
+      type: [String],
+      enum: [
+        "budget",
+        "standard",
+        "luxury",
+        "adventure",
+        "relaxed",
+        "family",
+        "cultural",
+        "culinary",
+      ],
+      default: undefined,
     },
     transportMode: { type: String },
     isInternational: { type: Boolean, default: false },
@@ -353,6 +374,21 @@ export const insertTripSchema = z.object({
       "culinary",
     ])
     .default("standard"),
+  travelStyles: z
+    .array(
+      z.enum([
+        "budget",
+        "standard",
+        "luxury",
+        "adventure",
+        "relaxed",
+        "family",
+        "cultural",
+        "culinary",
+      ]),
+    )
+    .min(1)
+    .optional(),
   transportMode: z.string().optional(),
   isInternational: z.coerce.boolean().optional(),
   cuisinePreferences: z.array(z.string()).optional(),

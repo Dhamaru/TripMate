@@ -61,6 +61,16 @@ export async function tripHandler(args: {
           budget: doc.budget,
           currency: doc.currency || "INR",
           travelStyle: doc.travelStyle,
+          // Live-reported: a trip that's genuinely both cultural AND
+          // culinary had no way to say so, and Atlas only ever saw one
+          // style even after the picker was fixed to allow multiple.
+          // Include the full set when it exists so Atlas's suggestions/
+          // modifications account for every mood the traveler picked, not
+          // just the first one.
+          travelStyles:
+            Array.isArray((doc as any).travelStyles) && (doc as any).travelStyles.length > 0
+              ? (doc as any).travelStyles
+              : [doc.travelStyle],
           transportMode: doc.transportMode,
           status: doc.status,
           startDate: doc.startDate,

@@ -216,6 +216,7 @@ const UPDATABLE_TRIP_FIELDS = new Set([
   "days",
   "groupSize",
   "travelStyle",
+  "travelStyles",
   "transportMode",
   "isInternational",
   "cuisinePreferences",

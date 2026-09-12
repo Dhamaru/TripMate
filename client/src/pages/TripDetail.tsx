@@ -211,6 +211,11 @@ export default function TripDetail() {
     days: "",
     groupSize: "",
     travelStyle: "",
+    // Live-reported: a trip is often more than one mood at once (cultural
+    // AND culinary) — travelStyle stays as the "primary" (first selected)
+    // for every existing consumer that only reads one value; this is the
+    // full multi-select set the picker below actually edits.
+    travelStyles: [] as string[],
     status: "planning" as "planning" | "active" | "completed",
     notes: "",
     startDate: "",
@@ -717,6 +722,12 @@ export default function TripDetail() {
         days: trip.days.toString(),
         groupSize: trip.groupSize?.toString() || "",
         travelStyle: trip.travelStyle,
+        travelStyles:
+          Array.isArray((trip as any).travelStyles) && (trip as any).travelStyles.length > 0
+            ? (trip as any).travelStyles
+            : trip.travelStyle
+              ? [trip.travelStyle]
+              : [],
         status: trip.status as "planning" | "active" | "completed",
         notes: trip.notes || "",
         startDate: trip.startDate ? new Date(trip.startDate).toISOString().split("T")[0] : "",
@@ -729,7 +740,12 @@ export default function TripDetail() {
   }, [trip]);
 
   const handleSave = () => {
-    if (!tripForm.destination || !tripForm.days || !tripForm.groupSize || !tripForm.travelStyle) {
+    if (
+      !tripForm.destination ||
+      !tripForm.days ||
+      !tripForm.groupSize ||
+      tripForm.travelStyles.length === 0
+    ) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -744,7 +760,7 @@ export default function TripDetail() {
       budget: tripForm.budget ? parseFloat(tripForm.budget) : undefined,
       days: parseInt(tripForm.days),
       groupSize: parseInt(tripForm.groupSize),
-      travelStyle: tripForm.travelStyle as
+      travelStyle: tripForm.travelStyles[0] as
         | "budget"
         | "standard"
         | "luxury"
@@ -753,6 +769,16 @@ export default function TripDetail() {
         | "family"
         | "cultural"
         | "culinary",
+      travelStyles: tripForm.travelStyles as (
+        | "budget"
+        | "standard"
+        | "luxury"
+        | "adventure"
+        | "relaxed"
+        | "family"
+        | "cultural"
+        | "culinary"
+      )[],
       status: tripForm.status,
       notes: tripForm.notes,
       ...(tripForm.startDate
@@ -805,6 +831,12 @@ export default function TripDetail() {
         days: trip.days.toString(),
         groupSize: trip.groupSize?.toString() || "",
         travelStyle: trip.travelStyle,
+        travelStyles:
+          Array.isArray((trip as any).travelStyles) && (trip as any).travelStyles.length > 0
+            ? (trip as any).travelStyles
+            : trip.travelStyle
+              ? [trip.travelStyle]
+              : [],
         status: trip.status as "planning" | "active" | "completed",
         notes: trip.notes || "",
         startDate: trip.startDate ? new Date(trip.startDate).toISOString().split("T")[0] : "",
@@ -1516,28 +1548,42 @@ export default function TripDetail() {
                     Travel Style <span className="text-[var(--stamp-red)]">*</span>
                   </label>
                   {/* Live-reported (friend's feedback): "the Travel Style
-                      section shows only one option" — this used to be true:
-                      the only travelStyle UI in this form was the read-only
-                      icon+name badge elsewhere on the page, with no picker
-                      to actually change it despite Save requiring a value.
-                      Same 4-option set TripPlanner.tsx's own picker uses. */}
+                      section shows only one option" — that was true twice
+                      over. First, this form had no picker at all (fixed
+                      first pass). Second, once it did, it was single-select
+                      only — a trip that's genuinely both cultural AND
+                      culinary had no way to say so. Now toggles freely;
+                      travelStyles carries the full set, travelStyle stays
+                      the first pick for older code that only reads one. */}
+                  <p className="text-xs text-muted-foreground mb-2">Pick as many as fit.</p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {travelStyles.map((style) => (
-                      <button
-                        key={style.id}
-                        type="button"
-                        onClick={() => setTripForm((prev) => ({ ...prev, travelStyle: style.id }))}
-                        className={`stamp-press relative overflow-hidden rounded-xl h-24 flex flex-col items-center justify-center gap-2 transition-all duration-200 border-2 bg-[hsl(var(--card))] ${
-                          tripForm.travelStyle === style.id
-                            ? "border-[var(--amber)] scale-[1.02]"
-                            : "border-[hsl(var(--border))] hover:border-[var(--amber-hover-border)]"
-                        }`}
-                        data-testid={`edit-travel-style-${style.id}`}
-                      >
-                        <style.icon className={`${style.color} w-6 h-6`} />
-                        <span className="text-sm font-bold text-foreground">{style.name}</span>
-                      </button>
-                    ))}
+                    {travelStyles.map((style) => {
+                      const selected = tripForm.travelStyles.includes(style.id);
+                      return (
+                        <button
+                          key={style.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setTripForm((prev) => {
+                              const next = selected
+                                ? prev.travelStyles.filter((s) => s !== style.id)
+                                : [...prev.travelStyles, style.id];
+                              return { ...prev, travelStyles: next, travelStyle: next[0] || "" };
+                            })
+                          }
+                          className={`stamp-press relative overflow-hidden rounded-xl h-24 flex flex-col items-center justify-center gap-2 transition-all duration-200 border-2 bg-[hsl(var(--card))] ${
+                            selected
+                              ? "border-[var(--amber)] scale-[1.02]"
+                              : "border-[hsl(var(--border))] hover:border-[var(--amber-hover-border)]"
+                          }`}
+                          data-testid={`edit-travel-style-${style.id}`}
+                        >
+                          <style.icon className={`${style.color} w-6 h-6`} />
+                          <span className="text-sm font-bold text-foreground">{style.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1733,7 +1779,10 @@ export default function TripDetail() {
                     )}
                     <p className="text-sm text-muted-foreground">Style</p>
                     <p className="font-bold text-foreground capitalize">
-                      {(trip.travelStyle || "standard").replace("-", " ")}
+                      {Array.isArray((trip as any).travelStyles) &&
+                      (trip as any).travelStyles.length > 0
+                        ? (trip as any).travelStyles.join(" + ")
+                        : (trip.travelStyle || "standard").replace("-", " ")}
                     </p>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-xl">

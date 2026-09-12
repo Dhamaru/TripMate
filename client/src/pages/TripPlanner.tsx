@@ -173,7 +173,27 @@ export default function TripPlanner() {
     "city",
   );
 
-  const [selectedStyle, setSelectedStyle] = useState("");
+  // Live-reported: a trip is often both, e.g. cultural AND culinary — the
+  // old single-select couldn't express that at all. Array of ids from
+  // `travelStyles` below; helpers keep every existing call site (which
+  // mostly wanted one value) working off the "primary" = first selected.
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  const selectedStyle = selectedStyles[0] || "";
+  function toggleStyle(id: string) {
+    setSelectedStyles((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  }
+  // Joins every selected style into one natural phrase for the AI prompt
+  // ("cultural and culinary", "adventure, cultural and culinary") so the
+  // itinerary generator blends all of them into the plan instead of only
+  // ever seeing the first one picked.
+  function styleNamesPhrase(ids: string[]): string {
+    const names = ids
+      .map((id) => travelStyles.find((s) => s.id === id)?.name.toLowerCase())
+      .filter((n): n is string => !!n);
+    if (names.length === 0) return "relaxed";
+    if (names.length === 1) return names[0];
+    return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  }
   const [selectedPackingItems, setSelectedPackingItems] = useState<string[]>([]);
   const hasSaved = useRef(false);
   // Which required field(s) failed on the last submit attempt — the
@@ -209,7 +229,7 @@ export default function TripPlanner() {
     const destination = params.get("destination");
     const style = params.get("style");
     if (destination) setTripForm((prev) => ({ ...prev, destination }));
-    if (style && travelStyles.some((s) => s.id === style)) setSelectedStyle(style);
+    if (style && travelStyles.some((s) => s.id === style)) setSelectedStyles([style]);
   }, []);
 
   // Redirect if not authenticated
@@ -403,7 +423,7 @@ export default function TripPlanner() {
       const persons = parseInt(tripForm.groupSize) || 1;
       const budget = tripForm.budget ? parseFloat(tripForm.budget) : undefined;
       const currency = tripForm.currency || "INR";
-      const typeOfTrip = selectedStyle || "relaxed";
+      const typeOfTrip = styleNamesPhrase(selectedStyles);
       const travelMedium = tripForm.transportMode || "road";
       const preferences = tripForm.notes || "";
       const payload = {
@@ -857,6 +877,9 @@ export default function TripPlanner() {
         endDate: computeEndDate(tripForm.startDate, parseInt(tripForm.days) || 1),
         groupSize: parseInt(tripForm.groupSize) || 1,
         travelStyle: styleMap[selectedStyle] || "standard",
+        ...(selectedStyles.length > 0
+          ? { travelStyles: selectedStyles.map((id) => styleMap[id]).filter(Boolean) }
+          : {}),
         transportMode: tripForm.transportMode || undefined,
         isInternational: !!tripForm.isInternational,
         status: "planning" as const,
@@ -915,10 +938,6 @@ export default function TripPlanner() {
     // New plan generation — allow auto-save again (Regenerate deliberately skips this).
     hasSaved.current = false;
     planTripMutation.mutate();
-  };
-
-  const handleStyleSelect = (styleId: string) => {
-    setSelectedStyle(styleId);
   };
 
   if (authLoading) {
@@ -1364,19 +1383,23 @@ export default function TripPlanner() {
                   <label className="block text-sm font-semibold text-foreground mb-2">
                     Travel Style <span className="text-red-500">*</span>
                   </label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Pick as many as fit — planning both a cultural and a culinary trip? Select both.
+                  </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {travelStyles.map((style) => (
                       <button
                         key={style.id}
                         type="button"
-                        onClick={() => handleStyleSelect(style.id)}
+                        onClick={() => toggleStyle(style.id)}
+                        aria-pressed={selectedStyles.includes(style.id)}
                         style={
-                          selectedStyle === style.id
+                          selectedStyles.includes(style.id)
                             ? { borderColor: style.ink, boxShadow: `0 0 0 2px ${style.ink}33` }
                             : undefined
                         }
                         className={`stamp-press relative overflow-hidden rounded-xl h-28 md:h-36 flex flex-col items-center justify-center gap-2 transition-all duration-200 border-2 bg-[hsl(var(--card))] ${
-                          selectedStyle === style.id
+                          selectedStyles.includes(style.id)
                             ? "scale-[1.02]"
                             : "border-[hsl(var(--border))] hover:border-[var(--amber-hover-border)]"
                         }`}
@@ -1393,7 +1416,7 @@ export default function TripPlanner() {
                         <span className="text-[10px] text-muted-foreground font-sans-clean tracking-wide">
                           {style.caption}
                         </span>
-                        {selectedStyle === style.id && (
+                        {selectedStyles.includes(style.id) && (
                           <span
                             className="stamp absolute top-2 right-2 text-[9px]"
                             style={{ color: style.ink }}
@@ -1711,6 +1734,13 @@ export default function TripPlanner() {
                           endDate: computeEndDate(tripForm.startDate, Number(tripForm.days || 1)),
                           groupSize: Number(tripForm.groupSize || 1),
                           travelStyle: styleMap[selectedStyle] || "standard",
+                          ...(selectedStyles.length > 0
+                            ? {
+                                travelStyles: selectedStyles
+                                  .map((id) => styleMap[id])
+                                  .filter(Boolean),
+                              }
+                            : {}),
                           transportMode: tripForm.transportMode || undefined,
                           isInternational: !!tripForm.isInternational,
                           status: "planning" as const,
