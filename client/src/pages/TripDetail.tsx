@@ -170,6 +170,11 @@ export default function TripDetail() {
   }, [id, queryClient, socketRef, toast, fetchTrip]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [trimConfirm, setTrimConfirm] = useState<{
+    updates: Partial<Trip>;
+    newDays: number;
+    droppedDays: number;
+  } | null>(null);
   // Drives the main Tabs below (was uncontrolled — defaultValue only sets
   // the initial tab, there was no way to jump to a tab programmatically)
   // and the "View on Map" flow: itinerary -> map tab + fly to that pin.
@@ -527,6 +532,13 @@ export default function TripDetail() {
     queryKey: ["/api/v1/journal"],
   });
 
+  const trimItineraryMutation = useMutation({
+    mutationFn: async (days: number) => {
+      const response = await apiRequest("PUT", `/api/v1/trips/${id}/itinerary/trim`, { days });
+      return response.json();
+    },
+  });
+
   const updateTripMutation = useMutation({
     mutationFn: async (updates: Partial<Trip>) => {
       const response = await apiRequest("PUT", `/api/v1/trips/${id}`, updates);
@@ -805,7 +817,19 @@ export default function TripDetail() {
         : {}),
     };
 
+    const newDays = parseInt(tripForm.days);
+    if (trip && trip.itinerary && newDays < trip.itinerary.length) {
+      setTrimConfirm({ updates, newDays, droppedDays: trip.itinerary.length - newDays });
+      return;
+    }
     updateTripMutation.mutate(updates);
+  };
+
+  const confirmTrimAndSave = async () => {
+    if (!trimConfirm) return;
+    await trimItineraryMutation.mutateAsync(trimConfirm.newDays);
+    updateTripMutation.mutate(trimConfirm.updates);
+    setTrimConfirm(null);
   };
 
   const handleDelete = () => {
@@ -1456,25 +1480,14 @@ export default function TripDetail() {
                         {Number(tripForm.days) === 1 ? "day" : "days"}
                       </span>
                     </div>
-                    {/* Live-reported: reducing Trip Duration here doesn't
-                        touch the itinerary at all — this form's own
-                        endpoint (PUT /trips/:id) deliberately never writes
-                        `itinerary` (only the dedicated /itinerary/* routes
-                        do, each with its own concurrency protection), so a
-                        planned Day 8 activity is never silently deleted
-                        just because someone shortened the trip. That's the
-                        right call for real data, but with no explanation
-                        it looks broken — this makes the mismatch visible
-                        and points at the one place it can actually be
-                        fixed, instead of leaving it a silent surprise. */}
                     {Array.isArray(trip.itinerary) &&
                       trip.itinerary.length > 0 &&
                       Number(tripForm.days) < trip.itinerary.length && (
                         <p className="text-xs text-[var(--ink-blue)] mt-1.5">
-                          Your itinerary still has {trip.itinerary.length}{" "}
-                          {trip.itinerary.length === 1 ? "day" : "days"} planned — reducing this
-                          number won't remove them. Trim the extra days from the Itinerary tab if
-                          you want them gone.
+                          Your itinerary has {trip.itinerary.length}{" "}
+                          {trip.itinerary.length === 1 ? "day" : "days"} planned — saving will ask
+                          you to confirm before removing the extra{" "}
+                          {trip.itinerary.length - Number(tripForm.days) === 1 ? "day" : "days"}.
                         </p>
                       )}
                   </div>
@@ -2391,6 +2404,47 @@ export default function TripDetail() {
           </Card>
         )}
       </div>
+
+      <AlertDialog open={!!trimConfirm} onOpenChange={(open) => !open && setTrimConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove {trimConfirm?.droppedDays} {trimConfirm?.droppedDays === 1 ? "day" : "days"}{" "}
+              from the itinerary?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>
+                  Shortening this trip to {trimConfirm?.newDays}{" "}
+                  {trimConfirm?.newDays === 1 ? "day" : "days"} will permanently delete the
+                  following planned days:
+                </p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  {trip.itinerary
+                    ?.filter((d) => (d.dayIndex ?? d.day - 1) >= (trimConfirm?.newDays ?? 0))
+                    .map((d) => (
+                      <li key={d.dayIndex ?? d.day}>
+                        Day {d.day ?? (d.dayIndex ?? 0) + 1} — {d.activities?.length ?? 0}{" "}
+                        {(d.activities?.length ?? 0) === 1 ? "activity" : "activities"}
+                      </li>
+                    ))}
+                </ul>
+                <p className="mt-2">This cannot be undone.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmTrimAndSave}
+              disabled={trimItineraryMutation.isPending || updateTripMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {trimItineraryMutation.isPending ? "Removing..." : "Remove & Save"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>

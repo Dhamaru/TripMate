@@ -16,6 +16,7 @@ import {
   addActivitySchema,
   updateActivitySchema,
   reorderItinerarySchema,
+  trimItinerarySchema,
 } from "../schemas/itinerary.schemas";
 import { addExpenseSchema, updateExpenseSchema } from "../schemas/expense.schemas";
 import { addCollaboratorSchema } from "../schemas/collaborator.schemas";
@@ -78,6 +79,7 @@ router.put(
   itineraryController.reorderItinerary,
 );
 router.post("/:id/itinerary/vote", itineraryController.toggleVote);
+router.put("/:id/itinerary/trim", validate(trimItinerarySchema), itineraryController.trimItinerary);
 
 // Collaborators management
 router.get("/:id/collaborators", collaboratorController.getCollaborators);

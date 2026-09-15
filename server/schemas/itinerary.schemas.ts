@@ -98,3 +98,12 @@ export const reorderItinerarySchema = z.object({
     itinerary: z.array(reorderDaySchema),
   }),
 });
+
+export const trimItinerarySchema = z.object({
+  params: z.object({
+    id: z.string().min(1, "Trip ID is required"),
+  }),
+  body: z.object({
+    days: z.number().int().min(1),
+  }),
+});

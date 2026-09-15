@@ -184,6 +184,48 @@ export const deleteActivity = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+// Edit Trip's day-count field only ever writes trip.days -- deliberately,
+// so a metadata edit can never silently delete real planned activities
+// (see updateTrip). This is the explicit, confirmed-on-the-frontend
+// counterpart: the user has already seen which days/activities will be
+// removed and clicked through a confirmation dialog before this fires.
+export const trimItinerary = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { days } = req.body;
+    const { id: tripId } = req.params;
+    const userId = req.user!._id;
+
+    if (!Number.isInteger(days) || days < 1) {
+      throw new BadRequestError("days must be a positive integer");
+    }
+
+    const trip = await TripModel.findOneAndUpdate(
+      editorAccessFilter(tripId, String(userId)),
+      { $pull: { itinerary: { dayIndex: { $gte: days } } } },
+      { new: true },
+    );
+    if (!trip) throw new NotFoundError("Trip not found or access denied");
+
+    socketService.broadcastMutation(
+      tripId,
+      { type: "itinerary-updated", data: trip.itinerary },
+      String(userId),
+    );
+    await notifyTripParticipants(trip, String(userId), {
+      type: "itinerary-updated",
+      title: "Itinerary updated",
+      message: `Your trip to ${trip.destination} was shortened to ${days} day${days === 1 ? "" : "s"}.`,
+      link: `/app/trips/${tripId}`,
+      tripId,
+      groupKey: `itinerary-updated:${tripId}`,
+    });
+
+    res.json(trip);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Reorder replaces the whole itinerary array — the one mutation in this
 // file that genuinely can't be expressed as a targeted $push/$pull/$set,
 // since the client is sending back a full reordering. It was a bare
