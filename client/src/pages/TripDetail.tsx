@@ -714,7 +714,17 @@ export default function TripDetail() {
   }, []);
 
   useEffect(() => {
-    if (trip) {
+    // Live-reported: reducing Trip Duration/Group Size in Edit Trip and
+    // saving appeared to do nothing. Root cause: this effect re-seeds
+    // tripForm from the store's `trip` object on every change to it, with
+    // no guard for whether the edit form is actually open — a background
+    // refresh while the user is mid-edit (a collaborator's socket
+    // broadcast, an unrelated query invalidation) silently reverted their
+    // in-progress typed values back to whatever the server still had
+    // BEFORE they clicked Save. Save then genuinely worked, just on the
+    // stale values it had just been handed. Only reseed when the edit
+    // form isn't open — real edits should never get clobbered mid-typing.
+    if (trip && !isEditing) {
       setTripForm({
         origin: trip.origin || "",
         destination: trip.destination,
@@ -737,7 +747,7 @@ export default function TripDetail() {
       setAiGroupSize(trip.groupSize?.toString() || "");
       setAiNotes(trip.notes || "");
     }
-  }, [trip]);
+  }, [trip, isEditing]);
 
   const handleSave = () => {
     if (
