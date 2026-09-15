@@ -41,10 +41,12 @@ export class DraftingAgent {
       ✅ EVERY sightseeing/temple/museum/park/market activity must be a DIFFERENT real place across the ENTIRE trip — never reuse the same landmark under a reworded title (e.g. "X Lake" on day 1 and "X Lake View Point" on day 2 is the SAME place and is forbidden). If ${constraints.destination} is small and genuinely doesn't have enough distinct attractions to fill every day, do NOT invent detours to other towns to pad it out — the traveler chose this destination, not a tour of the surrounding region. Instead give the existing real spots more time (a longer, unhurried visit) and fill the rest of the day with a genuine local experience clearly framed as such (a market walk, a boat ride on the same lake, a cooking class, leisure/rest time) rather than a second disguised visit to the same landmark.
 
       TRIP CONSTRAINTS:
+      ${constraints.origin ? `- Starting from: ${constraints.origin}` : ""}
       - Destination: ${constraints.destination}
       - Duration: EXACTLY ${constraints.days} days (generate ALL ${constraints.days} days, no exceptions)
       - Persons: ${constraints.persons}
       - Travel style: ${constraints.travelStyle}
+      ${constraints.travelMedium ? `- Preferred travel medium: ${constraints.travelMedium}` : ""}
       - Budget: ${constraints.budget || "flexible"} ${constraints.currency || "INR"}
       ${
         Array.isArray(constraints.cuisinePreferences) && constraints.cuisinePreferences.length > 0
@@ -66,9 +68,22 @@ export class DraftingAgent {
       4. "type": one of sightseeing | restaurant | cafe | market | museum | temple | park
       5. "duration_minutes" and "cost" as numbers
       6. "time" in "HH:MM AM/PM" format
+      7. "routeFromPrevious": how the traveler actually gets from the PREVIOUS activity to THIS one — real mode (walk/auto-rickshaw/taxi/metro/bus, whichever is realistic in ${constraints.destination}), a real distance_km and travel_time_minutes estimate. Omit only for each day's very first activity, which has no previous stop.
+
+      ${
+        constraints.origin
+          ? `TRAVEL LOGISTICS: also include a top-level "travelLogistics" object: { "toDestination": a short real sentence on how to get from ${constraints.origin} to ${constraints.destination}${constraints.travelMedium ? ` by ${constraints.travelMedium}` : ""} (realistic mode, rough duration/cost), "gettingAround": a short real sentence on how travelers actually get around WITHIN ${constraints.destination} day-to-day (e.g. metro/auto-rickshaws/rental scooters/ride-hailing apps — whichever is realistic there) }.`
+          : `TRAVEL LOGISTICS: also include a top-level "travelLogistics" object: { "gettingAround": a short real sentence on how travelers actually get around WITHIN ${constraints.destination} day-to-day }.`
+      }
+
+      ACCOMMODATION: also include a top-level "accommodationSuggestions" array of 2-3 REAL, named places to stay in ${constraints.destination} that fit the budget and travel style — each { "name": real hotel/guesthouse/homestay name, "area": the real neighborhood/area it's in, "priceRange": rough per-night cost in ${constraints.currency || "INR"}, "note": one line on why it fits (location, style, or value) }. Same rule as everywhere else in this prompt: a real, findable name, not "a nice hotel downtown".
 
       JSON OUTPUT (strict, no extra keys):
       {
+        "travelLogistics": { "toDestination": "...", "gettingAround": "..." },
+        "accommodationSuggestions": [
+          { "name": "The Ferns Vijayawada", "area": "Benz Circle", "priceRange": "3500-4500", "note": "Central, walking distance to restaurants" }
+        ],
         "itinerary": [
           {
             "day": 1,
@@ -96,7 +111,8 @@ export class DraftingAgent {
                 "type": "sightseeing",
                 "entryFee": 0,
                 "cost": 0,
-                "duration_minutes": 60
+                "duration_minutes": 60,
+                "routeFromPrevious": { "mode": "auto-rickshaw", "distance_km": 3.2, "travel_time_minutes": 15, "from": "Kanaka Durga Temple", "to": "Prakasam Barrage" }
               },
               {
                 "time": "01:00 PM",

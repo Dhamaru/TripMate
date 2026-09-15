@@ -114,26 +114,43 @@ function SortableActivity({
 
   const isTravelLeg = activity.type === "travel";
 
+  // Live-reported: every meal/museum/temple/market entry showed a generic
+  // "Activity" badge. Root cause: this map was written for a "food" /
+  // "sightseeing" / "culture" vocabulary that the actual generator
+  // (DraftingAgent.ts's prompt) never produces — it outputs "restaurant",
+  // "cafe", "museum", "temple", "market" (see the type enum in
+  // FormattingAgent.ts's zTripPlan) — none of which existed here, so every
+  // one fell through the `|| "Activity"` fallback below.
   const typeColors: Record<string, string> = {
     travel: "border-[rgb(var(--ink-transit-rgb)/50%)] text-[var(--ink-transit)]",
     food: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining)]",
+    restaurant: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining)]",
+    cafe: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining)]",
     sightseeing: "border-[rgb(var(--ink-sightseeing-rgb)/50%)] text-[var(--ink-sightseeing)]",
     accommodation: "border-[rgb(var(--ink-lodging-rgb)/50%)] text-[var(--ink-lodging)]",
     culture: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture)]",
+    museum: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture)]",
+    temple: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture)]",
     nature: "border-[rgb(var(--ink-nature-rgb)/50%)] text-[var(--ink-nature)]",
     nightlife: "border-[rgb(var(--ink-nightlife-rgb)/50%)] text-[var(--ink-nightlife)]",
     shopping: "border-[rgb(var(--ink-shopping-rgb)/50%)] text-[var(--ink-shopping)]",
+    market: "border-[rgb(var(--ink-shopping-rgb)/50%)] text-[var(--ink-shopping)]",
     activity: "border-[hsl(var(--muted-foreground))]/50 text-[hsl(var(--muted-foreground))]",
   };
   const typeLabel: Record<string, string> = {
     travel: "Travel",
     food: "Food",
+    restaurant: "Food",
+    cafe: "Cafe",
     sightseeing: "Sight",
     accommodation: "Stay",
     culture: "Culture",
+    museum: "Museum",
+    temple: "Temple",
     nature: "Nature",
     nightlife: "Night",
     shopping: "Shop",
+    market: "Market",
     activity: "Activity",
   };
   const typeClass = typeColors[activity.type || "activity"] || typeColors.activity;
@@ -238,6 +255,19 @@ function SortableActivity({
             <span className="text-[10px] font-mono-data text-[var(--emerald-horizon)] shrink-0">
               ~{getCurrencySymbol(currency)}
               {activity.cost || activity.entryFee}
+            </span>
+          )}
+          {/* Live-reported: "local means of commutation" was missing --
+              the server already computes this for every activity
+              (haversine-distance-based walk/taxi estimate, see
+              AiUtilitiesService.ts), it just never reached any UI. */}
+          {activity.routeFromPrevious && (
+            <span
+              className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0"
+              title={`${activity.routeFromPrevious.distance_km} km from the previous stop`}
+            >
+              <i className="fas fa-route text-[9px] mr-0.5" />
+              {activity.routeFromPrevious.mode} · {activity.routeFromPrevious.travel_time_minutes}m
             </span>
           )}
         </div>

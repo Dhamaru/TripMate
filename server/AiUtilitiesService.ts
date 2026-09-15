@@ -1288,6 +1288,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   }
 
   async planTrip(input: {
+    origin?: string;
     destination: string;
     days: number;
     persons: number;
@@ -1341,6 +1342,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     | { error: "invalid_model_output" | "providers_unavailable"; message: string }
   > {
     const {
+      origin: rawOrigin,
       destination: rawDestination,
       days: rawDays,
       persons: rawPersons,
@@ -1354,6 +1356,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       dietaryPreferences,
     } = input;
 
+    const origin = rawOrigin ? sanitize(rawOrigin, 128) : undefined;
     const destination = sanitize(rawDestination, 128);
     const days = Number.isFinite(rawDays) ? Math.max(1, Math.floor(rawDays)) : 1;
     const persons = Number.isFinite(rawPersons) ? Math.max(1, Math.floor(rawPersons)) : 1;
@@ -1364,7 +1367,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const currency = sanitize(rawCurrency || "INR", 3).toUpperCase();
     const typeOfTrip = sanitize(rawTypeOfTrip, 64);
     const travelMedium = sanitize(rawTravelMedium, 64);
-    const key = `planTrip:${destination}:${days}:${persons}:${budget ?? "x"}:${currency}:${typeOfTrip}:${travelMedium}:${existingItinerary ? "opt" : "fresh"}`;
+    const key = `planTrip:${origin ?? "x"}:${destination}:${days}:${persons}:${budget ?? "x"}:${currency}:${typeOfTrip}:${travelMedium}:${existingItinerary ? "opt" : "fresh"}`;
     const cached = this.getCached<any>(key);
     if (cached) return cached;
     if (this.inflight.has(key)) {
@@ -1376,6 +1379,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       if (!this.validateDestination(destination)) {
         console.warn(`[planTrip] Invalid destination: "${destination}", using fallback generator`);
         return await this.generateFallbackTrip({
+          origin,
           destination,
           days,
           persons,
@@ -1404,6 +1408,27 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         persons: z.number(),
         totalEstimatedCost: z.number(),
         currency: z.string(),
+        // Live-reported gaps: no travel/logistics guidance, no
+        // accommodation suggestions in a generated plan — see
+        // DraftingAgent.ts's prompt and the matching fields on
+        // FormattingAgent.ts's zTripPlan (this is a separate, locally
+        // duplicated schema that gates the actual live generation path).
+        travelLogistics: z
+          .object({
+            toDestination: z.string().optional(),
+            gettingAround: z.string().optional(),
+          })
+          .optional(),
+        accommodationSuggestions: z
+          .array(
+            z.object({
+              name: z.string(),
+              area: z.string().optional(),
+              priceRange: z.string().optional(),
+              note: z.string().optional(),
+            }),
+          )
+          .optional(),
         costBreakdown: z.object({
           accommodation: z.number().int().optional().or(z.number()),
           food: z.number().int().optional().or(z.number()),
@@ -1435,13 +1460,24 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
                   cost: z.number().optional(),
                   duration_minutes: z.number(),
                   localFoodRecommendations: z.array(z.string()).default([]),
-                  routeFromPrevious: z.object({
-                    mode: z.string(),
-                    distance_km: z.number(),
-                    travel_time_minutes: z.number(),
-                    from: z.string(),
-                    to: z.string(),
-                  }),
+                  // Genuinely optional, not a gap: a day's first activity has
+                  // no same-day previous stop to route from. The prompt now
+                  // explicitly tells the model to omit it there (see
+                  // DraftingAgent.ts) -- this was previously required,
+                  // which made every real omission a hard validation
+                  // failure straight to the fallback generator. The
+                  // post-processing pass below (calculateHaversineDistance)
+                  // already assumed this could be missing and fills a
+                  // from-hotel default for exactly this case.
+                  routeFromPrevious: z
+                    .object({
+                      mode: z.string(),
+                      distance_km: z.number(),
+                      travel_time_minutes: z.number(),
+                      from: z.string(),
+                      to: z.string(),
+                    })
+                    .optional(),
                 }),
               )
               .min(3),
@@ -1472,10 +1508,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const rawPlan = await orchestrator.executeReasoningLoop({
           goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s). It is CRITICAL that you generate EXACTLY ${days} days of itineraries.`,
           constraints: {
+            origin,
             budget,
             days,
             persons,
             travelStyle: typeOfTrip,
+            travelMedium,
             currency,
             destination,
             existingItinerary,
@@ -1554,6 +1592,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           genError.message,
         );
         const fallback = await this.generateFallbackTrip({
+          origin,
           destination,
           days,
           persons,
@@ -1819,6 +1858,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   }
 
   private async generateFallbackTrip(input: {
+    origin?: string;
     destination: string;
     days: number;
     persons: number;
@@ -1827,12 +1867,28 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     typeOfTrip: string;
     travelMedium: string;
   }): Promise<any> {
-    const { destination, days, persons, budget, currency, typeOfTrip, travelMedium } = input;
+    const { origin, destination, days, persons, budget, currency, typeOfTrip, travelMedium } =
+      input;
     const safeCurrency = currency || "INR";
 
     const realPlaces = await this.searchPlaces(`${destination} tourist places`);
     // Specific search for restaurants to avoid generic results
     const restaurantPlaces = await this.searchPlaces(`best restaurants in ${destination}`);
+    // Live-reported gaps this fallback path (confirmed the one that
+    // actually runs a meaningful share of the time, per the "Ameenpur"
+    // note below) never had: hotel suggestions, and any logistics for
+    // getting to/around the destination. Real Google Places hotel search,
+    // same pattern as the tourist-places/restaurants calls above — no
+    // extra LLM cost.
+    const hotelPlaces = await this.searchPlaces(`hotels in ${destination}`);
+    const accommodationSuggestions = hotelPlaces.slice(0, 3).map((p: any) => ({
+      name: p.name,
+      area: p.formatted_address,
+      priceRange: p.price_level
+        ? `${p.price_level === 1 ? "budget" : p.price_level >= 3 ? "premium" : "mid-range"}`
+        : undefined,
+      note: p.rating ? `Rated ${p.rating}/5 on Google` : undefined,
+    }));
 
     // Helper to estimate cost based on price_level (0-4)
     const estimateCost = (place: any, type: string) => {
@@ -1994,6 +2050,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       totalEstimatedCost: costBreakdown.total,
       currency: safeCurrency,
       costBreakdown,
+      travelLogistics: {
+        toDestination: origin
+          ? `Check ${travelMedium || "flight/train"} options from ${origin} to ${destination} — book ahead for the best fares.`
+          : undefined,
+        gettingAround: `Local taxis, auto-rickshaws, or ride-hailing apps are the easiest way to get around ${destination} day-to-day.`,
+      },
+      ...(accommodationSuggestions.length > 0 ? { accommodationSuggestions } : {}),
       itinerary,
       packingList: ["Clothes", "Toiletries", "Charger", "ID Proof"],
       safetyTips: ["Stay hydrated", "Keep emergency numbers handy"],

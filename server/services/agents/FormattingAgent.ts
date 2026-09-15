@@ -8,6 +8,27 @@ export const zTripPlan = z.object({
   persons: z.number(),
   totalEstimatedCost: z.number().optional(),
   currency: z.string().optional(),
+  // Live-reported gaps: no travel/logistics guidance and no accommodation
+  // suggestions in a generated plan. Both optional -- zTripPlan has no
+  // .strict(), so an unrecognized key from a prompt change gets silently
+  // stripped by .safeParse() rather than erroring; these have to be
+  // declared here to actually survive into what the client receives.
+  travelLogistics: z
+    .object({
+      toDestination: z.string().optional(),
+      gettingAround: z.string().optional(),
+    })
+    .optional(),
+  accommodationSuggestions: z
+    .array(
+      z.object({
+        name: z.string(),
+        area: z.string().optional(),
+        priceRange: z.string().optional(),
+        note: z.string().optional(),
+      }),
+    )
+    .optional(),
   costBreakdown: z
     .object({
       accommodation: z.number().int().optional().or(z.number()),

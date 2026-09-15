@@ -25,6 +25,7 @@ import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSugge
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
 import { ImportPlanPreview } from "@/components/ImportPlanPreview";
+import { getCurrencySymbol } from "@/lib/currency";
 
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 
@@ -1472,6 +1473,61 @@ export default function TripPlanner() {
                       <div>{String(planTripMutation.data.currency || "INR")}</div>
                     </div>
                   </div>
+
+                  {/* Live-reported gaps: no logistics for getting to/around the
+                      destination, no accommodation suggestions. Both are now
+                      generated (DraftingAgent.ts's prompt) -- shown here when
+                      the model actually returned them. */}
+                  {planTripMutation.data.travelLogistics &&
+                    (planTripMutation.data.travelLogistics.toDestination ||
+                      planTripMutation.data.travelLogistics.gettingAround) && (
+                      <div>
+                        <div className="font-bold text-foreground mb-2">
+                          Getting There &amp; Around
+                        </div>
+                        <div className="space-y-1.5 text-sm text-muted-foreground">
+                          {planTripMutation.data.travelLogistics.toDestination && (
+                            <p>{planTripMutation.data.travelLogistics.toDestination}</p>
+                          )}
+                          {planTripMutation.data.travelLogistics.gettingAround && (
+                            <p>{planTripMutation.data.travelLogistics.gettingAround}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {Array.isArray(planTripMutation.data.accommodationSuggestions) &&
+                    planTripMutation.data.accommodationSuggestions.length > 0 && (
+                      <div>
+                        <div className="font-bold text-foreground mb-2">Where to Stay</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {planTripMutation.data.accommodationSuggestions.map(
+                            (stay: any, i: number) => (
+                              <div
+                                key={`stay-${i}`}
+                                className="bg-muted border rounded-lg p-3 text-sm"
+                              >
+                                <div className="font-semibold text-foreground">{stay.name}</div>
+                                {stay.area && (
+                                  <div className="text-xs text-muted-foreground">{stay.area}</div>
+                                )}
+                                {stay.priceRange && (
+                                  <div className="text-xs text-[var(--emerald-horizon)] mt-1">
+                                    ~{getCurrencySymbol(planTripMutation.data.currency)}
+                                    {stay.priceRange}/night
+                                  </div>
+                                )}
+                                {stay.note && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {stay.note}
+                                  </div>
+                                )}
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                   {planTripMutation.data.costBreakdown && (
                     <div>

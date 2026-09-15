@@ -357,6 +357,11 @@ export const generateItinerary = async (req: Request, res: Response, next: NextF
     console.log(`[TripsController] Generating itinerary for ${destination} (${days} days)`);
 
     const plan = await aiService.planTrip({
+      // Live-reported: "travel and logistics not mapped" -- origin was
+      // destructured above and then never forwarded here, so the AI never
+      // knew where the traveler was starting from and had no basis to
+      // suggest how to actually reach the destination.
+      origin,
       destination,
       days: Number(days),
       persons: Number(persons),
