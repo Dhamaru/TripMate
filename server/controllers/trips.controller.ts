@@ -86,12 +86,27 @@ export const createTrip = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+// Performance-audit finding: this had no limit at all -- a user with
+// hundreds of trips got every one of them back on every page load, unlike
+// notifications.controller.ts's own list endpoint which already paginates.
+// Capped rather than switching to full cursor pagination: every client
+// consumer (TripDetail.tsx, TripPlanner.tsx, TripsHistory.tsx) expects a
+// plain array response today, and none has a "load more"/infinite-scroll
+// UI to page through a cursor-shaped response yet -- that's real UI work,
+// not a backend-only fix. This stops genuinely unbounded growth (the actual
+// risk named in the audit) without a breaking response-shape change; worth
+// revisiting with real pagination + UI if any real user's trip count ever
+// approaches this.
+const MAX_TRIPS_RETURNED = 200;
+
 export const getTrips = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id || req.user?.id;
     const trips = await TripModel.find({
       $or: [{ userId }, { "collaborators.userId": userId }],
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .limit(MAX_TRIPS_RETURNED);
     res.json(trips);
   } catch (error) {
     next(error);

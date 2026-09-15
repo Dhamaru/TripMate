@@ -5,6 +5,8 @@ import { NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
 
+const MAX_JOURNAL_ENTRIES_RETURNED = 300;
+
 function fileUrls(req: Request): string[] {
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files || !files.length) return [];
@@ -126,7 +128,13 @@ export const getEntries = async (req: Request, res: Response, next: NextFunction
       query = { userId };
     }
 
-    let entriesQuery = JournalEntryModel.find(query).sort({ createdAt: -1 });
+    // Performance-audit finding: no limit at all -- same unbounded-growth
+    // risk as trips.controller.ts's getTrips, same fix (a safety cap, not
+    // a response-shape-breaking cursor rewrite -- see that file's comment
+    // for the full reasoning).
+    let entriesQuery = JournalEntryModel.find(query)
+      .sort({ createdAt: -1 })
+      .limit(MAX_JOURNAL_ENTRIES_RETURNED);
     if (req.query.light === "true") {
       entriesQuery = entriesQuery.select(
         "title location photos createdAt updatedAt userId tripId isRecap dayIndex",

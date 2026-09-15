@@ -63,6 +63,17 @@ app.disable("x-powered-by");
 // 1. Global Middleware (Attach synchronously)
 app.use(corsMiddleware);
 app.use(helmetMiddleware);
+// Performance-audit finding: this was previously registered inside
+// startServer() (see below), which runs AFTER every route in this file is
+// already mounted — Express dispatches middleware in registration order, so
+// every real API response (trips, itinerary, notifications) was sent
+// uncompressed; only the static file server (also mounted inside
+// startServer()) ever got gzip. Moved to the top of the real middleware
+// chain so it actually wraps API responses too. Still dev-gated — compressing
+// Vite's HMR dev responses caused real issues, per the comment this replaces.
+if (app.get("env") !== "development") {
+  app.use(compression());
+}
 
 // Security audit finding: mongoSanitizeMiddleware/hppMiddleware were mounted
 // BEFORE express.json(), so req.body didn't exist yet when they ran —
@@ -196,11 +207,6 @@ async function startServer() {
   console.log("[Server] Initializing Socket Service...");
   socketService.init(server);
   console.log("[Server] Socket Service initialized.");
-
-  // Only compress in production to avoid Vite HMR issues
-  if (app.get("env") !== "development") {
-    app.use(compression());
-  }
 
   // 5. Frontend Middleware (Catch-all)
   console.log(`[Server] Environment: ${app.get("env")}`);
