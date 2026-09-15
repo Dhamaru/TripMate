@@ -1021,6 +1021,34 @@ export const MigrationModel: Model<IMigration> = mongoose.model<IMigration>(
   migrationSchema,
 );
 
+// Instrumentation for a real, live-reported problem: AiUtilitiesService.ts's
+// primary AI itinerary pipeline (DraftingAgent + FormattingAgent's
+// self-correction step) can silently fall through to a much simpler
+// fallback generator on schema-validation failure, and until now that only
+// ever hit a console.warn -- gone on the next Render restart, with no way
+// to answer "how often does this actually happen in production" before
+// attempting a fix. This is the durable signal that answers that question.
+// Deliberately excludes the OTHER, benign fallback trigger (destination
+// failed basic validation, e.g. gibberish input) -- that's expected
+// behavior, not a pipeline failure, and mixing the two would make the real
+// failure rate unreadable.
+export interface IAiFallbackEvent extends Document {
+  destination: string;
+  reason: string;
+  userId?: string;
+  createdAt: Date;
+}
+const aiFallbackEventSchema = new Schema<IAiFallbackEvent>({
+  destination: { type: String, required: true },
+  reason: { type: String, required: true },
+  userId: { type: String },
+  createdAt: { type: Date, default: Date.now, expires: 60 * 24 * 60 * 60 }, // 60-day TTL
+});
+export const AiFallbackEventModel: Model<IAiFallbackEvent> = mongoose.model<IAiFallbackEvent>(
+  "AiFallbackEvent",
+  aiFallbackEventSchema,
+);
+
 export async function connectMongo(uri: string) {
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(uri, {

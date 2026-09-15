@@ -4,6 +4,7 @@ import { z } from "zod";
 import { MultiAgentOrchestrator } from "./services/MultiAgentOrchestrator";
 import { FeasibilityModeler } from "./services/FeasibilityModeler";
 import { PlanValidator } from "./services/PlanValidator";
+import { AiFallbackEventModel } from "@shared/schema";
 
 type CacheEntry<T> = { data: T; expiresAt: number };
 
@@ -1591,6 +1592,16 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           `[AiUtilities] planTrip failed for ${destination}, using fallback:`,
           genError.message,
         );
+        // Council-recommended first step, before touching the fix itself:
+        // this fallback was previously only ever a console.error (gone on
+        // the next Render restart), so nobody had an honest signal of how
+        // often the primary pipeline actually fails in production. Fire-
+        // and-forget -- a slow/failed write here must never block the
+        // fallback response the user is actually waiting on.
+        AiFallbackEventModel.create({
+          destination,
+          reason: genError.message || "unknown",
+        }).catch((e) => console.error("[AiUtilities] Failed to record fallback event:", e));
         const fallback = await this.generateFallbackTrip({
           origin,
           destination,
