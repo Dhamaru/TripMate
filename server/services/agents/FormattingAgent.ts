@@ -119,21 +119,58 @@ export class FormattingAgent {
   ): Promise<any> {
     console.log(`[FormattingAgent] Structural validation initiated.`);
 
+    // Root-cause fix (found via an LLM Council review of this exact
+    // reliability problem): this object used to be missing `days`,
+    // `persons`, `totalEstimatedCost`, `currency`, `packingList`, and
+    // `notes` entirely (it had a `totalDays` key instead of `days`, plus
+    // `budgetCategory`/`weatherContext` fields that aren't even part of
+    // the real schema). Every one of those is required by the STRICTER
+    // duplicate zTripPlan in AiUtilitiesService.ts that actually gates the
+    // live generation path -- and DraftingAgent.ts's prompt never asks the
+    // model for any of them either. That meant every single request
+    // failed this file's own (looser) validation on the first attempt,
+    // 100% of the time, forcing every generation through the fragile
+    // self-correction LLM call below -- not as a rare recovery path but as
+    // the load-bearing normal path, which is exactly why that step's own
+    // occasional failures showed up as "5/5 fell back to the simpler
+    // generator" rather than as a rare edge case. All of these are
+    // deterministic from constraints/rawDraft -- no LLM call needed to
+    // supply them correctly.
+    const totalEstimatedCost =
+      Number(rawDraft.costBreakdown?.total) || Number(constraints.budget) || 0;
+    const packingList = Array.isArray(rawDraft.packingList)
+      ? rawDraft.packingList
+      : [
+          "Comfortable walking shoes",
+          "Weather-appropriate clothing",
+          "Phone charger",
+          "ID/passport",
+        ];
+    const notes =
+      typeof rawDraft.notes === "string" && rawDraft.notes.trim()
+        ? rawDraft.notes
+        : `Trip plan for ${constraints.destination}, generated for ${constraints.persons} traveler(s) over ${constraints.days} day(s).`;
+
     // First attempt: Structural coercion
     const candidatePayload = {
       destination: constraints.destination || "Unknown",
-      totalDays: constraints.days,
+      days: Number(constraints.days) || 1,
+      persons: Number(constraints.persons) || 1,
+      totalEstimatedCost,
+      currency: constraints.currency || "INR",
+      packingList,
+      notes,
       travelStyle: constraints.travelStyle,
-      budgetCategory: "calculated",
-      weatherContext: {},
-      safetyTips: ["Stay hydrated.", "Keep emergency numbers handy."],
+      safetyTips: Array.isArray(rawDraft.safetyTips)
+        ? rawDraft.safetyTips
+        : ["Stay hydrated.", "Keep emergency numbers handy."],
       costBreakdown: rawDraft.costBreakdown || {
         accommodation: 0,
         food: 0,
         transport: 0,
         activities: 0,
         misc: 0,
-        total: 0,
+        total: totalEstimatedCost,
       },
       itinerary: (Array.isArray(rawDraft.itinerary) ? rawDraft.itinerary : []).map(
         (dayPlan: any, i: number) => ({

@@ -2106,7 +2106,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const timer = setTimeout(() => controller.abort(), 15000);
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
+          // Live-reported (caught while re-verifying the FormattingAgent
+          // fix): gemini-2.0-flash was retired -- confirmed by the exact
+          // API error this threw ("model ... is no longer available ...
+          // use models/gemini-3.6-flash"), silently killing restaurant/
+          // attraction grounding data for every real request. Same model
+          // already used everywhere else in this file.
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
