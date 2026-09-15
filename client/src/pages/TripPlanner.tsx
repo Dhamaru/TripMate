@@ -1395,7 +1395,13 @@ export default function TripPlanner() {
                 </Button>
                 {(!tripForm.budget || !tripForm.groupSize) && (
                   <div className="text-xs text-orange-500 mt-2 text-center">
-                    Please provide Budget and People for better results.
+                    Please provide{" "}
+                    {!tripForm.budget && !tripForm.groupSize
+                      ? "Budget and People"
+                      : !tripForm.budget
+                        ? "Budget"
+                        : "People"}{" "}
+                    for better results.
                   </div>
                 )}
               </form>
