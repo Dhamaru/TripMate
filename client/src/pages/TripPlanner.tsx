@@ -195,7 +195,6 @@ export default function TripPlanner() {
     return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   }
   const [selectedPackingItems, setSelectedPackingItems] = useState<string[]>([]);
-  const hasSaved = useRef(false);
   // Which required field(s) failed on the last submit attempt — the
   // "Missing Information" toast dismisses after a few seconds with no
   // lasting indicator of which field to fix; a real-user QA pass flagged
@@ -811,10 +810,6 @@ export default function TripPlanner() {
         ],
       } as any;
     },
-    onSuccess: (planData) => {
-      // Automatic trip creation will be handled by useEffect to ensure stability
-      console.log("[TripPlanner] Itinerary generated successfully, waiting for save effect...");
-    },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
@@ -850,71 +845,6 @@ export default function TripPlanner() {
     },
   });
 
-  // Stabilize trip creation in an effect
-  useEffect(() => {
-    if (
-      planTripMutation.isSuccess &&
-      planTripMutation.data &&
-      !(planTripMutation.data as any).error &&
-      !hasSaved.current
-    ) {
-      const planData = planTripMutation.data;
-      const styleMap: Record<string, string> = {
-        adventure: "adventure",
-        relaxed: "relaxed",
-        cultural: "cultural",
-        culinary: "culinary",
-      };
-
-      const tripData = {
-        origin: tripForm.origin,
-        destination: tripForm.destination,
-        budget: tripForm.budget
-          ? parseFloat(tripForm.budget)
-          : planData.costBreakdown?.totalINR || planData.costBreakdown?.total || 0,
-        days: parseInt(tripForm.days) || 1,
-        startDate: tripForm.startDate || undefined,
-        endDate: computeEndDate(tripForm.startDate, parseInt(tripForm.days) || 1),
-        groupSize: parseInt(tripForm.groupSize) || 1,
-        travelStyle: styleMap[selectedStyle] || "standard",
-        ...(selectedStyles.length > 0
-          ? { travelStyles: selectedStyles.map((id) => styleMap[id]).filter(Boolean) }
-          : {}),
-        transportMode: tripForm.transportMode || undefined,
-        isInternational: !!tripForm.isInternational,
-        status: "planning" as const,
-        notes: tripForm.notes,
-        // Was only ever forwarded to /generate-itinerary (to steer the AI
-        // draft) and never onto the saved trip itself — TripDetail's
-        // Places-tab restaurant search reads trip.cuisinePreferences, so a
-        // real saved trip never actually got the cuisine-aware search this
-        // was built for.
-        cuisinePreferences: tripForm.cuisinePreferences,
-        dietaryPreferences: tripForm.dietaryPreferences,
-        itinerary: Array.isArray(planData.itinerary)
-          ? planData.itinerary.map((day: any, idx: number) => ({
-              ...day,
-              dayIndex: typeof day.dayIndex === "number" ? day.dayIndex : idx,
-              day: day.day || idx + 1,
-              activities: Array.isArray(day.activities)
-                ? day.activities.map((act: any) => ({
-                    ...act,
-                    title: act.placeName || act.title || "Activity",
-                    address:
-                      act.address ||
-                      (act.type === "restaurant" ? "Nearby Restaurant" : "Near City Center"),
-                  }))
-                : [],
-            }))
-          : [],
-        costBreakdown: planData.costBreakdown,
-      };
-
-      hasSaved.current = true;
-      createTripMutation.mutate(tripData);
-    }
-  }, [planTripMutation.isSuccess, planTripMutation.data, planTripMutation.status]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const missing = new Set<string>();
@@ -934,9 +864,6 @@ export default function TripPlanner() {
       return;
     }
     setSubmitErrors(new Set());
-
-    // New plan generation — allow auto-save again (Regenerate deliberately skips this).
-    hasSaved.current = false;
     planTripMutation.mutate();
   };
 
@@ -1456,7 +1383,7 @@ export default function TripPlanner() {
                   ) : planTripMutation.isPending ? (
                     <>
                       <i className="fas fa-brain fa-spin mr-2"></i>
-                      Designing Your Experience...
+                      Working on it...
                     </>
                   ) : (
                     <>
@@ -1793,7 +1720,6 @@ export default function TripPlanner() {
                       variant="secondary"
                       onClick={() => {
                         if (!planTripMutation.isPending) {
-                          hasSaved.current = false;
                           planTripMutation.mutate();
                         }
                       }}
