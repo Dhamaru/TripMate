@@ -535,7 +535,18 @@ export default function TripDetail() {
   const trimItineraryMutation = useMutation({
     mutationFn: async (days: number) => {
       const response = await apiRequest("PUT", `/api/v1/trips/${id}/itinerary/trim`, { days });
-      return response.json();
+      // apiRequest() doesn't throw on a non-2xx response (same footgun
+      // documented in ItineraryManager.tsx's parseOrThrow) — without this
+      // check, a failed trim (e.g. a stale editor-role collaborator now
+      // demoted to viewer) would still resolve, and confirmTrimAndSave
+      // would go on to save the lower day count as if the itinerary had
+      // actually been trimmed, silently reintroducing the exact
+      // days/itinerary mismatch this feature exists to prevent.
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || `Failed to trim itinerary (${response.status})`);
+      }
+      return data;
     },
   });
 
@@ -827,7 +838,16 @@ export default function TripDetail() {
 
   const confirmTrimAndSave = async () => {
     if (!trimConfirm) return;
-    await trimItineraryMutation.mutateAsync(trimConfirm.newDays);
+    try {
+      await trimItineraryMutation.mutateAsync(trimConfirm.newDays);
+    } catch (error: any) {
+      toast({
+        title: "Couldn't Trim Itinerary",
+        description: error?.message || "The itinerary was not changed. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     updateTripMutation.mutate(trimConfirm.updates);
     setTrimConfirm(null);
   };
@@ -2419,7 +2439,7 @@ export default function TripDetail() {
                   {trimConfirm?.newDays === 1 ? "day" : "days"} will permanently delete the
                   following planned days:
                 </p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
+                <ul className="list-disc list-inside mt-2 space-y-1 max-h-[40vh] overflow-y-auto">
                   {trip.itinerary
                     ?.filter((d) => (d.dayIndex ?? d.day - 1) >= (trimConfirm?.newDays ?? 0))
                     .map((d) => (

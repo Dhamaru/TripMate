@@ -199,6 +199,12 @@ export const trimItinerary = async (req: Request, res: Response, next: NextFunct
       throw new BadRequestError("days must be a positive integer");
     }
 
+    const before = await TripModel.findOne(editorAccessFilter(tripId, String(userId)), {
+      itinerary: 1,
+    });
+    if (!before) throw new NotFoundError("Trip not found or access denied");
+    const droppedCount = (before.itinerary || []).filter((d) => d.dayIndex >= days).length;
+
     const trip = await TripModel.findOneAndUpdate(
       editorAccessFilter(tripId, String(userId)),
       { $pull: { itinerary: { dayIndex: { $gte: days } } } },
@@ -206,19 +212,26 @@ export const trimItinerary = async (req: Request, res: Response, next: NextFunct
     );
     if (!trip) throw new NotFoundError("Trip not found or access denied");
 
-    socketService.broadcastMutation(
-      tripId,
-      { type: "itinerary-updated", data: trip.itinerary },
-      String(userId),
-    );
-    await notifyTripParticipants(trip, String(userId), {
-      type: "itinerary-updated",
-      title: "Itinerary updated",
-      message: `Your trip to ${trip.destination} was shortened to ${days} day${days === 1 ? "" : "s"}.`,
-      link: `/app/trips/${tripId}`,
-      tripId,
-      groupKey: `itinerary-updated:${tripId}`,
-    });
+    // Mirrors deleteActivity's actuallyRemoved guard just above: skip the
+    // broadcast/notification entirely on a no-op trim (a stale client
+    // calling trim with days already >= the real itinerary length, or a
+    // double-submit) so collaborators don't get a false "trip shortened"
+    // notification for a request that changed nothing.
+    if (droppedCount > 0) {
+      socketService.broadcastMutation(
+        tripId,
+        { type: "itinerary-updated", data: trip.itinerary },
+        String(userId),
+      );
+      await notifyTripParticipants(trip, String(userId), {
+        type: "itinerary-updated",
+        title: "Itinerary updated",
+        message: `Your trip to ${trip.destination} was shortened to ${days} day${days === 1 ? "" : "s"}.`,
+        link: `/app/trips/${tripId}`,
+        tripId,
+        groupKey: `itinerary-updated:${tripId}`,
+      });
+    }
 
     res.json(trip);
   } catch (error) {
