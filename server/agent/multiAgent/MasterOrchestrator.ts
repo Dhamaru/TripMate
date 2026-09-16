@@ -256,4 +256,19 @@ export class MasterOrchestrator {
   }
 }
 
-export const masterOrchestrator = new MasterOrchestrator();
+// Lazy, not `export const masterOrchestrator = new MasterOrchestrator()` --
+// this file sits in a real import cycle (BaseAgent -> tools/executor ->
+// MasterOrchestrator -> BaseAgent/agents/*, all of which extend BaseAgent).
+// Eagerly constructing here means the `agents` field's `new SuggestionAgent()`
+// etc. (MasterOrchestrator.ts:22-30) would run during MODULE EVALUATION, at
+// whatever point this file happens to be reached in the cycle -- which can be
+// before BaseAgent.ts has finished defining the `BaseAgent` class it exports,
+// depending purely on which file the app happens to import first. Deferring
+// construction to first actual use (inside executor.ts's function body, long
+// after every module has finished loading) removes that ordering hazard
+// without needing to restructure the cycle itself.
+let _masterOrchestrator: MasterOrchestrator | null = null;
+export function getMasterOrchestrator(): MasterOrchestrator {
+  if (!_masterOrchestrator) _masterOrchestrator = new MasterOrchestrator();
+  return _masterOrchestrator;
+}

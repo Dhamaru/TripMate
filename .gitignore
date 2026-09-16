@@ -34,3 +34,6 @@ android.keystore
 desktop/tripmate-desktop/
 desktop/.updater-secret
 .push-vapid-secret.txt
+
+# graphify knowledge-graph output — local analysis artifact, regenerated on demand
+graphify-out/

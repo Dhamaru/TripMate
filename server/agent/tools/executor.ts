@@ -63,7 +63,7 @@ function summarizeGatedAction(name: string, args: Record<string, unknown>): stri
   return `Confirm this action: ${name}`;
 }
 import OpenAI from "openai";
-import { masterOrchestrator } from "../multiAgent/MasterOrchestrator";
+import { getMasterOrchestrator } from "../multiAgent/MasterOrchestrator";
 import { createPendingAction } from "../pendingActions";
 
 export interface ExecutorDeps {
@@ -349,7 +349,7 @@ export async function dispatchTool(
       case "collaborate_with_agents": {
         const collStart = Date.now();
         try {
-          const orchestratorResult = await masterOrchestrator.run({
+          const orchestratorResult = await getMasterOrchestrator().run({
             trigger: "chat_message",
             userId: context.userId,
             tripId: context.tripId,
