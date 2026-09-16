@@ -592,6 +592,21 @@ export async function runAgentLoop(
   // Extract structured data from JSON code blocks
   const structuredData = extractStructuredData(finalText);
 
+  // systemPrompt.ts explicitly permits ```json blocks in the reply for
+  // packing lists/budgets ("Other structured data ... can use a ```json
+  // block"), meant to travel via the structuredData side-channel above.
+  // But finalText is what's actually shown in the chat bubble (there's no
+  // markdown/JSON renderer on the client, just a plain whitespace-pre-wrap
+  // div) -- without stripping, the raw JSON block is displayed verbatim
+  // AND duplicated into structuredData. Strip it here so the model's own
+  // "Always summarize actions in plain language" prose is what the user
+  // sees, with the JSON reserved for whichever future UI actually renders
+  // structuredData.
+  if (Object.keys(structuredData).length > 0) {
+    const stripped = finalText.replace(/```json\s*[\s\S]*?```/g, "").trim();
+    finalText = stripped || "Done — see the details below.";
+  }
+
   // FORMAL CONFIDENCE CALCULATION
   const toolSuccessRate = totalToolCalls > 0 ? successfulToolCalls / totalToolCalls : 1;
   const consistency = lastIteration === 0 ? 1.0 : lastIteration < 3 ? 0.7 : 0.4;
