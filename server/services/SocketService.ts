@@ -134,7 +134,13 @@ export class SocketService {
         socket.leave(`trip:${tripId}`);
 
         if (userId && this.presence.has(tripId)) {
-          this.presence.get(tripId)!.delete(userId);
+          const members = this.presence.get(tripId)!;
+          members.delete(userId);
+          // Was leaking one empty inner Map per trip ever viewed, forever
+          // -- the outer presence Map only ever grew for the life of the
+          // process, since neither this handler nor disconnect below
+          // removed the trip's entry once its last viewer left.
+          if (members.size === 0) this.presence.delete(tripId);
           this.broadcastPresence(tripId);
         }
       });
@@ -146,6 +152,7 @@ export class SocketService {
           for (const [tripId, members] of this.presence.entries()) {
             if (members.has(socket.userId)) {
               members.delete(socket.userId);
+              if (members.size === 0) this.presence.delete(tripId);
               this.broadcastPresence(tripId);
             }
           }

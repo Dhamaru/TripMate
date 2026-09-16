@@ -324,19 +324,28 @@ export const shareTrip = async (req: Request, res: Response, next: NextFunction)
     const userId = req.user?._id || req.user?.id;
     const { isPublic } = req.body;
 
-    const updateData: any = { isPublic };
-
     if (isPublic) {
-      const trip = await TripModel.findOne({ _id: req.params.id, userId });
-      if (!trip) throw new NotFoundError("Trip not found");
-      if (!trip.shareId) {
-        updateData.shareId = nanoid(10);
-      }
+      // Was read-then-write (findOne to check shareId, then a separate
+      // findOneAndUpdate) -- two concurrent share-toggle requests (a
+      // double-click, a retried request on a slow connection) could both
+      // read "no shareId yet", both generate a DIFFERENT nanoid, and the
+      // second write silently overwrites the first. Whoever got the first
+      // response holds a link that 404s moments later. The
+      // `shareId: { $exists: false }` filter makes this a proper
+      // compare-and-set: only the first concurrent writer's condition
+      // still matches once either one succeeds, so at most one shareId is
+      // ever generated for a trip.
+      await TripModel.findOneAndUpdate(
+        { _id: req.params.id, userId, shareId: { $exists: false } },
+        { $set: { shareId: nanoid(10) } },
+      );
     }
 
-    const trip = await TripModel.findOneAndUpdate({ _id: req.params.id, userId }, updateData, {
-      new: true,
-    });
+    const trip = await TripModel.findOneAndUpdate(
+      { _id: req.params.id, userId },
+      { $set: { isPublic } },
+      { new: true },
+    );
 
     if (!trip) throw new NotFoundError("Trip not found");
 

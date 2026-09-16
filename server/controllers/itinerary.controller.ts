@@ -254,6 +254,20 @@ export const reorderItinerary = async (req: Request, res: Response, next: NextFu
     const userId = req.user!._id;
     const accessFilter = editorAccessFilter(tripId, String(userId));
 
+    // Every OTHER itinerary write in this file matches a day by its
+    // `dayIndex` field, which must equal the day's real array position --
+    // getTrip self-heals this on read, and createTrip stamps it at write
+    // time (trips.controller.ts's ensureDayIndexes). This write replaces
+    // the whole array with the client's new ORDER but was leaving each
+    // day's dayIndex at its pre-reorder value, so a write racing in right
+    // after a reorder (addActivity/deleteActivity/toggleVote sending
+    // dayIndex: 0) would match whichever day USED to be at position 0, not
+    // the day now actually there -- same phantom-day bug class, reached
+    // from the reorder path instead of the read/create paths.
+    itinerary.forEach((day: any, idx: number) => {
+      if (day) day.dayIndex = idx;
+    });
+
     for (let attempt = 0; attempt < 3; attempt++) {
       const current = await TripModel.findOne(accessFilter, { updatedAt: 1 });
       if (!current) throw new NotFoundError("Trip not found or access denied");
