@@ -177,20 +177,3 @@ export const discoverPlacesSchema = z.object({
       .optional(),
   }),
 });
-
-const TravelStyleEnum = z.enum(["Luxury", "Adventure", "Budget", "Relaxed", "Cultural", "Family"]);
-const TravelMediumEnum = z.enum(["Flight", "Train", "RoadTrip"]);
-
-export const generateTripSchema = z.object({
-  body: z.object({
-    destination: z.string().min(1, "Destination is required"),
-    startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required"),
-    totalBudget: z.number().positive("Budget must be positive"),
-    currency: z.string().default("USD"),
-    travelStyle: TravelStyleEnum,
-    travelMedium: TravelMediumEnum,
-    companions: z.number().int().positive("Companions must be at least 1"),
-    interests: z.array(z.string()).optional(),
-  }),
-});
