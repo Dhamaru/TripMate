@@ -2,6 +2,10 @@
 
 These override default behavior. Follow exactly.
 
+## Verification Gate
+
+Before claiming any fix is done: run `npm run typecheck`, `npm run build`, and the full test suite. Report actual pass counts (e.g. '174/174 passing'). For UI changes, capture a Playwright screenshot in both light and dark mode and at mobile width (390px) before committing.
+
 ## 0. Read CONTEXT.md first, every task
 
 Before grepping/exploring the codebase or reading multiple source files to
@@ -60,6 +64,18 @@ This app is meant to be shown to real users and investors, not just pass a green
 Token/session breaks will happen. The user should never have to re-explain state or re-catch a mistake because a fresh session lost the thread. Keep `CONTEXT.md`'s "Known open issues" section current as a live snapshot, not just a chronological log: anything code-complete-but-not-yet-live-verified, anything explicitly deferred, and the concrete next action, so a session with zero prior context can read it and continue correctly — not re-discover, not re-ask, not repeat work. Update it as state changes, not just at the end of a task.
 
 ---
+
+## Debugging Rules
+
+When a UI bug reproduces, do NOT guess at caching or z-index as the root cause. First inspect the computed styles / DOM in the browser and confirm the actual culprit. Never escalate a z-index value without checking that dialogs, modals, and dropdowns still stack correctly afterward.
+
+## Atlas AI Assistant
+
+Atlas must stay scoped to travel/itinerary topics. Any tool-calling or prompt change must be verified against an off-topic question (e.g. 'what's the capital of France?') to confirm it declines gracefully, and against a raw-JSON case to confirm results are rendered, never dumped as JSON.
+
+## Local Dev Environment
+
+Do not use the `concurrently` wrapper to start dev servers — it is flaky in this environment. Start the API and frontend as separate background processes and poll the health endpoint before running any E2E script. Playwright selectors must use `data-testid` attributes, not text or CSS-class selectors.
 
 ## Existing standing rules (carried over from session memory, restated here for durability)
 
