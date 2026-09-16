@@ -24,8 +24,18 @@
   --ink-blue-rgb: 22 63 115;
   --customs-blue: #1d4e89; /* planning status ink */
   --customs-blue-rgb: 29 78 137;
+  --customs-blue-deep: #122a47; /* darkened customs-blue, per DESIGN.md's
+    spec'd value — was referenced by TripStatusBadge.tsx's "upcoming" stamp
+    but never defined, same class of bug as --stamp-red-deep below: the
+    badge's background silently dropped entirely (invalid rgb() var). */
+  --customs-blue-deep-rgb: 18 42 71;
   --transit-green: #2f6f4e; /* active status ink */
   --transit-green-rgb: 47 111 78;
+  --transit-green-deep: #1e4a34; /* darkened transit-green -- not in
+    DESIGN.md, pattern-matched from stamp-red-deep's ~40% darkening; was
+    referenced by TripStatusBadge.tsx's "ongoing" stamp but never defined,
+    same silently-dropped-background bug as customs-blue-deep above. */
+  --transit-green-deep-rgb: 30 74 52;
   --stamp-red: #b3261e; /* alert / completed ink */
   --stamp-red-rgb: 179 38 30;
   --stamp-red-deep: #8b1a13; /* darkened stamp-red — was referenced by
