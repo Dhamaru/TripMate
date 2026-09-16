@@ -58,7 +58,11 @@ router.delete("/packing-lists/:id", packingController.deletePackingList);
 // guest account) could fan out ~100 of these every 15 min under just the
 // general limiter.
 router.post("/packing/generate/:id", generationLimiter, packingController.generatePackingList);
-router.post("/packing-lists/generate/:id", packingController.generatePackingList);
+router.post(
+  "/packing-lists/generate/:id",
+  generationLimiter,
+  packingController.generatePackingList,
+);
 
 // Journal CRUD is registered in journal.routes.ts (mounted earlier at the
 // same /api/v1 prefix, so it wins for these exact paths) — duplicate
