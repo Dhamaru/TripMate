@@ -242,7 +242,7 @@ export function EmergencyServices({
         {/* Big Red SOS Button */}
         <Button
           onClick={handleSOSCall}
-          className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-6 text-xl shadow-lg shadow-red-900/20 active:scale-95 transition-transform"
+          className="w-full bg-[var(--stamp-red)] hover:bg-[var(--stamp-red-deep)] text-white font-bold py-6 text-xl border border-[var(--stamp-red-deep)] active:scale-95 transition-transform"
           data-testid="button-sos"
         >
           <i className="fas fa-phone-volume mr-3 text-2xl animate-pulse"></i>

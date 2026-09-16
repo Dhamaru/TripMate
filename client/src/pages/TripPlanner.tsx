@@ -1373,7 +1373,7 @@ export default function TripPlanner() {
                 <Button
                   type="submit"
                   disabled={createTripMutation.isPending || planTripMutation.isPending}
-                  className="w-full bg-[var(--amber)] text-white py-4 radius-md text-lg font-semibold smooth-transition interactive-tap disabled:opacity-50"
+                  className="w-full bg-[var(--amber)] text-white py-4 rounded-xl text-lg font-semibold smooth-transition stamp-press disabled:opacity-50"
                   data-testid="button-create-trip"
                 >
                   {createTripMutation.isPending ? (

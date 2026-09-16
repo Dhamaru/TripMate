@@ -45,32 +45,42 @@ interface WeatherData {
   // meant to accompany a fallback estimate (e.g. "Weather data unavailable
   // — shown estimate only") never rendered anywhere.
   recommendations?: string[];
-  source?: 'openweather' | 'ai' | 'fallback' | 'fallback-route';
+  source?: "openweather" | "ai" | "fallback" | "fallback-route";
 }
 
-const CACHE_KEY = 'weatherWidgetCacheV1';
-const UNIT_KEY = 'weatherUnit';
+const CACHE_KEY = "weatherWidgetCacheV1";
+const UNIT_KEY = "weatherUnit";
 const TTL_MS = 10 * 60 * 1000;
 
-function toF(c: number) { return Math.round(c * 9 / 5 + 32); }
+function toF(c: number) {
+  return Math.round((c * 9) / 5 + 32);
+}
 
-function getClothingSuggestions(temp: number, condition: string, uvi: number = 0): { icon: string; text: string }[] {
+function getClothingSuggestions(
+  temp: number,
+  condition: string,
+  uvi: number = 0,
+): { icon: string; text: string }[] {
   const suggestions = [];
   const cond = condition.toLowerCase();
 
   // Temperature based
-  if (temp < 10) suggestions.push({ icon: 'fa-mitten', text: 'Wear a warm coat & gloves' });
-  else if (temp < 18) suggestions.push({ icon: 'fa-tshirt', text: 'Light jacket or sweater' });
-  else if (temp > 25) suggestions.push({ icon: 'fa-sun', text: 'Light breathable clothes' });
+  if (temp < 10) suggestions.push({ icon: "fa-mitten", text: "Wear a warm coat & gloves" });
+  else if (temp < 18) suggestions.push({ icon: "fa-tshirt", text: "Light jacket or sweater" });
+  else if (temp > 25) suggestions.push({ icon: "fa-sun", text: "Light breathable clothes" });
 
   // Condition based
-  if (cond.includes('rain') || cond.includes('drizzle')) suggestions.push({ icon: 'fa-umbrella', text: 'Take an umbrella' });
-  if (cond.includes('snow')) suggestions.push({ icon: 'fa-snowflake', text: 'Snow boots recommended' });
-  if (cond.includes('clear') && uvi > 5) suggestions.push({ icon: 'fa-glasses', text: 'Sunglasses & Sunscreen' });
-  if (cond.includes('wind') || cond.includes('storm')) suggestions.push({ icon: 'fa-wind', text: 'Windbreaker recommended' });
+  if (cond.includes("rain") || cond.includes("drizzle"))
+    suggestions.push({ icon: "fa-umbrella", text: "Take an umbrella" });
+  if (cond.includes("snow"))
+    suggestions.push({ icon: "fa-snowflake", text: "Snow boots recommended" });
+  if (cond.includes("clear") && uvi > 5)
+    suggestions.push({ icon: "fa-glasses", text: "Sunglasses & Sunscreen" });
+  if (cond.includes("wind") || cond.includes("storm"))
+    suggestions.push({ icon: "fa-wind", text: "Windbreaker recommended" });
 
   // Fallback
-  if (suggestions.length === 0) suggestions.push({ icon: 'fa-smile', text: 'Enjoy your day!' });
+  if (suggestions.length === 0) suggestions.push({ icon: "fa-smile", text: "Enjoy your day!" });
 
   return suggestions.slice(0, 2); // Return top 2
 }
@@ -78,52 +88,79 @@ function getClothingSuggestions(temp: number, condition: string, uvi: number = 0
 // isDay reflects the actual local time at the queried destination (from the
 // weather API's own day/night signal), not the browser's clock or the app's
 // dark-mode setting — a clear night should never show the bright daytime
-// orange/blue gradient just because the condition text says "Clear".
+// surface just because the condition text says "Clear".
+//
+// Was a raw-Tailwind-palette gradient per condition (bg-gradient-to-br
+// from-orange-500 via-amber-600 to-red-600, etc.) -- DESIGN.md explicitly
+// bans a gradient block standing in for real content on a first-viewport
+// hero element, which this card is. Replaced with a flat ink-role surface:
+// same per-condition/day-night variety, no gradient, every color a named
+// token instead of a Tailwind palette class.
 function getBackgroundGradient(condition: string, temp: number, isDay: boolean = true): string {
   const cond = condition.toLowerCase();
-  if (cond.includes('rain') || cond.includes('drizzle')) return 'bg-gradient-to-br from-blue-900 via-gray-800 to-gray-900';
-  if (cond.includes('cloud')) return isDay ? 'bg-gradient-to-br from-gray-600 via-gray-700 to-slate-800' : 'bg-gradient-to-br from-slate-800 via-gray-900 to-black';
-  if (cond.includes('clear') || cond.includes('sun')) {
-    if (!isDay) return 'bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950';
-    return temp > 25 ? 'bg-gradient-to-br from-orange-500 via-amber-600 to-red-600' : 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-700';
+  if (cond.includes("rain") || cond.includes("drizzle"))
+    return "bg-[var(--ink-lodging)] text-white";
+  if (cond.includes("cloud"))
+    return isDay ? "bg-[var(--ink-lodging)] text-white" : "bg-[var(--ink)] text-white";
+  if (cond.includes("clear") || cond.includes("sun")) {
+    if (!isDay) return "bg-[var(--ink)] text-white";
+    return temp > 25 ? "bg-[var(--ink-culture)] text-white" : "bg-[var(--ink-blue)] text-white";
   }
-  if (cond.includes('snow')) return 'bg-gradient-to-br from-blue-100 via-blue-200 to-white text-slate-800'; // Light theme for snow? Maybe keep dark for consistency but frosty.
-  if (cond.includes('storm') || cond.includes('thunder')) return 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900';
-  return isDay ? 'bg-gradient-to-br from-[#1D4E89] to-blue-700' : 'bg-gradient-to-br from-slate-900 to-indigo-950'; // Default
+  // Every child element in this card hardcodes text-white (title, temp,
+  // condition, etc.) rather than reading from this function's text color --
+  // a light "frosty" surface here would make all of that unreadable. Keep
+  // snow dark like every other condition; --ink-transit differentiates it
+  // from rain/cloud without needing a readability special-case.
+  if (cond.includes("snow")) return "bg-[var(--ink-transit)] text-white";
+  if (cond.includes("storm") || cond.includes("thunder"))
+    return "bg-[var(--ink-nightlife)] text-white";
+  return isDay ? "bg-[var(--ink-blue)] text-white" : "bg-[var(--ink)] text-white"; // Default
 }
 
-export function WeatherWidget({ location, coords = null, className = '' }: WeatherWidgetProps) {
-  const [unit, setUnit] = useState<'C' | 'F'>(() => (typeof localStorage !== 'undefined' && localStorage.getItem(UNIT_KEY) === 'F') ? 'F' : 'C');
-  const { data: weather, isLoading, error, refetch } = useQuery<WeatherData>({
-    queryKey: ['/api/v1/weather', location || '', coords ? `${coords.lat},${coords.lon}` : ''],
+export function WeatherWidget({ location, coords = null, className = "" }: WeatherWidgetProps) {
+  const [unit, setUnit] = useState<"C" | "F">(() =>
+    typeof localStorage !== "undefined" && localStorage.getItem(UNIT_KEY) === "F" ? "F" : "C",
+  );
+  const {
+    data: weather,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<WeatherData>({
+    queryKey: ["/api/v1/weather", location || "", coords ? `${coords.lat},${coords.lon}` : ""],
     enabled: !!location || !!coords,
     queryFn: async ({ queryKey }) => {
       const [, loc, coordStr] = queryKey as [string, string, string];
       const cacheKey = coordStr ? `coords:${coordStr}` : `loc:${String(loc).trim().toLowerCase()}`;
       try {
         const raw = localStorage.getItem(CACHE_KEY);
-        const cache = raw ? JSON.parse(raw) as Record<string, { ts: number; data: WeatherData }> : {};
+        const cache = raw
+          ? (JSON.parse(raw) as Record<string, { ts: number; data: WeatherData }>)
+          : {};
         const entry = cache[cacheKey];
-        if (entry && (Date.now() - entry.ts) < TTL_MS) {
+        if (entry && Date.now() - entry.ts < TTL_MS) {
           return entry.data;
         }
-      } catch { }
+      } catch {}
       try {
-        const lang = typeof navigator !== 'undefined' ? String(navigator.language || 'en').slice(0, 2) : 'en';
-        const units = 'metric';
+        const lang =
+          typeof navigator !== "undefined" ? String(navigator.language || "en").slice(0, 2) : "en";
+        const units = "metric";
         const url = coordStr
-          ? `/api/v1/weather?lat=${encodeURIComponent(coordStr.split(',')[0])}&lon=${encodeURIComponent(coordStr.split(',')[1])}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}`
+          ? `/api/v1/weather?lat=${encodeURIComponent(coordStr.split(",")[0])}&lon=${encodeURIComponent(coordStr.split(",")[1])}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}`
           : `/api/v1/weather?location=${encodeURIComponent(loc)}&units=${encodeURIComponent(units)}&lang=${encodeURIComponent(lang)}`;
 
-        const res = await apiRequest('GET', url);
+        const res = await apiRequest("GET", url);
         const data = await res.json();
 
         try {
           const raw = localStorage.getItem(CACHE_KEY);
-          const cache = raw ? JSON.parse(raw) as Record<string, { ts: number; data: WeatherData }> : {};
+          const cache = raw
+            ? (JSON.parse(raw) as Record<string, { ts: number; data: WeatherData }>)
+            : {};
           cache[cacheKey] = { ts: Date.now(), data };
           localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-        } catch { }
+        } catch {}
         return data;
       } catch (e) {
         // Previously fabricated month-indexed placeholder temperatures here
@@ -172,7 +209,9 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
         <CardContent>
           <p className="text-muted-foreground text-sm">Unable to load weather data</p>
           {error && (
-            <p className="text-xs text-muted-foreground mt-2" data-testid="weather-error-message">{(error as Error).message}</p>
+            <p className="text-xs text-muted-foreground mt-2" data-testid="weather-error-message">
+              {(error as Error).message}
+            </p>
           )}
           <div className="mt-3">
             <button
@@ -189,16 +228,29 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
   }
 
   function toggleUnit() {
-    const next = unit === 'C' ? 'F' : 'C';
+    const next = unit === "C" ? "F" : "C";
     setUnit(next);
-    try { localStorage.setItem(UNIT_KEY, next); } catch { }
+    try {
+      localStorage.setItem(UNIT_KEY, next);
+    } catch {}
   }
 
-  const bgClass = getBackgroundGradient(weather.current.condition, weather.current.temperature, weather.current.isDay !== false);
-  const clothing = getClothingSuggestions(weather.current.temperature, weather.current.condition, weather.current.uv_index);
+  const bgClass = getBackgroundGradient(
+    weather.current.condition,
+    weather.current.temperature,
+    weather.current.isDay !== false,
+  );
+  const clothing = getClothingSuggestions(
+    weather.current.temperature,
+    weather.current.condition,
+    weather.current.uv_index,
+  );
 
   return (
-    <Card className={`border-none shadow-lg overflow-hidden transition-all duration-500 ${bgClass} ${className}`} data-testid="weather-widget">
+    <Card
+      className={`border-none shadow-lg overflow-hidden transition-all duration-500 ${bgClass} ${className}`}
+      data-testid="weather-widget"
+    >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
@@ -206,7 +258,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
             Weather Today
           </CardTitle>
           <div className="flex items-center gap-2">
-            {(weather.source === 'ai' || weather.source === 'fallback') && (
+            {(weather.source === "ai" || weather.source === "fallback") && (
               <span
                 className="px-2 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-100 text-xs"
                 title="No live weather provider configured — this forecast is an estimate from typical seasonal patterns, not real data for this location"
@@ -215,29 +267,51 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
                 Estimated
               </span>
             )}
-            <button onClick={toggleUnit} className="px-3 py-1 rounded-full bg-white/20 border border-white/30 text-white text-xs hover:bg-white/30 backdrop-blur-sm transition-colors" aria-label="Toggle units">°{unit}</button>
+            <button
+              onClick={toggleUnit}
+              className="px-3 py-1 rounded-full bg-white/20 border border-white/30 text-white text-xs hover:bg-white/30 backdrop-blur-sm transition-colors"
+              aria-label="Toggle units"
+            >
+              °{unit}
+            </button>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         {weather.recommendations && weather.recommendations.length > 0 && (
-          <div className="mb-6 bg-black/20 p-3 rounded-lg backdrop-blur-sm" data-testid="weather-summary">
-            <p className="text-sm text-white/90 leading-relaxed max-w-lg">{weather.recommendations.join(' · ')}</p>
+          <div
+            className="mb-6 bg-black/20 p-3 rounded-lg backdrop-blur-sm"
+            data-testid="weather-summary"
+          >
+            <p className="text-sm text-white/90 leading-relaxed max-w-lg">
+              {weather.recommendations.join(" · ")}
+            </p>
           </div>
         )}
 
         {/* Main Stats */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <p className="text-6xl font-bold text-white tracking-tighter" data-testid="weather-temperature" aria-live="polite">
-              {unit === 'C' ? Math.round(weather.current.temperature) : toF(weather.current.temperature)}°
+            <p
+              className="text-6xl font-bold text-white tracking-tighter"
+              data-testid="weather-temperature"
+              aria-live="polite"
+            >
+              {unit === "C"
+                ? Math.round(weather.current.temperature)
+                : toF(weather.current.temperature)}
+              °
             </p>
             <p className="text-lg text-white/90 font-medium mt-1" data-testid="weather-condition">
               {weather.current.condition}
             </p>
             <div className="flex gap-3 text-sm text-white/80 mt-2">
-              <span>H: {unit === 'C' ? weather.forecast[0]?.high : toF(weather.forecast[0]?.high || 0)}°</span>
-              <span>L: {unit === 'C' ? weather.forecast[0]?.low : toF(weather.forecast[0]?.low || 0)}°</span>
+              <span>
+                H: {unit === "C" ? weather.forecast[0]?.high : toF(weather.forecast[0]?.high || 0)}°
+              </span>
+              <span>
+                L: {unit === "C" ? weather.forecast[0]?.low : toF(weather.forecast[0]?.low || 0)}°
+              </span>
             </div>
           </div>
           {weather.current.icon && (
@@ -250,7 +324,10 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
         {/* Clothing Guide (New) */}
         <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-3">
           {clothing.map((item, i) => (
-            <div key={i} className="bg-white/10 backdrop-blur-md rounded-lg p-3 flex items-center gap-3 border border-white/10">
+            <div
+              key={i}
+              className="bg-white/10 backdrop-blur-md rounded-lg p-3 flex items-center gap-3 border border-white/10"
+            >
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white">
                 <i className={`fas ${item.icon}`}></i>
               </div>
@@ -267,7 +344,9 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
             {/* windSpeed is m/s from OpenWeather; wind_kph is the already-
                 converted value. Reading windSpeed under a "km/h" label
                 understated real wind speed by ~3.6x. */}
-            <p className="text-sm font-bold text-white">{weather.current.wind_kph ?? weather.current.windSpeed} km/h</p>
+            <p className="text-sm font-bold text-white">
+              {weather.current.wind_kph ?? weather.current.windSpeed} km/h
+            </p>
           </div>
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm">
             <i className="fas fa-tint text-white/60 mb-1"></i>
@@ -277,7 +356,7 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm">
             <i className="fas fa-sun text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">UV Index</p>
-            <p className="text-sm font-bold text-white">{weather.current.uv_index ?? 'N/A'}</p>
+            <p className="text-sm font-bold text-white">{weather.current.uv_index ?? "N/A"}</p>
           </div>
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm hidden sm:block">
             <i className="fas fa-eye text-white/60 mb-1"></i>
@@ -289,41 +368,50 @@ export function WeatherWidget({ location, coords = null, className = '' }: Weath
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm hidden md:block">
             <i className="fas fa-arrow-up text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">Sunrise</p>
-            <p className="text-sm font-bold text-white">{weather.current.sunrise || '--'}</p>
+            <p className="text-sm font-bold text-white">{weather.current.sunrise || "--"}</p>
           </div>
           <div className="bg-black/10 rounded-lg p-2 text-center backdrop-blur-sm hidden md:block">
             <i className="fas fa-arrow-down text-white/60 mb-1"></i>
             <p className="text-xs text-white/60">Sunset</p>
-            <p className="text-sm font-bold text-white">{weather.current.sunset || '--'}</p>
+            <p className="text-sm font-bold text-white">{weather.current.sunset || "--"}</p>
           </div>
         </div>
 
         {/* Forecast */}
         <div className="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
-          <p className="text-xs font-semibold text-white/80 mb-3 uppercase tracking-wider">7-Day Forecast</p>
+          <p className="text-xs font-semibold text-white/80 mb-3 uppercase tracking-wider">
+            7-Day Forecast
+          </p>
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 text-xs text-center">
             {weather.forecast.map((day, index) => (
-              <div key={index} data-testid={`weather-forecast-${index}`} aria-live="polite" className="flex flex-col items-center">
-                <p className="text-white/70 mb-1">{
-                  (() => {
-                    const raw = String((day as any).day || (day as any).date || '');
-                    if (raw) return raw.split(' ')[0].slice(0, 3);
+              <div
+                key={index}
+                data-testid={`weather-forecast-${index}`}
+                aria-live="polite"
+                className="flex flex-col items-center"
+              >
+                <p className="text-white/70 mb-1">
+                  {(() => {
+                    const raw = String((day as any).day || (day as any).date || "");
+                    if (raw) return raw.split(" ")[0].slice(0, 3);
                     // Derive from index: today, tomorrow, then weekday names
-                    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-                    const d = new Date(); d.setDate(d.getDate() + index);
-                    return index === 0 ? 'Now' : days[d.getDay()];
-                  })()
-                }</p>
+                    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                    const d = new Date();
+                    d.setDate(d.getDate() + index);
+                    return index === 0 ? "Now" : days[d.getDay()];
+                  })()}
+                </p>
                 {day.icon && <i className={`${day.icon} text-white text-lg my-1`}></i>}
                 <div className="flex flex-col">
-                  <span className="font-bold text-white">{unit === 'C' ? day.high : toF(day.high)}°</span>
-                  <span className="text-white/50">{unit === 'C' ? day.low : toF(day.low)}°</span>
+                  <span className="font-bold text-white">
+                    {unit === "C" ? day.high : toF(day.high)}°
+                  </span>
+                  <span className="text-white/50">{unit === "C" ? day.low : toF(day.low)}°</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-
       </CardContent>
     </Card>
   );

@@ -337,6 +337,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [total, setTotal] = useState(0);
 
   // Navigation State
+  // Panel is nearly full-width below `sm` (no fixed w-64 there) -- when
+  // fully expanded it covers almost the entire map on a phone, leaving no
+  // way to actually see the route while navigating. Collapsible so the map
+  // stays visible by default; expanding it is a deliberate choice.
+  const [navPanelExpanded, setNavPanelExpanded] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentHeading, setCurrentHeading] = useState<number>(0);
   const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
@@ -1146,127 +1151,140 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             <div className="absolute top-2 left-12 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-xl border border-border space-y-3 sm:w-64">
               <div className="flex items-center justify-between">
                 <h4 className="text-foreground font-serif font-bold text-sm">Live Navigation</h4>
-                <div className="sm:hidden flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   {isNavigating && (
                     <span className="text-[10px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[#3D9467] bg-[#3D9467]/10 text-[#3D9467] rotate-[-2deg] animate-pulse">
                       Live
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setNavPanelExpanded((v) => !v)}
+                    aria-label={
+                      navPanelExpanded ? "Collapse navigation panel" : "Expand navigation panel"
+                    }
+                    className="sm:hidden text-muted-foreground hover:text-foreground p-1 -m-1"
+                  >
+                    <i className={`fas fa-chevron-${navPanelExpanded ? "up" : "down"} text-xs`}></i>
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground text-xs">Tracking</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isNavigating}
-                  aria-label="Live tracking"
-                  className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? "bg-[#3D9467]" : "bg-muted"}`}
-                  onClick={() => setIsNavigating(!isNavigating)}
-                >
-                  <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isNavigating ? "translate-x-6" : "translate-x-0"}`}
-                  />
-                </button>
-              </div>
+              <div className={`${navPanelExpanded ? "" : "hidden sm:block"} space-y-3`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs">Tracking</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isNavigating}
+                    aria-label="Live tracking"
+                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? "bg-[#3D9467]" : "bg-muted"}`}
+                    onClick={() => setIsNavigating(!isNavigating)}
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isNavigating ? "translate-x-6" : "translate-x-0"}`}
+                    />
+                  </button>
+                </div>
 
-              <div className="border-t border-border pt-3">
-                <h4 className="text-foreground font-serif font-bold text-sm mb-2">Route</h4>
-                <div className="space-y-2 relative">
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Destination (city or place)"
-                    value={navDestInput}
-                    onChange={(e) => {
-                      setNavDestInput(e.target.value);
-                      fetchNavDestSuggestions(e.target.value);
-                    }}
-                    onFocus={() => {
-                      if (navDestSuggestions.length > 0) setShowNavDestSuggestions(true);
-                    }}
-                    onBlur={() => setTimeout(() => setShowNavDestSuggestions(false), 150)}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter" && navDestInput.trim()) {
-                        if (navDestSuggestions.length > 0) {
-                          selectNavDestSuggestion(navDestSuggestions[0]);
-                          return;
-                        }
-                        try {
-                          const r = await fetch(
-                            `/api/v1/geocode?q=${encodeURIComponent(navDestInput.trim())}`,
-                          );
-                          const data = await r.json();
-                          if (Array.isArray(data) && data.length > 0) {
-                            selectNavDestSuggestion(data[0]);
-                          } else {
-                            toast({
-                              title: "Not found",
-                              description: "Try a different name.",
-                              variant: "destructive",
-                            });
+                <div className="border-t border-border pt-3">
+                  <h4 className="text-foreground font-serif font-bold text-sm mb-2">Route</h4>
+                  <div className="space-y-2 relative">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Destination (city or place)"
+                      value={navDestInput}
+                      onChange={(e) => {
+                        setNavDestInput(e.target.value);
+                        fetchNavDestSuggestions(e.target.value);
+                      }}
+                      onFocus={() => {
+                        if (navDestSuggestions.length > 0) setShowNavDestSuggestions(true);
+                      }}
+                      onBlur={() => setTimeout(() => setShowNavDestSuggestions(false), 150)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && navDestInput.trim()) {
+                          if (navDestSuggestions.length > 0) {
+                            selectNavDestSuggestion(navDestSuggestions[0]);
+                            return;
                           }
-                        } catch {
-                          toast({ title: "Search failed", variant: "destructive" });
+                          try {
+                            const r = await fetch(
+                              `/api/v1/geocode?q=${encodeURIComponent(navDestInput.trim())}`,
+                            );
+                            const data = await r.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                              selectNavDestSuggestion(data[0]);
+                            } else {
+                              toast({
+                                title: "Not found",
+                                description: "Try a different name.",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch {
+                            toast({ title: "Search failed", variant: "destructive" });
+                          }
                         }
-                      }
-                    }}
-                    className="w-full bg-muted border border-border rounded px-2 py-1 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-[#163F73]"
-                  />
-                  {showNavDestSuggestions && (navDestLoading || navDestSuggestions.length > 0) && (
-                    <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl max-h-48 overflow-y-auto">
-                      {navDestLoading && (
-                        <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-                          Searching...
+                      }}
+                      className="w-full bg-muted border border-border rounded px-2 py-1 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-[#163F73]"
+                    />
+                    {showNavDestSuggestions &&
+                      (navDestLoading || navDestSuggestions.length > 0) && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl max-h-48 overflow-y-auto">
+                          {navDestLoading && (
+                            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                              Searching...
+                            </div>
+                          )}
+                          {!navDestLoading &&
+                            navDestSuggestions.map((s, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => selectNavDestSuggestion(s)}
+                                className="w-full text-left px-2 py-1.5 text-[11px] text-foreground hover:bg-muted truncate border-b border-border last:border-b-0"
+                              >
+                                {s.display_name}
+                              </button>
+                            ))}
                         </div>
                       )}
-                      {!navDestLoading &&
-                        navDestSuggestions.map((s, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => selectNavDestSuggestion(s)}
-                            className="w-full text-left px-2 py-1.5 text-[11px] text-foreground hover:bg-muted truncate border-b border-border last:border-b-0"
-                          >
-                            {s.display_name}
-                          </button>
-                        ))}
+                    {selectedPlace && (
+                      <p className="text-[10px] text-[#163F73] truncate">→ {selectedPlace.name}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs border-[#163F73] text-[#163F73] hover:bg-[#163F73] hover:text-white"
+                        onClick={handleCalculateRoute}
+                      >
+                        Get Route
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs border-[#B3261E]/50 text-[#B3261E] hover:bg-[#B3261E]/10"
+                        onClick={() => {
+                          if (routePolylineRef.current) {
+                            routePolylineRef.current.remove();
+                            routePolylineRef.current = null;
+                          }
+                          if (markerRef.current) {
+                            markerRef.current.remove();
+                            markerRef.current = null;
+                          }
+                          setRoutePoints([]);
+                          setSelectedPlace(null);
+                          setNavDestInput("");
+                          toast({ title: "Route Cleared" });
+                        }}
+                      >
+                        Clear
+                      </Button>
                     </div>
-                  )}
-                  {selectedPlace && (
-                    <p className="text-[10px] text-[#163F73] truncate">→ {selectedPlace.name}</p>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs border-[#163F73] text-[#163F73] hover:bg-[#163F73] hover:text-white"
-                      onClick={handleCalculateRoute}
-                    >
-                      Get Route
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs border-[#B3261E]/50 text-[#B3261E] hover:bg-[#B3261E]/10"
-                      onClick={() => {
-                        if (routePolylineRef.current) {
-                          routePolylineRef.current.remove();
-                          routePolylineRef.current = null;
-                        }
-                        if (markerRef.current) {
-                          markerRef.current.remove();
-                          markerRef.current = null;
-                        }
-                        setRoutePoints([]);
-                        setSelectedPlace(null);
-                        setNavDestInput("");
-                        toast({ title: "Route Cleared" });
-                      }}
-                    >
-                      Clear
-                    </Button>
                   </div>
                 </div>
               </div>

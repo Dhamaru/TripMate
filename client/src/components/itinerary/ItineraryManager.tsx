@@ -479,8 +479,12 @@ export function ItineraryManager({
   const sensors = useSensors(
     useSensor(MouseSensor),
     useSensor(TouchSensor, {
+      // Was 2000ms -- required holding completely still for 2 full seconds
+      // before a touch drag registered, effectively breaking reorder on
+      // mobile. 250ms is dnd-kit's own recommended default: long enough to
+      // distinguish a drag from a scroll/tap, short enough to feel responsive.
       activationConstraint: {
-        delay: 2000,
+        delay: 250,
         tolerance: 5,
       },
     }),

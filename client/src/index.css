@@ -28,6 +28,10 @@
   --transit-green-rgb: 47 111 78;
   --stamp-red: #b3261e; /* alert / completed ink */
   --stamp-red-rgb: 179 38 30;
+  --stamp-red-deep: #8b1a13; /* darkened stamp-red — was referenced by
+    Layout.tsx's offline banner, TripCard.tsx and TripDetail.tsx but never
+    actually defined, so all three rendered with no background at all */
+  --stamp-red-deep-rgb: 139 26 19;
   --warning-amber: #d97706; /* departure alerts / time-sensitive notes */
   --warning-amber-rgb: 217 119 6;
   --ink-blue-bright: #4f82c4; /* ink-blue, lifted for readable text/links

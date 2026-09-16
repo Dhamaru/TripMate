@@ -644,7 +644,13 @@ export default function Journal() {
                               title={entry.title}
                               height="h-full"
                             >
-                              <div className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                              {/* Always visible below sm -- was opacity-0
+                                  group-hover:opacity-100 with no touch
+                                  equivalent, so these were completely
+                                  unreachable on a phone (no hover state).
+                                  Hover-reveal only kicks in at sm+, where a
+                                  pointer device makes it discoverable. */}
+                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20">
                                 <Button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -652,7 +658,8 @@ export default function Journal() {
                                   }}
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 bg-black/40 text-white hover:bg-black/60 rounded-full p-0 text-xs"
+                                  aria-label="Edit entry"
+                                  className="h-8 w-8 bg-black/40 text-white hover:bg-black/60 rounded-full p-0 text-xs"
                                 >
                                   ✎
                                 </Button>
@@ -663,7 +670,8 @@ export default function Journal() {
                                   }}
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 bg-[rgb(var(--ios-red-rgb)/50%)] text-white hover:bg-[rgb(var(--ios-red-rgb)/70%)] rounded-full p-0 text-xs"
+                                  aria-label="Delete entry"
+                                  className="h-8 w-8 bg-[rgb(var(--stamp-red-rgb)/50%)] text-white hover:bg-[rgb(var(--stamp-red-rgb)/70%)] rounded-full p-0 text-xs"
                                 >
                                   ✕
                                 </Button>
@@ -672,7 +680,7 @@ export default function Journal() {
                           ) : (
                             <div className="h-full bg-[hsl(var(--muted))] flex items-center justify-center relative">
                               <ImageIcon className="w-6 h-6 icon-tint-amber" />
-                              <div className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <Button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -680,7 +688,8 @@ export default function Journal() {
                                   }}
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0 text-muted-foreground hover:bg-[hsl(var(--muted))]/50 text-xs"
+                                  aria-label="Edit entry"
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:bg-[hsl(var(--muted))]/50 text-xs"
                                 >
                                   ✎
                                 </Button>
@@ -691,7 +700,8 @@ export default function Journal() {
                                   }}
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0 text-[var(--ios-red)] hover:bg-[rgb(var(--ios-red-rgb)/10%)] text-xs"
+                                  aria-label="Delete entry"
+                                  className="h-8 w-8 p-0 text-[var(--stamp-red)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] text-xs"
                                 >
                                   ✕
                                 </Button>
