@@ -153,6 +153,17 @@ export class FormattingAgent {
 
     // First attempt: Structural coercion
     const candidatePayload = {
+      // Spread FIRST, not last -- every field below this line is a
+      // deliberate coercion of raw LLM output (name->title fallback,
+      // type-enum normalization, lat/lon field-name variants, etc.), and a
+      // trailing `...rawDraft` would silently overwrite every one of them
+      // with the un-coerced original, since rawDraft already contains
+      // `itinerary`/`costBreakdown`/`safetyTips` under the same key names.
+      // That's exactly what this object did for a long time: the whole
+      // coercion block below existed to tolerate alternate field names the
+      // model sometimes uses, but was completely inert because the raw
+      // (potentially malformed) draft always won the last-write.
+      ...rawDraft,
       destination: constraints.destination || "Unknown",
       days: Number(constraints.days) || 1,
       persons: Number(constraints.persons) || 1,

@@ -228,15 +228,15 @@ export class MasterOrchestrator {
         messages: [
           {
             role: "system",
-            content: `You are a triage agent for a travel system. 
-                        Given a user message, return a JSON array of agent names that should be invoked.
+            content: `You are a triage agent for a travel system.
+                        Given a user message, return the agent names that should be invoked.
                         Available Agents: SuggestionAgent, ItineraryAgent, BudgetAgent, MapAgent, PackingAgent, JournalAgent.
                         Examples:
-                        - "How much did I spend?" -> ["BudgetAgent"]
-                        - "Update my itinerary and check the weather" -> ["ItineraryAgent", "MapAgent"]
-                        - "What should I pack for Paris?" -> ["PackingAgent"]
-                        - "Where can I go next?" -> ["SuggestionAgent"]
-                        Return ONLY a JSON array.`,
+                        - "How much did I spend?" -> {"agents": ["BudgetAgent"]}
+                        - "Update my itinerary and check the weather" -> {"agents": ["ItineraryAgent", "MapAgent"]}
+                        - "What should I pack for Paris?" -> {"agents": ["PackingAgent"]}
+                        - "Where can I go next?" -> {"agents": ["SuggestionAgent"]}
+                        Return ONLY a JSON object with a single "agents" key containing the array. response_format requires a JSON object root, not a bare array.`,
           },
           { role: "user", content: message },
         ],

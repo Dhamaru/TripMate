@@ -28,8 +28,18 @@ export class CriticAgent {
     const results: string[] = [];
 
     // ── Stage 1: Quantitative feasibility via FeasibilityModeler matrix ──
+    // Was always `itinerary: []` -- draft.rawDraft.itinerary (the actual
+    // drafted plan) was never passed in, so every schedule-level check the
+    // modeler performs (fatigue, chronological ordering, logistic
+    // impossibility) silently ran against nothing and always passed. Only
+    // Stage 2's LLM critique ever saw real activities, and Stage 2
+    // degrades to `valid: true` when its own LLM call fails.
     const feasibilityScore = this.modeler.evaluatePlan(
-      { itinerary: [], currency: constraints.currency, costBreakdown: { total: 0 } },
+      {
+        itinerary: draft.rawDraft?.itinerary || [],
+        currency: constraints.currency,
+        costBreakdown: draft.rawDraft?.costBreakdown || { total: 0 },
+      },
       constraints,
     );
 

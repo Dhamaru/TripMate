@@ -1481,7 +1481,16 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
                     .optional(),
                 }),
               )
-              .min(3),
+              // Was .min(3) -- this duplicate of FormattingAgent.ts's
+              // zTripPlan (which uses .min(1)) had diverged, and the
+              // orchestrator's own fatigue-constraint enforcement
+              // (MasterOrchestrator's validation loop) deliberately trims a
+              // day to 2 activities when it exceeds the fatigue threshold --
+              // a legitimately light arrival/departure or fatigue-trimmed
+              // day passed FormattingAgent's gate then failed here,
+              // triggering a full fallback-to-generic-template for a plan
+              // that was actually fine. Matches FormattingAgent's .min(1).
+              .min(1),
             reasoning: z.string().optional(),
             confidenceScore: z.enum(["high", "medium", "low"]).optional(),
           }),
@@ -1612,7 +1621,16 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           typeOfTrip,
           travelMedium,
         });
-        return this.setCached(key, fallback);
+        // Same empty-day guard as the primary path above (line ~1591) --
+        // there's no further fallback beneath the fallback, so an empty day
+        // here still has to be returned to the waiting user, but it must
+        // never be CACHED: a degenerate result cached under this
+        // destination/days/style key would otherwise be served to every
+        // other request for the same params until the TTL expires.
+        const fallbackHasEmptyDay =
+          !fallback.itinerary?.length ||
+          fallback.itinerary.some((day: any) => !day.activities?.length);
+        return fallbackHasEmptyDay ? fallback : this.setCached(key, fallback);
       }
     })();
 
@@ -1801,8 +1819,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   private validateDestination(destination: string): boolean {
     if (!destination || destination.length < 2) return false;
 
-    // Check for basic alphanumeric + common punctuation
-    const validPattern = /^[a-zA-Z\s,.\-']+$/;
+    // Check for basic alphanumeric + common punctuation. Was ASCII-only
+    // (a-zA-Z), which rejected every real destination with a non-Latin
+    // character -- "München", "São Paulo", "Zürich", "Côte d'Ivoire" all
+    // failed this check and silently fell back to the generic template
+    // generator. \p{L}/\p{M} (Unicode letter/mark) covers diacritics and
+    // non-Latin scripts while still rejecting symbols/digits/emoji.
+    const validPattern = /^[\p{L}\p{M}\s,.\-']+$/u;
     if (!validPattern.test(destination)) return false;
 
     // Reject obvious gibberish (repeated characters)
