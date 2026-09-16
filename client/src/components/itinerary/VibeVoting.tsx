@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "../ui/button";
@@ -16,6 +16,17 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
   const [votes, setVotes] = useState(initialVotes);
   const [userVote, setUserVote] = useState<number | null>(null);
   const { toast } = useToast();
+
+  // initialVotes only seeded state on mount -- when a COLLABORATOR votes on
+  // this same activity, the resulting socket broadcast -> fetchTrip ->
+  // updated trip.itinerary prop never reached this component's own state,
+  // since it has no key forcing a remount. The count stayed frozen at
+  // whatever it was when this component first mounted, until a full page
+  // reload. The reconciliation in handleVote below only ever fires after
+  // the CURRENT user's own vote, not a remote one.
+  useEffect(() => {
+    setVotes(initialVotes);
+  }, [initialVotes]);
 
   const handleVote = async (value: number) => {
     // Toggle logic: If clicking the same vote, clear it (0). Otherwise set to new value.

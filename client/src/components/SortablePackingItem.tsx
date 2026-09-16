@@ -43,7 +43,10 @@ export function SortablePackingItem({
         console.error("Failed to start drag:", err);
       }
       setIsPressing(false);
-    }, 2000);
+      // Was 2000ms -- standard long-press-to-drag threshold is 300-500ms;
+      // at 2 full seconds most users scroll past or give up (handlePointerMove's
+      // 10px cancel threshold below fires first) before the drag ever starts.
+    }, 400);
   };
 
   const cancelPress = () => {

@@ -564,6 +564,15 @@ const packingListItemSchema = new Schema<IPackingListItem>({
   packed: { type: Boolean, required: true, default: false },
   category: { type: String },
   is_mandatory: { type: Boolean, default: false },
+  // Set by the AI packing agent (weatherDriven/activityDriven drive the
+  // "Weather"/"Activity" stamp badges in SortablePackingItem.tsx) -- were
+  // declared on IPackingListItem but never actually in this Mongoose
+  // schema, so they rendered correctly in the same session an AI list was
+  // generated (still in memory) and silently vanished on every reload
+  // after Save, since Mongoose strips unrecognized fields on write.
+  weatherDriven: { type: Boolean, default: false },
+  activityDriven: { type: Boolean, default: false },
+  notes: { type: String },
 });
 
 export const packingListSchema = new Schema<IPackingList>(
@@ -627,6 +636,9 @@ export const insertPackingListSchema = z.object({
         packed: z.coerce.boolean().default(false),
         category: z.string().optional(),
         is_mandatory: z.boolean().optional(),
+        weatherDriven: z.boolean().optional(),
+        activityDriven: z.boolean().optional(),
+        notes: z.string().optional(),
       }),
     )
     .default([]),

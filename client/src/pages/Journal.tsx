@@ -624,7 +624,19 @@ export default function Journal() {
               {} as Record<string, JournalEntry[]>,
             ),
           )
-            .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+            // Was re-parsing the locale-formatted group label itself
+            // (`new Date(b[0])`) -- for any locale whose toLocaleDateString
+            // doesn't round-trip through the Date constructor (a
+            // non-Gregorian calendar locale, e.g. Arabic/Persian/Hebrew),
+            // this produces Invalid Date on both sides and the whole sort
+            // collapses to an undefined order. Sort by the real timestamp
+            // of an entry in each group instead of re-deriving one from
+            // display text.
+            .sort(
+              ([, aEntries], [, bEntries]) =>
+                new Date(bEntries[0].createdAt!).getTime() -
+                new Date(aEntries[0].createdAt!).getTime(),
+            )
             .map(([date, entries]) => (
               <div key={date} className="relative pl-6 md:pl-10">
                 <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[var(--amber)] border-4 border-background shadow-sm" />

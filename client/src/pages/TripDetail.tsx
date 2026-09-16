@@ -553,7 +553,17 @@ export default function TripDetail() {
   const updateTripMutation = useMutation({
     mutationFn: async (updates: Partial<Trip>) => {
       const response = await apiRequest("PUT", `/api/v1/trips/${id}`, updates);
-      return response.json();
+      // apiRequest() doesn't throw on a non-2xx response (same footgun as
+      // trimItineraryMutation above) -- without this, confirmTrimAndSave's
+      // catch around this mutation could never actually fire for a real
+      // server error, only for a network-level exception, silently
+      // reintroducing the exact trim/day-count desync its own error
+      // handling was written to catch.
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || `Failed to update trip (${response.status})`);
+      }
+      return data;
     },
     onSuccess: () => {
       fetchTrip(id);
@@ -848,7 +858,27 @@ export default function TripDetail() {
       });
       return;
     }
-    updateTripMutation.mutate(trimConfirm.updates);
+    // The itinerary is already trimmed on the server at this point -- this
+    // was previously a fire-and-forget `.mutate()` with setTrimConfirm(null)
+    // right after, dismissing the dialog before knowing whether the
+    // day-count metadata update actually succeeded. A failure here (network
+    // blip, a concurrent role change) left the trip permanently showing its
+    // old day count against an already-shortened itinerary, with the dialog
+    // gone and no indication anything still needed fixing -- the inverse of
+    // the mismatch this whole feature exists to prevent. There's no further
+    // fallback once the trim has happened, so this can't reopen the (now
+    // stale) confirmation dialog; the honest thing is a distinct error
+    // toast telling the user the itinerary changed but the day count didn't.
+    try {
+      await updateTripMutation.mutateAsync(trimConfirm.updates);
+    } catch (error: any) {
+      toast({
+        title: "Itinerary Trimmed, But Trip Not Fully Updated",
+        description:
+          "The extra days were removed, but saving the new day count failed. Please reopen Edit Trip and save again.",
+        variant: "destructive",
+      });
+    }
     setTrimConfirm(null);
   };
 

@@ -510,6 +510,10 @@ export function ItineraryManager({
           description: `Activity "${moved[validation.errorIndex!].title}" starts before the previous one ends.`,
           variant: "destructive",
         });
+        // Was falling through to persist the invalid order anyway (unlike
+        // handleDragEnd's identical check below, which correctly returns) --
+        // the error toast was cosmetic, the bad reorder saved regardless.
+        return;
       }
       newItinerary[dayIndex] = { ...newItinerary[dayIndex], activities: moved };
       setItinerary(newItinerary);
