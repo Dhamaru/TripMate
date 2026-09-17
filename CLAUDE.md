@@ -69,6 +69,14 @@ Token/session breaks will happen. The user should never have to re-explain state
 
 When a UI bug reproduces, do NOT guess at caching or z-index as the root cause. First inspect the computed styles / DOM in the browser and confirm the actual culprit. Never escalate a z-index value without checking that dialogs, modals, and dropdowns still stack correctly afterward.
 
+**Debugging protocol (any bug, not just UI):** Before changing any code: reproduce the bug, then state the exact file and line responsible and the evidence that proves it (a computed style, DOM inspection, an actual log/response payload — not a plausible-sounding theory). List two alternative explanations and why they were ruled out. Wait for go-ahead before editing, unless already told to fix on sight.
+
+**Bug-list triage:** When handed a list of multiple bugs at once, don't fix anything yet. First give a one-line root-cause hypothesis, an effort estimate, and a READY / NEEDS-DECISION-FROM-USER flag for each item. Wait to be told which READY items to work, in what order, committing each separately.
+
+## Handoff Practice
+
+After each logical milestone (not just at session end): commit the work, then update `HANDOFF.md` at the repo root with (1) what's done and verified, (2) what's in progress and its current state, (3) the exact next command to run, (4) anything blocked and on what decision. Do this proactively, without being asked — it's what makes a session resumable after a hard stop (a usage limit, a closed terminal) mid-task.
+
 ## Atlas AI Assistant
 
 Atlas must stay scoped to travel/itinerary topics. Any tool-calling or prompt change must be verified against an off-topic question (e.g. 'what's the capital of France?') to confirm it declines gracefully, and against a raw-JSON case to confirm results are rendered, never dumped as JSON.
