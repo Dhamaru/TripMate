@@ -309,6 +309,7 @@ function SortableActivity({
                 }}
                 variant="ghost"
                 size="icon"
+                data-testid="button-view-in-places"
                 className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
                 title={
                   type === "accommodation"
@@ -331,6 +332,7 @@ function SortableActivity({
                 }}
                 variant="ghost"
                 size="icon"
+                data-testid="button-view-on-map"
                 className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
                 title="View on map"
               >

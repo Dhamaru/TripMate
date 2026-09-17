@@ -670,6 +670,7 @@ export default function TripDetail() {
           type="button"
           onClick={() => addPlaceToItinerary(place, type)}
           disabled={addActivityMutation.isPending}
+          data-testid="button-add-place-to-itinerary"
           className="text-xs text-[var(--explorer-blue)] hover:underline inline-flex items-center disabled:opacity-50"
         >
           <i className="fas fa-plus mr-1 text-[10px]"></i> Add to Itinerary
@@ -680,6 +681,7 @@ export default function TripDetail() {
             onClick={() =>
               handleViewOnMap(place.location.lat, place.location.lng, place.name || place.title)
             }
+            data-testid="button-view-place-on-map"
             className="text-xs text-[var(--explorer-blue)] hover:underline inline-flex items-center"
           >
             View on Map <i className="fas fa-map-marker-alt ml-1 text-[10px]"></i>
@@ -1718,6 +1720,7 @@ export default function TripDetail() {
           >
             <TabsTrigger
               value="overview"
+              data-testid="tab-overview"
               className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-compass mr-1 sm:mr-1.5" />
@@ -1725,6 +1728,7 @@ export default function TripDetail() {
             </TabsTrigger>
             <TabsTrigger
               value="itinerary"
+              data-testid="tab-itinerary"
               className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-route mr-1 sm:mr-1.5" />
@@ -1732,6 +1736,7 @@ export default function TripDetail() {
             </TabsTrigger>
             <TabsTrigger
               value="map"
+              data-testid="tab-map"
               className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-map-marked-alt mr-1 sm:mr-1.5" />
@@ -1739,6 +1744,7 @@ export default function TripDetail() {
             </TabsTrigger>
             <TabsTrigger
               value="budget"
+              data-testid="tab-budget"
               className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-wallet mr-1 sm:mr-1.5" />
@@ -1746,6 +1752,7 @@ export default function TripDetail() {
             </TabsTrigger>
             <TabsTrigger
               value="places"
+              data-testid="tab-places"
               className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-search-location mr-1 sm:mr-1.5" />
@@ -2085,6 +2092,7 @@ export default function TripDetail() {
                       setPlacesTarget(null);
                     }}
                     variant={showHotels ? "default" : "outline"}
+                    data-testid="button-toggle-hotels"
                     className={` h-12 ${showHotels ? "bg-[var(--customs-blue)] text-white hover:bg-[rgb(var(--customs-blue-rgb)/90%)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
                     <i className="fas fa-bed mr-2"></i>
@@ -2096,6 +2104,7 @@ export default function TripDetail() {
                       setPlacesTarget(null);
                     }}
                     variant={showRestaurants ? "default" : "outline"}
+                    data-testid="button-toggle-restaurants"
                     className={` h-12 ${showRestaurants ? "bg-emerald-500 text-white hover:bg-emerald-500/90" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
                     <i className="fas fa-utensils mr-2"></i>
@@ -2104,6 +2113,7 @@ export default function TripDetail() {
                   <Button
                     onClick={() => setShowSpots(!showSpots)}
                     variant={showSpots ? "default" : "outline"}
+                    data-testid="button-toggle-spots"
                     className={` h-12 ${showSpots ? "bg-[var(--customs-blue)] text-white hover:bg-[var(--amber)]" : "bg-muted/50 border text-muted-foreground hover:text-foreground"}`}
                   >
                     <i className="fas fa-camera mr-2"></i>
@@ -2146,11 +2156,15 @@ export default function TripDetail() {
                                 <i className="fas fa-bed text-[var(--customs-blue)]"></i> Hotels
                               </div>
                               {placesTarget?.category === "hotels" && (
-                                <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+                                <div
+                                  className="text-xs text-muted-foreground mb-2 flex items-center gap-2"
+                                  data-testid="places-target-banner"
+                                >
                                   Showing results for "{placesTarget.name}"
                                   <button
                                     type="button"
                                     onClick={() => setPlacesTarget(null)}
+                                    data-testid="button-show-all-hotels"
                                     className="text-[var(--explorer-blue)] hover:underline"
                                   >
                                     Show all hotels
@@ -2207,7 +2221,7 @@ export default function TripDetail() {
                                       );
                                     })}
                                     {hotelsError ? (
-                                      <div className="text-xs">
+                                      <div className="text-xs" data-testid="error-hotels">
                                         <p className="text-[var(--ios-red)]">
                                           Couldn't load hotels — the search failed, not that there
                                           aren't any.
@@ -2215,6 +2229,7 @@ export default function TripDetail() {
                                         <button
                                           type="button"
                                           onClick={() => refetchHotels()}
+                                          data-testid="button-retry-hotels"
                                           className="text-[var(--explorer-blue)] hover:underline mt-1"
                                         >
                                           Try again
@@ -2240,11 +2255,15 @@ export default function TripDetail() {
                                 <i className="fas fa-utensils text-emerald-500"></i> Restaurants
                               </div>
                               {placesTarget?.category === "food" && (
-                                <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+                                <div
+                                  className="text-xs text-muted-foreground mb-2 flex items-center gap-2"
+                                  data-testid="places-target-banner"
+                                >
                                   Showing results for "{placesTarget.name}"
                                   <button
                                     type="button"
                                     onClick={() => setPlacesTarget(null)}
+                                    data-testid="button-show-all-restaurants"
                                     className="text-[var(--explorer-blue)] hover:underline"
                                   >
                                     Show all restaurants
@@ -2301,7 +2320,7 @@ export default function TripDetail() {
                                       );
                                     })}
                                     {foodError ? (
-                                      <div className="text-xs">
+                                      <div className="text-xs" data-testid="error-restaurants">
                                         <p className="text-[var(--ios-red)]">
                                           Couldn't load restaurants — the search failed, not that
                                           there aren't any.
@@ -2309,6 +2328,7 @@ export default function TripDetail() {
                                         <button
                                           type="button"
                                           onClick={() => refetchFood()}
+                                          data-testid="button-retry-restaurants"
                                           className="text-[var(--explorer-blue)] hover:underline mt-1"
                                         >
                                           Try again
@@ -2372,7 +2392,7 @@ export default function TripDetail() {
                                       </div>
                                     ))}
                                     {sightsError ? (
-                                      <div className="text-xs">
+                                      <div className="text-xs" data-testid="error-spots">
                                         <p className="text-[var(--ios-red)]">
                                           Couldn't load spots — the search failed, not that there
                                           aren't any.
@@ -2380,6 +2400,7 @@ export default function TripDetail() {
                                         <button
                                           type="button"
                                           onClick={() => refetchSights()}
+                                          data-testid="button-retry-spots"
                                           className="text-[var(--explorer-blue)] hover:underline mt-1"
                                         >
                                           Try again

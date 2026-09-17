@@ -35,6 +35,25 @@ const QA_PASS = "AtlasAgent#2026!Trip";
 // Manali trip — persistent, never delete.
 const MANALI_TRIP_ID = "6a9903eb74bd832b3e941e4b";
 
+// Wait for the target host to actually respond before any test runs, rather
+// than letting the first navigation fail with a confusing timeout when the
+// server is still cold-starting (Render free-tier) or briefly unreachable.
+async function waitForHealthy(baseUrl: string, timeoutMs = 30000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(baseUrl + "/api/v1/health");
+      if (res.ok) return;
+      lastError = new Error(`health check returned ${res.status}`);
+    } catch (e) {
+      lastError = e;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`Server at ${baseUrl} never became healthy: ${lastError}`);
+}
+
 async function getCSRF(ctx: BrowserContext): Promise<string> {
   const cookies = await ctx.cookies();
   const c = cookies.find((x) => x.name === "XSRF-TOKEN");
@@ -127,6 +146,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
   let sharedCtx: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
+    await waitForHealthy(BASE);
     sharedCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await login(sharedCtx);
   });
@@ -173,7 +193,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       try {
         await page.goto("/app/trips/" + tripId, { waitUntil: "networkidle" });
         await sleep(3000);
-        const itab = page.getByRole("tab").filter({ hasText: /itinerary/i });
+        const itab = page.getByTestId("tab-itinerary");
         if ((await itab.count()) > 0) {
           await itab.click({ force: true });
           await sleep(1000);
@@ -182,18 +202,14 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
         const row = page.getByText("Xyzqfoobar Restaurant");
         await expect(row).toBeVisible({ timeout: 8000 });
         // No View-on-Map button (activity has no coords) — graceful absence
-        const vmBtn = page.locator('button[title="View on Map"]');
+        const vmBtn = page.getByTestId("button-view-on-map");
         expect(await vmBtn.count(), "no View-on-Map for coord-less activity").toBe(0);
         // View-in-Places button SHOULD be present (restaurant type, onViewInPlaces wired)
-        const allBtns = await page.locator("button[title]").all();
-        const vip = [];
-        for (const b of allBtns) {
-          const t = (await b.getAttribute("title")) || "";
-          if (t.includes("View in Places")) vip.push(t);
-        }
-        expect(vip.length, "View-in-Places button present for restaurant").toBeGreaterThanOrEqual(
-          1,
-        );
+        const vip = page.getByTestId("button-view-in-places");
+        expect(
+          await vip.count(),
+          "View-in-Places button present for restaurant",
+        ).toBeGreaterThanOrEqual(1);
       } finally {
         await page.close();
       }
@@ -315,7 +331,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
     try {
       await page.goto("/app/trips/" + MANALI_TRIP_ID, { waitUntil: "networkidle" });
       await sleep(3000);
-      const ptab = page.getByRole("tab").filter({ hasText: /places/i });
+      const ptab = page.getByTestId("tab-places");
       await expect(ptab, "places tab visible").toBeVisible({ timeout: 20000 });
       await ptab.click({ force: true });
       await sleep(1500);
@@ -334,12 +350,12 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
         }
       });
 
-      const hotelsBtn = page.getByRole("button").filter({ hasText: /hotel/i }).first();
+      const hotelsBtn = page.getByTestId("button-toggle-hotels");
       await hotelsBtn.click({ force: true });
       await sleep(4000);
 
       // Error state must mention search failure
-      const errEl = page.locator("text=/Couldn.t load hotel/i").first();
+      const errEl = page.getByTestId("error-hotels");
       await expect(errEl, "error banner shows distinct search-failed message").toBeVisible({
         timeout: 6000,
       });
@@ -349,7 +365,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       );
 
       // Retry button must be present
-      const retryBtn = page.getByRole("button").filter({ hasText: /try again/i });
+      const retryBtn = page.getByTestId("button-retry-hotels");
       await expect(retryBtn, "retry button present").toBeVisible();
 
       // Unblock and click retry — error must clear
@@ -368,7 +384,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
     try {
       await page.goto("/app/trips/" + MANALI_TRIP_ID, { waitUntil: "networkidle" });
       await sleep(3000);
-      const ptab = page.getByRole("tab").filter({ hasText: /places/i });
+      const ptab = page.getByTestId("tab-places");
       await expect(ptab, "places tab visible").toBeVisible({ timeout: 20000 });
       await ptab.click({ force: true });
       await sleep(1500);
@@ -387,21 +403,18 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       });
 
       // Open both categories
-      const hotelsBtn = page.getByRole("button").filter({ hasText: /hotel/i }).first();
+      const hotelsBtn = page.getByTestId("button-toggle-hotels");
       await hotelsBtn.click({ force: true });
-      const spotsBtn = page
-        .getByRole("button")
-        .filter({ hasText: /Tourist Spots/i })
-        .first();
+      const spotsBtn = page.getByTestId("button-toggle-spots");
       if ((await spotsBtn.count()) > 0) await spotsBtn.click({ force: true });
       await sleep(5000);
 
       // Hotels should be in error state
-      const hotelErr = page.locator("text=/Couldn.t load hotel/i");
+      const hotelErr = page.getByTestId("error-hotels");
       await expect(hotelErr, "hotels show error").toBeVisible({ timeout: 5000 });
 
       // Tourist spots should NOT be in error state (different search, not blocked)
-      const spotsErr = page.locator("text=/Couldn.t load spot/i");
+      const spotsErr = page.getByTestId("error-spots");
       expect(await spotsErr.count(), "tourist spots NOT in error state").toBe(0);
 
       await page.unroute("**/api/v1/places/search**");
@@ -419,32 +432,29 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
     try {
       await page.goto("/app/trips/" + MANALI_TRIP_ID, { waitUntil: "networkidle" });
       // Wait for itinerary content to load
-      await page.waitForSelector("button[title]", { timeout: 20000 }).catch(() => {});
+      await page
+        .waitForSelector('[data-testid="button-view-in-places"]', { timeout: 20000 })
+        .catch(() => {});
       await sleep(3000);
 
       // Switch to itinerary tab to ensure it is active
-      const itab = page.getByRole("tab").filter({ hasText: /itinerary/i });
+      const itab = page.getByTestId("tab-itinerary");
       if ((await itab.count()) > 0) {
         await itab.click({ force: true });
         await sleep(1000);
       }
 
       // Collect all View-in-Places buttons
-      const allTitledBtns = await page.locator("button[title]").all();
-      const vipBtns: any[] = [];
-      for (const b of allTitledBtns) {
-        const title = (await b.getAttribute("title")) || "";
-        if (title.includes("View in Places")) vipBtns.push(b);
-      }
-      expect(
-        vipBtns.length,
-        "at least 2 View-in-Places buttons (2 restaurants)",
-      ).toBeGreaterThanOrEqual(2);
+      const vipBtns = page.getByTestId("button-view-in-places");
+      const vipCount = await vipBtns.count();
+      expect(vipCount, "at least 2 View-in-Places buttons (2 restaurants)").toBeGreaterThanOrEqual(
+        2,
+      );
 
       // Click first restaurant
-      await vipBtns[0].click({ force: true });
+      await vipBtns.nth(0).click({ force: true });
       await sleep(2500);
-      const banner1El = page.locator("text=/Showing results for/i").first();
+      const banner1El = page.getByTestId("places-target-banner").first();
       await expect(banner1El, "banner appears after click 1").toBeVisible({ timeout: 5000 });
       const banner1 = await banner1El.textContent();
 
@@ -453,9 +463,9 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
         await itab.click({ force: true });
         await sleep(800);
       }
-      await vipBtns[1].click({ force: true });
+      await vipBtns.nth(1).click({ force: true });
       await sleep(2500);
-      const banner2El = page.locator("text=/Showing results for/i").first();
+      const banner2El = page.getByTestId("places-target-banner").first();
       await expect(banner2El, "banner still present after click 2").toBeVisible({ timeout: 5000 });
       const banner2 = await banner2El.textContent();
 
@@ -464,11 +474,11 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       expect(banner1, "banners differ (updated to new place)").not.toBe(banner2);
 
       // Show-all link clears the targeting
-      const showAllBtn = page.getByRole("button").filter({ hasText: /show all/i });
+      const showAllBtn = page.getByTestId(/^button-show-all-/);
       if ((await showAllBtn.count()) > 0) {
         await showAllBtn.first().click({ force: true });
         await sleep(800);
-        const bannerGone = await page.locator("text=/Showing results for/i").count();
+        const bannerGone = await page.getByTestId("places-target-banner").count();
         expect(bannerGone, "banner cleared by show-all").toBe(0);
       }
     } finally {
@@ -487,18 +497,18 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       await sleep(3000);
 
       // Navigate to Places tab
-      const ptab = page.getByRole("tab").filter({ hasText: /places/i });
+      const ptab = page.getByTestId("tab-places");
       await expect(ptab, "places tab visible").toBeVisible({ timeout: 15000 });
       await ptab.click({ force: true });
       await sleep(2000);
 
       // Open Tourist Spots to get search results with View-on-Map links
-      const spotsBtn = page.getByRole("button").filter({ hasText: /Tourist Spots/i });
+      const spotsBtn = page.getByTestId("button-toggle-spots");
       await expect(spotsBtn, "Tourist Spots button visible").toBeVisible({ timeout: 5000 });
       await spotsBtn.click({ force: true });
       await sleep(5000); // wait for search results to load
 
-      const vmLinks = page.locator("button, a").filter({ hasText: /View on Map/ });
+      const vmLinks = page.getByTestId("button-view-place-on-map");
       const vmCount = await vmLinks.count();
       expect(vmCount, "at least 2 View-on-Map links in Places results").toBeGreaterThanOrEqual(2);
 
@@ -507,10 +517,14 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       await sleep(3000);
 
       // Should have switched to Map tab
-      const activeTab1 = page.locator("[role=tab][data-state=active]");
-      const activeTabText1 = await activeTab1.textContent().catch(() => "");
-      expect(activeTabText1, "Map tab activated after click 1").toMatch(/map/i);
+      const activeTab1 = page.getByTestId("tab-map");
+      const activeTabState1 = await activeTab1.getAttribute("data-state").catch(() => "");
+      expect(activeTabState1, "Map tab activated after click 1").toBe("active");
 
+      // .custom-marker is Leaflet's own generated className on a dynamically
+      // created L.divIcon, not a JSX component prop — there's no React
+      // element to attach a data-testid to, so a class selector is the
+      // correct (and only) way to count map markers here.
       const markersAfter1 = await page.locator(".custom-marker").count();
       expect(markersAfter1, "at least 1 marker visible after click 1").toBeGreaterThanOrEqual(1);
 
@@ -518,7 +532,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       await ptab.click({ force: true });
       await sleep(2000);
 
-      const vmLinks2 = page.locator("button, a").filter({ hasText: /View on Map/ });
+      const vmLinks2 = page.getByTestId("button-view-place-on-map");
       await vmLinks2.nth(1).click({ force: true });
       await sleep(3000);
 
@@ -544,16 +558,16 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       await page.goto("/app/trips/" + MANALI_TRIP_ID, { waitUntil: "networkidle" });
       await sleep(3000);
 
-      const ptab = page.getByRole("tab").filter({ hasText: /places/i });
+      const ptab = page.getByTestId("tab-places");
       await expect(ptab, "places tab visible").toBeVisible({ timeout: 15000 });
       await ptab.click({ force: true });
       await sleep(2000);
 
-      const spotsBtn = page.getByRole("button").filter({ hasText: /Tourist Spots/i });
+      const spotsBtn = page.getByTestId("button-toggle-spots");
       await spotsBtn.click({ force: true });
       await sleep(5000);
 
-      const vmLinks = page.locator("button, a").filter({ hasText: /View on Map/ });
+      const vmLinks = page.getByTestId("button-view-place-on-map");
       expect(await vmLinks.count(), "at least 1 View-on-Map link").toBeGreaterThanOrEqual(1);
       await vmLinks.first().click({ force: true });
       await sleep(3000);
@@ -564,10 +578,10 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       // Now go to the Itinerary tab and click "View on Map" on a real
       // sightseeing/other activity elsewhere on the map (a real marker,
       // not the ad-hoc one) — this is the branch that used to skip cleanup.
-      const itab = page.getByRole("tab").filter({ hasText: /itinerary/i });
+      const itab = page.getByTestId("tab-itinerary");
       await itab.click({ force: true });
       await sleep(1500);
-      const realViewOnMapBtn = page.locator('button[title="View on map"]').first();
+      const realViewOnMapBtn = page.getByTestId("button-view-on-map").first();
       const realBtnCount = await realViewOnMapBtn.count();
       if (realBtnCount === 0) {
         console.log("[Bug6-leak] No itinerary View-on-map button available — skipping this probe");
@@ -602,15 +616,15 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
     try {
       await page.goto("/app/trips/" + tripId, { waitUntil: "networkidle" });
       await sleep(3000);
-      const ptab = page.getByRole("tab").filter({ hasText: /places/i });
+      const ptab = page.getByTestId("tab-places");
       await ptab.click({ force: true });
       await sleep(1500);
-      const spotsBtn = page.getByRole("button").filter({ hasText: /Tourist Spots/i });
+      const spotsBtn = page.getByTestId("button-toggle-spots");
       if ((await spotsBtn.count()) > 0) {
         await spotsBtn.click({ force: true });
         await sleep(4000);
       }
-      const vmLinks = page.locator("button, a").filter({ hasText: /View on Map/ });
+      const vmLinks = page.getByTestId("button-view-place-on-map");
       const vmCount = await vmLinks.count();
       if (vmCount === 0) {
         console.log("[Bug6-cleanup] No View on Map links found — skipping add-cleanup test");
@@ -623,10 +637,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       // Go back to places and add the same result to itinerary
       await ptab.click({ force: true });
       await sleep(1500);
-      const addBtn = page
-        .getByRole("button")
-        .filter({ hasText: /Add to .*(Trip|Itinerary)/i })
-        .first();
+      const addBtn = page.getByTestId("button-add-place-to-itinerary").first();
       if ((await addBtn.count()) === 0) {
         console.log("[Bug6-cleanup] No Add button — skip");
         return;
@@ -634,7 +645,7 @@ test.describe.serial("fixall-batch (f61bcf0 regression)", () => {
       await addBtn.click({ force: true });
       await sleep(3000);
       // Navigate to map tab
-      const mapTab = page.getByRole("tab").filter({ hasText: /map/i });
+      const mapTab = page.getByTestId("tab-map");
       if ((await mapTab.count()) > 0) {
         await mapTab.click({ force: true });
         await sleep(3000);
