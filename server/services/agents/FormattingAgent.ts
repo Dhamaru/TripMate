@@ -8,6 +8,15 @@ export const zTripPlan = z.object({
   persons: z.number(),
   totalEstimatedCost: z.number().optional(),
   currency: z.string().optional(),
+  // Was set on candidatePayload below (`travelStyle: constraints.travelStyle`)
+  // but never declared here -- harmless while formatFinalPayload returned
+  // the raw candidatePayload object (nothing stripped it), but once that
+  // was fixed to return the actual `.parse()` result (a real bug: it used
+  // to let junk keys from the model ride through unstripped), this
+  // legitimate field started getting silently stripped at the exact same
+  // point the junk keys now correctly are. Needs to be declared, not just
+  // assigned, for a non-strict Zod object to keep it.
+  travelStyle: z.string().optional(),
   // Live-reported gaps: no travel/logistics guidance and no accommodation
   // suggestions in a generated plan. Both optional -- zTripPlan has no
   // .strict(), so an unrecognized key from a prompt change gets silently
@@ -227,14 +236,28 @@ export class FormattingAgent {
         confidenceScore: reasoningParams.confidence || 0.9,
         degradedConstraints: reasoningParams.degraded || [],
       },
-      ...rawDraft, // Fallback spread in case the draft already perfectly matches
+      // A second `...rawDraft` used to sit here too -- last-write-wins meant
+      // THIS one, not the one moved to the top of the object, actually
+      // determined every field, silently undoing that fix entirely. It
+      // clobbered costBreakdown specifically with whatever raw (possibly
+      // junk-key-laden) object the model produced -- confirmed live: a real
+      // response had costBreakdown.foodINR/activitiesINR/totalINR
+      // duplicate keys the model invented, which only the RAW draft could
+      // have contained (the coercion above never adds "INR"-suffixed keys).
+      // Removed; the leading spread already covers "draft already matches."
     };
 
     // Attempt native validation
     try {
-      zTripPlan.parse(candidatePayload);
+      // Was `zTripPlan.parse(candidatePayload)` for the side effect only,
+      // then returning the original candidatePayload -- Zod's whole point
+      // of stripping unrecognized keys from a non-strict object never took
+      // effect, since the cleaned return value was discarded. Any junk key
+      // the model invents (e.g. a stray "foodINR" alongside the real
+      // "food") rode straight through instead of being stripped here.
+      const parsedPayload = zTripPlan.parse(candidatePayload);
       console.log(`[FormattingAgent] Payload rigidly matched Zod Schema.`);
-      return candidatePayload;
+      return parsedPayload;
     } catch (e: any) {
       console.warn(
         `[FormattingAgent] Zod mismatch detected. Initiating structural self-correction wrap...`,

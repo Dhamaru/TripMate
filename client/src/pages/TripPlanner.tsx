@@ -1480,6 +1480,33 @@ export default function TripPlanner() {
                     </div>
                   </div>
 
+                  {/* Live-reported: a generated plan could come back well over
+                      the requested budget with nothing telling the user --
+                      the AI pipeline's own budget-retry loop can silently
+                      accept a still-over-budget draft after its last attempt
+                      (MultiAgentOrchestrator.ts's "graceful degradation").
+                      That failure is real and worth surfacing honestly
+                      rather than hiding it behind two numbers the user has
+                      to compare themselves. */}
+                  {tripForm.budget &&
+                    planTripMutation.data.totalEstimatedCost > Number(tripForm.budget) * 1.1 && (
+                      <div className="flex items-start gap-2 rounded-lg border border-[var(--warning-amber)] bg-[rgb(var(--warning-amber-rgb)/10%)] p-3 text-sm text-[var(--warning-amber)]">
+                        <i className="fas fa-triangle-exclamation mt-0.5 shrink-0"></i>
+                        <span>
+                          This plan's estimated total is{" "}
+                          {Math.round(
+                            ((planTripMutation.data.totalEstimatedCost - Number(tripForm.budget)) /
+                              Number(tripForm.budget)) *
+                              100,
+                          )}
+                          % over your{" "}
+                          {formatMoney(Number(tripForm.budget), planTripMutation.data.currency)}{" "}
+                          budget. Consider trimming activities after saving, or regenerating with a
+                          higher budget.
+                        </span>
+                      </div>
+                    )}
+
                   {/* Live-reported gaps: no logistics for getting to/around the
                       destination, no accommodation suggestions. Both are now
                       generated (DraftingAgent.ts's prompt) -- shown here when
@@ -1539,29 +1566,30 @@ export default function TripPlanner() {
                     <div>
                       <div className="font-bold text-foreground mb-2">Cost Breakdown</div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
-                        {[
-                          "grandTransit",
-                          "accommodationINR",
-                          "foodINR",
-                          "transportINR",
-                          "activitiesINR",
-                          "miscINR",
-                          "totalINR",
-                        ].map((k) => (
-                          <div key={k}>
-                            <span className="text-foreground capitalize">
-                              {k === "grandTransit"
-                                ? "Travel to Destination"
-                                : k.replace("INR", "").replace(/([A-Z])/g, " $1")}
-                            </span>
-                            <div>
-                              {formatMoney(
-                                planTripMutation.data.costBreakdown[k],
-                                planTripMutation.data.currency,
-                              )}
+                        {/* Was reading grandTransit/accommodationINR/foodINR/etc --
+                            none of those keys exist on the real costBreakdown
+                            object (schema fields are plain accommodation/food/
+                            transport/activities/misc/total, no "INR" suffix, and
+                            there's no separate travel-to-destination cost field
+                            at all -- that's covered in prose under "Getting
+                            There & Around" above). Every one of those lookups
+                            was silently undefined -> rendered as ₹0, except when
+                            the model happened to also emit a redundant
+                            duplicate key with an "INR" suffix, which is unreliable
+                            model noise, not a real field to depend on. */}
+                        {["accommodation", "food", "transport", "activities", "misc", "total"].map(
+                          (k) => (
+                            <div key={k}>
+                              <span className="text-foreground capitalize">{k}</span>
+                              <div>
+                                {formatMoney(
+                                  planTripMutation.data.costBreakdown[k],
+                                  planTripMutation.data.currency,
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ),
+                        )}
                       </div>
                     </div>
                   )}

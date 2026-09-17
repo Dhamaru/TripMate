@@ -1409,6 +1409,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         persons: z.number(),
         totalEstimatedCost: z.number(),
         currency: z.string(),
+        // Was missing entirely -- FormattingAgent.ts's own copy of this
+        // schema includes travelStyle, but since this OUTER schema (the
+        // one that actually gates what `parsed.data` keeps, Zod strips any
+        // undeclared key) never declared it, travelStyle silently
+        // vanished from every generated plan's API response regardless of
+        // what the user picked or what the orchestrator did internally.
+        travelStyle: z.string().optional(),
         // Live-reported gaps: no travel/logistics guidance, no
         // accommodation suggestions in a generated plan — see
         // DraftingAgent.ts's prompt and the matching fields on
