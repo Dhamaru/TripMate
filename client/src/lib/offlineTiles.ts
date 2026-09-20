@@ -27,15 +27,17 @@ function lonLatToTile(lon: number, lat: number, z: number) {
 // silently working against someone else's shared quota.
 export const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
 
-// Temporary rollback (2026-09-11): the configured MapTiler key renders
-// MapTiler's own "Invalid key" placeholder tile on production (confirmed
-// live, screenshot) — the key itself is bad on MapTiler's side (wrong
-// credential copied, or not activated for the Maps product), not a CSP/
-// network issue, both of which are already fixed. Falling back to OSM
-// until a real key is verified locally. All the MapTiler plumbing below
-// (CSP entries, dark-tile URLs, this flag) is left in place — flip this
-// back to true once VITE_MAPTILER_KEY is confirmed valid.
-const USE_MAPTILER = false;
+// Re-enabled (2026-09-20): live-reported bug showed OSM's own tile
+// server 403-blocking every tile in the Offline Maps grid — tile.openstreetmap.org
+// rate-limits/blocks non-browser and high-volume production traffic by
+// design, which is exactly the failure mode observed. User confirmed
+// VITE_MAPTILER_KEY is set as a build-time env var on Render (a corrected
+// key, replacing the bad one from the 2026-09-11 rollback below this
+// comment). NOT yet live-verified against Render's actual build — if the
+// key is still invalid or the build-time var isn't wired into the deployed
+// bundle, this will show MapTiler's "Invalid key" tile instead of fixing
+// anything, and needs a live check after deploy.
+const USE_MAPTILER = true;
 
 function tileUrl(darkMode: boolean, z: number, x: number, y: number): string {
   if (!USE_MAPTILER) return osmTileUrl(z, x, y);
