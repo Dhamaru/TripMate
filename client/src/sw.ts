@@ -60,10 +60,15 @@ registerRoute(
 
 // Map tiles — cacheName MUST match TILE_CACHE_NAME in
 // client/src/lib/offlineTiles.ts (the explicit "Download for offline"
-// flow writes into this exact cache). Matches both providers since
-// offlineTiles.ts's USE_MAPTILER flag can point at either one.
+// flow writes into this exact cache). CARTO is the current tile provider
+// (see offlineTiles.ts); old OSM/MapTiler hostnames kept here too so
+// tiles cached under the previous providers still serve from cache
+// instead of silently falling through to network.
 registerRoute(
-  ({ url }) => url.hostname === "api.maptiler.com" || url.hostname === "tile.openstreetmap.org",
+  ({ url }) =>
+    url.hostname.endsWith("basemaps.cartocdn.com") ||
+    url.hostname === "api.maptiler.com" ||
+    url.hostname === "tile.openstreetmap.org",
   new CacheFirst({
     cacheName: "map-tiles-cache",
     plugins: [

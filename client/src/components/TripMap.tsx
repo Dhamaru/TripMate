@@ -14,22 +14,15 @@ import { nextAvailableTime } from "@/lib/time";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { distanceToPolylineMeters, haversineMeters } from "@/lib/geo";
 
-// MapTiler provides separate light and dark tile styles, so dark mode uses
-// a real dark tile URL rather than a CSS invert-hue filter — once it's
-// actually serving tiles. Temporary rollback (2026-09-11, see
-// offlineTiles.ts's USE_MAPTILER comment): the configured key renders
-// MapTiler's "Invalid key" placeholder on production. Flip this back to
-// true once that's resolved.
-const USE_MAPTILER = false;
-const MT_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
-const MT_LIGHT_URL = `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
-const MT_DARK_URL = `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
-const MT_ATTRIBUTION =
-  '\u0026copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> \u0026copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>';
-const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_ATTRIBUTION = "&copy; OpenStreetMap contributors";
-// Faked dark mode over OSM tiles — standard invert-hue trick.
-const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
+// CARTO's free basemap tiles -- no API key, real light + dark styles (no
+// CSS filter hack needed). Replaces raw OSM (403-blocked in production,
+// tile.openstreetmap.org rate-limits/blocks non-browser traffic by design)
+// and MapTiler (key kept rejecting as invalid even after correction).
+// Matches offlineTiles.ts/OfflineMaps.tsx tileUrl(), kept in sync manually.
+const CARTO_LIGHT_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+const CARTO_DARK_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+const CARTO_ATTRIBUTION =
+  "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap contributors</a> &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>";
 
 interface TripMapProps {
   destination: string;
@@ -318,22 +311,16 @@ export function TripMap({
     }
   };
 
-  // Theme change: OSM only has one (light) tile style, so dark mode is a
-  // CSS filter on the tile pane, not a different tile layer/reload.
-  // Theme change: swap the MapTiler tile layer between light (streets-v2)
-  // and dark (streets-v2-dark) — no CSS filter needed.
+  // Theme change: CARTO has a real dark tile style, swap the tile layer.
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
     if (tileLayerRef.current) tileLayerRef.current.remove();
-    const url = USE_MAPTILER ? (mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL) : OSM_URL;
+    const url = mapTheme === "dark" ? CARTO_DARK_URL : CARTO_LIGHT_URL;
     tileLayerRef.current = L.tileLayer(url, {
-      attribution: USE_MAPTILER ? MT_ATTRIBUTION : OSM_ATTRIBUTION,
+      attribution: CARTO_ATTRIBUTION,
       maxZoom: 19,
     }).addTo(map);
-    const tilePane = map.getPane("tilePane");
-    if (tilePane)
-      tilePane.style.filter = USE_MAPTILER ? "" : mapTheme === "dark" ? DARK_TILE_FILTER : "";
   }, [mapTheme]);
 
   // Initialize or Update Map
@@ -353,14 +340,11 @@ export function TripMap({
 
       const map = L.map(mapContainerRef.current).setView([coords.lat, coords.lon], 12);
 
-      const tileUrl = USE_MAPTILER ? (mapTheme === "dark" ? MT_DARK_URL : MT_LIGHT_URL) : OSM_URL;
+      const tileUrl = mapTheme === "dark" ? CARTO_DARK_URL : CARTO_LIGHT_URL;
       tileLayerRef.current = L.tileLayer(tileUrl, {
-        attribution: USE_MAPTILER ? MT_ATTRIBUTION : OSM_ATTRIBUTION,
+        attribution: CARTO_ATTRIBUTION,
         maxZoom: 19,
       }).addTo(map);
-      const tilePane = map.getPane("tilePane");
-      if (tilePane)
-        tilePane.style.filter = USE_MAPTILER ? "" : mapTheme === "dark" ? DARK_TILE_FILTER : "";
 
       // Restrict map to city bounds (approx +/- 0.1 degree)
       const southWest = L.latLng(coords.lat - 0.1, coords.lon - 0.1);

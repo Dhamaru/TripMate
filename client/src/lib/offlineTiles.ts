@@ -17,39 +17,19 @@ function lonLatToTile(lon: number, lat: number, z: number) {
   return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) };
 }
 
-// MapTiler raster tiles — light (streets-v2) or dark (streets-v2-dark).
-// The key is injected at build time from VITE_MAPTILER_KEY (vite.config.ts's
-// envDir points at the repo root .env, not client/.env, so this actually
-// gets picked up). No hardcoded fallback key — a demo key baked into
-// shipped source is exactly the API-key-leak pattern this codebase has
-// already been burned by (see CONTEXT.md's GOOGLE_API_KEY history); if the
-// real key is missing, every caller here should visibly fail instead of
-// silently working against someone else's shared quota.
-export const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
-
-// Re-enabled (2026-09-20): live-reported bug showed OSM's own tile
-// server 403-blocking every tile in the Offline Maps grid — tile.openstreetmap.org
+// CARTO's free basemap tiles — no API key (two whole live-reported bugs came
+// from MapTiler key handling: an invalid key on 2026-09-11, then still
+// "Invalid key" again on 2026-09-20 after a supposedly-corrected key), and
+// unlike raw tile.openstreetmap.org (also tried, also live-403'd — it
 // rate-limits/blocks non-browser and high-volume production traffic by
-// design, which is exactly the failure mode observed. User confirmed
-// VITE_MAPTILER_KEY is set as a build-time env var on Render (a corrected
-// key, replacing the bad one from the 2026-09-11 rollback below this
-// comment). NOT yet live-verified against Render's actual build — if the
-// key is still invalid or the build-time var isn't wired into the deployed
-// bundle, this will show MapTiler's "Invalid key" tile instead of fixing
-// anything, and needs a live check after deploy.
-const USE_MAPTILER = true;
-
+// design), CARTO explicitly permits this kind of hotlinked production use.
+// Real light AND dark styles, so no CSS invert-filter hack needed either.
+// A single hardcoded subdomain ("a") rather than Leaflet's usual {s}
+// round-robin: this function returns a concrete URL for direct fetch/cache
+// (offline download + Cache Storage), not a Leaflet template string.
 function tileUrl(darkMode: boolean, z: number, x: number, y: number): string {
-  if (!USE_MAPTILER) return osmTileUrl(z, x, y);
-  const style = darkMode ? "streets-v2-dark" : "streets-v2";
-  return `https://api.maptiler.com/maps/${style}/${z}/${x}/${y}.png?key=${MAPTILER_KEY || ""}`;
-}
-
-// OSM only serves one (light) style — dark mode falls back to the CSS
-// invert-hue filter applied to the tile pane at render time (OfflineMaps.tsx/
-// TripMap.tsx), same as before the MapTiler migration.
-export function osmTileUrl(z: number, x: number, y: number): string {
-  return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+  const style = darkMode ? "dark_all" : "light_all";
+  return `https://a.basemaps.cartocdn.com/${style}/${z}/${x}/${y}.png`;
 }
 
 /** Tile x/y range covering a square region centered on (lat, lng) at one zoom. */
