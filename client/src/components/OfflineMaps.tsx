@@ -28,11 +28,12 @@ const REGION_ZOOM_MIN = 12;
 const REGION_ZOOM_MAX = 15;
 const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "auto-expire" copy
 // MapTiler provides real light + dark tile styles — no CSS filter needed,
-// once it's actually serving tiles. Temporary rollback (2026-09-11, see
-// offlineTiles.ts's USE_MAPTILER comment): flip back to true once the
-// configured key is confirmed valid (currently renders MapTiler's own
-// "Invalid key" placeholder).
-const USE_MAPTILER = false;
+// once it's actually serving tiles. Re-enabled 2026-09-20 alongside
+// offlineTiles.ts's own separate USE_MAPTILER flag (this file duplicates
+// it rather than importing it) -- this one was left at false when that
+// one was flipped back on, which is exactly why tiles here kept 403ing
+// against OSM even after the other fix shipped.
+const USE_MAPTILER = true;
 const MT_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
 const MT_LIGHT_URL = `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
 const MT_DARK_URL = `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MT_KEY || ""}`;
