@@ -1700,12 +1700,18 @@ export default function TripPlanner() {
                                 className="cursor-pointer"
                                 data-testid={`checkbox-pack-${i}`}
                               />
+                              {/* Was `line-through` on the UNSELECTED branch --
+                                  backwards from the app's own convention
+                                  (strikethrough = packed/done elsewhere, e.g.
+                                  SortablePackingItem.tsx), and wrong either way:
+                                  this is a "choose what to save" step, not a
+                                  packed-tracker, so nothing here should read as
+                                  "done" or "not needed" based on the checkbox.
+                                  With nothing selected yet (the default state),
+                                  every item looked crossed off before the user
+                                  had touched anything. */}
                               <span
-                                className={
-                                  isSelected
-                                    ? "text-foreground"
-                                    : "text-muted-foreground line-through"
-                                }
+                                className={isSelected ? "text-foreground" : "text-muted-foreground"}
                               >
                                 {itemName}
                               </span>
