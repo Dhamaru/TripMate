@@ -1649,7 +1649,7 @@ export default function TripPlanner() {
 
                   {Array.isArray(planTripMutation.data.packingList) && (
                     <div>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                         <div className="font-bold text-foreground">
                           Packing List - Select Items to Save
                         </div>
@@ -1738,7 +1738,7 @@ export default function TripPlanner() {
                     </div>
                   )}
 
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex flex-wrap gap-3 pt-2">
                     <Button
                       onClick={() => {
                         const styleMap: Record<string, string> = {
