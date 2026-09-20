@@ -37,7 +37,7 @@ Then:
 
 ```powershell
 npm install @tauri-apps/plugin-updater @tauri-apps/plugin-process
-cd src-tauri; cargo add tauri-plugin-updater tauri-plugin-dialog; cd ..
+cd src-tauri; cargo add tauri-plugin-updater tauri-plugin-dialog tauri-plugin-notification; cd ..
 npm run tauri icon ../icon-512.png
 ```
 

@@ -51,6 +51,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Without this, WebView2's Notification.requestPermission() has no
+        // OS-level app registration to grant against -- it resolves to
+        // "denied" regardless of the OS/browser's own notification settings,
+        // since those are scoped to Chrome, not this app. Live-reported:
+        // "Couldn't enable push" toast in the desktop app despite the
+        // user's Chrome site settings showing Notifications: Allow.
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(check_for_update(handle));
