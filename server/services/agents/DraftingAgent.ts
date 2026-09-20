@@ -61,6 +61,12 @@ export class DraftingAgent {
 
       ${anchorsText}
 
+      ${
+        constraints.origin
+          ? `DAY 1 ARRIVAL — LIVE-REPORTED BUG, DO NOT REPEAT: a real traveler starting from ${constraints.origin} cannot be standing at a ${constraints.destination} landmark at 08:00-09:00 AM on Day 1 — that ignores the actual journey time from ${constraints.origin}. Day 1's first activity "time" MUST start only after a realistic arrival: work out the travel duration implied by ${constraints.travelMedium ? `traveling by ${constraints.travelMedium}` : "the realistic travel mode"} from ${constraints.origin} to ${constraints.destination} (the same duration you state in "travelLogistics.toDestination"), and offset Day 1's first activity time accordingly (e.g. a same-morning flight/train arriving midday means Day 1 starts early-to-mid afternoon; a long overnight or full-day journey means Day 1 should be light or near-empty, with real exploring starting Day 2). Day 1 must also have FEWER activities than a normal day (2-3 at most, not the usual 4-5) — the traveler is arriving and settling in, not doing a full day of sightseeing.`
+          : ""
+      }
+
       For every activity you MUST provide:
       1. "title" and "placeName": the REAL NAME of the venue (e.g. "Kanaka Durga Temple", NOT "Temple Visit")
       2. "address": real street/area address
