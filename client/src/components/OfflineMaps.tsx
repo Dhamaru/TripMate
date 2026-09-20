@@ -27,17 +27,18 @@ const REGION_RADIUS_DEG = 0.05; // ~5.5km — matches the padding used in openOf
 const REGION_ZOOM_MIN = 12;
 const REGION_ZOOM_MAX = 15;
 const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "auto-expire" copy
-// CARTO's free basemap tiles — no API key, real light + dark styles (no CSS
-// filter hack needed). Replaces two separate live-reported failures: raw
-// OSM tiles 403-blocked (tile.openstreetmap.org rate-limits/blocks
-// non-browser production traffic by design) and MapTiler's key rejecting
-// as invalid even after a supposedly-corrected key was set. Matches
-// offlineTiles.ts's tileUrl(), kept in sync manually (this duplication is
-// exactly what caused the 2026-09-20 USE_MAPTILER desync bug).
-const CARTO_LIGHT_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
-const CARTO_DARK_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
-const CARTO_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>';
+// OpenTopoMap — no API key, no signup. Third tile provider tried live:
+// raw OSM 403-blocked non-browser production traffic; MapTiler's key kept
+// rejecting as invalid; CARTO's anonymous endpoint turned out to require a
+// signup API key too (returns 200 with a real PNG even unauthenticated,
+// but the PNG itself is watermarked "API KEY REQUIRED" -- invisible from
+// response headers, only caught via an actual screenshot). No separate
+// dark style here, so dark mode falls back to the CSS invert-hue filter
+// on the tile pane, same as the original OSM fallback used.
+const TILE_URL = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>';
+const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
 
 interface MapRegion {
   id: string;
@@ -249,24 +250,31 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         const parsed = JSON.parse(raw) as Array<Partial<MapRegion> & { size?: string }>;
         const now = Date.now();
 
-        // ── OSM / MapTiler → CARTO URL migration ────────────────────────────
-        // Tile URLs saved from older sessions pointed at raw OSM or MapTiler
-        // (both since abandoned — see the CARTO comment above). Rewrite them
-        // to the equivalent CARTO URL (same z/x/y coords) so previously
-        // downloaded regions don't go blank after the provider switch.
+        // ── OSM / MapTiler / CARTO → OpenTopoMap URL migration ──────────────
+        // Tile URLs saved from older sessions pointed at any of three
+        // abandoned providers (see the OpenTopoMap comment above). Rewrite
+        // them to the equivalent OpenTopoMap URL (same z/x/y coords) so
+        // previously downloaded regions don't go blank after the switch.
         const osmRe = /^https:\/\/tile\.openstreetmap\.org\/(\d+)\/(\d+)\/(\d+)\.png$/;
         const maptilerRe =
           /^https:\/\/api\.maptiler\.com\/maps\/streets-v2(-dark)?\/(\d+)\/(\d+)\/(\d+)\.png/;
+        const cartoRe =
+          /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/(?:light|dark)_all\/(\d+)\/(\d+)\/(\d+)\.png$/;
         function migrateUrl(url: string): string {
           const osmM = url.match(osmRe);
           if (osmM) {
             const [, z, x, y] = osmM;
-            return `https://a.basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`;
+            return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
           }
           const mtM = url.match(maptilerRe);
           if (mtM) {
-            const [, isDark, z, x, y] = mtM;
-            return `https://a.basemaps.cartocdn.com/${isDark ? "dark_all" : "light_all"}/${z}/${x}/${y}.png`;
+            const [, , z, x, y] = mtM;
+            return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
+          }
+          const cartoM = url.match(cartoRe);
+          if (cartoM) {
+            const [, z, x, y] = cartoM;
+            return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
           }
           return url;
         }
@@ -506,13 +514,15 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       maxBoundsViscosity: 1.0,
     }).setView([20, 0], 2);
 
-    const layer = L.tileLayer(darkMode ? CARTO_DARK_URL : CARTO_LIGHT_URL, {
-      attribution: CARTO_ATTRIBUTION,
-      maxZoom: 19,
+    const layer = L.tileLayer(TILE_URL, {
+      attribution: TILE_ATTRIBUTION,
+      maxZoom: 17,
       noWrap: true,
     }).addTo(map);
 
     tileLayerRef.current = layer;
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
 
     mapInstanceRef.current = map;
 
@@ -563,16 +573,22 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Toggle dark mode — CARTO has a real dark tile style, swap the tile layer.
+  // Toggle dark mode — OpenTopoMap has no separate dark style, so this is a
+  // CSS filter on the tile pane, not a layer swap. Also fixes a real live
+  // bug: the old layer-swap version ran unconditionally on initial mount too
+  // (every useEffect fires once after first commit, regardless of its
+  // dependency array), and by then the mount effect above had already set
+  // mapInstanceRef/tileLayerRef, so this guard didn't skip it -- it
+  // immediately removed and recreated the tile layer, firing a redundant
+  // second request for every tile already in flight. Confirmed live via
+  // DevTools Network tab: each tile showed a 200 followed by a duplicate
+  // request for the same z/x/y returning 400. A pure CSS filter toggle has
+  // no such duplicate-fetch risk.
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !tileLayerRef.current) return;
-    map.removeLayer(tileLayerRef.current);
-    tileLayerRef.current = L.tileLayer(darkMode ? CARTO_DARK_URL : CARTO_LIGHT_URL, {
-      attribution: CARTO_ATTRIBUTION,
-      maxZoom: 19,
-      noWrap: true,
-    }).addTo(map);
+    if (!map) return;
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
   }, [darkMode]);
 
   // Live Navigation Logic

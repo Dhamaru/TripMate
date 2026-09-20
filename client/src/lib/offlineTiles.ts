@@ -5,7 +5,7 @@
 // visible here too.
 export const TILE_CACHE_NAME = "map-tiles-cache";
 
-// Rough average size of a CARTO PNG raster tile used as fallback when the
+// Rough average size of a raster tile used as fallback when the
 // content-length header is absent.
 const ESTIMATED_TILE_BYTES = 15_000;
 
@@ -17,19 +17,20 @@ function lonLatToTile(lon: number, lat: number, z: number) {
   return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) };
 }
 
-// CARTO's free basemap tiles — no API key (two whole live-reported bugs came
-// from MapTiler key handling: an invalid key on 2026-09-11, then still
-// "Invalid key" again on 2026-09-20 after a supposedly-corrected key), and
-// unlike raw tile.openstreetmap.org (also tried, also live-403'd — it
-// rate-limits/blocks non-browser and high-volume production traffic by
-// design), CARTO explicitly permits this kind of hotlinked production use.
-// Real light AND dark styles, so no CSS invert-filter hack needed either.
-// A single hardcoded subdomain ("a") rather than Leaflet's usual {s}
-// round-robin: this function returns a concrete URL for direct fetch/cache
-// (offline download + Cache Storage), not a Leaflet template string.
-function tileUrl(darkMode: boolean, z: number, x: number, y: number): string {
-  const style = darkMode ? "dark_all" : "light_all";
-  return `https://a.basemaps.cartocdn.com/${style}/${z}/${x}/${y}.png`;
+// OpenTopoMap — no API key, no signup. Third tile provider tried live:
+// raw OSM (tile.openstreetmap.org) 403-blocks non-browser/high-volume
+// production traffic by design; MapTiler's key kept rejecting as invalid
+// even after a supposedly-corrected key was set; CARTO's anonymous
+// basemaps.cartocdn.com endpoint turned out to require a signup API key
+// too — it still returns 200 with a real PNG when unauthenticated, but
+// the PNG itself is watermarked "API KEY REQUIRED" (not visible from
+// response headers alone, which is why that one looked fine until an
+// actual screenshot caught it). OpenTopoMap has no separate dark style,
+// so dark mode uses the CSS invert-filter hack (OfflineMaps.tsx/
+// TripMap.tsx), same as the original OSM fallback. Same darkMode param
+// kept for signature compatibility even though it's now unused.
+function tileUrl(_darkMode: boolean, z: number, x: number, y: number): string {
+  return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
 }
 
 /** Tile x/y range covering a square region centered on (lat, lng) at one zoom. */

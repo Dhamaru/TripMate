@@ -14,15 +14,19 @@ import { nextAvailableTime } from "@/lib/time";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 import { distanceToPolylineMeters, haversineMeters } from "@/lib/geo";
 
-// CARTO's free basemap tiles -- no API key, real light + dark styles (no
-// CSS filter hack needed). Replaces raw OSM (403-blocked in production,
-// tile.openstreetmap.org rate-limits/blocks non-browser traffic by design)
-// and MapTiler (key kept rejecting as invalid even after correction).
-// Matches offlineTiles.ts/OfflineMaps.tsx tileUrl(), kept in sync manually.
-const CARTO_LIGHT_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
-const CARTO_DARK_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
-const CARTO_ATTRIBUTION =
-  "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap contributors</a> &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>";
+// OpenTopoMap -- no API key, no signup. Third tile provider tried live: raw
+// OSM 403-blocked non-browser production traffic; MapTiler's key kept
+// rejecting as invalid; CARTO's anonymous endpoint turned out to require a
+// signup API key too (returns 200 with a real PNG even unauthenticated, but
+// the PNG itself is watermarked "API KEY REQUIRED" -- invisible from
+// response headers, only caught via an actual screenshot). No separate dark
+// style, so dark mode falls back to the CSS invert-hue filter on the tile
+// pane, same as the original OSM fallback used. Matches
+// offlineTiles.ts/OfflineMaps.tsx tileUrl(), kept in sync manually.
+const TILE_URL = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap contributors</a> &copy; <a href='https://opentopomap.org' target='_blank'>OpenTopoMap</a>";
+const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
 
 interface TripMapProps {
   destination: string;
@@ -311,16 +315,13 @@ export function TripMap({
     }
   };
 
-  // Theme change: CARTO has a real dark tile style, swap the tile layer.
+  // Theme change: OpenTopoMap has no separate dark style, so this is a CSS
+  // filter on the tile pane, not a layer swap/reload.
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    if (tileLayerRef.current) tileLayerRef.current.remove();
-    const url = mapTheme === "dark" ? CARTO_DARK_URL : CARTO_LIGHT_URL;
-    tileLayerRef.current = L.tileLayer(url, {
-      attribution: CARTO_ATTRIBUTION,
-      maxZoom: 19,
-    }).addTo(map);
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = mapTheme === "dark" ? DARK_TILE_FILTER : "";
   }, [mapTheme]);
 
   // Initialize or Update Map
@@ -340,11 +341,12 @@ export function TripMap({
 
       const map = L.map(mapContainerRef.current).setView([coords.lat, coords.lon], 12);
 
-      const tileUrl = mapTheme === "dark" ? CARTO_DARK_URL : CARTO_LIGHT_URL;
-      tileLayerRef.current = L.tileLayer(tileUrl, {
-        attribution: CARTO_ATTRIBUTION,
-        maxZoom: 19,
+      tileLayerRef.current = L.tileLayer(TILE_URL, {
+        attribution: TILE_ATTRIBUTION,
+        maxZoom: 17,
       }).addTo(map);
+      const tilePane = map.getPane("tilePane");
+      if (tilePane) tilePane.style.filter = mapTheme === "dark" ? DARK_TILE_FILTER : "";
 
       // Restrict map to city bounds (approx +/- 0.1 degree)
       const southWest = L.latLng(coords.lat - 0.1, coords.lon - 0.1);
