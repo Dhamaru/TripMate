@@ -359,6 +359,22 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [navDestLoading, setNavDestLoading] = useState(false);
   const [showNavDestSuggestions, setShowNavDestSuggestions] = useState(false);
   const navDestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Turn-by-turn state — populated by computeRoute() below. distanceKm/etaMin
+  // are the REMAINING distance/time from wherever the last route fetch
+  // started (current GPS position while live-tracking, not the original
+  // start point), so they read correctly as "time left" rather than
+  // "original trip time" once the user has been moving for a while.
+  const [routeSteps, setRouteSteps] = useState<Array<{ instruction: string; distanceM: number }>>(
+    [],
+  );
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [routeEtaMin, setRouteEtaMin] = useState<number | null>(null);
+  const [routeArrived, setRouteArrived] = useState(false);
+  // Throttles the live-recompute effect below — re-fetching OSRM on every
+  // single GPS tick (can fire multiple times/sec) would hammer the public
+  // OSRM demo server for no real benefit; a human's ETA doesn't need
+  // sub-10-second precision.
+  const lastRouteFetchAtRef = useRef(0);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -680,6 +696,24 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     }
   }, [isNavigating]);
 
+  // Live turn-by-turn: recompute the route from wherever the user currently
+  // is every time live tracking reports a new GPS position, so the
+  // instruction/remaining-distance/ETA panel actually updates while moving
+  // instead of showing whatever "Get Route" calculated once at the start.
+  // Throttled to at most once per 8s (a GPS watch can fire far more often
+  // than that) and skipped once already arrived, so it doesn't keep pinging
+  // OSRM after the trip is effectively over.
+  useEffect(() => {
+    if (!isNavigating || !selectedPlace || !userLocation || routeArrived) return;
+    const now = Date.now();
+    if (now - lastRouteFetchAtRef.current < 8000) return;
+    lastRouteFetchAtRef.current = now;
+    computeRoute(userLocation, selectedPlace, { silent: true });
+    // computeRoute is defined in the same render scope and doesn't need to
+    // be a dep -- it closes over routePolylineRef/toast which are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNavigating, userLocation, selectedPlace, routeArrived]);
+
   const fetchNavDestSuggestions = (query: string) => {
     if (navDestDebounceRef.current) clearTimeout(navDestDebounceRef.current);
     if (query.trim().length < 3) {
@@ -756,11 +790,110 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     );
   }
 
-  // Routing via OSRM (open-source, no API key needed)
-  const handleCalculateRoute = async () => {
+  // OSRM's maneuver type/modifier -> a real instruction sentence. OSRM
+  // itself only returns structured maneuver data (type/modifier/road name),
+  // not prose -- every turn-by-turn UI built on it does this translation
+  // step itself. Covers the maneuver types OSRM actually emits for driving
+  // routes; anything unrecognized falls back to a generic "Continue" rather
+  // than showing raw OSRM enum strings to the user.
+  function formatManeuver(step: any): string {
+    const m = step?.maneuver;
+    const road = step?.name && String(step.name).trim() ? ` onto ${step.name}` : "";
+    if (!m) return "Continue";
+    switch (m.type) {
+      case "depart":
+        return `Head ${m.modifier || "out"}${road}`;
+      case "arrive":
+        return "Arrive at your destination";
+      case "roundabout":
+      case "rotary":
+        return `At the roundabout, take exit ${m.exit || 1}${road}`;
+      case "merge":
+        return `Merge ${m.modifier || ""}${road}`.trim();
+      case "fork":
+        return `Keep ${m.modifier || "straight"}${road}`;
+      case "end of road":
+        return `Turn ${m.modifier || ""}${road}`.trim();
+      case "new name":
+        return `Continue${road}`;
+      case "continue":
+        return `Continue ${m.modifier || "straight"}${road}`;
+      case "turn":
+      default:
+        if (m.modifier) return `Turn ${m.modifier}${road}`;
+        return `Continue${road}`;
+    }
+  }
+
+  // Shared by the "Get Route" button (fresh search, fits the map to the
+  // whole route) and the live-tracking recompute effect below (recalculates
+  // from wherever the user currently is, without yanking the map view or
+  // spamming a toast every time). Recomputing from the CURRENT position on
+  // every call — rather than tracking progress along the original route —
+  // is deliberately simple: it doubles as automatic off-route recalculation
+  // for free, at the cost of an OSRM call per update (already throttled by
+  // the caller).
+  async function computeRoute(
+    from: { lat: number; lon: number },
+    to: { lat: number; lon: number },
+    opts: { silent: boolean },
+  ) {
     const map = mapInstanceRef.current;
     if (!map) return;
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true`;
+      const res = await fetch(url);
+      const json = await res.json();
+      const route = json?.routes?.[0];
+      const coords: [number, number][] =
+        route?.geometry?.coordinates?.map(
+          ([lng, lat]: [number, number]) => [lat, lng] as [number, number],
+        ) ?? [];
+      if (!coords.length) throw new Error("No route found");
 
+      if (routePolylineRef.current) routePolylineRef.current.remove();
+      routePolylineRef.current = L.polyline(coords, { color: "#1D4E89", weight: 4 }).addTo(map);
+      setRoutePoints(coords);
+
+      const distKm = route.distance / 1000;
+      const mins = route.duration / 60;
+      setRouteDistanceKm(distKm);
+      setRouteEtaMin(mins);
+      // Arrived once within 30m of the destination -- OSRM's own remaining
+      // distance already accounts for road geometry, not straight-line, so
+      // this stays accurate even on a winding approach road.
+      setRouteArrived(route.distance < 30);
+
+      const steps = (route?.legs?.[0]?.steps ?? []).map((s: any) => ({
+        instruction: formatManeuver(s),
+        distanceM: s.distance,
+      }));
+      setRouteSteps(steps);
+
+      if (!opts.silent) {
+        map.fitBounds(L.latLngBounds(coords));
+        toast({
+          title: "Route Ready",
+          description: `${distKm.toFixed(1)} km · ~${Math.round(mins)} min driving`,
+        });
+      }
+    } catch {
+      if (!opts.silent) {
+        toast({
+          title: "Route unavailable",
+          description: "Could not calculate route. Check connection.",
+          variant: "destructive",
+        });
+      }
+      // Silent (live) recompute failures stay quiet -- a single dropped GPS
+      // tick or a flaky OSRM response shouldn't interrupt navigation with a
+      // toast; the panel just keeps showing the last-known numbers until
+      // the next successful tick.
+    }
+  }
+
+  // Routing via OSRM (open-source, no API key needed)
+  const handleCalculateRoute = async () => {
     if (!selectedPlace) {
       toast({
         title: "No destination",
@@ -785,34 +918,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       }
     }
 
-    try {
-      const { lat: sLat, lon: sLon } = location;
-      const { lat: dLat, lon: dLon } = selectedPlace;
-      const url = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${dLon},${dLat}?overview=full&geometries=geojson`;
-      const res = await fetch(url);
-      const json = await res.json();
-      const coords: [number, number][] =
-        json?.routes?.[0]?.geometry?.coordinates?.map(
-          ([lng, lat]: [number, number]) => [lat, lng] as [number, number],
-        ) ?? [];
-
-      if (!coords.length) throw new Error("No route found");
-
-      if (routePolylineRef.current) routePolylineRef.current.remove();
-      routePolylineRef.current = L.polyline(coords, { color: "#1D4E89", weight: 4 }).addTo(map);
-      map.fitBounds(L.latLngBounds(coords));
-      setRoutePoints(coords);
-
-      const distKm = (json.routes[0].distance / 1000).toFixed(1);
-      const mins = Math.round(json.routes[0].duration / 60);
-      toast({ title: "Route Ready", description: `${distKm} km · ~${mins} min driving` });
-    } catch {
-      toast({
-        title: "Route unavailable",
-        description: "Could not calculate route. Check connection.",
-        variant: "destructive",
-      });
-    }
+    setRouteArrived(false);
+    await computeRoute(location, selectedPlace, { silent: false });
   };
 
   // --- Existing Fetch/Utility Logic (Briefly retained/adapted) --- //
@@ -1278,6 +1385,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                           setRoutePoints([]);
                           setSelectedPlace(null);
                           setNavDestInput("");
+                          setRouteSteps([]);
+                          setRouteDistanceKm(null);
+                          setRouteEtaMin(null);
+                          setRouteArrived(false);
                           toast({ title: "Route Cleared" });
                         }}
                       >
@@ -1286,6 +1397,63 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     </div>
                   </div>
                 </div>
+
+                {/* Turn-by-turn directions — only once a route exists. While
+                    live tracking is on, this panel's numbers update every
+                    ~8s (see the live-recompute effect) instead of staying
+                    frozen at whatever "Get Route" calculated at the start. */}
+                {routeSteps.length > 0 && (
+                  <div className="border-t border-border pt-3 space-y-2">
+                    {routeArrived ? (
+                      <p className="text-sm font-semibold text-[#3D9467]">
+                        <i className="fas fa-flag-checkered mr-1.5"></i>
+                        You've arrived
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            {routeDistanceKm != null ? `${routeDistanceKm.toFixed(1)} km` : "—"}
+                          </span>
+                          <span className="font-semibold text-foreground">
+                            {routeEtaMin != null
+                              ? `ETA ${routeEtaMin < 1 ? "<1" : Math.round(routeEtaMin)} min`
+                              : "—"}
+                          </span>
+                          {isNavigating && (
+                            <span
+                              className="text-[9px] text-muted-foreground"
+                              title="Updates automatically while live tracking is on"
+                            >
+                              <i className="fas fa-sync-alt mr-1"></i>
+                              live
+                            </span>
+                          )}
+                        </div>
+                        {routeSteps[0] && (
+                          <p className="text-sm font-semibold text-foreground">
+                            <i className="fas fa-directions mr-1.5 text-[#163F73]"></i>
+                            {routeSteps[0].instruction}
+                          </p>
+                        )}
+                        {routeSteps.length > 1 && (
+                          <ul className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1 pl-1">
+                            {routeSteps.slice(1).map((s, i) => (
+                              <li key={i} className="flex justify-between gap-2">
+                                <span className="truncate">{s.instruction}</span>
+                                <span className="flex-shrink-0 font-mono">
+                                  {s.distanceM >= 1000
+                                    ? `${(s.distanceM / 1000).toFixed(1)} km`
+                                    : `${Math.round(s.distanceM)} m`}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
