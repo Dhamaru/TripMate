@@ -23,7 +23,11 @@ import { distanceToPolylineMeters, haversineMeters } from "@/lib/geo";
 // style, so dark mode falls back to the CSS invert-hue filter on the tile
 // pane, same as the original OSM fallback used. Matches
 // offlineTiles.ts/OfflineMaps.tsx tileUrl(), kept in sync manually.
-const TILE_URL = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
+// Hardcoded "a" subdomain, not Leaflet's {s} round-robin -- kept in sync
+// with OfflineMaps.tsx's own TILE_URL (see that file's comment): rotating
+// subdomains would fragment the service worker's opportunistic tile cache
+// across a/b/c for the same tile instead of reusing one cached copy.
+const TILE_URL = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
 const TILE_ATTRIBUTION =
   "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap contributors</a> &copy; <a href='https://opentopomap.org' target='_blank'>OpenTopoMap</a>";
 const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";

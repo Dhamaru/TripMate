@@ -35,7 +35,14 @@ const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "a
 // response headers, only caught via an actual screenshot). No separate
 // dark style here, so dark mode falls back to the CSS invert-hue filter
 // on the tile pane, same as the original OSM fallback used.
-const TILE_URL = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
+// Hardcoded "a" subdomain, not Leaflet's usual {s} round-robin across
+// a/b/c -- offlineTiles.ts's downloadTiles() always writes cached tiles
+// under "a." (a concrete URL, not a template), keyed by full URL in the
+// Cache Storage API. If this template rotated subdomains, ~2/3 of live
+// requests after a "Download for Offline" would ask for b./c. URLs that
+// were never written to the cache, missing it and hitting the network
+// anyway -- defeating the entire point of the download feature.
+const TILE_URL = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>';
 const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
@@ -708,7 +715,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const now = Date.now();
     if (now - lastRouteFetchAtRef.current < 8000) return;
     lastRouteFetchAtRef.current = now;
-    computeRoute(userLocation, selectedPlace, { silent: true });
+    // Aborted on cleanup so a fetch still in flight when tracking stops (or
+    // the component unmounts) can't land its response afterward and apply
+    // stale distance/ETA/step-list state for a navigation session that's
+    // already over.
+    const controller = new AbortController();
+    computeRoute(userLocation, selectedPlace, { silent: true, signal: controller.signal });
+    return () => controller.abort();
     // computeRoute is defined in the same render scope and doesn't need to
     // be a dep -- it closes over routePolylineRef/toast which are stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -836,13 +849,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   async function computeRoute(
     from: { lat: number; lon: number },
     to: { lat: number; lon: number },
-    opts: { silent: boolean },
+    opts: { silent: boolean; signal?: AbortSignal },
   ) {
     const map = mapInstanceRef.current;
     if (!map) return;
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: opts.signal });
       const json = await res.json();
       const route = json?.routes?.[0];
       const coords: [number, number][] =
