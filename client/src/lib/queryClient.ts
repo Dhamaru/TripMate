@@ -5,9 +5,13 @@ export async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     if (res.status === 401) {
-      try { logError("api_unauthorized", { url: res.url, status: res.status, body: text }); } catch { }
+      try {
+        logError("api_unauthorized", { url: res.url, status: res.status, body: text });
+      } catch {}
     } else {
-      try { logError("api_error", { url: res.url, status: res.status, body: text }); } catch { }
+      try {
+        logError("api_error", { url: res.url, status: res.status, body: text });
+      } catch {}
     }
     throw new Error(`${res.status}: ${text}`);
   }
@@ -30,6 +34,7 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  timeoutMs = 150000,
 ): Promise<Response> {
   const headers: Record<string, string> = {};
 
@@ -37,7 +42,7 @@ export async function apiRequest(
   if (data instanceof FormData) {
     body = data;
   } else if (data) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
     body = JSON.stringify(data);
   }
 
@@ -50,42 +55,46 @@ export async function apiRequest(
   // default) — this was never caught locally because CSRF is off in dev.
   if (!SAFE_METHODS.has(method.toUpperCase())) {
     const csrfToken = readCookie(CSRF_COOKIE);
-    if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+    if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body,
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  return res;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body,
+      credentials: "include",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
+export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-    async ({ queryKey }) => {
-      const qk = Array.isArray(queryKey) ? queryKey : [String(queryKey)];
-      const [base, ...parts] = qk as any[];
-      const url = [String(base), ...parts.map((p: any) => encodeURIComponent(String(p)))].join("/");
+  async ({ queryKey }) => {
+    const qk = Array.isArray(queryKey) ? queryKey : [String(queryKey)];
+    const [base, ...parts] = qk as any[];
+    const url = [String(base), ...parts.map((p: any) => encodeURIComponent(String(p)))].join("/");
 
-      const res = await fetch(url, {
-        credentials: "include",
-        cache: "no-store",
-      });
+    const res = await fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+    });
 
-      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-        return null;
-      }
+    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      return null;
+    }
 
-      await throwIfResNotOk(res);
-      return await res.json();
-    };
+    await throwIfResNotOk(res);
+    return await res.json();
+  };
 
 export const queryClient = new QueryClient({
   defaultOptions: {

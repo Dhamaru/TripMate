@@ -1521,25 +1521,41 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           .optional(),
       });
       try {
-        // Orchestrated Cognitive Reasoning Loop replacing single-shot text generation
-        const rawPlan = await orchestrator.executeReasoningLoop({
-          goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s). It is CRITICAL that you generate EXACTLY ${days} days of itineraries.`,
-          constraints: {
-            origin,
-            budget,
-            days,
-            persons,
-            travelStyle: typeOfTrip,
-            travelMedium,
-            currency,
-            destination,
-            existingItinerary,
-            preferences,
-            cuisinePreferences,
-            dietaryPreferences,
-          },
-          maxIterations: 3,
-        });
+        // Orchestrated Cognitive Reasoning Loop replacing single-shot text generation.
+        // Unlike the grounding step and quiet-spots calls below, this had no
+        // timeout -- the OpenAI SDK's default per-call timeout (~10min) times
+        // up to 3 loop iterations left a real request able to hang well past
+        // any reasonable wait, with the client-side fetch having no timeout
+        // either. Races against a rejecting timeout so a stall falls into
+        // the existing genError catch below, straight to generateFallbackTrip
+        // -- the same tested fallback path a real generation failure already uses.
+        const reasoningTimeoutMs = 90000;
+        const rawPlan = await Promise.race([
+          orchestrator.executeReasoningLoop({
+            goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s). It is CRITICAL that you generate EXACTLY ${days} days of itineraries.`,
+            constraints: {
+              origin,
+              budget,
+              days,
+              persons,
+              travelStyle: typeOfTrip,
+              travelMedium,
+              currency,
+              destination,
+              existingItinerary,
+              preferences,
+              cuisinePreferences,
+              dietaryPreferences,
+            },
+            maxIterations: 3,
+          }),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`Timeout: Reasoning loop for ${destination}`)),
+              reasoningTimeoutMs,
+            ),
+          ),
+        ]);
 
         // Zod still checks here for the router response shape
         const parsed = zTripPlan.safeParse(rawPlan);
