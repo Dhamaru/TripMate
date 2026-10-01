@@ -1,7 +1,109 @@
 import { create } from "zustand";
-import type { AgentMessage, SuggestedAction, AgentStructuredData } from "../types/api.types";
-import { agentApi } from "../lib/api";
+import type {
+  AgentMessage,
+  SuggestedAction,
+  AgentStructuredData,
+  AgentResponse,
+  AgentChatRequest,
+  PendingConfirmation,
+} from "../types/api.types";
+import { apiRequestJson } from "../lib/queryClient";
 import { nanoid } from "nanoid";
+
+interface StreamDonePayload {
+  conversationId: string;
+  toolsUsed: string[];
+  structuredData?: unknown;
+  pendingConfirmation?: PendingConfirmation;
+}
+
+interface SSEMessage {
+  type: "token" | "tool" | "done" | "error";
+  content?: string;
+  tool?: string;
+  conversationId?: string;
+  toolsUsed?: string[];
+  structuredData?: unknown;
+  pendingConfirmation?: PendingConfirmation;
+  error?: string;
+}
+
+// Raw EventSource plumbing for streamMessage below -- not axios-based, so
+// this doesn't shrink by switching off axios; it's its own thing because
+// SSE isn't a fetch/JSON call like the rest of this store's requests.
+function streamAgentChat(
+  data: AgentChatRequest,
+  onToken: (token: string) => void,
+  onTool: (tool: string) => void,
+  onDone: (meta: StreamDonePayload) => void,
+  onError: (error: string) => void,
+): () => void {
+  const params = new URLSearchParams({
+    message: data.message,
+    ...(data.conversationId && { conversationId: data.conversationId }),
+    ...(data.context?.currentTripId && { currentTripId: data.context.currentTripId }),
+    ...(data.context?.currentPage && { currentPage: data.context.currentPage }),
+  });
+  const url = `/api/v1/agent/chat/stream?${params.toString()}`;
+  const es = new EventSource(url, { withCredentials: true });
+
+  // A stalled connection (accepted but never sends a byte) doesn't trigger
+  // EventSource's onerror — that only fires on a hard close. Without a
+  // watchdog, a hung backend request leaves the UI's isLoading stuck true
+  // forever. Reset this on every event received; fire once if the gap
+  // since the last event (or connection open) exceeds STALL_TIMEOUT_MS.
+  // Must comfortably exceed the server's per-model timeout (25s) plus room
+  // for a fallback attempt, or this fires before the backend's own
+  // model-fallback chain gets a chance.
+  const STALL_TIMEOUT_MS = 45_000;
+  let stallTimer: ReturnType<typeof setTimeout>;
+  let settled = false;
+  const resetStallTimer = () => {
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      onError("Response timed out");
+      es.close();
+    }, STALL_TIMEOUT_MS);
+  };
+  resetStallTimer();
+
+  es.onmessage = (e: MessageEvent<string>) => {
+    resetStallTimer();
+    const parsed = JSON.parse(e.data) as SSEMessage;
+    if (parsed.type === "token" && parsed.content) onToken(parsed.content);
+    if (parsed.type === "tool" && parsed.tool) onTool(parsed.tool);
+    if (parsed.type === "done") {
+      settled = true;
+      clearTimeout(stallTimer);
+      onDone({
+        conversationId: parsed.conversationId ?? "",
+        toolsUsed: parsed.toolsUsed ?? [],
+        structuredData: parsed.structuredData,
+        pendingConfirmation: parsed.pendingConfirmation,
+      });
+      es.close();
+    }
+    if (parsed.type === "error") {
+      settled = true;
+      clearTimeout(stallTimer);
+      onError(parsed.error ?? "Stream error");
+      es.close();
+    }
+  };
+  es.onerror = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(stallTimer);
+    onError("Connection lost");
+    es.close();
+  };
+  return () => {
+    clearTimeout(stallTimer);
+    es.close();
+  };
+}
 
 interface AgentContext {
   currentTripId?: string;
@@ -95,7 +197,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     if (get().isLoading && key === get().conversationId) return;
     set({ isHistoryLoading: true });
     try {
-      const history: any = await agentApi.getConversation(key);
+      const history: any = await apiRequestJson("GET", `/api/v1/agent/history/${key}`);
       const fetched: AgentMessage[] = (Array.isArray(history) ? history : [])
         // tool/system turns are the model's own internal reasoning steps,
         // never meant to render as chat bubbles — same filter the live
@@ -138,7 +240,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       suggestedActions: [],
     }));
     try {
-      const result = await agentApi.chat({
+      const result = await apiRequestJson<AgentResponse>("POST", "/api/v1/agent/chat", {
         message: text,
         conversationId: get().conversationId ?? undefined,
         context: get().context,
@@ -200,7 +302,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     }));
 
     return new Promise<void>((resolve) => {
-      const cleanup = agentApi.stream(
+      const cleanup = streamAgentChat(
         {
           message: text,
           conversationId: get().conversationId ?? undefined,
@@ -275,7 +377,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   clearConversation: () => {
     const { conversationId } = get();
     if (conversationId) {
-      agentApi.clearConversation(conversationId).catch(() => {});
+      apiRequestJson("DELETE", `/api/v1/agent/history/${conversationId}`).catch(() => {});
     }
     set({ messages: [], conversationId: null, suggestedActions: [] });
   },
@@ -303,7 +405,10 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       ),
     }));
     try {
-      const result: any = await agentApi.confirmAction(pendingActionId);
+      const result: any = await apiRequestJson(
+        "POST",
+        `/api/v1/agent/confirm-action/${pendingActionId}`,
+      );
       const note = result?.success
         ? `\n\n✅ ${result?.data?.message || "Done."}`
         : `\n\n⚠️ ${result?.error || "Could not complete this action."}`;

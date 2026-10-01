@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "../ui/button";
-import { tripsApi } from "../../lib/api";
+import { apiRequestJson } from "../../lib/queryClient";
+import type { Trip } from "../../types/api.types";
 import { useToast } from "../../hooks/use-toast";
 
 interface Props {
@@ -41,7 +42,7 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
       setVotes((prev) => prev + diff);
       setUserVote(newValue === 0 ? null : newValue);
 
-      const updated = await tripsApi.toggleVote(tripId, {
+      const updated = await apiRequestJson<Trip>("POST", `/api/v1/trips/${tripId}/itinerary/vote`, {
         dayIndex,
         activityId,
         vote: newValue,

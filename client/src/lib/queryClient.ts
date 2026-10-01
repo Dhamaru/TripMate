@@ -75,6 +75,37 @@ export async function apiRequest(
   }
 }
 
+/** A failed apiRequestJson call -- carries the HTTP status so callers can
+ * tell a 401 (not logged in) apart from a 404 (really doesn't exist) apart
+ * from a network blip, the way `e instanceof Error` alone can't. */
+export class ApiRequestError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** apiRequest + ok-check + JSON parse, throwing ApiRequestError on failure. */
+export async function apiRequestJson<T = any>(
+  method: string,
+  url: string,
+  data?: unknown,
+): Promise<T> {
+  const res = await apiRequest(method, url, data);
+  if (!res.ok) {
+    const text = (await res.text().catch(() => "")) || res.statusText;
+    let message = text;
+    try {
+      const parsed = JSON.parse(text);
+      message = parsed.error || parsed.message || text;
+    } catch {}
+    throw new ApiRequestError(res.status, message);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>

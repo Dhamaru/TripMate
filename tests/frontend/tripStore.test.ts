@@ -13,14 +13,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // dependent and unreliable to assert on.
 
 const getMock = vi.fn();
-vi.mock("../../client/src/lib/api", () => ({
-  tripsApi: {
-    get: (...args: any[]) => getMock(...args),
-    list: vi.fn(),
-    create: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
+vi.mock("../../client/src/lib/queryClient", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../client/src/lib/queryClient")>();
+  return {
+    ...actual,
+    apiRequestJson: (method: string, url: string, ...rest: any[]) =>
+      method === "GET" && /\/api\/v1\/trips\/[^/]+$/.test(url)
+        ? getMock(url)
+        : Promise.reject(new Error(`unexpected apiRequestJson call: ${method} ${url}`)),
+  };
+});
 
 // Each test needs its own fresh store instance — Zustand's `create` result
 // is a singleton across the whole test file if imported once at module

@@ -16,8 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LogOut, Link as LinkIcon, AlertTriangle, Download } from "lucide-react";
-import { authApi } from "@/lib/api/auth.api";
-import { apiRequest, getCsrfToken } from "@/lib/queryClient";
+import { apiRequest, apiRequestJson, getCsrfToken } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import {
   isPushSupported,
@@ -148,10 +147,7 @@ export default function Profile() {
   });
 
   const passwordMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await authApi.changePassword(data);
-      return res.data;
-    },
+    mutationFn: (data: any) => apiRequestJson("PUT", "/api/v1/auth/change-password", data),
     onSuccess: () => {
       toast({ title: "Password updated successfully" });
       (document.getElementById("currentPassword") as HTMLInputElement).value = "";
@@ -160,17 +156,14 @@ export default function Profile() {
     onError: (err: any) => {
       toast({
         title: "Error",
-        description: err.response?.data?.message || "Could not update password",
+        description: err.message || "Could not update password",
         variant: "destructive",
       });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await authApi.deleteAccount(data);
-      return res.data;
-    },
+    mutationFn: (data: any) => apiRequestJson("POST", "/api/v1/auth/delete-account", data),
     onSuccess: async () => {
       toast({ title: "Account deleted" });
       await logout();
@@ -179,7 +172,7 @@ export default function Profile() {
     onError: (err: any) => {
       toast({
         title: "Error",
-        description: err.response?.data?.message || "Could not delete account",
+        description: err.message || "Could not delete account",
         variant: "destructive",
       });
     },

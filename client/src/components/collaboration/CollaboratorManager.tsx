@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store";
-import { tripsApi } from "../../lib/api/trips.api";
+import { apiRequestJson } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -65,13 +65,14 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
   // enough that the extra request is free.
   const { data: collaborators, isLoading } = useQuery({
     queryKey: ["trips", tripId, "collaborators"],
-    queryFn: () => tripsApi.getCollaborators(tripId),
+    queryFn: () => apiRequestJson<any[]>("GET", `/api/v1/trips/${tripId}/collaborators`),
     enabled: !!tripId,
     refetchOnMount: "always",
   });
 
   const addMutation = useMutation({
-    mutationFn: (data: { email: string; role: string }) => tripsApi.addCollaborator(tripId, data),
+    mutationFn: (data: { email: string; role: string }) =>
+      apiRequestJson("POST", `/api/v1/trips/${tripId}/collaborators`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trips", tripId, "collaborators"] });
       toast({
@@ -90,7 +91,8 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
   });
 
   const removeMutation = useMutation({
-    mutationFn: (collaboratorId: string) => tripsApi.removeCollaborator(tripId, collaboratorId),
+    mutationFn: (collaboratorId: string) =>
+      apiRequestJson("DELETE", `/api/v1/trips/${tripId}/collaborators/${collaboratorId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trips", tripId, "collaborators"] });
       toast({

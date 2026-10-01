@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type { AuthUser } from "../types/api.types";
-import { authApi } from "../lib/api";
-import { queryClient } from "../lib/queryClient";
+import { apiRequestJson, queryClient } from "../lib/queryClient";
 
 interface AuthStore {
   user: AuthUser | null;
@@ -19,23 +18,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isLoading: true,
   isAuthenticated: false,
   signIn: async (email, password) => {
-    const { user } = await authApi.signIn({ email, password });
+    const { user } = await apiRequestJson<{ user: AuthUser }>("POST", "/api/v1/auth/signin", {
+      email,
+      password,
+    });
     set({ user, isAuthenticated: true, isLoading: false });
   },
   signUp: async (email, password, firstName, lastName) => {
-    const { user } = await authApi.signUp({ email, password, firstName, lastName });
+    const { user } = await apiRequestJson<{ user: AuthUser }>("POST", "/api/v1/auth/signup", {
+      email,
+      password,
+      firstName,
+      lastName,
+    });
     set({ user, isAuthenticated: true, isLoading: false });
   },
   signOut: async () => {
-    await authApi.signOut();
+    await apiRequestJson("POST", "/api/v1/auth/signout");
     set({ user: null, isAuthenticated: false });
   },
   checkSession: async (retryCount = 0) => {
     try {
-      const user = await authApi.getSession();
+      const user = await apiRequestJson<AuthUser>("GET", "/api/v1/auth/profile");
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (err) {
-      const status = (err as { statusCode?: number }).statusCode ?? 0;
+      const status = (err as { status?: number }).status ?? 0;
       if (status === 401 || status === 403) {
         set({ user: null, isAuthenticated: false, isLoading: false });
       } else if ((status === 429 || status >= 500 || status === 0) && retryCount < 3) {
@@ -67,7 +74,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // Clear any cached data from a previous authenticated session so the
     // guest never sees another user's profile, trips, or personal data.
     queryClient.clear();
-    const { user } = await authApi.guestSignIn();
+    const { user } = await apiRequestJson<{ user: AuthUser }>("POST", "/api/v1/auth/guest");
     set({ user, isAuthenticated: true, isLoading: false });
   },
 }));

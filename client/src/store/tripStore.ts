@@ -1,20 +1,13 @@
 import { create } from "zustand";
 import type { Trip, CreateTripRequest } from "../types/api.types";
-import { tripsApi } from "../lib/api";
-import type { ApiError } from "../lib/api/client";
+import { apiRequestJson, ApiRequestError } from "../lib/queryClient";
 
-// The axios response interceptor in lib/api/client.ts rejects with a plain
-// ApiError object literal, not a real Error instance — `e instanceof Error`
-// is always false for it, so every failure collapsed to the same generic
-// message regardless of whether it was a 401 (not logged in yet), a 404
-// (really doesn't exist / not yours), or a network blip. That's what made
-// "Trip Not Found" show up for causes that had nothing to do with the trip
-// not existing.
-function isApiError(e: unknown): e is ApiError {
-  return typeof e === "object" && e !== null && "statusCode" in e && "message" in e;
-}
+// ApiRequestError carries the real HTTP status, so a failure can be told
+// apart as a 401 (not logged in yet), a 404 (really doesn't exist / not
+// yours), or a network blip instead of all collapsing to the same generic
+// "Trip Not Found" message regardless of cause.
 function describeError(e: unknown, fallback: string): { message: string; status?: number } {
-  if (isApiError(e)) return { message: e.message || fallback, status: e.statusCode };
+  if (e instanceof ApiRequestError) return { message: e.message || fallback, status: e.status };
   if (e instanceof Error) return { message: e.message };
   return { message: fallback };
 }
@@ -60,7 +53,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   fetchTrips: async () => {
     set({ isLoading: true, error: null, errorStatus: null });
     try {
-      const trips = await tripsApi.list();
+      const trips = await apiRequestJson<Trip[]>("GET", "/api/v1/trips");
       set({ trips: Array.isArray(trips) ? trips : [], isLoading: false });
     } catch (e: unknown) {
       const { message, status } = describeError(e, "Failed to fetch trips");
@@ -74,7 +67,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     // failure could still be judged against the old error state.
     set({ isLoading: true, error: null, errorStatus: null });
     try {
-      const trip = await tripsApi.get(id);
+      const trip = await apiRequestJson<Trip>("GET", `/api/v1/trips/${id}`);
       // A newer fetchTrip call started after this one — its response
       // (whenever it lands) is the one that should win. Discard this
       // stale one rather than overwriting fresher state with old data.
@@ -87,7 +80,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     }
   },
   createTrip: async (data) => {
-    const trip = await tripsApi.create(data);
+    const trip = await apiRequestJson<Trip>("POST", "/api/v1/trips", data);
     set((state) => ({ trips: [trip, ...state.trips] }));
     return trip;
   },
@@ -95,7 +88,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const previous = get().trips;
     set((state) => ({ trips: state.trips.filter((t) => t.id !== id) }));
     try {
-      await tripsApi.delete(id);
+      await apiRequestJson("DELETE", `/api/v1/trips/${id}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to delete";
       set({ trips: previous, error: msg });

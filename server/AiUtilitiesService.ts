@@ -478,7 +478,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const coordMatch = c.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
 
     try {
-      const owKey = config.WEATHER_API_KEY || config.OPENWEATHER_API_KEY;
+      const owKey = config.OPENWEATHER_API_KEY;
       if (owKey) {
         let coord: { lat: number; lon: number } | null = coordMatch
           ? { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[2]) }
