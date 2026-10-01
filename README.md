@@ -103,7 +103,7 @@ MongoDB (Mongoose) — shared/schema.ts is the single source of truth for models
 - **Trip Planner** — AI-generated multi-day itineraries, or parse a pasted free-text schedule into one
 - **Real-time collaboration** — invite collaborators, live itinerary/expense/journal updates over Socket.io, presence bubbles, in-app + toast notifications with per-type mute preferences
 - **Sessions & account** — real per-device session tracking (list/revoke from Profile), full data export, member-since, cascading account deletion
-- **Offline maps** — download a region for offline navigation, custom pins, live navigation with OSM tiles (no external map API key required for tiles)
+- **Offline maps** — download a region for offline navigation, custom pins, live turn-by-turn navigation with OpenTopoMap tiles (no external map API key required for tiles)
 - **Smart Packing List** — AI-generated, weather-aware, save-on-click (no autosave)
 - **Journal AI** — entry contextualization, prose enhancement, trip recap generation
 - **Translator, currency converter, weather, emergency services** — each with a real-data fallback chain, not just an LLM guess
