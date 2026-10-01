@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
 import {
   UserModel,
   SessionModel,
@@ -87,135 +88,123 @@ async function issueSession(req: Request, userId: string, extra: Record<string, 
   return token;
 }
 
-export const signup = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email, password, firstName, lastName } = req.body;
-    const normalizedEmail = email.toLowerCase().trim();
+export const signup = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { email, password, firstName, lastName } = req.body;
+  const normalizedEmail = email.toLowerCase().trim();
 
-    const existingUser = await UserModel.findOne({ email: normalizedEmail });
-    if (existingUser) {
-      if (existingUser.password) throw new BadRequestError("User already exists");
-      // Google-authed user with no password yet — this is an unauthenticated
-      // public endpoint, so we can't just set whatever password the caller
-      // supplied (that was a full account-takeover: anyone who knew a
-      // Google user's email could set their password here with no proof of
-      // ownership). Route through the same email-token flow forgotPassword
-      // already uses instead — it proves the caller controls the inbox
-      // before any password is set.
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      // The raw token only ever needs to exist in the emailed URL — storing
-      // it verbatim in Mongo means any DB read (backup, snapshot, breach)
-      // hands over a working account-takeover token for every pending
-      // reset. Store its hash instead, same pattern SessionModel.tokenHash
-      // already uses.
-      existingUser.resetPasswordToken = hashResetToken(resetToken);
-      existingUser.resetPasswordExpires = new Date(Date.now() + 3_600_000);
-      await existingUser.save();
-      const { sendPasswordResetEmail } = await import("../email");
-      await sendPasswordResetEmail(existingUser.email!, resetToken);
-      return res.status(200).json({
-        message: "This email already has an account. We've sent a link to set a password for it.",
-      });
-    }
-
-    let user;
-    try {
-      user = await UserModel.create({
-        _id: nanoid(),
-        email: normalizedEmail,
-        password: await hashPassword(password),
-        firstName,
-        lastName,
-      });
-    } catch (err: any) {
-      // The findOne check above and this create() aren't atomic — two
-      // concurrent signups with the same email can both pass the check.
-      // The unique index on email (shared/schema.ts) is what actually
-      // closes that race; translate its E11000 into the same user-facing
-      // error the findOne branch above already gives, instead of a raw 500.
-      if (err?.code === 11000) throw new BadRequestError("User already exists");
-      throw err;
-    }
-
-    const token = await issueSession(req, user.id);
-    setAuthCookie(req, res, token);
-    void sendWelcomeNotification(user.id, user.firstName);
-    req.login(user, (err) => {
-      if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
-      res.status(201).json({ user, token });
+  const existingUser = await UserModel.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    if (existingUser.password) throw new BadRequestError("User already exists");
+    // Google-authed user with no password yet — this is an unauthenticated
+    // public endpoint, so we can't just set whatever password the caller
+    // supplied (that was a full account-takeover: anyone who knew a
+    // Google user's email could set their password here with no proof of
+    // ownership). Route through the same email-token flow forgotPassword
+    // already uses instead — it proves the caller controls the inbox
+    // before any password is set.
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    // The raw token only ever needs to exist in the emailed URL — storing
+    // it verbatim in Mongo means any DB read (backup, snapshot, breach)
+    // hands over a working account-takeover token for every pending
+    // reset. Store its hash instead, same pattern SessionModel.tokenHash
+    // already uses.
+    existingUser.resetPasswordToken = hashResetToken(resetToken);
+    existingUser.resetPasswordExpires = new Date(Date.now() + 3_600_000);
+    await existingUser.save();
+    const { sendPasswordResetEmail } = await import("../email");
+    await sendPasswordResetEmail(existingUser.email!, resetToken);
+    return res.status(200).json({
+      message: "This email already has an account. We've sent a link to set a password for it.",
     });
-  } catch (error) {
-    next(error);
   }
-};
 
-export const guestSignin = async (req: Request, res: Response, next: NextFunction) => {
+  let user;
   try {
-    const guestId = `guest_${nanoid()}`;
-    const user = await UserModel.create({
-      _id: guestId,
-      email: `${guestId}@tripmate.guest`,
-      firstName: "Guest",
-      lastName: "Traveler",
-      isGuest: true,
+    user = await UserModel.create({
+      _id: nanoid(),
+      email: normalizedEmail,
+      password: await hashPassword(password),
+      firstName,
+      lastName,
     });
-
-    const token = await issueSession(req, user.id, { isGuest: true });
-    setAuthCookie(req, res, token);
-    req.login(user, (err) => {
-      if (err) console.warn("[Auth] Guest session init failed (non-fatal):", err?.message);
-      res.json({ user, token });
-    });
-  } catch (error) {
-    next(error);
+  } catch (err: any) {
+    // The findOne check above and this create() aren't atomic — two
+    // concurrent signups with the same email can both pass the check.
+    // The unique index on email (shared/schema.ts) is what actually
+    // closes that race; translate its E11000 into the same user-facing
+    // error the findOne branch above already gives, instead of a raw 500.
+    if (err?.code === 11000) throw new BadRequestError("User already exists");
+    throw err;
   }
-};
 
-export const signin = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email, password } = req.body;
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await UserModel.findOne({ email: normalizedEmail });
+  const token = await issueSession(req, user.id);
+  setAuthCookie(req, res, token);
+  void sendWelcomeNotification(user.id, user.firstName);
+  req.login(user, (err) => {
+    if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
+    res.status(201).json({ user, token });
+  });
+});
 
-    // Return same error for both "not found" and "wrong password" — prevents user enumeration
-    const invalidCreds = () => {
-      throw new UnauthorizedError("Invalid credentials");
-    };
+export const guestSignin = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const guestId = `guest_${nanoid()}`;
+  const user = await UserModel.create({
+    _id: guestId,
+    email: `${guestId}@tripmate.guest`,
+    firstName: "Guest",
+    lastName: "Traveler",
+    isGuest: true,
+  });
 
-    if (!user || !user.password) return invalidCreds();
+  const token = await issueSession(req, user.id, { isGuest: true });
+  setAuthCookie(req, res, token);
+  req.login(user, (err) => {
+    if (err) console.warn("[Auth] Guest session init failed (non-fatal):", err?.message);
+    res.json({ user, token });
+  });
+});
 
-    if (user.lockUntil && user.lockUntil.getTime() > Date.now()) {
-      throw new TooManyRequestsError("Account temporarily locked. Please try again later.");
+export const signin = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { email, password } = req.body;
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await UserModel.findOne({ email: normalizedEmail });
+
+  // Return same error for both "not found" and "wrong password" — prevents user enumeration
+  const invalidCreds = () => {
+    throw new UnauthorizedError("Invalid credentials");
+  };
+
+  if (!user || !user.password) return invalidCreds();
+
+  if (user.lockUntil && user.lockUntil.getTime() > Date.now()) {
+    throw new TooManyRequestsError("Account temporarily locked. Please try again later.");
+  }
+
+  const isMatch = await comparePasswords(password, user.password);
+  if (!isMatch) {
+    const nextAttempts = (user.failedLoginAttempts ?? 0) + 1;
+    if (nextAttempts >= config.ACCOUNT_LOCK_MAX_ATTEMPTS) {
+      user.failedLoginAttempts = 0;
+      user.lockUntil = new Date(Date.now() + config.ACCOUNT_LOCK_DURATION_MS);
+    } else {
+      user.failedLoginAttempts = nextAttempts;
     }
-
-    const isMatch = await comparePasswords(password, user.password);
-    if (!isMatch) {
-      const nextAttempts = (user.failedLoginAttempts ?? 0) + 1;
-      if (nextAttempts >= config.ACCOUNT_LOCK_MAX_ATTEMPTS) {
-        user.failedLoginAttempts = 0;
-        user.lockUntil = new Date(Date.now() + config.ACCOUNT_LOCK_DURATION_MS);
-      } else {
-        user.failedLoginAttempts = nextAttempts;
-      }
-      await user.save();
-      return invalidCreds();
-    }
-
-    // Reset lockout on success
-    if ((user.failedLoginAttempts ?? 0) > 0) user.failedLoginAttempts = 0;
-    if (user.lockUntil) user.lockUntil = undefined;
     await user.save();
-
-    const token = await issueSession(req, user.id);
-    setAuthCookie(req, res, token);
-    req.login(user, (err) => {
-      if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
-      res.json({ user, token });
-    });
-  } catch (error) {
-    next(error);
+    return invalidCreds();
   }
-};
+
+  // Reset lockout on success
+  if ((user.failedLoginAttempts ?? 0) > 0) user.failedLoginAttempts = 0;
+  if (user.lockUntil) user.lockUntil = undefined;
+  await user.save();
+
+  const token = await issueSession(req, user.id);
+  setAuthCookie(req, res, token);
+  req.login(user, (err) => {
+    if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
+    res.json({ user, token });
+  });
+});
 
 export const signout = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -243,8 +232,8 @@ export const signout = async (req: Request, res: Response, next: NextFunction) =
   });
 };
 
-export const googleCallback = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const googleCallback = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const frontendBaseUrl = getFrontendBaseUrl(req);
     const user = req.user as any;
     if (!user) return res.redirect(`${frontendBaseUrl}/signin?error=auth_failed`);
@@ -255,13 +244,11 @@ export const googleCallback = async (req: Request, res: Response, next: NextFunc
     const token = await issueSession(req, userId);
     setAuthCookie(req, res, token);
     res.redirect(`${frontendBaseUrl}/app/home`);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { email } = req.body;
     // Always return the same response — prevents email enumeration
     const genericResponse = {
@@ -280,13 +267,11 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     await sendPasswordResetEmail(user.email!, token);
 
     res.json(genericResponse);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { token, password } = req.body;
     const user = await UserModel.findOne({
       resetPasswordToken: hashResetToken(token),
@@ -306,25 +291,19 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     await SessionModel.updateMany({ userId: user.id }, { revoked: true });
 
     res.json({ message: "Password has been reset. You can now sign in." });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const getProfile = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = (req.user as any)?._id || (req.user as any)?.id || (req.user as any)?.sub;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    const user = await storage.getUser(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
-  } catch (error) {
-    next(error);
-  }
-};
+export const getProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = (req.user as any)?._id || (req.user as any)?.id || (req.user as any)?.sub;
+  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  const user = await storage.getUser(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json(user);
+});
 
-export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const updateProfile = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     // Only allow safe profile fields — prevent privilege escalation
     const updates = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => ALLOWED_PROFILE_FIELDS.has(key)),
@@ -340,13 +319,11 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       { new: true, runValidators: true },
     );
     res.json(user);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const changePassword = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { currentPassword, newPassword } = req.body;
     const user = await UserModel.findById(req.user!._id);
     if (!user || !user.password) throw new UnauthorizedError("Invalid user or credentials");
@@ -376,13 +353,11 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
     res.json({ message: "Password changed successfully" });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const uploadAvatar = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const uploadAvatar = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     // req.file only — a JSON-body `avatar` string fallback used to be
     // accepted here too, but it bypassed multer's imageFileFilter
     // (MIME/extension check) and 5MB size limit entirely, and neither real
@@ -408,13 +383,11 @@ export const uploadAvatar = async (req: Request, res: Response, next: NextFuncti
       { new: true },
     );
     res.json(user);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const exportUserData = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const exportUserData = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user!._id;
 
     const [
@@ -469,13 +442,11 @@ export const exportUserData = async (req: Request, res: Response, next: NextFunc
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(JSON.stringify(exportData, null, 2));
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const deleteAccount = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const deleteAccount = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { password, confirm } = req.body;
     const user = await UserModel.findById(req.user!._id);
     if (!user) throw new NotFoundError("User not found");
@@ -531,7 +502,5 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
     await UserModel.findByIdAndDelete(deletedUserId);
     clearAuthCookie(res);
     req.session.destroy(() => res.json({ message: "Account deleted successfully" }));
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);

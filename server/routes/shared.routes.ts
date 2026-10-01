@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as packingController from "../controllers/packing.controller";
 import * as journalAiController from "../controllers/journal_ai.controller";
 import { validate } from "../middleware/validate";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth.middleware";
 import {
   createPackingListSchema,
   createPackingListTemplateSchema,

@@ -6,7 +6,7 @@ import {
   clearHistory,
   confirmAction,
 } from "../controllers/agent.controller";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth.middleware";
 import { aiLimiter } from "../middleware/rateLimit.middleware";
 import { requireSameOriginFetch } from "../middleware/csrf.middleware";
 import { validate } from "../middleware/validate";

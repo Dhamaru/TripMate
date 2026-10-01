@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
 import { config } from "../config";
 import { BadRequestError } from "../errors";
 import mongoose from "mongoose";
@@ -19,8 +20,8 @@ const QA_EMAIL_RE = /@(example\.com|tripmate\.dev)$/i;
 let publicStatsCache: { data: any; expiresAt: number } | null = null;
 const PUBLIC_STATS_TTL_MS = 5 * 60 * 1000;
 
-export const getPublicStats = async (_req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getPublicStats = asyncHandler(
+  async (_req: Request, res: Response, next: NextFunction) => {
     if (publicStatsCache && publicStatsCache.expiresAt > Date.now()) {
       return res.status(200).json(publicStatsCache.data);
     }
@@ -48,10 +49,8 @@ export const getPublicStats = async (_req: Request, res: Response, next: NextFun
     };
     publicStatsCache = { data, expiresAt: Date.now() + PUBLIC_STATS_TTL_MS };
     res.status(200).json(data);
-  } catch (err) {
-    next(err);
-  }
-};
+  },
+);
 
 let topDestinationsCache: { data: any; expiresAt: number } | null = null;
 
@@ -120,13 +119,11 @@ async function buildTopDestinations() {
   return data;
 }
 
-export const getTopDestinations = async (_req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getTopDestinations = asyncHandler(
+  async (_req: Request, res: Response, next: NextFunction) => {
     res.status(200).json(await buildTopDestinations());
-  } catch (err) {
-    next(err);
-  }
-};
+  },
+);
 
 const DESTINATION_IMAGE_ALLOWED_HOSTS = new Set(["maps.googleapis.com", "upload.wikimedia.org"]);
 // Wikipedia's pageimages API answers with thumb.wikimedia.org (a separate CDN
@@ -139,8 +136,8 @@ function isAllowedImageHost(hostname: string): boolean {
   return DESTINATION_IMAGE_ALLOWED_HOSTS.has(hostname) || hostname.endsWith(".wikimedia.org");
 }
 
-export const getDestinationImage = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getDestinationImage = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const destination = String(req.query.d || "")
       .trim()
       .toLowerCase();
@@ -213,10 +210,8 @@ export const getDestinationImage = async (req: Request, res: Response, next: Nex
     // identically to every visitor, not per-user content.
     res.setHeader("Cache-Control", "public, max-age=86400");
     res.send(Buffer.from(buffer));
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
 // ─── Public endpoints (no auth) ───────────────────────────────────────────────
 
@@ -324,81 +319,77 @@ function sortByDistanceIfBiased<T extends { lat?: string; lon?: string }>(
   });
 }
 
-export const geocode = async (req: Request, res: Response, next: NextFunction) => {
+export const geocode = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const query = req.query.q as string;
+  if (!query) throw new BadRequestError("Missing query parameter 'q'");
+  const biasLat = req.query.lat ? parseFloat(req.query.lat as string) : null;
+  const biasLon = req.query.lon ? parseFloat(req.query.lon as string) : null;
+  // Unbounded (no bounded=1) — a soft ranking preference toward this
+  // box, not a hard filter, so a legitimately relevant distant result
+  // still shows up if nothing local matches.
+  const viewboxParam =
+    biasLat != null && biasLon != null
+      ? `&viewbox=${biasLon - 0.5},${biasLat + 0.5},${biasLon + 0.5},${biasLat - 0.5}`
+      : "";
+
   try {
-    const query = req.query.q as string;
-    if (!query) throw new BadRequestError("Missing query parameter 'q'");
-    const biasLat = req.query.lat ? parseFloat(req.query.lat as string) : null;
-    const biasLon = req.query.lon ? parseFloat(req.query.lon as string) : null;
-    // Unbounded (no bounded=1) — a soft ranking preference toward this
-    // box, not a hard filter, so a legitimately relevant distant result
-    // still shows up if nothing local matches.
-    const viewboxParam =
-      biasLat != null && biasLon != null
-        ? `&viewbox=${biasLon - 0.5},${biasLat + 0.5},${biasLon + 0.5},${biasLat - 0.5}`
-        : "";
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5${viewboxParam}`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)",
+      },
+    });
 
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5${viewboxParam}`;
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)",
-        },
-      });
+    if (!response.ok) throw new Error(`Nominatim returned ${response.status}`);
 
-      if (!response.ok) throw new Error(`Nominatim returned ${response.status}`);
-
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return res
-          .status(200)
-          .json(sortByDistanceIfBiased(dedupeByDisplayName(data), biasLat, biasLon));
-      }
-      throw new Error("Nominatim returned no results");
-    } catch (nominatimError: any) {
-      console.warn(
-        `[Geocode] Nominatim failed for "${query}", falling back to Google: ${nominatimError.message}`,
-      );
-
-      const key = config.GOOGLE_API_KEY;
-      if (!key) throw new Error("No geocoding fallback available");
-
-      // Google's Geocoding API is a separate product from Places API and
-      // isn't enabled on this GCP project (confirmed: REQUEST_DENIED /
-      // "This API is not activated"). Places Text Search IS enabled and
-      // already used successfully elsewhere in this codebase, and it
-      // returns geometry.location for any query too — use that instead
-      // of requiring a second API to be turned on.
-      const gUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
-      const gRes = await fetch(gUrl);
-      const gData = await gRes.json();
-
-      if (gData.status !== "OK" || !Array.isArray(gData.results) || gData.results.length === 0) {
-        console.warn(
-          `[Geocode] Google fallback also failed for "${query}": ${gData.status} ${gData.error_message || ""}`,
-        );
-        return res.status(200).json([]);
-      }
-
-      const mapped = gData.results.map((r: any) => ({
-        lat: String(r.geometry.location.lat),
-        lon: String(r.geometry.location.lng),
-        display_name: r.formatted_address,
-        name: r.name,
-      }));
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
       return res
         .status(200)
-        .json(sortByDistanceIfBiased(dedupeByDisplayName(mapped), biasLat, biasLon));
+        .json(sortByDistanceIfBiased(dedupeByDisplayName(data), biasLat, biasLon));
     }
-  } catch (error) {
-    next(error);
+    throw new Error("Nominatim returned no results");
+  } catch (nominatimError: any) {
+    console.warn(
+      `[Geocode] Nominatim failed for "${query}", falling back to Google: ${nominatimError.message}`,
+    );
+
+    const key = config.GOOGLE_API_KEY;
+    if (!key) throw new Error("No geocoding fallback available");
+
+    // Google's Geocoding API is a separate product from Places API and
+    // isn't enabled on this GCP project (confirmed: REQUEST_DENIED /
+    // "This API is not activated"). Places Text Search IS enabled and
+    // already used successfully elsewhere in this codebase, and it
+    // returns geometry.location for any query too — use that instead
+    // of requiring a second API to be turned on.
+    const gUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
+    const gRes = await fetch(gUrl);
+    const gData = await gRes.json();
+
+    if (gData.status !== "OK" || !Array.isArray(gData.results) || gData.results.length === 0) {
+      console.warn(
+        `[Geocode] Google fallback also failed for "${query}": ${gData.status} ${gData.error_message || ""}`,
+      );
+      return res.status(200).json([]);
+    }
+
+    const mapped = gData.results.map((r: any) => ({
+      lat: String(r.geometry.location.lat),
+      lon: String(r.geometry.location.lng),
+      display_name: r.formatted_address,
+      name: r.name,
+    }));
+    return res
+      .status(200)
+      .json(sortByDistanceIfBiased(dedupeByDisplayName(mapped), biasLat, biasLon));
   }
-};
+});
 
 // ─── Protected endpoints (auth required) ──────────────────────────────────────
 
-export const weatherProxy = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const weatherProxy = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { layer, z, x, y } = req.params;
     const key = config.OPENWEATHER_API_KEY;
     if (!key) throw new BadRequestError("Weather API key missing");
@@ -410,10 +401,8 @@ export const weatherProxy = async (req: Request, res: Response, next: NextFuncti
     const buffer = await response.arrayBuffer();
     res.setHeader("Content-Type", "image/png");
     res.send(Buffer.from(buffer));
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
 // Hostnames this proxy will fetch on the user's behalf. Deliberately an
 // allowlist, not a blocklist — the client only ever needs this for known
@@ -425,53 +414,47 @@ const PROXY_IMAGE_ALLOWED_HOSTS = new Set([
   "avatars.githubusercontent.com",
 ]);
 
-export const proxyImage = async (req: Request, res: Response, next: NextFunction) => {
+export const proxyImage = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const raw = String(req.query.url || "");
+  if (!raw) throw new BadRequestError("url is required");
+
+  let target: URL;
   try {
-    const raw = String(req.query.url || "");
-    if (!raw) throw new BadRequestError("url is required");
-
-    let target: URL;
-    try {
-      target = new URL(raw);
-    } catch {
-      throw new BadRequestError("Invalid url");
-    }
-
-    if (target.protocol !== "https:") throw new BadRequestError("Only https URLs are allowed");
-    if (!PROXY_IMAGE_ALLOWED_HOSTS.has(target.hostname))
-      throw new BadRequestError("Host not allowed");
-
-    const response = await fetch(target.toString(), { redirect: "error" });
-    if (!response.ok) throw new BadRequestError("Failed to fetch image");
-
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.startsWith("image/"))
-      throw new BadRequestError("Upstream did not return an image");
-
-    const buffer = await response.arrayBuffer();
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "private, max-age=3600");
-    res.send(Buffer.from(buffer));
-  } catch (error) {
-    next(error);
+    target = new URL(raw);
+  } catch {
+    throw new BadRequestError("Invalid url");
   }
-};
 
-export const getProactiveInsights = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+  if (target.protocol !== "https:") throw new BadRequestError("Only https URLs are allowed");
+  if (!PROXY_IMAGE_ALLOWED_HOSTS.has(target.hostname))
+    throw new BadRequestError("Host not allowed");
+
+  const response = await fetch(target.toString(), { redirect: "error" });
+  if (!response.ok) throw new BadRequestError("Failed to fetch image");
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.startsWith("image/"))
+    throw new BadRequestError("Upstream did not return an image");
+
+  const buffer = await response.arrayBuffer();
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  res.send(Buffer.from(buffer));
+});
+
+export const getProactiveInsights = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const destination = String(req.query.destination || req.query.city || "");
     if (!destination) return res.json({ insights: [], suggestedPackingItems: [] });
     const aiUtils = new AiUtilitiesService();
     const result = await aiUtils.getProactiveInsights(destination, []);
     res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 const CURRENCY_CODE_RE = /^[A-Z]{3}$/;
 
-export const latestCurrency = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const latestCurrency = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const from = String(req.query.from || req.query.base || "USD").toUpperCase();
     const to = req.query.to
       ? String(req.query.to).toUpperCase()
@@ -507,13 +490,11 @@ export const latestCurrency = async (req: Request, res: Response, next: NextFunc
     if (!response.ok) throw new Error("Currency service failed");
     const data = await response.json();
     res.status(200).json(data);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const currencyHistory = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const currencyHistory = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const from = String(req.query.from || "USD").toUpperCase();
     const to = String(req.query.to || "EUR").toUpperCase();
     const days = Math.min(90, Math.max(7, parseInt(req.query.days as string) || 30));
@@ -531,13 +512,11 @@ export const currencyHistory = async (req: Request, res: Response, next: NextFun
         rate: rates[to] ?? 0,
       }));
     res.json(entries);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const convertCurrency = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const convertCurrency = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { amount, from, to } = req.query;
     if (!amount || !from || !to) throw new BadRequestError("Missing required parameters");
 
@@ -549,45 +528,37 @@ export const convertCurrency = async (req: Request, res: Response, next: NextFun
       new Date().toISOString(),
     );
     res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const translateText = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const translateText = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { text, sourceLang, targetLang } = req.body;
     if (!text || !targetLang) throw new BadRequestError("Missing text or target language");
 
     const aiUtils = new AiUtilitiesService();
     const result = await aiUtils.translate(text, sourceLang || "auto", targetLang);
     res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const getWeather = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { city, location, lat, lon } = req.query;
-    // Accept city, location, or lat/lon
-    const queryCity = (city || location) as string | undefined;
-    let query: string;
-    if (queryCity) {
-      query = queryCity;
-    } else if (lat && lon) {
-      query = `${lat},${lon}`;
-    } else {
-      throw new BadRequestError("Missing city, location, or coordinates");
-    }
-
-    const aiUtils = new AiUtilitiesService();
-    const result = await aiUtils.weather(query);
-    res.json(result);
-  } catch (error) {
-    next(error);
+export const getWeather = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { city, location, lat, lon } = req.query;
+  // Accept city, location, or lat/lon
+  const queryCity = (city || location) as string | undefined;
+  let query: string;
+  if (queryCity) {
+    query = queryCity;
+  } else if (lat && lon) {
+    query = `${lat},${lon}`;
+  } else {
+    throw new BadRequestError("Missing city, location, or coordinates");
   }
-};
+
+  const aiUtils = new AiUtilitiesService();
+  const result = await aiUtils.weather(query);
+  res.json(result);
+});
 
 const COUNTRY_SOS: Record<
   string,
@@ -628,8 +599,8 @@ async function detectCountryCode(location: string): Promise<string> {
   }
 }
 
-export const getEmergencyContacts = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getEmergencyContacts = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const location =
       (req.params.query && decodeURIComponent(req.params.query)) ||
       String(req.query.location || req.query.q || "");
@@ -661,23 +632,17 @@ export const getEmergencyContacts = async (req: Request, res: Response, next: Ne
       countryCode,
       sosNumbers: { police: sos.police, medical: sos.medical, fire: sos.fire, common: sos.common },
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const planTrip = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const aiUtils = new AiUtilitiesService();
-    const result = await aiUtils.planTrip(req.body);
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};
+export const planTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const aiUtils = new AiUtilitiesService();
+  const result = await aiUtils.planTrip(req.body);
+  res.json(result);
+});
 
-export const reverseGeocode = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const reverseGeocode = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { lat, lon } = req.query;
     if (!lat || !lon) throw new BadRequestError("Missing lat or lon");
 
@@ -723,7 +688,5 @@ export const reverseGeocode = async (req: Request, res: Response, next: NextFunc
         display_name: top.vicinity || top.name || "",
       });
     }
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);

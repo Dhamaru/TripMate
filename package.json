@@ -10,8 +10,8 @@
     "dev:client": "vite --port 3000",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "cross-env NODE_ENV=production node dist/index.js",
-    "check": "tsc",
-    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit",
+    "typecheck": "npm run check",
     "lint": "eslint 'server/**/*.ts' 'client/src/**/*.{ts,tsx}'",
     "format": "prettier --write .",
     "test": "vitest run",
@@ -21,7 +21,6 @@
     "test:e2e": "playwright test",
     "db:seed": "tsx server/scripts/seed.ts",
     "db:clear": "tsx server/scripts/clearDb.ts",
-    "test:parser": "tsx client/src/lib/__tests__/runParserTests.ts",
     "atlas:golden-eval": "tsx scripts/atlas-golden-eval.ts",
     "prepare": "husky"
   },

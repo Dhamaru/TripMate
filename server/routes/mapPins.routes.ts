@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as mapPinController from "../controllers/mapPin.controller";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 

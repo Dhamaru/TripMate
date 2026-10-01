@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth.middleware";
 import * as notificationsController from "../controllers/notifications.controller";
 
 const router = Router();

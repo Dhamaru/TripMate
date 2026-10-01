@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
 import { PackingListModel, PackingListTemplateModel, TripModel } from "@shared/schema";
 import { NotFoundError, InternalServerError, ForbiddenError, BadRequestError } from "../errors";
 import logger from "../logger";
@@ -9,22 +10,16 @@ import { notifyTripParticipants } from "../notifications";
 
 const orchestrator = new MasterOrchestrator();
 
-export const getPackingListTemplates = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getPackingListTemplates = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const templates = await PackingListTemplateModel.find({ userId }).sort({ createdAt: -1 });
     res.json(templates);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const createPackingListTemplate = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
+export const createPackingListTemplate = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const { name, items } = req.body;
     if (!name) throw new BadRequestError("Template name is required");
@@ -35,28 +30,20 @@ export const createPackingListTemplate = async (
       items: Array.isArray(items) ? items : [],
     });
     res.status(201).json(template);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const deletePackingListTemplate = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
+export const deletePackingListTemplate = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const result = await PackingListTemplateModel.deleteOne({ _id: req.params.id, userId });
     if (result.deletedCount === 0) throw new NotFoundError("Template not found");
     res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const generatePackingList = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const generatePackingList = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id: tripId } = req.params;
     const userId = req.user?._id || req.user?.id;
 
@@ -141,13 +128,11 @@ export const generatePackingList = async (req: Request, res: Response, next: Nex
       groupKey: `packing-updated:${tripId}`,
     });
     res.json({ success: true, data: packingList });
-  } catch (err) {
-    next(err);
-  }
-};
+  },
+);
 
-export const createPackingList = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const createPackingList = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const { tripId, name, season, items, isTemplate } = req.body;
 
@@ -171,13 +156,11 @@ export const createPackingList = async (req: Request, res: Response, next: NextF
       userId,
     });
     res.status(201).json(packingList);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const getPackingLists = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getPackingLists = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const tripId = req.query.tripId;
 
@@ -196,13 +179,11 @@ export const getPackingLists = async (req: Request, res: Response, next: NextFun
 
     const lists = await PackingListModel.find(query).sort({ createdAt: -1 });
     res.json(lists);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const updatePackingItem = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const updatePackingItem = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id: listId, itemId } = req.params;
     const { packed, quantity, name } = req.body;
     const userId = req.user?._id || req.user?.id;
@@ -241,13 +222,11 @@ export const updatePackingItem = async (req: Request, res: Response, next: NextF
       );
     }
     res.json(list);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const deletePackingList = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const deletePackingList = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const list = await PackingListModel.findById(req.params.id);
     if (!list) throw new NotFoundError("Packing list not found");
@@ -271,13 +250,11 @@ export const deletePackingList = async (req: Request, res: Response, next: NextF
       );
     }
     res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const updatePackingList = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const updatePackingList = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?._id || req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
@@ -316,13 +293,11 @@ export const updatePackingList = async (req: Request, res: Response, next: NextF
     }
 
     res.json(list);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const duplicatePackingList = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const duplicatePackingList = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?._id || req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
@@ -362,13 +337,11 @@ export const duplicatePackingList = async (req: Request, res: Response, next: Ne
     });
 
     res.status(201).json(copy);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const togglePackingItem = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const togglePackingItem = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id: listId, itemId } = req.params;
     const userId = req.user?._id || req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
@@ -406,7 +379,5 @@ export const togglePackingItem = async (req: Request, res: Response, next: NextF
     }
 
     res.json(item);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);

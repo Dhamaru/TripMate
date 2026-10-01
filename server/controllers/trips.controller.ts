@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import { asyncHandler } from "../middleware/asyncHandler";
 import {
   TripModel,
   CrowdDensityModel,
@@ -55,36 +56,32 @@ function ensureDayIndexes(itinerary: any): any {
   return itinerary;
 }
 
-export const createTrip = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id || req.user?.id;
-    if (!userId) {
-      console.error("[CreateTrip] Unauthorized attempt - req.user:", !!req.user);
-      throw new ForbiddenError("Authentication required to save trips");
-    }
-
-    const tripData = insertTripSchema.parse({
-      ...req.body,
-      userId,
-    });
-    if (tripData.itinerary) {
-      ensureActivityIds(tripData.itinerary);
-      ensureDayIndexes(tripData.itinerary);
-    }
-
-    const savedTrip = await TripModel.create(tripData);
-
-    // Background Image Fetch
-    setImmediate(() => fetchImageForTrip(savedTrip.id, savedTrip.destination));
-    // Background coordinate backfill for AI-generated/imported activities
-    // that never got geocoded — see backfillActivityCoords for why.
-    setImmediate(() => backfillActivityCoords(savedTrip.id, savedTrip.destination));
-
-    res.status(201).json(savedTrip);
-  } catch (error) {
-    next(error);
+export const createTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?._id || req.user?.id;
+  if (!userId) {
+    console.error("[CreateTrip] Unauthorized attempt - req.user:", !!req.user);
+    throw new ForbiddenError("Authentication required to save trips");
   }
-};
+
+  const tripData = insertTripSchema.parse({
+    ...req.body,
+    userId,
+  });
+  if (tripData.itinerary) {
+    ensureActivityIds(tripData.itinerary);
+    ensureDayIndexes(tripData.itinerary);
+  }
+
+  const savedTrip = await TripModel.create(tripData);
+
+  // Background Image Fetch
+  setImmediate(() => fetchImageForTrip(savedTrip.id, savedTrip.destination));
+  // Background coordinate backfill for AI-generated/imported activities
+  // that never got geocoded — see backfillActivityCoords for why.
+  setImmediate(() => backfillActivityCoords(savedTrip.id, savedTrip.destination));
+
+  res.status(201).json(savedTrip);
+});
 
 // Performance-audit finding: this had no limit at all -- a user with
 // hundreds of trips got every one of them back on every page load, unlike
@@ -99,121 +96,113 @@ export const createTrip = async (req: Request, res: Response, next: NextFunction
 // approaches this.
 const MAX_TRIPS_RETURNED = 200;
 
-export const getTrips = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id || req.user?.id;
-    const trips = await TripModel.find({
-      $or: [{ userId }, { "collaborators.userId": userId }],
-    })
-      .sort({ createdAt: -1 })
-      .limit(MAX_TRIPS_RETURNED);
-    res.json(trips);
-  } catch (error) {
-    next(error);
+export const getTrips = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?._id || req.user?.id;
+  const trips = await TripModel.find({
+    $or: [{ userId }, { "collaborators.userId": userId }],
+  })
+    .sort({ createdAt: -1 })
+    .limit(MAX_TRIPS_RETURNED);
+  res.json(trips);
+});
+
+export const getTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?._id || req.user?.id;
+  const trip = await TripModel.findOne({
+    _id: req.params.id,
+    $or: [{ userId }, { "collaborators.userId": userId }],
+  });
+  if (!trip) throw new NotFoundError("Trip not found");
+
+  // Self-heal trips saved before activity ids were stamped at creation.
+  let missingIds = false;
+  for (const day of trip.itinerary || []) {
+    for (const activity of day.activities || []) {
+      if (activity && !activity.id) {
+        activity.id = nanoid();
+        missingIds = true;
+      }
+    }
   }
-};
+  if (missingIds) {
+    trip.markModified("itinerary");
+    await trip.save();
+  }
 
-export const getTrip = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id || req.user?.id;
-    const trip = await TripModel.findOne({
-      _id: req.params.id,
-      $or: [{ userId }, { "collaborators.userId": userId }],
-    });
-    if (!trip) throw new NotFoundError("Trip not found");
-
-    // Self-heal trips saved before activity ids were stamped at creation.
-    let missingIds = false;
-    for (const day of trip.itinerary || []) {
-      for (const activity of day.activities || []) {
-        if (activity && !activity.id) {
-          activity.id = nanoid();
-          missingIds = true;
-        }
-      }
+  // Self-heal trips whose itinerary days never got a `dayIndex` field —
+  // live-reported and confirmed: every client mutation (addActivity,
+  // updateActivity, deleteActivity, toggleVote in itinerary.controller.ts)
+  // sends `dayIndex` as the 0-based array POSITION (ItineraryManager.tsx's
+  // own `.map((day, dayIdx) => ...)`), but those controllers all match
+  // against a `dayIndex` FIELD stored on the day sub-document itself. A
+  // trip whose days only ever got a `day` field (1-based, set by
+  // AiUtilitiesService's planTrip/generateFallbackTrip, and likely most
+  // pre-existing trips) has no such field to match — addActivity's fast
+  // path silently misses, falls through to its "day doesn't exist yet"
+  // branch, and PUSHES A WHOLE NEW PHANTOM DAY instead of adding to the
+  // one the user actually clicked on. No error surfaces; the user just
+  // sees "Activity added" and the activity is gone from where they
+  // expected it. dayIndex must always equal array position by
+  // construction (every write path assumes this), so it's always safe to
+  // force-sync it here, not just fill in when missing.
+  let dayIndexFixed = false;
+  (trip.itinerary || []).forEach((day: any, idx: number) => {
+    if (day && day.dayIndex !== idx) {
+      day.dayIndex = idx;
+      dayIndexFixed = true;
     }
-    if (missingIds) {
-      trip.markModified("itinerary");
-      await trip.save();
-    }
+  });
+  if (dayIndexFixed) {
+    trip.markModified("itinerary");
+    await trip.save();
+  }
 
-    // Self-heal trips whose itinerary days never got a `dayIndex` field —
-    // live-reported and confirmed: every client mutation (addActivity,
-    // updateActivity, deleteActivity, toggleVote in itinerary.controller.ts)
-    // sends `dayIndex` as the 0-based array POSITION (ItineraryManager.tsx's
-    // own `.map((day, dayIdx) => ...)`), but those controllers all match
-    // against a `dayIndex` FIELD stored on the day sub-document itself. A
-    // trip whose days only ever got a `day` field (1-based, set by
-    // AiUtilitiesService's planTrip/generateFallbackTrip, and likely most
-    // pre-existing trips) has no such field to match — addActivity's fast
-    // path silently misses, falls through to its "day doesn't exist yet"
-    // branch, and PUSHES A WHOLE NEW PHANTOM DAY instead of adding to the
-    // one the user actually clicked on. No error surfaces; the user just
-    // sees "Activity added" and the activity is gone from where they
-    // expected it. dayIndex must always equal array position by
-    // construction (every write path assumes this), so it's always safe to
-    // force-sync it here, not just fill in when missing.
-    let dayIndexFixed = false;
-    (trip.itinerary || []).forEach((day: any, idx: number) => {
-      if (day && day.dayIndex !== idx) {
-        day.dayIndex = idx;
-        dayIndexFixed = true;
-      }
-    });
-    if (dayIndexFixed) {
-      trip.markModified("itinerary");
-      await trip.save();
-    }
-
-    // Backfill coordinates for trips created before backfillActivityCoords
-    // existed (or whose itinerary was generated before this activity had
-    // any coords to begin with) — same self-heal-on-read pattern as the
-    // missing-id fix above. Re-arms whenever the itinerary has grown since
-    // the last attempt (see coordsBackfillActivityCount's comment in
-    // shared/schema.ts) so an activity added after the trip's first view —
-    // e.g. by Atlas's modify_itinerary, whose own inline geocode attempt is
-    // best-effort — still gets a real chance instead of being permanently
-    // stuck with no map pin.
-    const totalActivityCount = (trip.itinerary || []).reduce(
-      (n: number, day: any) => n + (day?.activities?.length || 0),
-      0,
+  // Backfill coordinates for trips created before backfillActivityCoords
+  // existed (or whose itinerary was generated before this activity had
+  // any coords to begin with) — same self-heal-on-read pattern as the
+  // missing-id fix above. Re-arms whenever the itinerary has grown since
+  // the last attempt (see coordsBackfillActivityCount's comment in
+  // shared/schema.ts) so an activity added after the trip's first view —
+  // e.g. by Atlas's modify_itinerary, whose own inline geocode attempt is
+  // best-effort — still gets a real chance instead of being permanently
+  // stuck with no map pin.
+  const totalActivityCount = (trip.itinerary || []).reduce(
+    (n: number, day: any) => n + (day?.activities?.length || 0),
+    0,
+  );
+  if ((trip.coordsBackfillActivityCount || 0) < totalActivityCount) {
+    const hasMissingCoords = (trip.itinerary || []).some((day: any) =>
+      (day.activities || []).some(
+        (act: any) => act && (act.lat == null || act.lon == null) && (act.location || act.title),
+      ),
     );
-    if ((trip.coordsBackfillActivityCount || 0) < totalActivityCount) {
-      const hasMissingCoords = (trip.itinerary || []).some((day: any) =>
-        (day.activities || []).some(
-          (act: any) => act && (act.lat == null || act.lon == null) && (act.location || act.title),
-        ),
-      );
-      if (hasMissingCoords) {
-        // Atomic claim so concurrent views of the same trip (multiple
-        // tabs, a fast refresh) can't both kick off a duplicate job.
-        const claimed = await TripModel.updateOne(
-          { _id: trip.id, coordsBackfillActivityCount: { $lt: totalActivityCount } },
-          {
-            $set: {
-              coordsBackfillActivityCount: totalActivityCount,
-              coordsBackfillAttempted: true,
-            },
+    if (hasMissingCoords) {
+      // Atomic claim so concurrent views of the same trip (multiple
+      // tabs, a fast refresh) can't both kick off a duplicate job.
+      const claimed = await TripModel.updateOne(
+        { _id: trip.id, coordsBackfillActivityCount: { $lt: totalActivityCount } },
+        {
+          $set: {
+            coordsBackfillActivityCount: totalActivityCount,
+            coordsBackfillAttempted: true,
           },
-        );
-        if (claimed.modifiedCount > 0) {
-          setImmediate(() => backfillActivityCoords(String(trip.id), trip.destination));
-        }
-      } else {
-        // Nothing missing right now — still record the count so a later
-        // activity addition is what re-arms this, not every single read.
-        await TripModel.updateOne(
-          { _id: trip.id },
-          { $set: { coordsBackfillActivityCount: totalActivityCount } },
-        ).catch(() => {});
+        },
+      );
+      if (claimed.modifiedCount > 0) {
+        setImmediate(() => backfillActivityCoords(String(trip.id), trip.destination));
       }
+    } else {
+      // Nothing missing right now — still record the count so a later
+      // activity addition is what re-arms this, not every single read.
+      await TripModel.updateOne(
+        { _id: trip.id },
+        { $set: { coordsBackfillActivityCount: totalActivityCount } },
+      ).catch(() => {});
     }
-
-    res.json(trip);
-  } catch (error) {
-    next(error);
   }
-};
+
+  res.json(trip);
+});
 
 // Trip fields an owner/editor is allowed to change through this route.
 // Deliberately excludes userId (ownership), collaborators, shareId, and
@@ -246,185 +235,171 @@ const UPDATABLE_TRIP_FIELDS = new Set([
   "costBreakdown",
 ]);
 
-export const updateTrip = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id || req.user?.id;
-    // itinerary/expenses were removed from UPDATABLE_TRIP_FIELDS (see comment
-    // above) — this route no longer touches either, so ensureActivityIds
-    // on req.body.itinerary would be a no-op that misleadingly implied
-    // otherwise. Use the dedicated /itinerary/* and /expenses/* endpoints,
-    // which apply their own atomic-op/CAS concurrency protection.
-    const updates = Object.fromEntries(
-      Object.entries(req.body ?? {}).filter(([key]) => UPDATABLE_TRIP_FIELDS.has(key)),
-    );
-    const trip = await TripModel.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
-      },
-      { $set: updates },
-      { new: true, runValidators: true },
-    );
-    if (!trip) throw new ForbiddenError("Trip not found or insufficient permissions");
+export const updateTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?._id || req.user?.id;
+  // itinerary/expenses were removed from UPDATABLE_TRIP_FIELDS (see comment
+  // above) — this route no longer touches either, so ensureActivityIds
+  // on req.body.itinerary would be a no-op that misleadingly implied
+  // otherwise. Use the dedicated /itinerary/* and /expenses/* endpoints,
+  // which apply their own atomic-op/CAS concurrency protection.
+  const updates = Object.fromEntries(
+    Object.entries(req.body ?? {}).filter(([key]) => UPDATABLE_TRIP_FIELDS.has(key)),
+  );
+  const trip = await TripModel.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+    },
+    { $set: updates },
+    { new: true, runValidators: true },
+  );
+  if (!trip) throw new ForbiddenError("Trip not found or insufficient permissions");
 
-    socketService.broadcastMutation(
-      (trip as any)._id.toString(),
-      { type: "trip-updated", data: trip },
-      String(userId),
-    );
+  socketService.broadcastMutation(
+    (trip as any)._id.toString(),
+    { type: "trip-updated", data: trip },
+    String(userId),
+  );
 
-    // Only notify collaborators about changes that actually matter to
-    // their planning — dates, destination, budget — not every field poke.
-    const MEANINGFUL = ["startDate", "endDate", "destination", "budget", "totalBudget", "days"];
-    if (MEANINGFUL.some((f) => f in updates)) {
-      const tid = (trip as any)._id.toString();
-      await notifyTripParticipants(trip, String(userId), {
-        type: "trip-updated",
-        title: "Trip details changed",
-        message: `The dates, destination, or budget for your trip to ${trip.destination} were updated.`,
-        link: `/app/trips/${tid}`,
-        tripId: tid,
-        groupKey: `trip-updated:${tid}`,
-      });
-    }
-
-    res.json(trip);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const deleteTrip = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id || req.user?.id;
-    const result = await TripModel.deleteOne({ _id: req.params.id, userId });
-    if (result.deletedCount === 0) throw new NotFoundError("Trip not found");
-    // Found while wiring up per-trip Atlas chat persistence: this route
-    // never cascaded anything. Once the chat thread became something a
-    // real user could actually see and return to, an orphaned Mongo doc a
-    // deleted trip's tripId now points at nothing would just sit there
-    // forever with no way to reach it.
-    await AtlasConversationModel.deleteOne({ tripId: req.params.id, userId }).catch(() => {});
-    // Acceptance-review finding: this same gap was still open for
-    // JournalEntryModel/PackingListModel — live-reproduced (delete a trip,
-    // its packing list survives pointing at a tripId that no longer
-    // exists). Both fields are optional on their schema (a season-template
-    // packing list or a non-trip journal entry has no tripId at all), so
-    // this only ever touches docs that were actually tied to this trip.
-    await JournalEntryModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
-    await PackingListModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const shareTrip = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id || req.user?.id;
-    const { isPublic } = req.body;
-
-    if (isPublic) {
-      // Was read-then-write (findOne to check shareId, then a separate
-      // findOneAndUpdate) -- two concurrent share-toggle requests (a
-      // double-click, a retried request on a slow connection) could both
-      // read "no shareId yet", both generate a DIFFERENT nanoid, and the
-      // second write silently overwrites the first. Whoever got the first
-      // response holds a link that 404s moments later. The
-      // `shareId: { $exists: false }` filter makes this a proper
-      // compare-and-set: only the first concurrent writer's condition
-      // still matches once either one succeeds, so at most one shareId is
-      // ever generated for a trip.
-      await TripModel.findOneAndUpdate(
-        { _id: req.params.id, userId, shareId: { $exists: false } },
-        { $set: { shareId: nanoid(10) } },
-      );
-    }
-
-    const trip = await TripModel.findOneAndUpdate(
-      { _id: req.params.id, userId },
-      { $set: { isPublic } },
-      { new: true },
-    );
-
-    if (!trip) throw new NotFoundError("Trip not found");
-
-    socketService.broadcastMutation(
-      (trip as any)._id.toString(),
-      { type: "trip-updated", data: trip },
-      String(userId),
-    );
-
-    res.json(trip);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const generateItinerary = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const aiService = new AiUtilitiesService();
-    const {
-      origin,
-      destination,
-      days,
-      persons,
-      budget,
-      currency,
-      typeOfTrip,
-      travelMedium,
-      preferences,
-      cuisinePreferences,
-      dietaryPreferences,
-    } = req.body;
-
-    console.log(`[TripsController] Generating itinerary for ${destination} (${days} days)`);
-
-    const plan = await aiService.planTrip({
-      // Live-reported: "travel and logistics not mapped" -- origin was
-      // destructured above and then never forwarded here, so the AI never
-      // knew where the traveler was starting from and had no basis to
-      // suggest how to actually reach the destination.
-      origin,
-      destination,
-      days: Number(days),
-      persons: Number(persons),
-      budget: budget ? Number(budget) : undefined,
-      currency,
-      typeOfTrip,
-      travelMedium,
-      // `preferences` (free-text notes) was destructured above but never
-      // actually forwarded here — every trip's notes field was silently
-      // discarded before ever reaching the AI. Fixed alongside adding the
-      // two new structured preference arrays.
-      preferences,
-      cuisinePreferences: Array.isArray(cuisinePreferences) ? cuisinePreferences : undefined,
-      dietaryPreferences: Array.isArray(dietaryPreferences) ? dietaryPreferences : undefined,
+  // Only notify collaborators about changes that actually matter to
+  // their planning — dates, destination, budget — not every field poke.
+  const MEANINGFUL = ["startDate", "endDate", "destination", "budget", "totalBudget", "days"];
+  if (MEANINGFUL.some((f) => f in updates)) {
+    const tid = (trip as any)._id.toString();
+    await notifyTripParticipants(trip, String(userId), {
+      type: "trip-updated",
+      title: "Trip details changed",
+      message: `The dates, destination, or budget for your trip to ${trip.destination} were updated.`,
+      link: `/app/trips/${tid}`,
+      tripId: tid,
+      groupKey: `trip-updated:${tid}`,
     });
-
-    res.json(plan);
-  } catch (error) {
-    console.error("[TripsController] generateItinerary Error:", error);
-    next(error);
   }
-};
 
-export const getHacks = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id || req.user?.id;
-    const trip = await TripModel.findOne({ _id: req.params.id, userId });
-    if (!trip) throw new NotFoundError("Trip not found");
+  res.json(trip);
+});
 
-    const aiService = new AiUtilitiesService();
-    const result = await aiService.getTravelHacks(trip.destination, trip.travelStyle);
-    res.json(result);
-  } catch (error) {
-    next(error);
+export const deleteTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?._id || req.user?.id;
+  const result = await TripModel.deleteOne({ _id: req.params.id, userId });
+  if (result.deletedCount === 0) throw new NotFoundError("Trip not found");
+  // Found while wiring up per-trip Atlas chat persistence: this route
+  // never cascaded anything. Once the chat thread became something a
+  // real user could actually see and return to, an orphaned Mongo doc a
+  // deleted trip's tripId now points at nothing would just sit there
+  // forever with no way to reach it.
+  await AtlasConversationModel.deleteOne({ tripId: req.params.id, userId }).catch(() => {});
+  // Acceptance-review finding: this same gap was still open for
+  // JournalEntryModel/PackingListModel — live-reproduced (delete a trip,
+  // its packing list survives pointing at a tripId that no longer
+  // exists). Both fields are optional on their schema (a season-template
+  // packing list or a non-trip journal entry has no tripId at all), so
+  // this only ever touches docs that were actually tied to this trip.
+  await JournalEntryModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
+  await PackingListModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
+  res.status(204).send();
+});
+
+export const shareTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?._id || req.user?.id;
+  const { isPublic } = req.body;
+
+  if (isPublic) {
+    // Was read-then-write (findOne to check shareId, then a separate
+    // findOneAndUpdate) -- two concurrent share-toggle requests (a
+    // double-click, a retried request on a slow connection) could both
+    // read "no shareId yet", both generate a DIFFERENT nanoid, and the
+    // second write silently overwrites the first. Whoever got the first
+    // response holds a link that 404s moments later. The
+    // `shareId: { $exists: false }` filter makes this a proper
+    // compare-and-set: only the first concurrent writer's condition
+    // still matches once either one succeeds, so at most one shareId is
+    // ever generated for a trip.
+    await TripModel.findOneAndUpdate(
+      { _id: req.params.id, userId, shareId: { $exists: false } },
+      { $set: { shareId: nanoid(10) } },
+    );
   }
-};
 
-export const getQuietPlaces = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+  const trip = await TripModel.findOneAndUpdate(
+    { _id: req.params.id, userId },
+    { $set: { isPublic } },
+    { new: true },
+  );
+
+  if (!trip) throw new NotFoundError("Trip not found");
+
+  socketService.broadcastMutation(
+    (trip as any)._id.toString(),
+    { type: "trip-updated", data: trip },
+    String(userId),
+  );
+
+  res.json(trip);
+});
+
+export const generateItinerary = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const aiService = new AiUtilitiesService();
+      const {
+        origin,
+        destination,
+        days,
+        persons,
+        budget,
+        currency,
+        typeOfTrip,
+        travelMedium,
+        preferences,
+        cuisinePreferences,
+        dietaryPreferences,
+      } = req.body;
+
+      console.log(`[TripsController] Generating itinerary for ${destination} (${days} days)`);
+
+      const plan = await aiService.planTrip({
+        // Live-reported: "travel and logistics not mapped" -- origin was
+        // destructured above and then never forwarded here, so the AI never
+        // knew where the traveler was starting from and had no basis to
+        // suggest how to actually reach the destination.
+        origin,
+        destination,
+        days: Number(days),
+        persons: Number(persons),
+        budget: budget ? Number(budget) : undefined,
+        currency,
+        typeOfTrip,
+        travelMedium,
+        // `preferences` (free-text notes) was destructured above but never
+        // actually forwarded here — every trip's notes field was silently
+        // discarded before ever reaching the AI. Fixed alongside adding the
+        // two new structured preference arrays.
+        preferences,
+        cuisinePreferences: Array.isArray(cuisinePreferences) ? cuisinePreferences : undefined,
+        dietaryPreferences: Array.isArray(dietaryPreferences) ? dietaryPreferences : undefined,
+      });
+
+      res.json(plan);
+    } catch (error) {
+      console.error("[TripsController] generateItinerary Error:", error);
+      next(error);
+    }
+  },
+);
+
+export const getHacks = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?._id || req.user?.id;
+  const trip = await TripModel.findOne({ _id: req.params.id, userId });
+  if (!trip) throw new NotFoundError("Trip not found");
+
+  const aiService = new AiUtilitiesService();
+  const result = await aiService.getTravelHacks(trip.destination, trip.travelStyle);
+  res.json(result);
+});
+
+export const getQuietPlaces = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const trip = await TripModel.findOne({ _id: req.params.id, userId });
     if (!trip) throw new NotFoundError("Trip not found");
@@ -470,13 +445,11 @@ export const getQuietPlaces = async (req: Request, res: Response, next: NextFunc
     const aiService = new AiUtilitiesService();
     const spots = await aiService.getQuietPlaceSuggestions(trip.destination);
     res.json({ spots });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const forceUpdateImage = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const forceUpdateImage = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const trip = await TripModel.findOne({ _id: req.params.id, userId });
     if (!trip) throw new NotFoundError("Trip not found");
@@ -502,10 +475,8 @@ export const forceUpdateImage = async (req: Request, res: Response, next: NextFu
     const updated = await TripModel.findById(trip.id);
     const imageChanged = !!updated?.imageUrl && updated.imageUrl !== previousImageUrl;
     res.json({ ...updated?.toJSON(), imageChanged });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
 /**
  * Helper to fetch image from Google Places API
@@ -744,8 +715,8 @@ async function searchGooglePlaces(query: string, key: string) {
   return Array.isArray(data.results) ? data.results : [];
 }
 
-export const discoverPlaces = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const discoverPlaces = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id: tripId } = req.params;
     const userId = req.user?._id || req.user?.id;
     const { category, query } = req.body as { category?: string; query?: string };
@@ -766,13 +737,11 @@ export const discoverPlaces = async (req: Request, res: Response, next: NextFunc
     const results = await searchGooglePlaces(searchQuery, key);
 
     res.json({ places: results.slice(0, 20).map((p: any) => mapGooglePlace(p, key, category)) });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const getAiRecommendations = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getAiRecommendations = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id: tripId } = req.params;
     const userId = req.user?._id || req.user?.id;
     const { category } = req.body as { category?: string };
@@ -793,13 +762,11 @@ export const getAiRecommendations = async (req: Request, res: Response, next: Ne
     res.json({
       recommendations: results.slice(0, 10).map((p: any) => mapGooglePlace(p, key, category)),
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const getPublicTrip = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getPublicTrip = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { shareId } = req.params;
     // Was returning the whole document with no projection — this is a
     // genuinely PUBLIC, unauthenticated route (anyone with the link, no
@@ -835,131 +802,134 @@ export const getPublicTrip = async (req: Request, res: Response, next: NextFunct
       }
     }
     res.json(json);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const parseSchedule = async (req: Request, res: Response, next: NextFunction) => {
-  const startedAt = Date.now();
-  const userId = req.user?._id || req.user?.id || "unknown";
-  try {
-    // parseScheduleSchema (validate() middleware, trips.routes.ts) has
-    // already rejected anything too short, groupSize <1, or a start date
-    // in the past, and coerced groupSize/budget/startDate to the right
-    // types — req.body is trustworthy on shape by this point. What's left
-    // here is content sanitization: strip any HTML the textarea would
-    // otherwise pass straight through into the AI prompt unchanged.
-    const { scheduleText, startDate, groupSize, budget, currency } = req.body;
-    const sanitizedScheduleText = String(scheduleText)
-      .replace(/<[^>]*>/g, "")
-      .trim();
-    if (sanitizedScheduleText.length < 20) {
-      throw new BadRequestError(
-        "Please paste more detail about your trip — at least 20 characters.",
+export const parseSchedule = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const startedAt = Date.now();
+    const userId = req.user?._id || req.user?.id || "unknown";
+    try {
+      // parseScheduleSchema (validate() middleware, trips.routes.ts) has
+      // already rejected anything too short, groupSize <1, or a start date
+      // in the past, and coerced groupSize/budget/startDate to the right
+      // types — req.body is trustworthy on shape by this point. What's left
+      // here is content sanitization: strip any HTML the textarea would
+      // otherwise pass straight through into the AI prompt unchanged.
+      const { scheduleText, startDate, groupSize, budget, currency } = req.body;
+      const sanitizedScheduleText = String(scheduleText)
+        .replace(/<[^>]*>/g, "")
+        .trim();
+      if (sanitizedScheduleText.length < 20) {
+        throw new BadRequestError(
+          "Please paste more detail about your trip — at least 20 characters.",
+        );
+      }
+      const normalizedCurrency = currency || "INR";
+      // parseScheduleSchema coerces this to a real Date (z.coerce.date(),
+      // for the past-date check) — normalize to a plain "YYYY-MM-DD" once
+      // here and reuse it everywhere below (the cache hash and the AI
+      // prompt both need a startDate representation; a raw Date object's
+      // implicit toString() in a template literal is deterministic but
+      // timezone/locale-dependent and needlessly fragile for a cache key).
+      const startDateStr: string | undefined = startDate
+        ? new Date(startDate).toISOString().slice(0, 10)
+        : undefined;
+
+      // Rough day-count estimate from the pasted text itself (counts "Day N"
+      // occurrences) — used only to steer getBudgetBracket before the AI has
+      // actually parsed the schedule. Previously hardcoded to 1, which read
+      // a 10-day ₹30,000 trip (₹3,000/day — "budget") as "premium"
+      // (₹30,000/day) and steered the prompt toward suggesting paid
+      // upgrades on what's actually a tight budget. Not exact — the AI's
+      // own parsed `days` is the source of truth for everything after this
+      // point — but a much closer estimate than assuming every trip is 1 day.
+      const estimatedDays = Math.max(
+        1,
+        (sanitizedScheduleText.match(/\bday\s*\d+/gi) || []).length,
       );
-    }
-    const normalizedCurrency = currency || "INR";
-    // parseScheduleSchema coerces this to a real Date (z.coerce.date(),
-    // for the past-date check) — normalize to a plain "YYYY-MM-DD" once
-    // here and reuse it everywhere below (the cache hash and the AI
-    // prompt both need a startDate representation; a raw Date object's
-    // implicit toString() in a template literal is deterministic but
-    // timezone/locale-dependent and needlessly fragile for a cache key).
-    const startDateStr: string | undefined = startDate
-      ? new Date(startDate).toISOString().slice(0, 10)
-      : undefined;
 
-    // Rough day-count estimate from the pasted text itself (counts "Day N"
-    // occurrences) — used only to steer getBudgetBracket before the AI has
-    // actually parsed the schedule. Previously hardcoded to 1, which read
-    // a 10-day ₹30,000 trip (₹3,000/day — "budget") as "premium"
-    // (₹30,000/day) and steered the prompt toward suggesting paid
-    // upgrades on what's actually a tight budget. Not exact — the AI's
-    // own parsed `days` is the source of truth for everything after this
-    // point — but a much closer estimate than assuming every trip is 1 day.
-    const estimatedDays = Math.max(1, (sanitizedScheduleText.match(/\bday\s*\d+/gi) || []).length);
+      const aiService = new AiUtilitiesService();
+      const budgetBracket = aiService.getBudgetBracket(
+        budget,
+        estimatedDays,
+        groupSize,
+        normalizedCurrency,
+      );
 
-    const aiService = new AiUtilitiesService();
-    const budgetBracket = aiService.getBudgetBracket(
-      budget,
-      estimatedDays,
-      groupSize,
-      normalizedCurrency,
-    );
+      // Cache hash: sanitized input + group size + budget bracket (not the
+      // exact budget — see getBudgetBracket) + currency + startDate. Budget
+      // is deliberately bucketed (₹49,800 vs ₹50,000 should still hit the
+      // same entry) but startDate is NOT interchangeable the same way — the
+      // AI embeds concrete per-day dates in its response (it's told the
+      // start date and asked to compute each day's date from it), so a
+      // cached result from one startDate served to a request with a
+      // different startDate would silently hand back the wrong dates. Live
+      // review caught this before it shipped: a Sept-10 cached trip would
+      // otherwise get served to a user who asked for Nov-15.
+      const hash = crypto
+        .createHash("sha256")
+        .update(
+          `${sanitizedScheduleText}|${groupSize}|${budgetBracket}|${normalizedCurrency.toUpperCase()}|${startDateStr || "none"}`,
+        )
+        .digest("hex");
 
-    // Cache hash: sanitized input + group size + budget bracket (not the
-    // exact budget — see getBudgetBracket) + currency + startDate. Budget
-    // is deliberately bucketed (₹49,800 vs ₹50,000 should still hit the
-    // same entry) but startDate is NOT interchangeable the same way — the
-    // AI embeds concrete per-day dates in its response (it's told the
-    // start date and asked to compute each day's date from it), so a
-    // cached result from one startDate served to a request with a
-    // different startDate would silently hand back the wrong dates. Live
-    // review caught this before it shipped: a Sept-10 cached trip would
-    // otherwise get served to a user who asked for Nov-15.
-    const hash = crypto
-      .createHash("sha256")
-      .update(
-        `${sanitizedScheduleText}|${groupSize}|${budgetBracket}|${normalizedCurrency.toUpperCase()}|${startDateStr || "none"}`,
-      )
-      .digest("hex");
+      const cached = await ImportPlanCacheModel.findOne({ hash })
+        .lean()
+        .catch(() => null);
+      if (cached) {
+        // Fire-and-forget — a logging write must never delay or fail the
+        // response to the user (same reasoning as the cache-miss path
+        // below and the account-export/delete-cascade pattern elsewhere
+        // in this codebase: best-effort side effects don't block the
+        // primary result).
+        ImportPlanRequestLogModel.create({
+          userId,
+          cacheHit: true,
+          durationMs: Date.now() - startedAt,
+          aiModel: "cache",
+        }).catch((e) => console.error("[TripsController] request log write failed:", e.message));
+        return res.json(cached.structuredJson);
+      }
 
-    const cached = await ImportPlanCacheModel.findOne({ hash })
-      .lean()
-      .catch(() => null);
-    if (cached) {
-      // Fire-and-forget — a logging write must never delay or fail the
-      // response to the user (same reasoning as the cache-miss path
-      // below and the account-export/delete-cascade pattern elsewhere
-      // in this codebase: best-effort side effects don't block the
-      // primary result).
+      let loggedMeta: { model: string; tokensUsed?: number } = { model: "unknown" };
+      const result = await aiService.parseSchedule(
+        {
+          scheduleText: sanitizedScheduleText,
+          startDate: startDateStr,
+          groupSize,
+          budget,
+          currency: normalizedCurrency,
+        },
+        (meta) => {
+          loggedMeta = meta;
+        },
+      );
+
+      // Best-effort — per the original spec's own instruction ("if the DB
+      // insert fails, still return the itinerary to the user"), neither of
+      // these can block or fail the response.
+      ImportPlanCacheModel.create({ hash, structuredJson: result }).catch((e) =>
+        console.error("[TripsController] import-plan cache write failed:", e.message),
+      );
       ImportPlanRequestLogModel.create({
         userId,
-        cacheHit: true,
+        cacheHit: false,
         durationMs: Date.now() - startedAt,
-        aiModel: "cache",
+        aiModel: loggedMeta.model,
+        tokensUsed: loggedMeta.tokensUsed,
       }).catch((e) => console.error("[TripsController] request log write failed:", e.message));
-      return res.json(cached.structuredJson);
+
+      res.json(result);
+    } catch (error) {
+      console.error("[TripsController] parseSchedule Error:", error);
+      next(error);
     }
+  },
+);
 
-    let loggedMeta: { model: string; tokensUsed?: number } = { model: "unknown" };
-    const result = await aiService.parseSchedule(
-      {
-        scheduleText: sanitizedScheduleText,
-        startDate: startDateStr,
-        groupSize,
-        budget,
-        currency: normalizedCurrency,
-      },
-      (meta) => {
-        loggedMeta = meta;
-      },
-    );
-
-    // Best-effort — per the original spec's own instruction ("if the DB
-    // insert fails, still return the itinerary to the user"), neither of
-    // these can block or fail the response.
-    ImportPlanCacheModel.create({ hash, structuredJson: result }).catch((e) =>
-      console.error("[TripsController] import-plan cache write failed:", e.message),
-    );
-    ImportPlanRequestLogModel.create({
-      userId,
-      cacheHit: false,
-      durationMs: Date.now() - startedAt,
-      aiModel: loggedMeta.model,
-      tokensUsed: loggedMeta.tokensUsed,
-    }).catch((e) => console.error("[TripsController] request log write failed:", e.message));
-
-    res.json(result);
-  } catch (error) {
-    console.error("[TripsController] parseSchedule Error:", error);
-    next(error);
-  }
-};
-
-export const getBudgetForecast = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getBudgetForecast = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     const trip = await TripModel.findOne({
       _id: req.params.id,
@@ -970,7 +940,5 @@ export const getBudgetForecast = async (req: Request, res: Response, next: NextF
     const aiService = new AiUtilitiesService();
     const forecast = await aiService.getBudgetForecast(trip);
     res.json(forecast);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);

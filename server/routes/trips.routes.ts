@@ -5,7 +5,7 @@ import * as itineraryController from "../controllers/itinerary.controller";
 import * as expenseController from "../controllers/expense.controller";
 import * as collaboratorController from "../controllers/collaborator.controller";
 import { validate } from "../middleware/validate";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth.middleware";
 import {
   generationLimiter,
   aiLimiter,

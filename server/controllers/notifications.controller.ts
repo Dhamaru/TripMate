@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
 import { NotificationModel } from "@shared/schema";
 import { socketService } from "../services/SocketService";
 
 const PAGE_SIZE = 50;
 
-export const getNotifications = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const getNotifications = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = String(req.user?._id || req.user?.id);
     // `before` (an ISO createdAt) lets the client page further back once
     // it's already loaded a page — without this, the 50-item cap on a
@@ -31,13 +32,11 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
 
     const unreadCount = await NotificationModel.countDocuments({ userId, read: false });
     res.json({ notifications, unreadCount, hasMore });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const markNotificationRead = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const markNotificationRead = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = String(req.user?._id || req.user?.id);
     const { id } = req.params;
     const notification = await NotificationModel.findOneAndUpdate(
@@ -48,43 +47,37 @@ export const markNotificationRead = async (req: Request, res: Response, next: Ne
     if (!notification) return res.status(404).json({ error: "Notification not found" });
     socketService.pushNotificationRead(userId, id);
     res.json(notification);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const markAllNotificationsRead = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const markAllNotificationsRead = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = String(req.user?._id || req.user?.id);
     await NotificationModel.updateMany({ userId, read: false }, { read: true, readAt: new Date() });
     socketService.pushNotificationRead(userId, "all");
     res.json({ ok: true });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
 // Notifications are never auto-expired or silently pruned — they persist
 // until the user explicitly removes them. This is the one path that does.
-export const deleteNotification = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const deleteNotification = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = String(req.user?._id || req.user?.id);
     const { id } = req.params;
     const deleted = await NotificationModel.findOneAndDelete({ _id: id, userId });
     if (!deleted) return res.status(404).json({ error: "Notification not found" });
     socketService.pushNotificationDeleted(userId, id);
     res.json({ ok: true });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
 // One endpoint for both "delete these selected ones" and "clear all" —
 // `ids` deletes exactly that set (still scoped to the caller's own
 // userId, so an id belonging to someone else is silently a no-op rather
 // than an IDOR delete); omitting it clears everything.
-export const deleteNotifications = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const deleteNotifications = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = String(req.user?._id || req.user?.id);
     const ids = Array.isArray(req.body?.ids) ? (req.body.ids as string[]).map(String) : null;
     const query: Record<string, unknown> = { userId };
@@ -93,7 +86,5 @@ export const deleteNotifications = async (req: Request, res: Response, next: Nex
     const result = await NotificationModel.deleteMany(query);
     socketService.pushNotificationDeleted(userId, ids && ids.length > 0 ? ids : "all");
     res.json({ ok: true, deletedCount: result.deletedCount });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { optionalAuth, requireAuth } from "../middleware/auth";
+import { optionalAuth, requireAuth } from "../middleware/auth.middleware";
 import { apiProxyLimiter, placesPhotoLimiter } from "../middleware/rateLimit.middleware";
 import { config } from "../config";
 

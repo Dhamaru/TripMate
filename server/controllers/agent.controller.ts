@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
 import { runAgentLoop } from "../agent/agentLoop";
 import { AtlasMemoryService } from "../agent/memory";
 import { AiUtilitiesService } from "../AiUtilitiesService";
@@ -22,69 +23,65 @@ const emptyOpenai = config.GEMINI_API_KEY
   : null;
 const aiService = new AiUtilitiesService();
 
-export const chat = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { tripId, message, context: clientContext } = req.body;
-    const userId = req.user?._id || req.user?.id;
-    if (!userId) throw new UnauthorizedError();
+export const chat = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { tripId, message, context: clientContext } = req.body;
+  const userId = req.user?._id || req.user?.id;
+  if (!userId) throw new UnauthorizedError();
 
-    if (!message || !String(message).trim()) {
-      return res.status(400).json({ message: "Message is required" });
-    }
+  if (!message || !String(message).trim()) {
+    return res.status(400).json({ message: "Message is required" });
+  }
 
-    const actualTripId = tripId || clientContext?.currentTripId || clientContext?.tripId;
-    // See the streaming handler below for why this falls back instead of
-    // dropping history entirely when no trip is open.
-    const conversationKey = actualTripId || `general:${userId}`;
+  const actualTripId = tripId || clientContext?.currentTripId || clientContext?.tripId;
+  // See the streaming handler below for why this falls back instead of
+  // dropping history entirely when no trip is open.
+  const conversationKey = actualTripId || `general:${userId}`;
 
-    // 1. Fetch conversation history
-    const history = await AtlasMemoryService.getHistory(conversationKey, userId);
+  // 1. Fetch conversation history
+  const history = await AtlasMemoryService.getHistory(conversationKey, userId);
 
-    // 2. Run Agent Loop
-    // clientContext is client-supplied (req.body.context) — spreading it
-    // after userId let a caller override the session-derived userId with
-    // an arbitrary victim id, which every Atlas tool handler then trusted
-    // as the acting user's identity. Strip it before spreading.
-    const { userId: _clientUserId, ...safeClientContext } = clientContext ?? {};
-    const result = await runAgentLoop(
-      {
-        message,
+  // 2. Run Agent Loop
+  // clientContext is client-supplied (req.body.context) — spreading it
+  // after userId let a caller override the session-derived userId with
+  // an arbitrary victim id, which every Atlas tool handler then trusted
+  // as the acting user's identity. Strip it before spreading.
+  const { userId: _clientUserId, ...safeClientContext } = clientContext ?? {};
+  const result = await runAgentLoop(
+    {
+      message,
+      userId,
+      context: {
+        ...safeClientContext,
         userId,
-        context: {
-          ...safeClientContext,
-          userId,
-          tripId: actualTripId,
-        },
-        conversationHistory: history,
+        tripId: actualTripId,
       },
+      conversationHistory: history,
+    },
+    {
+      openai: emptyOpenai,
+      aiService: aiService as any,
+    },
+  );
+
+  // 3. Save new messages to history
+  if (result.message) {
+    await AtlasMemoryService.addMessages(
+      conversationKey,
+      userId,
+      [
+        { role: "user", content: message },
+        { role: "assistant", content: result.message },
+      ],
       {
-        openai: emptyOpenai,
-        aiService: aiService as any,
+        totalToolCalls: result.toolsUsed.length,
+        toolsUsed: result.toolsUsed,
+        lastConfidence: result.confidence.score,
       },
     );
-
-    // 3. Save new messages to history
-    if (result.message) {
-      await AtlasMemoryService.addMessages(
-        conversationKey,
-        userId,
-        [
-          { role: "user", content: message },
-          { role: "assistant", content: result.message },
-        ],
-        {
-          totalToolCalls: result.toolsUsed.length,
-          toolsUsed: result.toolsUsed,
-          lastConfidence: result.confidence.score,
-        },
-      );
-    }
-
-    res.json({ ...result, conversationId: conversationKey });
-  } catch (error) {
-    next(error);
   }
-};
+
+  res.json({ ...result, conversationId: conversationKey });
+});
 
 export const stream = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -219,22 +216,18 @@ function resolveConversationKey(tripId: string, userId: string): string {
   return tripId === "general" ? `general:${userId}` : tripId;
 }
 
-export const getHistory = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { tripId } = req.params;
-    const userId = req.user!._id;
-    const history = await AtlasMemoryService.getHistory(
-      resolveConversationKey(tripId, userId),
-      userId,
-    );
-    res.json(history);
-  } catch (error) {
-    next(error);
-  }
-};
+export const getHistory = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { tripId } = req.params;
+  const userId = req.user!._id;
+  const history = await AtlasMemoryService.getHistory(
+    resolveConversationKey(tripId, userId),
+    userId,
+  );
+  res.json(history);
+});
 
-export const clearHistory = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const clearHistory = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { tripId } = req.params;
     const userId = req.user!._id;
     const success = await AtlasMemoryService.clearHistory(
@@ -242,10 +235,8 @@ export const clearHistory = async (req: Request, res: Response, next: NextFuncti
       userId,
     );
     res.json({ success });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
 // Executes a tool call Atlas previously gated behind confirmation (see
 // server/agent/tools/executor.ts's CONFIRM_REQUIRED / pendingActions.ts).
@@ -254,8 +245,8 @@ export const clearHistory = async (req: Request, res: Response, next: NextFuncti
 // tool-call arguments say. Real confirmation is this authenticated request
 // itself, from whoever is looking at the confirmation button in their own
 // browser, not anything the LLM can generate on its own.
-export const confirmAction = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const confirmAction = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?._id || req.user?.id;
     if (!userId) throw new UnauthorizedError();
 
@@ -275,7 +266,5 @@ export const confirmAction = async (req: Request, res: Response, next: NextFunct
     );
 
     res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);

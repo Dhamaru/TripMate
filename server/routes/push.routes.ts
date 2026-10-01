@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth.middleware";
 import { getVapidPublicKey, subscribe, unsubscribe } from "../controllers/push.controller";
 
 const router = Router();

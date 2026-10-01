@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
 import { TripModel } from "@shared/schema";
 import { NotFoundError, BadRequestError } from "../errors";
 import { nanoid } from "nanoid";
@@ -12,46 +13,42 @@ const editorAccessFilter = (tripId: string, userId: string) => ({
   $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
 });
 
-export const addExpense = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const tripId = req.params.id;
-    const userId = req.user!._id;
-    const expenseData = req.body;
+export const addExpense = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const tripId = req.params.id;
+  const userId = req.user!._id;
+  const expenseData = req.body;
 
-    const newExpense = {
-      ...expenseData,
-      id: nanoid(),
-      date: expenseData.date || new Date(),
-    };
+  const newExpense = {
+    ...expenseData,
+    id: nanoid(),
+    date: expenseData.date || new Date(),
+  };
 
-    const trip = await TripModel.findOneAndUpdate(
-      editorAccessFilter(tripId, String(userId)),
-      { $push: { expenses: newExpense } },
-      { new: true },
-    );
-    if (!trip) throw new NotFoundError("Trip not found or access denied");
+  const trip = await TripModel.findOneAndUpdate(
+    editorAccessFilter(tripId, String(userId)),
+    { $push: { expenses: newExpense } },
+    { new: true },
+  );
+  if (!trip) throw new NotFoundError("Trip not found or access denied");
 
-    socketService.broadcastMutation(
-      tripId,
-      { type: "expenses-updated", data: trip.expenses },
-      String(userId),
-    );
-    await notifyTripParticipants(trip, String(userId), {
-      type: "expense-updated",
-      title: "Expense added",
-      message: `${newExpense.amount} ${newExpense.currency} (${newExpense.category}) added to your trip to ${trip.destination}.`,
-      link: `/app/trips/${tripId}`,
-      tripId,
-    });
+  socketService.broadcastMutation(
+    tripId,
+    { type: "expenses-updated", data: trip.expenses },
+    String(userId),
+  );
+  await notifyTripParticipants(trip, String(userId), {
+    type: "expense-updated",
+    title: "Expense added",
+    message: `${newExpense.amount} ${newExpense.currency} (${newExpense.category}) added to your trip to ${trip.destination}.`,
+    link: `/app/trips/${tripId}`,
+    tripId,
+  });
 
-    res.status(201).json(trip);
-  } catch (error) {
-    next(error);
-  }
-};
+  res.status(201).json(trip);
+});
 
-export const updateExpense = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const updateExpense = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id: tripId, expenseId } = req.params;
     const userId = req.user!._id;
     const updateData = req.body;
@@ -86,13 +83,11 @@ export const updateExpense = async (req: Request, res: Response, next: NextFunct
     });
 
     res.json(trip);
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const deleteExpense = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+export const deleteExpense = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
     const { id: tripId, expenseId } = req.params;
     const userId = req.user!._id;
 
@@ -117,7 +112,5 @@ export const deleteExpense = async (req: Request, res: Response, next: NextFunct
     });
 
     res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
