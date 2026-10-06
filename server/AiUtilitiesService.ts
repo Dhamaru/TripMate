@@ -1222,7 +1222,12 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     const totalSpent = manualSpent + itineraryCost;
     const estimatedFinalCost = totalSpent + estimatedAccommodation + estimatedTransit;
-    const isOverBudget = estimatedFinalCost > budget;
+    // No budget set (0, the field's default) isn't "already over budget" --
+    // it's "nothing to compare against yet". Treating 0 as a real target
+    // made every fresh trip with any planned cost immediately read as over
+    // budget, and fed a near-zero denominator into the burn-rate calc below.
+    const hasBudget = budget > 0;
+    const isOverBudget = hasBudget && estimatedFinalCost > budget;
     const remainingBudget = Math.max(0, budget - totalSpent);
 
     // 4. Calculate Burn Rate (Proportional)
@@ -1238,7 +1243,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const daysRemaining = Math.max(0, totalDays - currentDay);
     const expectedDailyBudget = budget / totalDays;
     const actualDailySpent = totalSpent / currentDay;
-    const burnRate = actualDailySpent / (expectedDailyBudget || 1);
+    // With no budget set, there's no target to compare spending against --
+    // burnRate stays 0 (not Infinity-via-the-old-"|| 1"-fallback) so none of
+    // the alerts below fire on a trip that was never given a budget.
+    const burnRate = hasBudget ? actualDailySpent / expectedDailyBudget : 0;
 
     // 5. Generate Intelligent Alerts & Pivots
     const alerts: string[] = [];
@@ -1257,7 +1265,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       );
     }
 
-    if (manualSpent > budget * 0.7 && currentDay < totalDays / 2) {
+    if (hasBudget && manualSpent > budget * 0.7 && currentDay < totalDays / 2) {
       alerts.push(
         "Resource Exhaustion: You've used 70% of your budget in less than half the trip.",
       );
@@ -1269,8 +1277,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       );
     }
 
-    // Generic helpful advice if doing well
-    if (burnRate < 0.8 && totalSpent > 0) {
+    // Generic helpful advice if doing well -- meaningless without a budget
+    // to actually be "within", same reasoning as the alerts above.
+    if (hasBudget && burnRate < 0.8 && totalSpent > 0) {
       alerts.push("Excellent Budget Management: You are well within your financial limits!");
       pivots.push(
         "Consider upgrading to a premium experience or a unique local activity on your final day.",

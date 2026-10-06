@@ -88,6 +88,35 @@ function guessDefaultCurrency(): string {
   }
 }
 
+// Live-reported: the browser-locale guess above is only ever right by
+// coincidence once a real destination is picked -- a trip to India planned
+// from a GB-locale browser stayed priced in GBP for the whole flow unless
+// the user noticed and manually fixed the currency dropdown. Nominatim's
+// `display_name` ("Udaipur, Rajasthan, India") already carries the real
+// country as its last comma-separated segment, so there's no need for an
+// extra geocode call -- just read what place search already returned.
+const COUNTRY_NAME_CURRENCY: Record<string, string> = {
+  india: "INR",
+  "united states": "USD",
+  "united states of america": "USD",
+  "united kingdom": "GBP",
+  australia: "AUD",
+  canada: "CAD",
+  japan: "JPY",
+  china: "CNY",
+  germany: "EUR",
+  france: "EUR",
+  spain: "EUR",
+  italy: "EUR",
+};
+
+function currencyFromDisplayName(displayName?: string): string | undefined {
+  if (!displayName) return undefined;
+  const parts = displayName.split(",");
+  const country = parts[parts.length - 1]?.trim().toLowerCase();
+  return country ? COUNTRY_NAME_CURRENCY[country] : undefined;
+}
+
 const CURRENCY_FORMAT: Record<string, { symbol: string; locale: string }> = {
   INR: { symbol: "₹", locale: "en-IN" },
   USD: { symbol: "$", locale: "en-US" },
@@ -121,6 +150,10 @@ export default function TripPlanner() {
   const { createTrip } = useTripStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  // Only auto-sync currency to the picked destination's country while the
+  // user hasn't deliberately chosen one themselves -- once they touch the
+  // dropdown, that choice is final and must never be silently overridden.
+  const currencyTouchedRef = useRef(false);
 
   const [tripForm, setTripForm] = useState({
     origin: "",
@@ -1160,7 +1193,14 @@ export default function TripPlanner() {
                         visible={showDestSuggestions}
                         onSelect={(place: PlaceSuggestion) => {
                           const name = place.name || place.display_name?.split(",")[0] || "";
-                          setTripForm((prev) => ({ ...prev, destination: name }));
+                          const matchedCurrency = currencyTouchedRef.current
+                            ? undefined
+                            : currencyFromDisplayName(place.display_name);
+                          setTripForm((prev) => ({
+                            ...prev,
+                            destination: name,
+                            ...(matchedCurrency ? { currency: matchedCurrency } : {}),
+                          }));
                           setShowDestSuggestions(false);
                         }}
                       />
@@ -1173,9 +1213,10 @@ export default function TripPlanner() {
                     <div className="flex gap-2">
                       <Select
                         value={tripForm.currency}
-                        onValueChange={(value) =>
-                          setTripForm((prev) => ({ ...prev, currency: value }))
-                        }
+                        onValueChange={(value) => {
+                          currencyTouchedRef.current = true;
+                          setTripForm((prev) => ({ ...prev, currency: value }));
+                        }}
                       >
                         <SelectTrigger className="w-[100px] bg-muted border text-foreground">
                           <SelectValue placeholder="INR" />
@@ -1751,6 +1792,11 @@ export default function TripPlanner() {
                         createTripMutation.mutate({
                           origin: tripForm.origin,
                           destination: tripForm.destination,
+                          // Live-reported: this was missing entirely, so every
+                          // saved trip silently defaulted to the server's INR
+                          // fallback regardless of what currency the plan was
+                          // actually generated and reviewed in.
+                          currency: tripForm.currency || planData?.currency || "INR",
                           budget: tripForm.budget ? Number(tripForm.budget) : 0,
                           days: Number(tripForm.days || 1),
                           startDate: tripForm.startDate || undefined,
