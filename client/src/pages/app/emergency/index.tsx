@@ -142,8 +142,25 @@ export default function EmergencyPage() {
   // previously this only reached `message` on the next click of the
   // toggle button, so the UI kept showing "Tracking live" with no
   // indication location had actually stopped updating.
+  //
+  // Also clears it on recovery -- useLiveLocation resets its own error to
+  // null the moment a position callback succeeds again (a transient GPS
+  // glitch, live-reproduced via a simulated location change), but without
+  // this `else` branch the stale "Location unavailable." stuck in
+  // `message` forever, displayed right next to an already-updated,
+  // correct location. Only clears a message this effect itself set (one
+  // of useLiveLocation's two known error strings) so it never wipes out
+  // an unrelated message, e.g. "Location not found" from a manual search
+  // typed mid-tracking.
   useEffect(() => {
-    if (liveTracking && liveLocationError) setMessage(liveLocationError);
+    if (!liveTracking) return;
+    if (liveLocationError) {
+      setMessage(liveLocationError);
+    } else {
+      setMessage((prev) =>
+        prev === "Location access denied." || prev === "Location unavailable." ? "" : prev,
+      );
+    }
   }, [liveTracking, liveLocationError]);
 
   useEffect(() => {
@@ -275,7 +292,6 @@ export default function EmergencyPage() {
             onClick={() => {
               setLiveTracking((v) => !v);
               if (!liveTracking) lastLiveCellRef.current = null;
-              if (liveLocationError) setMessage(liveLocationError);
             }}
             variant={liveTracking ? "default" : "outline"}
             className={
