@@ -47,6 +47,21 @@ const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>';
 const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
 
+// Esri's World_Street_Map REST tiles -- genuinely free, no API key, no
+// signup (verified live: real JPEG tiles, Access-Control-Allow-Origin: *).
+// Note the path order is {z}/{y}/{x} (row before column), the reverse of
+// the {z}/{x}/{y} every other provider in this file uses -- an easy copy-
+// paste trap if this URL is ever touched without re-checking that.
+// Offline download stays tied to OpenTopoMap only (computeTileUrls/
+// downloadTiles below are called with TILE_URL directly, never this one) --
+// a downloaded region's cache has no entries for this style, so switching
+// to it while viewing an offline region would just be a wall of cache
+// misses. Toggle is hidden whenever offlineModeRegion is active.
+const STREET_TILE_URL =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
+const STREET_TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.esri.com" target="_blank">Esri</a>, HERE, Garmin, FAO, NOAA, USGS';
+
 interface MapRegion {
   id: string;
   name: string;
@@ -66,6 +81,13 @@ interface PlaceResult {
   id: string;
   name: string;
   displayName: string;
+  // The real, human-readable street address (Google's formatted_address,
+  // or Nominatim's display_name for geocode-sourced results) -- distinct
+  // from `displayName`, which the backend's /places/search sets to just
+  // the place NAME when one exists (places.routes.ts: `p.name ||
+  // p.formatted_address`), so it duplicated the name instead of showing a
+  // real address next to it.
+  address?: string;
   lat: number;
   lon: number;
   category?: string;
@@ -118,6 +140,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
   const { theme } = useTheme();
   const [darkMode, setDarkMode] = useState(theme === "dark");
+  // "topo" (OpenTopoMap, offline-downloadable) vs "street" (Esri, online
+  // only -- see STREET_TILE_URL's comment above). Forced back to "topo"
+  // whenever an offline region is entered, below.
+  const [mapStyle, setMapStyle] = useState<"topo" | "street">("topo");
+  const mapStyleMountedRef = useRef(false);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pendingPinCenter, setPendingPinCenter] = useState<{ lat: number; lng: number } | null>(
     null,
@@ -144,6 +171,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     map.setMinZoom(11); // Don't allow zooming out too far
 
     setOfflineModeRegion(region);
+    // Cached tiles only exist for the offline-downloadable style -- force
+    // back to it so entering an offline region never lands on a style that
+    // can only be a wall of cache misses here.
+    setMapStyle("topo");
     toast({
       title: `Opened ${region.name}`,
       description: "You are now viewing the offline map area.",
@@ -537,9 +568,9 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       maxBoundsViscosity: 1.0,
     }).setView([20, 0], 2);
 
-    const layer = L.tileLayer(TILE_URL, {
-      attribution: TILE_ATTRIBUTION,
-      maxZoom: 17,
+    const layer = L.tileLayer(mapStyle === "street" ? STREET_TILE_URL : TILE_URL, {
+      attribution: mapStyle === "street" ? STREET_TILE_ATTRIBUTION : TILE_ATTRIBUTION,
+      maxZoom: mapStyle === "street" ? 19 : 17,
       noWrap: true,
     }).addTo(map);
 
@@ -613,6 +644,30 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const tilePane = map.getPane("tilePane");
     if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
   }, [darkMode]);
+
+  // Style IS a real layer swap (unlike dark mode above) -- these are two
+  // genuinely different tile sets, not a CSS filter on the same one. Guarded
+  // against the same every-effect-fires-once-on-mount trap documented above:
+  // without mapStyleMountedRef, this would immediately remove and recreate
+  // the layer the init effect just added, firing a redundant duplicate
+  // request for every tile already in flight on first load.
+  useEffect(() => {
+    if (!mapStyleMountedRef.current) {
+      mapStyleMountedRef.current = true;
+      return;
+    }
+    const map = mapInstanceRef.current;
+    if (!map || !tileLayerRef.current) return;
+    map.removeLayer(tileLayerRef.current);
+    const layer = L.tileLayer(mapStyle === "street" ? STREET_TILE_URL : TILE_URL, {
+      attribution: mapStyle === "street" ? STREET_TILE_ATTRIBUTION : TILE_ATTRIBUTION,
+      maxZoom: mapStyle === "street" ? 19 : 17,
+      noWrap: true,
+    }).addTo(map);
+    tileLayerRef.current = layer;
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+  }, [mapStyle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live Navigation Logic
   useEffect(() => {
@@ -941,15 +996,28 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const lat = Number(it.lat ?? it.latitude ?? it.location?.lat);
     const lon = Number(it.lon ?? it.longitude ?? it.location?.lng);
     if (Number.isNaN(lat)) return null;
+    // `it.address` is a plain formatted-address STRING from /places/search
+    // (Google's formatted_address) but an OBJECT with city/country keys
+    // from a Nominatim-shaped reverse-geocode result -- the two response
+    // shapes this function has always had to handle, just for a field
+    // nothing previously read correctly for the string case.
+    const isAddressObject = it.address && typeof it.address === "object";
+    const address =
+      typeof it.address === "string"
+        ? it.address
+        : it.display_name && it.display_name !== it.name
+          ? it.display_name
+          : undefined;
     return {
       id: `${lat}-${lon}-${Math.random()}`,
       name: it.name || it.display_name?.split(",")[0] || "Unknown",
       displayName: it.display_name ?? "Unknown Location",
+      address,
       lat,
       lon,
       category: it.type,
-      city: it.address?.city,
-      country: it.address?.country,
+      city: isAddressObject ? it.address.city : undefined,
+      country: isAddressObject ? it.address.country : undefined,
       photoUrl: it.imageUrl,
     };
   }
@@ -1052,10 +1120,22 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       markerRef.current.remove();
       markerRef.current = null;
     }
-    const mk = L.marker([p.lat, p.lon])
-      .addTo(map)
-      .bindPopup(`<b>${p.displayName}</b><br/><small>Preview</small>`)
-      .openPopup();
+    // Same displayName-duplicates-name issue as the results list above --
+    // show the real address when there is one, not the place's own name
+    // again. textContent via a real DOM node, not string interpolation
+    // into innerHTML -- p.name/p.address come from a third-party API
+    // response and must never be trusted as safe HTML.
+    const popupEl = document.createElement("div");
+    const title = document.createElement("b");
+    title.textContent = p.name;
+    popupEl.appendChild(title);
+    if (p.address) {
+      popupEl.appendChild(document.createElement("br"));
+      const addr = document.createElement("small");
+      addr.textContent = p.address;
+      popupEl.appendChild(addr);
+    }
+    const mk = L.marker([p.lat, p.lon]).addTo(map).bindPopup(popupEl).openPopup();
     markerRef.current = mk;
   }
 
@@ -1236,16 +1316,30 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             </Button>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setDarkMode(!darkMode)}
-            className="text-muted-foreground hover:text-foreground flex-shrink-0"
-            title={darkMode ? "Light Mode" : "Dark Mode"}
-          >
-            {darkMode ? <i className="fas fa-sun"></i> : <i className="fas fa-moon"></i>}
-            <span className="hidden sm:inline ml-2">{darkMode ? "Light Mode" : "Dark Mode"}</span>
-          </Button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMapStyle(mapStyle === "street" ? "topo" : "street")}
+              className="text-muted-foreground hover:text-foreground"
+              title={mapStyle === "street" ? "Terrain View" : "Detailed Street View"}
+            >
+              <i className="fas fa-road"></i>
+              <span className="hidden sm:inline ml-2">
+                {mapStyle === "street" ? "Terrain" : "Detailed"}
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDarkMode(!darkMode)}
+              className="text-muted-foreground hover:text-foreground"
+              title={darkMode ? "Light Mode" : "Dark Mode"}
+            >
+              {darkMode ? <i className="fas fa-sun"></i> : <i className="fas fa-moon"></i>}
+              <span className="hidden sm:inline ml-2">{darkMode ? "Light Mode" : "Dark Mode"}</span>
+            </Button>
+          </div>
         )}
       </div>
 
@@ -1687,7 +1781,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-foreground truncate">{p.name}</div>
                               <div className="text-xs text-muted-foreground truncate">
-                                {p.displayName}
+                                {p.address || p.displayName}
                               </div>
                               {p.category && (
                                 <div className="mt-1">

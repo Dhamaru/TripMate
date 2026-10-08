@@ -830,9 +830,28 @@ export function TripMap({
                             // activity-marker popup above.
                             const nameEl = document.createElement("strong");
                             nameEl.style.cssText =
-                              "color: #1a1a1a; display: block; margin-bottom: 5px; max-width: 200px;";
+                              "color: #1a1a1a; display: block; max-width: 200px;";
                             nameEl.textContent = shortName;
                             popupContent.appendChild(nameEl);
+
+                            // Only the short name rendered here -- Nominatim's
+                            // full displayName (the rest of it, after the
+                            // venue/road name already shown above) is the
+                            // real address and was being thrown away.
+                            const restOfAddress = (displayName || "")
+                              .split(",")
+                              .slice(1)
+                              .join(",")
+                              .trim();
+                            if (restOfAddress) {
+                              const addrEl = document.createElement("small");
+                              addrEl.style.cssText =
+                                "color: #555; display: block; margin-bottom: 5px; max-width: 200px; white-space: normal;";
+                              addrEl.textContent = restOfAddress;
+                              popupContent.appendChild(addrEl);
+                            } else {
+                              nameEl.style.marginBottom = "5px";
+                            }
 
                             const addBtn = document.createElement("div");
                             addBtn.id = "add-search-spot";
