@@ -1157,14 +1157,29 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           const radius = 5000; // meters
           for (const t of types) {
             try {
+              // Google Places has no formal `type=embassy` value, so this
+              // falls back to a free-text `keyword` match -- which also
+              // matches anything with "embassy"/"consulate" literally in its
+              // NAME, regardless of actual type. Live-reported false
+              // positives: "Hotel Embassy", "Hotel Embassy Suites" returned
+              // as emergency embassy contacts. "consulate" added to the
+              // keyword for better real recall; lodging-typed results
+              // filtered out below to cut the clearest false-positive class.
               const params =
-                t === "embassy" ? `keyword=embassy&radius=${radius}` : `type=${t}&radius=${radius}`;
+                t === "embassy"
+                  ? `keyword=embassy consulate&radius=${radius}`
+                  : `type=${t}&radius=${radius}`;
               const r = await fetch(
                 `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&${params}&key=${key2}`,
               );
               if (!r.ok) continue;
               const json = await r.json();
-              const items = Array.isArray(json?.results) ? json.results.slice(0, 3) : [];
+              const rawItems = Array.isArray(json?.results) ? json.results : [];
+              const items = (
+                t === "embassy"
+                  ? rawItems.filter((p: any) => !(p.types || []).includes("lodging"))
+                  : rawItems
+              ).slice(0, 3);
               for (const p of items) {
                 results.push({
                   name: String(p.name || t.charAt(0).toUpperCase() + t.slice(1)),
