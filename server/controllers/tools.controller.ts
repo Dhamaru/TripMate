@@ -9,6 +9,16 @@ import { TripModel, UserModel } from "@shared/schema";
 
 const startTime = Date.now();
 
+// Was `new AiUtilitiesService()` at every call site in this file (6 of
+// them) -- the service's 5-minute response cache and in-flight-request
+// dedup are instance fields, so a fresh instance per request means every
+// single request starts with an empty cache and immediately gets
+// garbage-collected, making the cache permanently dead weight. Every
+// request to every tool in this file was hitting the underlying AI/Places
+// APIs cold, uncached, every time. Module-level singleton, matching the
+// pattern agent.controller.ts already uses correctly.
+const aiUtils = new AiUtilitiesService();
+
 // A throwaway QA account (@example.com, matches the golden-eval/manual-test
 // pattern), the persistent Claude Code agent test account (@tripmate.dev,
 // deliberately kept rather than deleted after each verification pass), or
@@ -333,7 +343,14 @@ export const geocode = asyncHandler(async (req: Request, res: Response, next: Ne
       : "";
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5${viewboxParam}`;
+    // addressdetails=1 asks Nominatim to break the result into a
+    // city/state/country object instead of just the flat `display_name`
+    // string -- without it, multiple same-named cities (e.g. three
+    // different "Hyderabad"s) come back indistinguishable to the client,
+    // since Nominatim's bare `name` field is just the short local name
+    // with no region attached (live-reported: suggestion dropdown showing
+    // "Hyderabad" three times with nothing to tell them apart).
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}&limit=5${viewboxParam}`;
     const response = await fetch(url, {
       headers: {
         "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)",
@@ -446,7 +463,6 @@ export const getProactiveInsights = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const destination = String(req.query.destination || req.query.city || "");
     if (!destination) return res.json({ insights: [], suggestedPackingItems: [] });
-    const aiUtils = new AiUtilitiesService();
     const result = await aiUtils.getProactiveInsights(destination, []);
     res.json(result);
   },
@@ -520,7 +536,6 @@ export const convertCurrency = asyncHandler(
     const { amount, from, to } = req.query;
     if (!amount || !from || !to) throw new BadRequestError("Missing required parameters");
 
-    const aiUtils = new AiUtilitiesService();
     const result = await aiUtils.currency(
       Number(amount),
       String(from),
@@ -536,7 +551,6 @@ export const translateText = asyncHandler(
     const { text, sourceLang, targetLang } = req.body;
     if (!text || !targetLang) throw new BadRequestError("Missing text or target language");
 
-    const aiUtils = new AiUtilitiesService();
     const result = await aiUtils.translate(text, sourceLang || "auto", targetLang);
     res.json(result);
   },
@@ -555,7 +569,6 @@ export const getWeather = asyncHandler(async (req: Request, res: Response, next:
     throw new BadRequestError("Missing city, location, or coordinates");
   }
 
-  const aiUtils = new AiUtilitiesService();
   const result = await aiUtils.weather(query);
   res.json(result);
 });
@@ -601,12 +614,12 @@ async function detectCountryCode(location: string): Promise<string> {
 
 export const getEmergencyContacts = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const location =
-      (req.params.query && decodeURIComponent(req.params.query)) ||
-      String(req.query.location || req.query.q || "");
+    // Express already URL-decodes :query path params -- decoding again here
+    // double-decodes (e.g. a literal "%20" in a place name becomes " ",
+    // corrupting it), which is exactly what this line used to do.
+    const location = req.params.query || String(req.query.location || req.query.q || "");
     if (!location) throw new BadRequestError("Missing location");
 
-    const aiUtils = new AiUtilitiesService();
     const [services, countryCode] = await Promise.all([
       aiUtils.emergency(location),
       detectCountryCode(location),
@@ -636,7 +649,6 @@ export const getEmergencyContacts = asyncHandler(
 );
 
 export const planTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const aiUtils = new AiUtilitiesService();
   const result = await aiUtils.planTrip(req.body);
   res.json(result);
 });

@@ -49,7 +49,7 @@ export default function EmergencyPage() {
       const first = json[0];
       shortName = first.name ?? first.locality ?? first.city ?? first.town ?? first.village ?? "";
       return {
-        lat: Number(first.lat ?? first.latitude ?? first.lat),
+        lat: Number(first.lat ?? first.latitude),
         lon: Number(first.lon ?? first.longitude ?? first.lon),
         displayName:
           first.display_name ??
@@ -99,12 +99,19 @@ export default function EmergencyPage() {
             try {
               const r = await fetch(`/api/v1/reverse-geocode?lat=${latitude}&lon=${longitude}`);
               const j = await r.json().catch(() => null);
-              const parsed = parseGeocodeResponse(j) ?? {
-                lat: latitude,
-                lon: longitude,
-                displayName: "Current location",
-                shortName: "Current location",
-              };
+              let parsed = parseGeocodeResponse(j);
+              // parseGeocodeResponse's object-shape branch can match on
+              // longitude alone and return NaN for a missing latitude --
+              // the real GPS coords from the browser are always valid, so
+              // fall back to those rather than ever setting coords to NaN.
+              if (!parsed || Number.isNaN(parsed.lat) || Number.isNaN(parsed.lon)) {
+                parsed = {
+                  lat: latitude,
+                  lon: longitude,
+                  displayName: "Current location",
+                  shortName: "Current location",
+                };
+              }
               setCoords({ lat: parsed.lat, lon: parsed.lon });
               setDisplayName(parsed.displayName ?? "Current location");
               setShortName(parsed.shortName ?? "Current location");
@@ -129,6 +136,15 @@ export default function EmergencyPage() {
       setLoading(false);
     }
   }
+
+  // Surface a live-tracking failure (e.g. the user denies the permission
+  // prompt after already toggling tracking on) as soon as it happens --
+  // previously this only reached `message` on the next click of the
+  // toggle button, so the UI kept showing "Tracking live" with no
+  // indication location had actually stopped updating.
+  useEffect(() => {
+    if (liveTracking && liveLocationError) setMessage(liveLocationError);
+  }, [liveTracking, liveLocationError]);
 
   useEffect(() => {
     if (!liveTracking || !liveCoords) return;

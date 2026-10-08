@@ -315,7 +315,13 @@ router.post("/translate", requireAuth, aiLimiter, toolsController.translateText)
  *       200:
  *         description: Emergency data
  */
-router.get("/emergency", requireAuth, toolsController.getEmergencyContacts);
+// aiLimiter: this route is also reachable via the /api/tools legacy-alias
+// mount of this same router (server/index.ts) -- kept registered rather
+// than removed in favor of emergency.routes.ts's newer /emergency/:query
+// path, so that alias doesn't 404. Same unbounded-billed-call risk as the
+// newer route (see emergency.routes.ts's comment), so it needs the same
+// limiter.
+router.get("/emergency", requireAuth, aiLimiter, toolsController.getEmergencyContacts);
 
 /**
  * @swagger

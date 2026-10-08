@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as toolsController from "../controllers/tools.controller";
 import { requireAuth } from "../middleware/auth.middleware";
+import { aiLimiter } from "../middleware/rateLimit.middleware";
 
 const router = Router();
 
@@ -26,7 +27,14 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/EmergencyResponse'
  */
-router.get("/", requireAuth, toolsController.getEmergencyContacts);
-router.get("/:query?", requireAuth, toolsController.getEmergencyContacts);
+// aiLimiter: each request can fire up to ~14 billed external API calls
+// (Nominatim geocode + up to 12 Google Places Nearby Search calls across
+// hospital/police/embassy/pharmacy on the AI-fallback path, plus a
+// separate Nominatim call for SOS-number country detection) -- without
+// this, requireAuth alone caps nothing, and a logged-in caller cycling
+// location strings could burn through the Places quota at over a
+// thousand calls/minute.
+router.get("/", requireAuth, aiLimiter, toolsController.getEmergencyContacts);
+router.get("/:query?", requireAuth, aiLimiter, toolsController.getEmergencyContacts);
 
 export default router;

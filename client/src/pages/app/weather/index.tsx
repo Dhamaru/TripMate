@@ -55,22 +55,42 @@ export default function WeatherPage() {
     };
   }, []);
 
+  // Backend proxies Nominatim, which disambiguates via a nested `address`
+  // object (`addressdetails=1`) -- city/state/country, NOT the flat
+  // `name`/`state`/`country` fields this was originally written against
+  // (OpenWeatherMap's geocoding shape). Without this, every same-named
+  // city (three different "Hyderabad"s, for instance) rendered as an
+  // identical, undisambiguated suggestion -- live-reported. Falls back to
+  // the flat fields for the Google Places fallback path (tools.controller.ts's
+  // geocode() falls back there when Nominatim fails), which has no address
+  // breakdown at all, so `display_name` (Google's formatted_address) is
+  // already the best available label there.
+  function disambiguatedName(it: any): string {
+    const addr = it.address;
+    if (addr) {
+      const primary = addr.city || addr.town || addr.village || addr.county || it.name || "";
+      const region = addr.state || addr.state_district || "";
+      const country = addr.country || "";
+      if (primary) {
+        return `${primary}${region ? ", " + region : ""}${country ? ", " + country : ""}`;
+      }
+    }
+    if (it.name) {
+      return `${it.name}${it.state ? ", " + it.state : ""}${it.country ? ", " + it.country : ""}`;
+    }
+    return it.display_name || "";
+  }
+
   function parseGeocodeResponse(json: any) {
     if (!json) return null;
-    // OpenWeatherMap direct geocoding: array with { name, lat, lon, country, state? }
     if (Array.isArray(json) && json.length > 0) {
       const first = json[0];
-      const lat = Number(first.lat ?? first.latitude ?? first.lat);
-      const lon = Number(first.lon ?? first.longitude ?? first.lon);
+      const lat = Number(first.lat ?? first.latitude);
+      const lon = Number(first.lon ?? first.longitude);
       return {
         lat,
         lon,
-        displayName:
-          (first.name
-            ? `${first.name}${first.state ? ", " + first.state : ""}${first.country ? ", " + first.country : ""}`
-            : null) ||
-          first.display_name ||
-          `${lat},${lon}`,
+        displayName: disambiguatedName(first) || `${lat},${lon}`,
       };
     }
     // Nominatim / reverse geocode object
@@ -147,11 +167,9 @@ export default function WeatherPage() {
         const mapped = arr
           .slice(0, 5)
           .map((it: any) => ({
-            name: it.name
-              ? `${it.name}${it.state ? ", " + it.state : ""}${it.country ? ", " + it.country : ""}`
-              : it.display_name || "",
-            lat: Number(it.lat ?? it.latitude ?? it.latitude ?? it.lat),
-            lon: Number(it.lon ?? it.longitude ?? it.longitude ?? it.lon),
+            name: disambiguatedName(it),
+            lat: Number(it.lat ?? it.latitude),
+            lon: Number(it.lon ?? it.longitude),
           }))
           .filter((s) => s.name && !Number.isNaN(s.lat) && !Number.isNaN(s.lon));
         if (userLocation) {

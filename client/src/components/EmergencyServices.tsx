@@ -50,33 +50,14 @@ export function EmergencyServices({
 
   useEffect(() => {
     setLocString(location);
-    // Only attempt internal geolocation if NO prop coords provided AND location is generic
-    if (!propCoords && location === "Current Location" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude, longitude } = pos.coords;
-          setCoords({ lat: latitude, lon: longitude });
-
-          // Reverse Geocode via backend proxy
-          try {
-            const res = await fetch(`/api/v1/reverse-geocode?lat=${latitude}&lon=${longitude}`);
-            const data = await res.json();
-            const addr = data.address;
-            const placeName =
-              addr?.city || addr?.town || addr?.village || addr?.county || addr?.suburb;
-            const state = addr?.state || addr?.country;
-            if (placeName) {
-              setLocString(`${placeName}${state ? `, ${state}` : ""}`);
-            }
-          } catch {
-            /* silent */
-          }
-        },
-        () => {
-          /* silent geolocation error */
-        },
-      );
-    } else if (!propCoords && location !== "Current Location") {
+    // Resolving "Current Location" via navigator.geolocation used to happen
+    // here too, concurrently with EmergencyPage's own locateMe() -- two
+    // simultaneous geolocation prompts and two backend reverse-geocode
+    // calls on every mount, with this copy's errors silently swallowed
+    // (no message shown if permission was denied). The parent already owns
+    // location resolution and passes it down via `coords`; this component
+    // just reflects it.
+    if (!propCoords && location !== "Current Location") {
       // If user typed a city manually, we don't have coords yet, reset coords so we don't hold onto old ones
       setCoords(null);
     }
