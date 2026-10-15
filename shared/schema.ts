@@ -1064,7 +1064,10 @@ export const AiFallbackEventModel: Model<IAiFallbackEvent> = mongoose.model<IAiF
 export async function connectMongo(uri: string) {
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(uri, {
-    dbName: "tripmate",
+    // MONGODB_DB_NAME lets a local/QA server (the persona swarm) use its own
+    // database on the same cluster — hardcoding "tripmate" meant every local
+    // run read and wrote production data.
+    dbName: process.env.MONGODB_DB_NAME || "tripmate",
     serverSelectionTimeoutMS: 5000, // 5 seconds timeout
     connectTimeoutMS: 10000,
   });
