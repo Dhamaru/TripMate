@@ -2,7 +2,14 @@
 // redeploy or a Render free-tier spin-down/wake cycle never re-runs one.
 // Called from server/index.ts's startServer(), after the DB connects and
 // before the server accepts requests.
-import { JournalEntryModel, NotificationModel, UserModel, MigrationModel } from "@shared/schema";
+import {
+  JournalEntryModel,
+  NotificationModel,
+  UserModel,
+  MigrationModel,
+  TripModel,
+} from "@shared/schema";
+import { snapWikimediaThumb } from "@shared/wikimediaThumb";
 
 // Same exclusion the public stats/landing-page counts already use — a
 // throwaway QA/example account or a guest session shouldn't get a "we
@@ -114,8 +121,27 @@ async function notifyFounders(): Promise<string> {
   return results.join("; ");
 }
 
+// Trip cover images stored as Wikimedia "800px-"/"1200px-" thumbs started
+// returning HTTP 400 once Wikimedia limited thumbnails to standard widths —
+// broken covers on trip cards and the landing page. Rewrite them to the
+// nearest valid width; only the size segment of the URL changes.
+export async function fixWikimediaThumbWidths(): Promise<string> {
+  const trips = await TripModel.find({ imageUrl: /wikimedia\.org\/.*\/thumb\// })
+    .select({ imageUrl: 1 })
+    .lean();
+  const ops = trips
+    .map((t: any) => ({ id: t._id, from: t.imageUrl, to: snapWikimediaThumb(t.imageUrl) }))
+    .filter((t) => t.to !== t.from)
+    .map((t) => ({
+      updateOne: { filter: { _id: t.id, imageUrl: t.from }, update: { $set: { imageUrl: t.to } } },
+    }));
+  if (ops.length) await TripModel.bulkWrite(ops);
+  return `rewrote ${ops.length} of ${trips.length} Wikimedia trip images`;
+}
+
 export async function runStartupMigrations() {
   await runOnce("2026-09-11-notify-legacy-journal-photos", notifyLegacyJournalPhotoUsers);
   await runOnce("2026-09-11-broadcast-fix-announcement", broadcastFixAnnouncement);
   await runOnce("2026-09-11-notify-founders", notifyFounders);
+  await runOnce("2026-10-15-fix-wikimedia-thumb-widths", fixWikimediaThumbWidths);
 }

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
+import { snapWikimediaThumb } from "@shared/wikimediaThumb";
 import { config } from "../config";
 import { BadRequestError } from "../errors";
 import mongoose from "mongoose";
@@ -146,6 +147,39 @@ function isAllowedImageHost(hostname: string): boolean {
   return DESTINATION_IMAGE_ALLOWED_HOSTS.has(hostname) || hostname.endsWith(".wikimedia.org");
 }
 
+async function fallbackImageUrl(destination: string): Promise<string | null> {
+  // "Tokyo & Kyoto" → "Tokyo": first named place is what has a page.
+  const title = destination.split(/[,&/]| and /i)[0].trim();
+  if (!title) return null;
+  const j = await fetch(
+    `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&format=json&pithumbsize=960&redirects=1`,
+    {
+      headers: { "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)" },
+      signal: AbortSignal.timeout(8_000),
+    },
+  )
+    .then((r) => r.json())
+    .catch(() => null);
+  const page: any = j?.query?.pages && Object.values(j.query.pages)[0];
+  if (page?.thumbnail?.source) return page.thumbnail.source;
+  // Disambiguation pages ("Manali", "Ise") have no image — ask Places.
+  if (!config.GOOGLE_API_KEY) return null;
+  const g = await fetch(
+    `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(title)}&key=${config.GOOGLE_API_KEY}`,
+    { signal: AbortSignal.timeout(8_000) },
+  )
+    .then((r) => r.json())
+    .catch(() => null);
+  // Places only — a bare "ise" otherwise matched a Bengaluru classroom.
+  const PLACE_TYPES = ["political", "natural_feature", "tourist_attraction", "colloquial_area"];
+  const ref = g?.results?.find(
+    (r: any) => r.photos?.[0] && r.types?.some((t: string) => PLACE_TYPES.includes(t)),
+  )?.photos[0].photo_reference;
+  return ref
+    ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=960&photo_reference=${encodeURIComponent(ref)}&key=${config.GOOGLE_API_KEY}`
+    : null;
+}
+
 export const getDestinationImage = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const destination = String(req.query.d || "")
@@ -192,7 +226,7 @@ export const getDestinationImage = asyncHandler(
       );
     } else {
       try {
-        target = new URL(rawUrl);
+        target = new URL(snapWikimediaThumb(rawUrl));
       } catch {
         throw new BadRequestError("Stored image URL is malformed");
       }
@@ -207,12 +241,22 @@ export const getDestinationImage = asyncHandler(
     // These URLs come only from our own DB, not user input, so
     // following the redirect isn't an SSRF risk the way it would be
     // for an open proxy taking an arbitrary client-supplied URL.
-    const response = await fetch(target.toString(), { redirect: "follow" });
-    if (!response.ok) throw new BadRequestError("Failed to fetch image");
-
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.startsWith("image/"))
-      throw new BadRequestError("Upstream did not return an image");
+    // Timeout: a hung upstream held the landing page's image request open
+    // for minutes (live: the second of 8 cards never answered).
+    const fetchImage = (url: string) =>
+      fetch(url, { redirect: "follow", signal: AbortSignal.timeout(10_000) })
+        .then((r) =>
+          r.ok && (r.headers.get("content-type") || "").startsWith("image/") ? r : null,
+        )
+        .catch(() => null);
+    // A stored cover can go stale (expired Google photo ref, retired
+    // Wikimedia size) — fall back to the destination's current Wikipedia
+    // image rather than a broken landing card.
+    const response =
+      (await fetchImage(target.toString())) ??
+      (await fallbackImageUrl(destination).then((u) => (u ? fetchImage(u) : null)));
+    if (!response) throw new BadRequestError("Failed to fetch image");
+    const contentType = response.headers.get("content-type")!;
 
     const buffer = await response.arrayBuffer();
     res.setHeader("Content-Type", contentType);
