@@ -66,13 +66,60 @@ describe("AiUtilitiesService.emergency", () => {
             ? [
                 { ...place("Oaks Overseas", 16.49, 80.64), types: ["embassy", "travel_agency"] },
                 { ...place("Exxeella Education Group", 16.49, 80.64), types: ["embassy"] },
-                { ...place("U.S. Consulate General Hyderabad", 17.42, 78.33), types: ["embassy"] },
+                { ...place("Consulate of Japan", 16.51, 80.61), types: ["embassy"] },
               ]
             : [],
         }),
       })),
     );
     const out = await new AiUtilitiesService("fake-gemini-key").emergency("16.5,80.6");
-    expect(out.map((s) => s.name)).toEqual(["U.S. Consulate General Hyderabad"]);
+    expect(out.map((s) => s.name)).toEqual(["Consulate of Japan"]);
+  });
+
+  it("drops health universities from hospitals but keeps university hospitals", async () => {
+    (config as any).GOOGLE_API_KEY = "test-key";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => ({
+        ok: true,
+        json: async () => ({
+          results: url.includes("type=hospital")
+            ? [
+                place("Dr.NTR University of Health Sciences", 16.51, 80.61),
+                place("University Hospital", 16.52, 80.61),
+                place("Siddhartha Medical College", 16.5, 80.61),
+              ]
+            : [],
+        }),
+      })),
+    );
+    const out = await new AiUtilitiesService("fake-gemini-key").emergency("16.5,80.6");
+    expect(out.map((s) => s.name)).toEqual(["University Hospital", "Siddhartha Medical College"]);
+  });
+
+  it("drops results outside the search radius even when Google returns them", async () => {
+    (config as any).GOOGLE_API_KEY = "test-key";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => ({
+        ok: true,
+        json: async () => ({
+          results: url.includes("keyword=embassy")
+            ? [
+                {
+                  ...place("U.S. Consulate General Hyderabad", 17.4253, 78.3312),
+                  types: ["embassy"],
+                },
+                {
+                  ...place("Consulate General of the United States, Chennai", 13.05, 80.25),
+                  types: ["embassy"],
+                },
+              ]
+            : [],
+        }),
+      })),
+    );
+    const out = await new AiUtilitiesService("fake-gemini-key").emergency("16.5388,80.6344");
+    expect(out).toEqual([]);
   });
 });

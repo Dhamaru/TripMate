@@ -1157,8 +1157,27 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
                           ["lodging", "travel_agency"].includes(t),
                         ),
                     )
-                  : rawItems
-              ).slice(0, 3);
+                  : t === "hospital"
+                    ? // Google tags health universities "hospital" too (live:
+                      // "Dr.NTR University of Health Sciences", an admin body).
+                      // Medical colleges/AIIMS-style institutes stay: those
+                      // usually run real emergency departments.
+                      rawItems.filter(
+                        (p: any) =>
+                          !/university/i.test(p.name || "") || /hospital/i.test(p.name || ""),
+                      )
+                    : rawItems
+              )
+                // Google treats `radius` as a soft preference for keyword
+                // searches (live: US consulates 264km/391km away returned
+                // for Vijayawada) — enforce it with Google's own coordinates.
+                .filter((p: any) => {
+                  const g = p.geometry?.location;
+                  return (
+                    g && this.calculateHaversineDistance(lat, lon, g.lat, g.lng) <= radius / 1000
+                  );
+                })
+                .slice(0, 3);
               for (const p of items) {
                 results.push({
                   name: String(p.name || t.charAt(0).toUpperCase() + t.slice(1)),
