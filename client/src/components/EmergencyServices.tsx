@@ -215,11 +215,11 @@ export function EmergencyServices({
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          {emergencyServices.length > 0 && emergencyServices[0]?.address
-            ? `Emergency services near ${emergencyServices[0].address}`
-            : coords
-              ? "Near your location"
-              : `Near ${locString}`}
+          {/* Was the first result's own address ("near ring Near Siddhartha
+              Medical College...") — the place searched, not a hospital. */}
+          {locString && !/^current location$/i.test(locString)
+            ? `Near ${locString}`
+            : "Near your location"}
         </p>
       </CardHeader>
 
