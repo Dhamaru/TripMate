@@ -60,12 +60,19 @@ export default function Profile() {
           setPushEnabled(true);
           toast({ title: "Push notifications enabled" });
         } else {
-          const reason =
-            result.reason === "denied"
-              ? "Notification permission was denied — enable it in your browser's site settings."
-              : result.reason === "not-configured"
-                ? "Push notifications aren't set up on the server yet."
-                : "Your browser doesn't support push notifications.";
+          const reasons: Record<typeof result.reason, string> = {
+            denied:
+              "Notification permission was denied — enable it in your browser's site settings.",
+            "not-configured": "Push notifications aren't set up on the server yet.",
+            "not-supported": "Your browser doesn't support push notifications.",
+            "no-service-worker":
+              "The app's background worker isn't running. Reload the page (Ctrl+Shift+R) and try again.",
+            "push-service":
+              'Your browser\'s push service refused the request. In Brave, enable "Use Google services for push messaging"; otherwise try Chrome, Edge or Firefox.',
+            server: "We couldn't save your device. Please try again in a moment.",
+          };
+          const reason = reasons[result.reason];
+          if (result.detail) console.warn("[push] enable failed:", result.reason, result.detail);
           toast({ title: "Couldn't enable push", description: reason, variant: "destructive" });
         }
       } else {

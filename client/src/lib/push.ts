@@ -25,28 +25,80 @@ export async function getCurrentPushSubscription(): Promise<PushSubscription | n
   return reg.pushManager.getSubscription();
 }
 
-export async function enablePushNotifications(): Promise<
-  { ok: true } | { ok: false; reason: string }
-> {
+export type PushEnableResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason:
+        | "not-supported"
+        | "denied"
+        | "not-configured"
+        | "no-service-worker"
+        | "push-service"
+        | "server";
+      detail?: string;
+    };
+
+// Subscribing used to throw straight into Profile's generic "Couldn't update
+// push notification settings" toast, hiding which step failed. Each failure
+// now comes back as a reason the toast can explain.
+export async function enablePushNotifications(): Promise<PushEnableResult> {
   if (!isPushSupported()) return { ok: false, reason: "not-supported" };
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { ok: false, reason: "denied" };
 
   const keyRes = await apiRequest("GET", "/api/v1/push/vapid-public-key");
-  const { publicKey } = await keyRes.json();
+  const { publicKey } = keyRes.ok ? await keyRes.json() : { publicKey: null };
   if (!publicKey) return { ok: false, reason: "not-configured" };
 
-  const reg = await navigator.serviceWorker.ready;
+  // ready never settles when no service worker is registered (or it failed to
+  // install), which left the toggle spinning forever.
+  const reg = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000)),
+  ]);
+  if (!reg) return { ok: false, reason: "no-service-worker" };
+
+  const key = urlBase64ToUint8Array(publicKey);
   let subscription = await reg.pushManager.getSubscription();
-  if (!subscription) {
-    subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+  try {
+    if (!subscription) {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: key,
+      });
+    }
+  } catch (e) {
+    const err = e as DOMException;
+    // A subscription made with an older VAPID key blocks a new one
+    // (InvalidStateError) — drop it and subscribe once more.
+    if (err.name === "InvalidStateError") {
+      await (await reg.pushManager.getSubscription())?.unsubscribe();
+      try {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        });
+      } catch (e2) {
+        return {
+          ok: false,
+          reason: "push-service",
+          detail: `${(e2 as Error).name}: ${(e2 as Error).message}`,
+        };
+      }
+    } else {
+      // AbortError "push service error / not available": the browser's push
+      // service is unreachable or disabled (e.g. Brave by default, embedded
+      // webviews, some corporate networks).
+      return { ok: false, reason: "push-service", detail: `${err.name}: ${err.message}` };
+    }
   }
 
-  await apiRequest("POST", "/api/v1/push/subscribe", { subscription: subscription.toJSON() });
+  const saveRes = await apiRequest("POST", "/api/v1/push/subscribe", {
+    subscription: subscription!.toJSON(),
+  });
+  if (!saveRes.ok) return { ok: false, reason: "server", detail: `HTTP ${saveRes.status}` };
   return { ok: true };
 }
 
