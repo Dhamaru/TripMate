@@ -192,6 +192,28 @@ const ALLOWED_TOURISM_TYPES = new Set([
   "monument",
 ]);
 
+// Coordinates for an Autocomplete suggestion (which carries none). Re-
+// geocoding the suggestion's text instead put "R.R.Peta, Eluru" on a river
+// in Telangana (live) — the place_id is exact.
+router.get("/location", requireAuth, async (req, res) => {
+  const placeId = String(req.query.placeId || "");
+  if (!/^[\w-]{10,300}$/.test(placeId)) return res.status(400).json({ error: "Invalid placeId" });
+  const key = config.GOOGLE_API_KEY;
+  if (!key) return res.status(503).json({ error: "Places not configured" });
+  try {
+    const r = await fetch(
+      `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=geometry,formatted_address&key=${key}`,
+    );
+    const data = await r.json().catch(() => ({}));
+    const loc = data?.result?.geometry?.location;
+    if (!loc) return res.status(404).json({ error: "Location not found" });
+    res.json({ lat: loc.lat, lng: loc.lng, address: data.result.formatted_address });
+  } catch (err) {
+    console.error("Places location error:", err);
+    res.status(500).json({ error: "Failed to resolve place" });
+  }
+});
+
 router.get("/nearby", async (req, res) => {
   try {
     const { lat, lon, type = "attraction" } = req.query;

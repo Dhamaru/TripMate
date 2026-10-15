@@ -1,5 +1,6 @@
 /** @vitest-environment node */
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { config } from "../../server/config";
 import request from "supertest";
 import { app } from "../../server/index";
 import { connectDB, closeDB, clearDB } from "../helpers/db";
@@ -66,5 +67,35 @@ describe("External Tools API (Proxies)", () => {
     expect(res.status).toBe(200);
     expect(typeof res.body.rate).toBe("number");
     expect(res.body.currencyName).toBe("JPY");
+  });
+
+  it("resolves an autocomplete place_id to coordinates and rejects junk ids", async () => {
+    const bad = await request(app)
+      .get("/api/v1/places/location?placeId=../../etc")
+      .set("Authorization", `Bearer ${token}`);
+    expect(bad.status).toBe(400);
+
+    (config as any).GOOGLE_API_KEY = "test-key";
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        json: async () => ({
+          result: {
+            formatted_address: "RR Peta Rd, Vijayawada",
+            geometry: { location: { lat: 16.5379, lng: 80.6365 } },
+          },
+        }),
+      })),
+    );
+    try {
+      const res = await request(app)
+        .get("/api/v1/places/location?placeId=ChIJabcdefghijk")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ lat: 16.5379, lng: 80.6365, address: "RR Peta Rd, Vijayawada" });
+    } finally {
+      vi.stubGlobal("fetch", realFetch);
+    }
   });
 });

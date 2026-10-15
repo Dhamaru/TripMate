@@ -9,6 +9,7 @@ import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSugge
 import { PlaceSearchDropdown, usePlaceSearchKeys } from "@/components/PlaceSearchDropdown";
 import { friendlyGeolocationError } from "@/lib/geolocationMessage";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function EmergencyPage() {
   const { user } = useAuth() as { user: any };
@@ -186,19 +187,27 @@ export default function EmergencyPage() {
     })();
   }, [liveTracking, liveCoords]);
 
-  const selectPlace = (place: PlaceSuggestion) => {
+  const selectPlace = async (place: PlaceSuggestion) => {
     const name = place.name || place.display_name?.split(",")[0] || "";
     setShowSuggestions(false);
     setSearchLocation(name);
     setMessage("");
-    if (place.location) {
-      setCoords({ lat: place.location.lat, lon: place.location.lng });
+    let location = place.location;
+    if (!location && place.id) {
+      // Area suggestions carry no coordinates. Resolve by place_id —
+      // re-geocoding the text put "R.R.Peta, Eluru" on a river in
+      // Telangana (live-reported).
+      const res = await apiRequest(
+        "GET",
+        `/api/v1/places/location?placeId=${encodeURIComponent(place.id)}`,
+      ).catch(() => null);
+      if (res?.ok) location = await res.json();
+    }
+    if (location) {
+      setCoords({ lat: location.lat, lon: location.lng });
       setDisplayName(place.display_name || name);
       setShortName(name);
     } else {
-      // Area suggestions carry no coordinates; geocode the full
-      // description ("RR Peta Road, ..., Vijayawada"), not the bare name,
-      // which matches the wrong town.
       handleSearch(place.display_name || name);
     }
   };
