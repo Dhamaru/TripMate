@@ -2,7 +2,7 @@
 
 ## Done and verified
 
-- `fix/user-reported-2026-10-15` (from main `1eba612`, NOT pushed):
+- Pushed to main and LIVE-VERIFIED on production 2026-10-15 (`ed3a615`, plus `d0bd1c5` card-subtitle fix): Enter/click picks suggestions; Emergency lists real nearby hospitals/police/pharmacies.
   - `6cdad93` place-search dropdowns: Enter/arrows/Escape pick suggestions; click no longer loses to blur; Enter ignored while a newer search loads / during IME. Live-checked in browser (local vite, API forwarded to prod): "Hyder"+Enter → Hyderabad, click → Vijayawada.
   - `9d240e0` Emergency: Places-only results (Gemini path parsed to empty + cached), no empty caching (also in Atlas handler), coords-based rounded query, null coords instead of 0,0 (fixes "9009.7 km"), embassy filter, honest call toast on non-dialing devices, Atlas plural infoType fix.
   - Typecheck clean, build clean, 184/186 tests (2 known flakes: weather proxy timeout pre-existing; trips itinerary flake passes alone). Independent code-reviewer pass done, findings fixed.
@@ -14,7 +14,7 @@
 
 ## Exact next command
 
-`git push origin fix/user-reported-2026-10-15` (or merge to main) — needs user OK — then after Render deploys, retest `/app/emergency` with "RR Peta Vijayawada" and confirm hospitals/police list.
+None for these fixes. Next decision: separate dev/test DB before any swarm run (see below), then resume swarm Task 14 from `69d1420`.
 
 ## Blocked on / decisions
 
