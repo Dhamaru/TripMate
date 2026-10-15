@@ -639,8 +639,10 @@ export const getEmergencyContacts = asyncHandler(
         // listed number would have called the police instead.
         phone: s.phone || "",
         distance: "—",
-        latitude: s.coordinates?.lat || 0,
-        longitude: s.coordinates?.lon || 0,
+        // null, not 0: the national-numbers entry has no location, and 0,0
+        // made the client show "9009.7 km" and route to the Gulf of Guinea.
+        latitude: s.coordinates?.lat ?? null,
+        longitude: s.coordinates?.lon ?? null,
       })),
       countryCode,
       sosNumbers: { police: sos.police, medical: sos.medical, fire: sos.fire, common: sos.common },

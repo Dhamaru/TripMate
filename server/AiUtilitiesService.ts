@@ -1072,45 +1072,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     const nationalEntry = this.getNationalEmergencyNumber(loc);
 
-    try {
-      if (!this.openai) throw new Error("ai_disabled");
-      const client = this.openai!;
-      const prompt = `Provide the most likely major hospitals, emergency services, police contact numbers, and embassy information for the location ${loc}. Return JSON with name, type, phone, address, coordinates (approx), and safety notes.`;
-      // No timeout here used to mean a hung Gemini response held this
-      // request open indefinitely (SDK default timeout is ~10 minutes) --
-      // the same class of bug already fixed for planTrip (see that call
-      // site's 90s Promise.race). Rejects rather than resolving a fallback
-      // value, so the existing catch block below still runs its own
-      // Places-based fallback on a timeout, same as any other failure.
-      const completion = await Promise.race([
-        client.chat.completions.create({
-          model: "gemini-3.6-flash",
-          temperature: 0,
-          messages: [
-            { role: "system", content: prompt },
-            { role: "user", content: loc },
-          ],
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("emergency: Gemini call timed out")), 15000),
-        ),
-      ]);
-      const content = completion.choices?.[0]?.message?.content?.trim() || "[]";
-      const json = this.parseJson(content);
-      const arr = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
-      const normalized = arr.map((i: any) => ({
-        name: String(i.name || ""),
-        type: String(i.type || ""),
-        phone: i.phone ? String(i.phone) : undefined,
-        address: i.address ? String(i.address) : undefined,
-        coordinates:
-          i.coordinates && typeof i.coordinates === "object"
-            ? { lat: Number(i.coordinates.lat || 0), lon: Number(i.coordinates.lon || 0) }
-            : undefined,
-        safetyNotes: i.safetyNotes ? String(i.safetyNotes) : undefined,
-      }));
-      return this.setCached(key, nationalEntry ? [nationalEntry, ...normalized] : normalized);
-    } catch {
+    // Real nearby places only. This used to ask Gemini first and fall back
+    // to Places on error, but Gemini answers with an object
+    // ({ emergency_services: [...] } with latitude/longitude keys), which
+    // parsed to an empty list and got cached -- users saw no hospitals at
+    // all. For an SOS screen, invented hospitals/phone numbers/coordinates
+    // are worse than none anyway.
+    {
       const types = ["hospital", "police", "embassy", "pharmacy"];
       const results: Array<{
         name: string;
@@ -1177,7 +1145,18 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
               const rawItems = Array.isArray(json?.results) ? json.results : [];
               const items = (
                 t === "embassy"
-                  ? rawItems.filter((p: any) => !(p.types || []).includes("lodging"))
+                  ? // Visa/forex/education agencies tag themselves "embassy"
+                    // too (live: "Oaks Overseas", "Exxeella Education Group"
+                    // near Vijayawada) — only real diplomatic missions here.
+                    rawItems.filter(
+                      (p: any) =>
+                        /embassy|consulate|high commission|ambassade|embajada|embaixada|botschaft|konsul|consola|consulado|legation/i.test(
+                          p.name || "",
+                        ) &&
+                        !(p.types || []).some((t: string) =>
+                          ["lodging", "travel_agency"].includes(t),
+                        ),
+                    )
                   : rawItems
               ).slice(0, 3);
               for (const p of items) {
@@ -1199,7 +1178,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         }
       }
 
-      return this.setCached(key, nationalEntry ? [nationalEntry, ...results] : results);
+      const all = nationalEntry ? [nationalEntry, ...results] : results;
+      // Don't pin a transient Places/geocode failure in the cache.
+      return results.length > 0 ? this.setCached(key, all) : all;
     }
   }
 
