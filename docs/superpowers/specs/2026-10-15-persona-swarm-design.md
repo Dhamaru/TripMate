@@ -158,9 +158,11 @@ overlaps, clips, or becomes unusable.
 
 ### Visual judgment
 
-One Gemini vision call per route × width band (phone / tablet / desktop /
-wide) × theme, on the screenshot of the default state, plus a call on every
-cell where a geometry check fired. Gemini is asked for specific, located
+At most one Gemini vision call per route × state × theme × width band
+(phone / tablet / desktop / wide): on the first cell in that band where a
+geometry check fired, otherwise on a sample cell. (A call per flagged cell
+would be thousands of calls on a full run; geometry checks still run on
+every cell.) Gemini is asked for specific, located
 defects (misalignment, inconsistent spacing, low contrast, content not
 centered, awkward wrapping) and must cite a region; vague verdicts are
 discarded.
@@ -208,7 +210,9 @@ user would need.
 ### B. Loading and processing states
 
 For every route and every action that calls the API, record the real API
-calls (method + path) during a clean pass, then for each call, delay it 3s
+calls (method + path) during a clean pass. Each distinct call is tested once
+per platform, on the first page that makes it (the same endpoint on every
+page that calls it adds runtime, not findings). For each call, delay it 3s
 and verify:
 
 - a loading indicator (skeleton, spinner, `aria-busy`, disabled button with
