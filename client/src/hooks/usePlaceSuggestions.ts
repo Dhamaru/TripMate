@@ -22,7 +22,8 @@ export function usePlaceSuggestions(
   // "city" restricts results to Google's locality type — for an origin/
   // destination field, not for a specific-business picker (a restaurant,
   // an activity, an attraction), which should keep seeing everything.
-  placeType?: "city",
+  // "area" = neighbourhoods/streets/PIN codes for a "where are you" box.
+  placeType?: "city" | "area",
 ) {
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);

@@ -35,6 +35,7 @@ export default function EmergencyPage() {
   const { suggestions, isLoading: suggestionsLoading } = usePlaceSuggestions(
     showSuggestions ? searchLocation : "",
     coords,
+    "area",
   );
 
   useEffect(() => {
@@ -195,7 +196,10 @@ export default function EmergencyPage() {
       setDisplayName(place.display_name || name);
       setShortName(name);
     } else {
-      handleSearch(name);
+      // Area suggestions carry no coordinates; geocode the full
+      // description ("RR Peta Road, ..., Vijayawada"), not the bare name,
+      // which matches the wrong town.
+      handleSearch(place.display_name || name);
     }
   };
   const placeKeys = usePlaceSearchKeys(

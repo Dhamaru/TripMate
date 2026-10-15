@@ -93,10 +93,14 @@ router.get("/search", requireAuth, async (req, res) => {
     // verified against Google's raw endpoint). Every other picker in the
     // app (restaurants, activities, attractions) keeps Text Search below —
     // this branch is opt-in, not a global switch.
-    if (type === "city") {
+    // "area" (Emergency's "where are you" box) is the same idea one level
+    // down: neighbourhoods, streets, PIN codes — Text Search there suggested
+    // "Vijayaa Beauty Parlour" for a location search (live-reported).
+    if (type === "city" || type === "area") {
+      const types = type === "city" ? "(cities)" : "geocode";
       const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)${biasParam}&key=${key}`,
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=${types}${biasParam}&key=${key}`,
       );
       // Autocomplete has its own, tighter per-key quota than Text Search
       // and a CDN layer in front of it — an error response here (429/503)
