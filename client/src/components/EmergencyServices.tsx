@@ -13,8 +13,8 @@ interface EmergencyService {
   address: string;
   phone: string;
   distance: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 interface EmergencyResponse {
@@ -63,18 +63,17 @@ export function EmergencyServices({
     }
   }, [location, propCoords]);
 
+  // Exact coordinates whenever the page has them -- sending the short name
+  // instead ("RR Peta") made the server re-geocode an ambiguous neighbourhood
+  // and search around the wrong town. Rounded to 3 decimals (~110m) so live
+  // tracking reuses the server's cache instead of 4 Places calls per move.
+  const query = coords ? `${coords.lat.toFixed(3)},${coords.lon.toFixed(3)}` : locString;
   const { data, isLoading, error } = useQuery<EmergencyResponse>({
-    queryKey: ["/api/v1/emergency", locString, coords],
-    enabled: !!locString || !!coords,
-    queryFn: async ({ queryKey }) => {
-      const [, loc, c] = queryKey as [string, string, { lat: number; lon: number } | null];
-      // FIX: Prioritize the NAME (loc) for manual searches (e.g. "Paris")
-      // Only use coordinates if the location is generic "Current location" OR matches coordinates
-      const isCurrentLocation = loc === "Current Location" || loc === "Current location" || !loc;
-
-      // If we have precise coords, ALWAYS use them for the "Current location" case
-      const query = isCurrentLocation && c ? `${c.lat},${c.lon}` : loc;
-
+    queryKey: ["/api/v1/emergency", query],
+    // "Current Location" is a placeholder, not a place -- searching it
+    // literally returned nothing; wait for the parent to resolve coords.
+    enabled: !!coords || (!!locString && !/^current location$/i.test(locString)),
+    queryFn: async () => {
       const res = await apiRequest("GET", `/api/v1/emergency/${encodeURIComponent(query)}`);
       const json = await res.json();
       if (Array.isArray(json)) {
@@ -114,7 +113,10 @@ export function EmergencyServices({
     if (!coords) return emergencyServices;
     return emergencyServices.map((s) => ({
       ...s,
-      distance: `${calc(coords.lat, coords.lon, s.latitude, s.longitude).toFixed(1)} km`,
+      distance:
+        s.latitude != null && s.longitude != null
+          ? `${calc(coords.lat, coords.lon, s.latitude, s.longitude).toFixed(1)} km`
+          : "",
     }));
   }, [coords, emergencyServices]);
 
@@ -126,15 +128,22 @@ export function EmergencyServices({
     pharmacy: { icon: "fas fa-pills", color: "text-emerald-500" },
   };
 
-  const handleSOSCall = () => {
-    const sosNumber = sosNumbers.common || "112";
+  // A laptop/desktop browser has nothing to dial with: tel: either opens a
+  // linked-phone app or silently does nothing, so "Dialing..." was a lie
+  // there. Tell the person the number to dial instead.
+  const canDial = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+  const dial = (number: string, label: string) => {
     toast({
-      title: "SOS Call Initiated",
-      description: `Dialing local emergency (${sosNumber})...`,
+      title: canDial ? `Calling ${label}` : `Call ${number} from your phone`,
+      description: canDial
+        ? `Dialing ${number}...`
+        : `This device can't place calls. Dial ${number} for ${label}.`,
       variant: "destructive",
     });
-    window.location.href = `tel:${sosNumber}`;
+    window.location.href = `tel:${number}`;
   };
+
+  const handleSOSCall = () => dial(sosNumbers.common || "112", "local emergency");
 
   const handleShareLocation = async () => {
     const shareText = `Help! I need emergency assistance. My approximate location is ${locString}. Sent from TripMate.`;
@@ -171,12 +180,7 @@ export function EmergencyServices({
       });
       return;
     }
-    toast({
-      title: "Calling Service",
-      description: `Calling ${service.name}...`,
-    });
-    const sanitized = service.phone.replace(/[^+\d]/g, "");
-    window.location.href = `tel:${sanitized}`;
+    dial(service.phone.replace(/[^+\d]/g, ""), service.name);
   };
 
   const handleGetDirections = (service: EmergencyService) => {
@@ -273,9 +277,11 @@ export function EmergencyServices({
                           <p className="text-sm text-muted-foreground line-clamp-1">
                             {service.address}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center">
-                            <i className="fas fa-map-marker-alt mr-1"></i> {service.distance}
-                          </p>
+                          {service.distance && (
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                              <i className="fas fa-map-marker-alt mr-1"></i> {service.distance}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <span className="text-xs text-[#1D4E89] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
@@ -295,6 +301,7 @@ export function EmergencyServices({
                   </Button>
                   <Button
                     onClick={() => handleGetDirections(service)}
+                    disabled={service.latitude == null || service.longitude == null}
                     size="sm"
                     variant="secondary"
                     className="flex-1 bg-muted hover:bg-muted/30 text-white h-8"

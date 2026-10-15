@@ -38,6 +38,10 @@ export function usePlaceSuggestions(
       setIsLoading(false);
       return;
     }
+    // Loading from the first keystroke, not only once the debounce fires:
+    // the previous query's suggestions are still on screen meanwhile, and
+    // Enter must not pick one of those for text the user has since changed.
+    setIsLoading(true);
 
     debounceRef.current = setTimeout(async () => {
       const requestId = ++requestIdRef.current;

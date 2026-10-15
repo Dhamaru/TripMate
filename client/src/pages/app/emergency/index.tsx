@@ -6,7 +6,7 @@ import { EmergencyServices } from "@/components/EmergencyServices";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation, Link } from "wouter";
 import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
-import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
+import { PlaceSearchDropdown, usePlaceSearchKeys } from "@/components/PlaceSearchDropdown";
 import { friendlyGeolocationError } from "@/lib/geolocationMessage";
 import { useLiveLocation } from "@/hooks/useLiveLocation";
 
@@ -185,6 +185,27 @@ export default function EmergencyPage() {
     })();
   }, [liveTracking, liveCoords]);
 
+  const selectPlace = (place: PlaceSuggestion) => {
+    const name = place.name || place.display_name?.split(",")[0] || "";
+    setShowSuggestions(false);
+    setSearchLocation(name);
+    setMessage("");
+    if (place.location) {
+      setCoords({ lat: place.location.lat, lon: place.location.lng });
+      setDisplayName(place.display_name || name);
+      setShortName(name);
+    } else {
+      handleSearch(name);
+    }
+  };
+  const placeKeys = usePlaceSearchKeys(
+    suggestions,
+    showSuggestions,
+    selectPlace,
+    () => setShowSuggestions(false),
+    suggestionsLoading,
+  );
+
   async function handleSearch(q?: string) {
     const query = (q ?? searchLocation).trim();
     if (!query) {
@@ -236,6 +257,7 @@ export default function EmergencyPage() {
                 setShowSuggestions(e.target.value.trim().length >= 3);
               }}
               onKeyDown={(e) => {
+                if (placeKeys.onKeyDown(e)) return;
                 if (e.key === "Enter") {
                   setShowSuggestions(false);
                   handleSearch();
@@ -250,18 +272,8 @@ export default function EmergencyPage() {
               suggestions={suggestions}
               isLoading={suggestionsLoading}
               visible={showSuggestions}
-              onSelect={(place: PlaceSuggestion) => {
-                const name = place.name || place.display_name?.split(",")[0] || "";
-                setShowSuggestions(false);
-                setSearchLocation(name);
-                if (place.location) {
-                  setCoords({ lat: place.location.lat, lon: place.location.lng });
-                  setDisplayName(place.display_name || name);
-                  setShortName(name);
-                } else {
-                  handleSearch(name);
-                }
-              }}
+              activeIndex={placeKeys.activeIndex}
+              onSelect={selectPlace}
             />
           </div>
           <Button

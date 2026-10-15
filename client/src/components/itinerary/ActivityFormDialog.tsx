@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getCurrencySymbol } from "@/lib/currency";
 import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
 import { useTripDestinationCoords } from "@/hooks/useTripDestinationCoords";
-import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
+import { PlaceSearchDropdown, usePlaceSearchKeys } from "@/components/PlaceSearchDropdown";
 import { Loader2, Search, MapPin } from "lucide-react";
 
 interface ActivityFormDialogProps {
@@ -126,6 +126,13 @@ export function ActivityFormDialog({
     setSearchTerm(name);
     setShowSuggestions(false);
   };
+  const placeKeys = usePlaceSearchKeys(
+    suggestions,
+    showSuggestions,
+    selectPlace,
+    () => setShowSuggestions(false),
+    isSearching,
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,6 +171,7 @@ export function ActivityFormDialog({
                 id="placeSearch"
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
+                onKeyDown={placeKeys.onKeyDown}
                 placeholder="Search for a place, restaurant, park..."
                 className="bg-muted border-border text-foreground pl-10 h-11 focus:border-[var(--explorer-blue)] transition-all"
               />
@@ -180,6 +188,7 @@ export function ActivityFormDialog({
               suggestions={suggestions}
               isLoading={isSearching}
               visible={showSuggestions}
+              activeIndex={placeKeys.activeIndex}
               onSelect={selectPlace}
             />
           </div>

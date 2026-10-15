@@ -23,7 +23,7 @@ import type { Trip } from "@/types/api.types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
 import { useUserLocation } from "@/hooks/useUserLocation";
-import { PlaceSearchDropdown } from "@/components/PlaceSearchDropdown";
+import { PlaceSearchDropdown, usePlaceSearchKeys } from "@/components/PlaceSearchDropdown";
 import { ImportPlanPreview } from "@/components/ImportPlanPreview";
 import { getCurrencySymbol } from "@/lib/currency";
 
@@ -205,6 +205,37 @@ export default function TripPlanner() {
     showDestSuggestions ? tripForm.destination : "",
     undefined,
     "city",
+  );
+  const selectOrigin = (place: PlaceSuggestion) => {
+    const name = place.name || place.display_name?.split(",")[0] || "";
+    setTripForm((prev) => ({ ...prev, origin: name }));
+    setShowOriginSuggestions(false);
+  };
+  const selectDestination = (place: PlaceSuggestion) => {
+    const name = place.name || place.display_name?.split(",")[0] || "";
+    const matchedCurrency = currencyTouchedRef.current
+      ? undefined
+      : currencyFromDisplayName(place.display_name);
+    setTripForm((prev) => ({
+      ...prev,
+      destination: name,
+      ...(matchedCurrency ? { currency: matchedCurrency } : {}),
+    }));
+    setShowDestSuggestions(false);
+  };
+  const originKeys = usePlaceSearchKeys(
+    originSuggestions,
+    showOriginSuggestions,
+    selectOrigin,
+    () => setShowOriginSuggestions(false),
+    originLoading,
+  );
+  const destKeys = usePlaceSearchKeys(
+    destSuggestions,
+    showDestSuggestions,
+    selectDestination,
+    () => setShowDestSuggestions(false),
+    destLoading,
   );
 
   // Live-reported: a trip is often both, e.g. cultural AND culinary — the
@@ -1152,6 +1183,7 @@ export default function TripPlanner() {
                           setTripForm((prev) => ({ ...prev, origin: e.target.value }));
                           setShowOriginSuggestions(e.target.value.trim().length >= 3);
                         }}
+                        onKeyDown={originKeys.onKeyDown}
                         onBlur={() => setTimeout(() => setShowOriginSuggestions(false), 150)}
                         className="bg-muted border text-foreground placeholder:text-muted-foreground"
                         data-testid="input-origin"
@@ -1161,11 +1193,8 @@ export default function TripPlanner() {
                         suggestions={originSuggestions}
                         isLoading={originLoading}
                         visible={showOriginSuggestions}
-                        onSelect={(place: PlaceSuggestion) => {
-                          const name = place.name || place.display_name?.split(",")[0] || "";
-                          setTripForm((prev) => ({ ...prev, origin: name }));
-                          setShowOriginSuggestions(false);
-                        }}
+                        activeIndex={originKeys.activeIndex}
+                        onSelect={selectOrigin}
                       />
                     </div>
                   </div>
@@ -1182,6 +1211,7 @@ export default function TripPlanner() {
                           setTripForm((prev) => ({ ...prev, destination: e.target.value }));
                           setShowDestSuggestions(e.target.value.trim().length >= 3);
                         }}
+                        onKeyDown={destKeys.onKeyDown}
                         onBlur={() => setTimeout(() => setShowDestSuggestions(false), 150)}
                         className="bg-muted border text-foreground placeholder:text-muted-foreground"
                         required
@@ -1191,18 +1221,8 @@ export default function TripPlanner() {
                         suggestions={destSuggestions}
                         isLoading={destLoading}
                         visible={showDestSuggestions}
-                        onSelect={(place: PlaceSuggestion) => {
-                          const name = place.name || place.display_name?.split(",")[0] || "";
-                          const matchedCurrency = currencyTouchedRef.current
-                            ? undefined
-                            : currencyFromDisplayName(place.display_name);
-                          setTripForm((prev) => ({
-                            ...prev,
-                            destination: name,
-                            ...(matchedCurrency ? { currency: matchedCurrency } : {}),
-                          }));
-                          setShowDestSuggestions(false);
-                        }}
+                        activeIndex={destKeys.activeIndex}
+                        onSelect={selectDestination}
                       />
                     </div>
                   </div>
