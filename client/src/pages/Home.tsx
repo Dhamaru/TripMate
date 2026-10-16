@@ -540,7 +540,7 @@ export default function Home() {
                 <Eyebrow>{phase?.kind === "active" ? "Today's plan" : "First day"}</Eyebrow>
                 <h3 className="font-display text-lg font-semibold text-[hsl(var(--foreground))] mt-0.5">
                   {todayPlan
-                    ? `Day ${todayPlan.day}${
+                    ? `Day ${todayPlan.day ?? ((todayPlan as { dayIndex?: number }).dayIndex ?? 0) + 1}${
                         toDate(todayPlan.date)
                           ? ` · ${toDate(todayPlan.date)!.toLocaleDateString(undefined, {
                               weekday: "short",
