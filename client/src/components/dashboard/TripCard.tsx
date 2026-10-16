@@ -157,7 +157,7 @@ export function TripCard({
         </span>
 
         <button
-          className={`absolute top-2.5 left-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${
+          className={`absolute top-2.5 left-2.5 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 ${
             showConfirm
               ? "bg-[var(--stamp-red-deep)] text-white"
               : "bg-black/45 text-white/80 hover:bg-[var(--stamp-red-deep)] hover:text-white backdrop-blur-sm"

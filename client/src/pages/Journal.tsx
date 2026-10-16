@@ -648,8 +648,8 @@ export default function Journal() {
                       className="bg-card rounded-3xl border border hover:border-[var(--amber-hover-border)] hover:shadow-md transition-all cursor-pointer group overflow-hidden"
                       onClick={() => navigate(`/app/journal/${entry.id}`)}
                     >
-                      <div className="flex flex-row h-32 sm:h-40">
-                        <div className="w-1/3 min-w-[100px] border-r border-[hsl(var(--border))] flex-shrink-0">
+                      <div className="flex flex-col sm:flex-row sm:h-40">
+                        <div className="h-32 sm:h-auto w-full sm:w-1/3 sm:min-w-[100px] border-b sm:border-b-0 sm:border-r border-[hsl(var(--border))] flex-shrink-0">
                           {entry.photos && entry.photos.length > 0 ? (
                             <JournalImageCarousel
                               photos={entry.photos}
@@ -662,7 +662,7 @@ export default function Journal() {
                                   unreachable on a phone (no hover state).
                                   Hover-reveal only kicks in at sm+, where a
                                   pointer device makes it discoverable. */}
-                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20">
+                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-20">
                                 <Button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -692,7 +692,7 @@ export default function Journal() {
                           ) : (
                             <div className="h-full bg-[hsl(var(--muted))] flex items-center justify-center relative">
                               <ImageIcon className="w-6 h-6 icon-tint-amber" />
-                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <div className="absolute top-1 right-1 flex space-x-1 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                 <Button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -701,7 +701,7 @@ export default function Journal() {
                                   size="sm"
                                   variant="ghost"
                                   aria-label="Edit entry"
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:bg-[hsl(var(--muted))]/50 text-xs"
+                                  className="h-10 w-10 p-0 text-muted-foreground hover:bg-[hsl(var(--muted))]/50 text-xs"
                                 >
                                   ✎
                                 </Button>
@@ -713,7 +713,7 @@ export default function Journal() {
                                   size="sm"
                                   variant="ghost"
                                   aria-label="Delete entry"
-                                  className="h-8 w-8 p-0 text-[var(--stamp-red)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] text-xs"
+                                  className="h-10 w-10 p-0 text-[var(--stamp-red)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] text-xs"
                                 >
                                   ✕
                                 </Button>
@@ -722,7 +722,7 @@ export default function Journal() {
                           )}
                         </div>
 
-                        <div className="w-2/3 p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
+                        <div className="w-full sm:w-2/3 p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
                           <div>
                             <div className="flex justify-between items-start mb-1 gap-2">
                               <h4 className="font-bold text-foreground text-sm sm:text-base truncate">
