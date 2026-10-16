@@ -152,9 +152,11 @@ export const getEntry = asyncHandler(async (req: Request, res: Response, next: N
         _id: entry.tripId,
         $or: [{ userId }, { "collaborators.userId": userId }],
       });
-      if (!trip) throw new ForbiddenError("Insufficient permissions");
+      // 404, not 403: "exists but not yours" vs "missing" would let anyone
+      // probe which entry ids exist (trips already answer 404).
+      if (!trip) throw new NotFoundError("Entry not found");
     } else {
-      throw new ForbiddenError("Insufficient permissions");
+      throw new NotFoundError("Entry not found");
     }
   }
 
