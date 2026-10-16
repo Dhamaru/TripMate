@@ -2,6 +2,17 @@
 
 These override default behavior. Follow exactly.
 
+## ⚠️ PRIORITY #1 — AI SPEND CAP (₹100 TOTAL FOR AGENTS) ⚠️
+
+**CLAUDE, ALL SUB-AGENTS AND THE PERSONA SWARM MAY SPEND AT MOST ₹100 OF GEMINI CREDIT IN TOTAL — EVER, ACROSS ALL SESSIONS.**
+**THE REST OF THE BALANCE (₹833 AS OF 2026-10-16) BELONGS TO REAL USERS, THE OWNER AND THE OWNER'S TESTER. DO NOT TOUCH IT.**
+
+- **BEFORE ANY ACTION THAT CALLS GEMINI** (swarm run, live Atlas/itinerary/AI test, any script hitting the API): estimate the cost in ₹, say it, and get the owner's explicit yes. No exceptions, no "small test".
+- **TRACK EVERY RUPEE**: update the "Agent AI spend ledger" in CONTEXT.md after each AI-using action. If the next action could push the total past ₹100, STOP and ask.
+- **ON 402 / 429 / RESOURCE_EXHAUSTED: STOP IMMEDIATELY. NEVER RETRY.** (2026-10-15/16: swarm retries drained the whole balance to −₹166.)
+- **THE SWARM MUST NOT RUN** until it has a hard spend guard in code (stop on 402/401, back off on 429, fixed call cap, one preflight call) AND the owner approves the run's estimate.
+- Prefer zero-cost verification (unit tests, mocked LLM, typecheck, Playwright without AI calls) wherever possible.
+
 ## Verification Gate
 
 Before claiming any fix is done: run `npm run typecheck`, `npm run build`, and the full test suite. Report actual pass counts (e.g. '174/174 passing'). For UI changes, capture a Playwright screenshot in both light and dark mode and at mobile width (390px) before committing.
