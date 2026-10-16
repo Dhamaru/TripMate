@@ -507,12 +507,12 @@ export default function Home() {
                             </span>
                           ))}
                         </div>
-                        <span className="text-[11px] text-[hsl(var(--muted-foreground))] font-sans-clean">
+                        <span className="text-xs text-[hsl(var(--muted-foreground))] font-sans-clean">
                           {initials.length} travelling with you
                         </span>
                       </>
                     ) : (
-                      <span className="text-[11px] text-[hsl(var(--muted-foreground))] font-sans-clean">
+                      <span className="text-xs text-[hsl(var(--muted-foreground))] font-sans-clean">
                         Just you
                       </span>
                     )}
@@ -566,7 +566,7 @@ export default function Home() {
                   <li key={a.id} className="pl-5 relative min-w-0">
                     <span className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-[var(--amber)] border-2 border-[hsl(var(--card))]" />
                     <div className="flex items-baseline gap-2 min-w-0">
-                      <span className="font-mono-data text-[11px] text-[var(--ink-blue-bright)] flex-shrink-0">
+                      <span className="font-mono-data text-xs text-[var(--ink-blue-bright)] flex-shrink-0">
                         {a.time || "—"}
                       </span>
                       <span className="text-sm font-medium text-[hsl(var(--foreground))] font-sans-clean truncate">
@@ -574,7 +574,7 @@ export default function Home() {
                       </span>
                     </div>
                     {a.address && (
-                      <div className="flex items-center gap-1 text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 font-sans-clean min-w-0">
+                      <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] mt-0.5 font-sans-clean min-w-0">
                         <MapPin className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
                         <span className="truncate">{a.address}</span>
                       </div>

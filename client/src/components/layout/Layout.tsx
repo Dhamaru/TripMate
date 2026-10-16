@@ -145,7 +145,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div className="font-display text-[15px] font-bold text-[hsl(var(--sidebar-foreground))] leading-none tracking-tight">
                   TripMate
                 </div>
-                <div className="text-[9px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.12em] mt-0.5 font-sans-clean">
+                <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.12em] mt-0.5 font-sans-clean">
                   AI Companion
                 </div>
               </div>
@@ -229,7 +229,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     <div
                                       aria-current={toolActive ? "page" : undefined}
                                       className={cn(
-                                        "flex items-center gap-2.5 h-8 px-2 rounded-md cursor-pointer text-[12.5px] font-medium transition-colors duration-150",
+                                        "flex items-center gap-2.5 h-8 [@media(pointer:coarse)]:h-10 px-2 rounded-md cursor-pointer text-[12.5px] font-medium transition-colors duration-150",
                                         toolActive
                                           ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
                                           : "text-[hsl(var(--foreground)/0.55)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
@@ -371,7 +371,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "w-full flex items-center gap-2 rounded-lg h-8 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-all",
+              "w-full flex items-center gap-2 rounded-lg h-8 [@media(pointer:coarse)]:h-10 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-all",
               collapsed ? "px-0 justify-center" : "px-3",
             )}
             title={collapsed ? "Expand" : "Collapse"}
@@ -381,7 +381,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             ) : (
               <>
                 <ChevronLeft className="h-3.5 w-3.5" />
-                <span className="text-[11px] font-sans-clean">Collapse</span>
+                <span className="text-xs font-sans-clean">Collapse</span>
               </>
             )}
           </button>
