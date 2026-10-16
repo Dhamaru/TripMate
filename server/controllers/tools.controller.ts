@@ -4,7 +4,6 @@ import { snapWikimediaThumb } from "@shared/wikimediaThumb";
 import { config } from "../config";
 import { BadRequestError } from "../errors";
 import mongoose from "mongoose";
-import os from "os";
 import { AiUtilitiesService } from "../AiUtilitiesService";
 import { TripModel, UserModel } from "@shared/schema";
 

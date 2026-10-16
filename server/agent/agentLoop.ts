@@ -1,7 +1,7 @@
 // Atlas Agent — Core Agent Loop (Gemini)
 
 import OpenAI from "openai";
-import type { AgentInput, AgentResponse, AgentStructuredData, Message, Mutation } from "./types";
+import type { AgentInput, AgentResponse, AgentStructuredData, Mutation } from "./types";
 import { buildSystemPrompt } from "./systemPrompt";
 import { TRIPMATE_TOOLS } from "./tools/definitions";
 import { executeTool, type ExecutorDeps } from "./tools/executor";

@@ -1,5 +1,5 @@
-import { Request, Response } from "express";
-import { OrchestratorInput, OrchestratorResult, AgentResult, OrchestratorTrigger } from "./types";
+import { Response } from "express";
+import { OrchestratorInput, OrchestratorResult, AgentResult } from "./types";
 import { BaseAgent } from "./BaseAgent";
 
 import { SuggestionAgent } from "./agents/SuggestionAgent";
@@ -17,7 +17,6 @@ import { config } from "../../config";
 
 export class MasterOrchestrator {
   // Hardcoded daily limits for now based on PRD
-  private static readonly MAX_TOKENS_PER_DAY = 50000;
 
   private agents: Record<string, BaseAgent<any>> = {
     SuggestionAgent: new SuggestionAgent(),

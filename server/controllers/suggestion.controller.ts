@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { TripSuggestion } from "../models/TripSuggestion";
-import { NotFoundError, ForbiddenError } from "../errors";
+import { NotFoundError } from "../errors";
 
 /**
  * Gets suggestions for the authenticated user

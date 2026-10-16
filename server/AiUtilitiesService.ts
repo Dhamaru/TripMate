@@ -1219,7 +1219,6 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const totalDays = trip.days || 1;
     const expenses = trip.expenses || [];
     const itinerary = trip.itinerary || [];
-    const currency = trip.currency || "INR";
 
     // 1. Calculate Manual Spent
     const manualSpent = expenses.reduce(
@@ -1756,24 +1755,6 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     }
   }
 
-  private validateTripPlan(obj: any): { valid: boolean; value?: any } {
-    if (!obj || typeof obj !== "object") return { valid: false };
-    const isNum = (x: any) => typeof x === "number" && Number.isFinite(x);
-    const isStr = (x: any) => typeof x === "string";
-    if (
-      !isStr(obj.destination) ||
-      !isNum(obj.days) ||
-      !isNum(obj.persons) ||
-      !isNum(obj.totalEstimatedCost) ||
-      !isStr(obj.currency)
-    )
-      return { valid: false };
-    const itin = obj.itinerary;
-    if (!Array.isArray(itin) || itin.length < 1) return { valid: false };
-    // Basic validation
-    return { valid: true, value: obj };
-  }
-
   private parseJson(raw: string): any {
     let s = raw.trim();
 
@@ -1843,11 +1824,6 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       conditions: f.condition,
     }));
     return this.setCached(key, { current, forecast });
-  }
-
-  private validateWeatherTool(obj: any): any {
-    // Simplified validation
-    return { valid: true, value: obj };
   }
 
   /**
@@ -2802,9 +2778,6 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         destLower,
       );
     const isMiddleEast = /dubai|uae|qatar|saudi|egypt|turkey|jordan|israel/i.test(destLower);
-    const isAmericas = /usa|america|canada|mexico|brazil|argentina|chile|peru|colombia/i.test(
-      destLower,
-    );
 
     if (isAsian) {
       return {

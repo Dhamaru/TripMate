@@ -7,12 +7,7 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import MemoryStore from "memorystore";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import { storage } from "./storage";
-import { getBackendBaseUrl } from "./urls";
-
-import crypto from "crypto";
-import { sendPasswordResetEmail } from "./email";
 import { sendWelcomeNotification } from "./welcome";
 
 export async function hashPassword(password: string) {
