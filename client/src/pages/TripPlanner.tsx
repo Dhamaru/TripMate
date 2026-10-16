@@ -1002,10 +1002,14 @@ export default function TripPlanner() {
             <CardContent>
               <form onSubmit={handleImportSchedule} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">
+                  <label
+                    htmlFor="import-schedule"
+                    className="block text-sm font-semibold text-foreground mb-2"
+                  >
                     Your Schedule <span className="text-red-500">*</span>
                   </label>
                   <Textarea
+                    id="import-schedule"
                     placeholder={`Paste your travel plan here. For example:\n\nDay 1 - Mumbai to Goa ✈️ (morning flight)\nDay 2 - Baga Beach, then Fort Aguada 🏖️\nDay 3 - Old Goa churches, spice plantation tour\nDay 4 - Dudhsagar Falls day trip 🚗\nDay 5 - Return to Mumbai\n...`}
                     value={importForm.scheduleText}
                     onChange={(e) => {
@@ -1027,10 +1031,14 @@ export default function TripPlanner() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="import-start-date"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Start Date
                     </label>
                     <Input
+                      id="import-start-date"
                       type="date"
                       value={importForm.startDate}
                       onChange={(e) => {
@@ -1049,7 +1057,10 @@ export default function TripPlanner() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="import-group-size"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Group Size <span className="text-red-500">*</span>
                     </label>
                     <Select
@@ -1065,6 +1076,7 @@ export default function TripPlanner() {
                       }}
                     >
                       <SelectTrigger
+                        id="import-group-size"
                         className={`bg-muted border text-foreground placeholder:text-muted-foreground h-11 ${importErrors.groupSize ? "border-destructive ring-1 ring-destructive" : ""}`}
                       >
                         <SelectValue placeholder="Select group size" />
@@ -1095,7 +1107,10 @@ export default function TripPlanner() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="import-budget"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Budget (optional)
                     </label>
                     <div className="flex gap-2">
@@ -1105,7 +1120,10 @@ export default function TripPlanner() {
                           setImportForm((prev) => ({ ...prev, currency: value }))
                         }
                       >
-                        <SelectTrigger className="w-[90px] bg-muted border text-foreground placeholder:text-muted-foreground h-11">
+                        <SelectTrigger
+                          aria-label="Currency"
+                          className="w-[90px] bg-muted border text-foreground placeholder:text-muted-foreground h-11"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent position="popper" className="bg-muted border z-50">
@@ -1124,6 +1142,7 @@ export default function TripPlanner() {
                         </SelectContent>
                       </Select>
                       <Input
+                        id="import-budget"
                         type="number"
                         placeholder="e.g. 50000"
                         value={importForm.budget}
@@ -1166,11 +1185,15 @@ export default function TripPlanner() {
               <form onSubmit={handleSubmit} className="space-y-6" data-testid="trip-planning-form">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="plan-origin"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Starting Location <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <Input
+                        id="plan-origin"
                         type="text"
                         autoFocus
                         // Short enough not to clip in this two-column
@@ -1199,11 +1222,15 @@ export default function TripPlanner() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="plan-destination"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Destination <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <Input
+                        id="plan-destination"
                         type="text"
                         placeholder="Your destination"
                         value={tripForm.destination}
@@ -1227,7 +1254,10 @@ export default function TripPlanner() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="plan-budget"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Budget
                     </label>
                     <div className="flex gap-2">
@@ -1238,7 +1268,10 @@ export default function TripPlanner() {
                           setTripForm((prev) => ({ ...prev, currency: value }));
                         }}
                       >
-                        <SelectTrigger className="w-[100px] bg-muted border text-foreground">
+                        <SelectTrigger
+                          aria-label="Currency"
+                          className="w-[100px] bg-muted border text-foreground"
+                        >
                           <SelectValue placeholder="INR" />
                         </SelectTrigger>
                         <SelectContent position="popper" className="bg-muted border z-50">
@@ -1269,6 +1302,7 @@ export default function TripPlanner() {
                         </SelectContent>
                       </Select>
                       <Input
+                        id="plan-budget"
                         type="number"
                         placeholder="75000"
                         value={tripForm.budget}
@@ -1282,10 +1316,14 @@ export default function TripPlanner() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="plan-duration"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Trip Duration <span className="text-red-500">*</span>
                     </label>
                     <Input
+                      id="plan-duration"
                       type="number"
                       min="1"
                       placeholder="e.g. 5"
@@ -1297,11 +1335,15 @@ export default function TripPlanner() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="plan-start-date"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Start Date{" "}
                       <span className="text-muted-foreground font-normal">(optional)</span>
                     </label>
                     <Input
+                      id="plan-start-date"
                       type="date"
                       value={tripForm.startDate}
                       min={new Date().toISOString().slice(0, 10)}
@@ -1325,7 +1367,10 @@ export default function TripPlanner() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="plan-group-size"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Group Size <span className="text-red-500">*</span>
                     </label>
                     <Select
@@ -1342,6 +1387,7 @@ export default function TripPlanner() {
                       required
                     >
                       <SelectTrigger
+                        id="plan-group-size"
                         className={`bg-muted border text-foreground ${submitErrors.has("groupSize") ? "border-destructive ring-1 ring-destructive" : ""}`}
                         data-testid="select-group-size"
                       >
@@ -1419,10 +1465,14 @@ export default function TripPlanner() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">
+                  <label
+                    htmlFor="plan-notes"
+                    className="block text-sm font-semibold text-foreground mb-2"
+                  >
                     Additional Notes
                   </label>
                   <Textarea
+                    id="plan-notes"
                     placeholder="Any specific preferences, requirements, or things you'd like to include in your trip?"
                     value={tripForm.notes}
                     onChange={(e) => setTripForm((prev) => ({ ...prev, notes: e.target.value }))}
