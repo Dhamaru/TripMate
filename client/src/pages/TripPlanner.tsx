@@ -965,14 +965,14 @@ export default function TripPlanner() {
           <button
             type="button"
             onClick={() => setPlanMode("ai")}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === "ai" ? "bg-[var(--amber)] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+            className={`flex-1 py-2.5 px-2 sm:px-4 whitespace-nowrap rounded-lg text-sm font-semibold transition-all ${planMode === "ai" ? "bg-[var(--amber)] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
           >
             <i className="fas fa-magic mr-2"></i>Let AI Plan
           </button>
           <button
             type="button"
             onClick={() => setPlanMode("import")}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${planMode === "import" ? "bg-[var(--amber)] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+            className={`flex-1 py-2.5 px-2 sm:px-4 whitespace-nowrap rounded-lg text-sm font-semibold transition-all ${planMode === "import" ? "bg-[var(--amber)] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
           >
             <i className="fas fa-paste mr-2"></i>Import My Plan
           </button>
