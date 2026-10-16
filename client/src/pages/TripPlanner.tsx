@@ -1144,7 +1144,7 @@ export default function TripPlanner() {
                       <Input
                         id="import-budget"
                         type="number"
-                        placeholder="e.g. 50000"
+                        placeholder="Amount"
                         value={importForm.budget}
                         onChange={(e) =>
                           setImportForm((prev) => ({ ...prev, budget: e.target.value }))
@@ -1304,7 +1304,7 @@ export default function TripPlanner() {
                       <Input
                         id="plan-budget"
                         type="number"
-                        placeholder="75000"
+                        placeholder="Amount"
                         value={tripForm.budget}
                         onChange={(e) =>
                           setTripForm((prev) => ({ ...prev, budget: e.target.value }))
