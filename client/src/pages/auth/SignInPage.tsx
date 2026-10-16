@@ -138,7 +138,7 @@ export default function SignInPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium pr-12"
               />
               <Button
                 type="button"
