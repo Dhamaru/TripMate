@@ -70,6 +70,17 @@ const statusColors = {
     "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
 };
 
+// Throws on a failed search (rate-limited, upstream error) so the empty-state can tell "search failed" from a genuine zero-result search.
+async function fetchPlaces(q: string) {
+  const r = await apiRequest(
+    "GET",
+    `/api/v1/places/search?query=${encodeURIComponent(q)}&pageSize=10`,
+  );
+  if (!r.ok) throw new Error(`places search failed: ${r.status}`);
+  const j = await r.json();
+  return Array.isArray(j?.items) ? j.items : [];
+}
+
 export default function TripDetail() {
   const getWeatherIcon = (condition: string) => {
     const c = (condition || "").toLowerCase();
@@ -307,19 +318,7 @@ export default function TripDetail() {
         placesTarget?.category === "hotels" && placesTarget.name
           ? `${placesTarget.name} ${tripForm.destination || ""}`
           : "hotels near " + String(tripForm.destination || "");
-      const r = await apiRequest(
-        "GET",
-        `/api/v1/places/search?query=${encodeURIComponent(hotelQuery)}&pageSize=10`,
-      );
-      // A failed search (rate-limited, upstream error) used to come back
-      // through here indistinguishable from a genuine zero-result search
-      // — both silently returned [] and rendered the same "No hotels
-      // found", which reads as "this destination has none" when the real
-      // story is "the search itself failed". Throwing here lets the
-      // empty-state below tell them apart.
-      if (!r.ok) throw new Error(`places search failed: ${r.status}`);
-      const j = await r.json();
-      return Array.isArray(j?.items) ? j.items : [];
+      return fetchPlaces(hotelQuery);
     },
   });
 
@@ -347,15 +346,7 @@ export default function TripDetail() {
         placesTarget?.category === "food" && placesTarget.name
           ? `${placesTarget.name} ${tripForm.destination || ""}`
           : restaurantQuery;
-      const r = await apiRequest(
-        "GET",
-        `/api/v1/places/search?query=${encodeURIComponent(query)}&pageSize=10`,
-      );
-      // See hotelResults' queryFn above for why this throws instead of
-      // silently returning [] on failure.
-      if (!r.ok) throw new Error(`places search failed: ${r.status}`);
-      const j = await r.json();
-      return Array.isArray(j?.items) ? j.items : [];
+      return fetchPlaces(query);
     },
   });
 
@@ -370,15 +361,7 @@ export default function TripDetail() {
     queryFn: async () => {
       // Use the generic search endpoint which is more reliable (uses Google Places + fallbacks)
       // instead of the dedicated tourist-attractions endpoint which uses Overpass and can be flaky (502 errors)
-      const r = await apiRequest(
-        "GET",
-        `/api/v1/places/search?query=${encodeURIComponent("tourist attractions in " + String(tripForm.destination || ""))}&pageSize=10`,
-      );
-      // See hotelResults' queryFn above for why this throws instead of
-      // silently returning [] on failure.
-      if (!r.ok) throw new Error(`places search failed: ${r.status}`);
-      const j = await r.json();
-      return Array.isArray(j?.items) ? j.items : [];
+      return fetchPlaces("tourist attractions in " + String(tripForm.destination || ""));
     },
   });
 
