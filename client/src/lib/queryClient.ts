@@ -17,6 +17,20 @@ export async function throwIfResNotOk(res: Response) {
   }
 }
 
+// A session that expires mid-use used to leave pages silently broken —
+// the auth check only ran on app load. A 401 from any non-auth call now
+// asks authStore to re-verify (an event, not an import: authStore already
+// imports this module). Re-verification means a stray 401 never logs out
+// a valid session.
+let lastUnauthorizedPing = 0;
+function noteUnauthorized(res: Response) {
+  if (res.status !== 401 || res.url.includes("/api/v1/auth/")) return;
+  const now = Date.now();
+  if (now - lastUnauthorizedPing < 10_000) return;
+  lastUnauthorizedPing = now;
+  window.dispatchEvent(new Event("tripmate:unauthorized"));
+}
+
 const CSRF_COOKIE = "XSRF-TOKEN";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -69,6 +83,7 @@ export async function apiRequest(
       cache: "no-store",
       signal: controller.signal,
     });
+    noteUnauthorized(res);
     return res;
   } finally {
     clearTimeout(timeoutId);
@@ -122,6 +137,7 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
       signal: AbortSignal.timeout(30_000),
     });
 
+    noteUnauthorized(res);
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
     }

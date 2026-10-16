@@ -78,3 +78,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ user, isAuthenticated: true, isLoading: false });
   },
 }));
+
+if (typeof window !== "undefined") {
+  window.addEventListener("tripmate:unauthorized", () => {
+    if (useAuthStore.getState().isAuthenticated) useAuthStore.getState().checkSession();
+  });
+}
