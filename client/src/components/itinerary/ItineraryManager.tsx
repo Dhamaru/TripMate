@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Trip, ItineraryDay, ItineraryActivity } from "@/types/api.types";
+import type { Trip } from "@/types/api.types";
 import { type IItineraryDay, type IItineraryActivity } from "@shared/schema";
 import {
   DndContext,
@@ -19,20 +19,8 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  GripVertical,
-  Clock,
-  MapPin,
-  Edit2,
-  ChevronUp,
-  ChevronDown,
-  Trash2,
-  Plus,
-  Navigation,
-} from "lucide-react";
+import { GripVertical, Clock, MapPin, Edit2, Trash2, Plus, Navigation } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { ActivityFormDialog } from "./ActivityFormDialog";
 import { useMutation } from "@tanstack/react-query";
@@ -42,7 +30,6 @@ import { ModelConfidenceBadge } from "./ModelConfidenceBadge";
 import { AIReasoningPanel } from "./AIReasoningPanel";
 import { AtlasDayButton } from "./AtlasDayButton";
 import { VibeVoting } from "./VibeVoting";
-import { useLocation } from "wouter";
 import { parseTimeToMinutes } from "@/lib/time";
 import { getCurrencySymbol } from "@/lib/currency";
 

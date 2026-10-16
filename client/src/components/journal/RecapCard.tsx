@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Award, Sparkles, MapPin, Calendar, Heart } from "lucide-react";
+import { Sparkles, MapPin, Calendar, Heart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 

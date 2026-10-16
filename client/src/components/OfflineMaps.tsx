@@ -1259,7 +1259,6 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   }
 
   // Stats
-  const downloadedCount = mapRegions.filter((r) => r.downloaded).length;
   const totalSize = mapRegions.filter((r) => r.downloaded).reduce((s, r) => s + r.bytes, 0);
 
   // Estimated size of a not-yet-downloaded region, before we know its real byte count.

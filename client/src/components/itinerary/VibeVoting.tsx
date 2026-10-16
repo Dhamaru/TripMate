@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "../ui/button";
 import { apiRequestJson } from "../../lib/queryClient";
