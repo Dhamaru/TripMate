@@ -141,3 +141,11 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/** Invalidate every trips query, including ones keyed on a full URL string like '/api/v1/trips?light=true' (prefix-array matching would miss those). */
+export function invalidateTrips() {
+  return queryClient.invalidateQueries({
+    predicate: (query) =>
+      typeof query.queryKey[0] === "string" && query.queryKey[0].startsWith("/api/v1/trips"),
+  });
+}

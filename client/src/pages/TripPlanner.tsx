@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { safeParsePlan, isValidPlanLike } from "@/lib/planParser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, invalidateTrips } from "@/lib/queryClient";
+import { haversineMeters } from "@/lib/geo";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { logError, logInfo } from "@/lib/logger";
 import { useLocation } from "wouter";
@@ -146,7 +147,6 @@ export default function TripPlanner() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuthStore();
   const { createTrip } = useTripStore();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   // Only auto-sync currency to the picked destination's country while the
   // user hasn't deliberately chosen one themselves -- once they touch the
   // dropdown, that choice is final and must never be silently overridden.
@@ -313,15 +313,7 @@ export default function TripPlanner() {
       return await createTrip(tripData);
     },
     onSuccess: async (trip: any) => {
-      // Plain prefix matching only invalidates an exact-element match, so
-      // ['/api/v1/trips'] does NOT catch queries keyed on the full URL
-      // string '/api/v1/trips?light=true' (a single element, not a nested
-      // array) — every page using the light variant (e.g. the packing list's
-      // trip picker) kept serving a stale trip list until a hard reload.
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          typeof query.queryKey[0] === "string" && query.queryKey[0].startsWith("/api/v1/trips"),
-      });
+      invalidateTrips();
 
       toast({
         title: "Trip Created!",
@@ -545,18 +537,8 @@ export default function TripPlanner() {
       const dinnerHour = 19;
       const activityDuration = pace === "relaxed" ? 75 : pace === "fast" ? 60 : 90;
       const bufferMin = 15;
-      const toKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-        const R = 6371;
-        const dLat = ((lat2 - lat1) * Math.PI) / 180;
-        const dLon = ((lon2 - lon1) * Math.PI) / 180;
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos((lat1 * Math.PI) / 180) *
-            Math.cos((lat2 * Math.PI) / 180) *
-            Math.sin(dLon / 2) ** 2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-      };
+      const toKm = (lat1: number, lon1: number, lat2: number, lon2: number) =>
+        haversineMeters({ lat: lat1, lon: lon1 }, { lat: lat2, lon: lon2 }) / 1000;
       const travelTime = (km: number) =>
         Math.min(180, Math.max(10, Math.round((km / speedKmH) * 60)));
       const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");

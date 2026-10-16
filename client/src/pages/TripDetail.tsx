@@ -23,7 +23,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, invalidateTrips } from "@/lib/queryClient";
+import { haversineMeters } from "@/lib/geo";
 import { z } from "zod";
 import { logInfo, logError } from "@/lib/logger";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -130,9 +131,11 @@ export default function TripDetail() {
 
     socket.on("trip-mutation", (mutation: { type: string; data?: any }) => {
       // Invalidate relevant queries based on mutation type
-      if (mutation.type === "itinerary-updated") {
-        fetchTrip(id);
-      } else if (mutation.type === "expenses-updated") {
+      if (
+        mutation.type === "itinerary-updated" ||
+        mutation.type === "expenses-updated" ||
+        mutation.type === "trip-updated"
+      ) {
         fetchTrip(id);
       } else if (mutation.type === "packing-updated" || mutation.type === "packing-deleted") {
         queryClient.invalidateQueries({ queryKey: ["/api/v1/packing-lists"] });
@@ -146,8 +149,6 @@ export default function TripDetail() {
         // collaborator added from another tab/device/session left an
         // already-open "Manage Trip Team" dialog stuck showing stale data.
         queryClient.invalidateQueries({ queryKey: ["trips", id, "collaborators"] });
-      } else if (mutation.type === "trip-updated") {
-        fetchTrip(id);
       }
 
       toast({
@@ -415,29 +416,10 @@ export default function TripDetail() {
     },
   });
 
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
-
-  useEffect(() => {
-    if (tripForm.destination) {
-      // apiRequest (not raw fetch) — attaches credentials + CSRF token the
-      // same as every other data fetch in this file; the raw fetch here
-      // silently dropped the auth cookie in some cross-origin setups and
-      // made this specific coordinates-for-map lookup unreliable.
-      apiRequest("GET", `/api/v1/geocode?q=${encodeURIComponent(tripForm.destination)}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            setCoords({ lat: Number(data[0].lat), lon: Number(data[0].lon) });
-          }
-        })
-        .catch((err) => logError("[TripDetail] geocode lookup failed", err));
-    }
-  }, [tripForm.destination]);
-
   useEffect(() => {
     try {
       const count = Array.isArray(sightsResults) ? sightsResults.length : 0;
-      if (tripForm.destination && count >= 0) {
+      if (tripForm.destination) {
         logInfo("tourist_spots_shown", { destination: String(tripForm.destination), count });
       }
     } catch {}
@@ -445,17 +427,7 @@ export default function TripDetail() {
 
   const segments = useMemo(() => {
     const arr = openApiPlanning.slice(0, 8);
-    const rad = (d: number) => (d * Math.PI) / 180;
-    const distKm = (a: any, b: any) => {
-      const R = 6371;
-      const dLat = rad(b.coords.lat - a.coords.lat);
-      const dLon = rad(b.coords.lon - a.coords.lon);
-      const lat1 = rad(a.coords.lat);
-      const lat2 = rad(b.coords.lat);
-      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.asin(Math.min(1, Math.sqrt(h)));
-      return R * c;
-    };
+    const distKm = (a: any, b: any) => haversineMeters(a.coords, b.coords) / 1000;
     const segs: Array<{ from: any; to: any; km: number; mins: number; mode: string }> = [];
     for (let i = 1; i < arr.length; i++) {
       const a = arr[i - 1],
@@ -564,14 +536,7 @@ export default function TripDetail() {
     },
     onSuccess: () => {
       fetchTrip(id);
-      // Prefix matching only catches an exact-element match, so this alone
-      // misses queries keyed on the full URL string '/api/v1/trips?light=true'
-      // (one element, not a nested array) — pages using the light variant
-      // (e.g. packing list's trip picker) kept showing stale data.
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          typeof query.queryKey[0] === "string" && query.queryKey[0].startsWith("/api/v1/trips"),
-      });
+      invalidateTrips();
       toast({
         title: "Trip Updated",
         description: "Your trip has been updated successfully.",
@@ -598,14 +563,7 @@ export default function TripDetail() {
       return response;
     },
     onSuccess: () => {
-      // Prefix matching only catches an exact-element match, so this alone
-      // misses queries keyed on the full URL string '/api/v1/trips?light=true'
-      // (one element, not a nested array) — pages using the light variant
-      // (e.g. packing list's trip picker) kept showing stale data.
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          typeof query.queryKey[0] === "string" && query.queryKey[0].startsWith("/api/v1/trips"),
-      });
+      invalidateTrips();
       toast({
         title: "Trip Deleted",
         description: "Your trip has been deleted.",
@@ -1016,11 +974,7 @@ export default function TripDetail() {
         return json;
       };
 
-      try {
-        return await makeRequest();
-      } catch (error) {
-        throw error;
-      }
+      return makeRequest();
     },
     onSuccess: (data: any) => {
       setPlanStage("done");
