@@ -41,6 +41,7 @@ export default function PublicTripPage() {
     data: trip,
     isLoading,
     error,
+    refetch,
   } = useQuery<PublicTrip>({
     queryKey: [`/api/v1/trips/public/${shareId}`],
     retry: false,
@@ -67,7 +68,22 @@ export default function PublicTripPage() {
           </div>
         )}
 
-        {!isLoading && (error || !trip) && (
+        {!isLoading && error && !/^404:/.test(error.message) && (
+          <div className="text-center py-24">
+            <h1 className="font-display text-2xl font-bold mb-2">Couldn't load this trip</h1>
+            <p className="text-[hsl(var(--muted-foreground))] mb-6">
+              Check your connection and try again.
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="text-[var(--ink-blue-bright)] font-semibold hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {!isLoading && (error ? /^404:/.test(error.message) : !trip) && (
           <div className="text-center py-24">
             <h1 className="font-display text-2xl font-bold mb-2">Trip not found</h1>
             <p className="text-[hsl(var(--muted-foreground))] mb-6">

@@ -18,15 +18,22 @@ export default function Sessions() {
   const [, navigate] = useLocation();
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   async function loadSessions() {
     setIsLoading(true);
+    setLoadFailed(false);
     try {
-      const res = await fetch("/api/v1/auth/sessions", { credentials: "include" });
-      if (res.ok) {
-        const json = await res.json();
-        setSessions(Array.isArray(json) ? json : []);
-      }
+      const res = await fetch("/api/v1/auth/sessions", {
+        credentials: "include",
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const json = await res.json();
+      setSessions(Array.isArray(json) ? json : []);
+    } catch {
+      // Was a silent failure that rendered "No active sessions."
+      setLoadFailed(true);
     } finally {
       setIsLoading(false);
     }
@@ -60,6 +67,16 @@ export default function Sessions() {
           <CardContent>
             {isLoading ? (
               <div className="text-muted-foreground">Loading…</div>
+            ) : loadFailed ? (
+              <div className="text-muted-foreground">
+                Couldn't load your sessions.{" "}
+                <button
+                  onClick={loadSessions}
+                  className="text-[var(--ink-blue)] font-semibold hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
             ) : sessions.length === 0 ? (
               <div className="text-muted-foreground">No active sessions.</div>
             ) : (

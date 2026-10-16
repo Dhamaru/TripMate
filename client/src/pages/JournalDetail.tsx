@@ -39,10 +39,11 @@ export default function JournalDetail() {
     data: entry,
     isLoading: entryLoading,
     error,
+    refetch,
   } = useQuery<JournalEntry>({
     queryKey: [`/api/v1/journal/${id}`],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/v1/journal/${id}`);
+      const res = await apiRequest("GET", `/api/v1/journal/${id}`, undefined, 30_000);
       if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
       return res.json();
     },
@@ -196,6 +197,24 @@ export default function JournalDetail() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--explorer-blue)] mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading memory...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Only a 403/404 means the entry is gone; anything else (5xx, timeout,
+  // offline) is retryable and shouldn't tell the user it was removed.
+  if (error && !/^(403|404):/.test(error.message)) {
+    return (
+      <div className=" flex items-center justify-center p-4">
+        <Card className="bg-card border max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-xl font-bold text-foreground mb-2">Couldn't load this memory</h2>
+            <p className="text-muted-foreground mb-6">Check your connection and try again.</p>
+            <Button onClick={() => refetch()} className="bg-[var(--explorer-blue)] w-full">
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

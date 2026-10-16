@@ -117,6 +117,9 @@ export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryF
     const res = await fetch(url, {
       credentials: "include",
       cache: "no-store",
+      // A stalled connection otherwise spins forever (share page) — fail so
+      // the page can show an error and a retry.
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
