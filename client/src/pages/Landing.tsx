@@ -514,7 +514,7 @@ export default function Landing() {
                   // almost nothing on a narrow phone (live-confirmed: the
                   // placeholder truncated mid-word). Icon-only below sm,
                   // full label once there's room for both.
-                  className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white rounded-full w-9 h-9 sm:w-auto sm:h-auto sm:px-5 sm:py-2.5 text-sm font-semibold flex items-center justify-center gap-2 transition-colors flex-shrink-0"
+                  className="stamp-press bg-[var(--amber)] hover:bg-[#0F2C52] text-white rounded-full w-10 h-10 sm:w-auto sm:h-auto sm:px-5 sm:py-2.5 text-sm font-semibold flex items-center justify-center gap-2 transition-colors flex-shrink-0"
                   data-testid="button-get-started"
                   aria-label="Plan Trip"
                 >

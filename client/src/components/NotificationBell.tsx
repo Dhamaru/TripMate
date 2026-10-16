@@ -329,7 +329,7 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-8 w-8 rounded-full"
+          className="relative h-10 w-10 rounded-full"
           data-testid="button-notifications"
           aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
         >

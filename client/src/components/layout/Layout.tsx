@@ -414,7 +414,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 users had no way to switch themes. */}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+              className="md:hidden w-10 h-10 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             >
               {theme === "dark" ? (
@@ -430,7 +430,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 session was temporary. The GUEST tag now renders at every
                 width; only the name/"Trial" text stays desktop-only. */}
             <Link href="/app/profile">
-              <div className="flex items-center gap-3 cursor-pointer group">
+              <div className="flex items-center gap-3 cursor-pointer group min-h-10">
                 {user?.isGuest && (
                   <span className="bg-[var(--amber-dim)] text-[var(--ink-blue)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
                     GUEST
@@ -444,7 +444,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     {user?.isGuest ? "Trial" : "Member"}
                   </span>
                 </div>
-                <Avatar className="h-8 w-8 rounded-full border border-[hsl(var(--border))] group-hover:border-[var(--ink-blue)] transition-all duration-200">
+                <Avatar className="h-10 w-10 md:h-8 md:w-8 rounded-full border border-[hsl(var(--border))] group-hover:border-[var(--ink-blue)] transition-all duration-200">
                   <AvatarImage src={user?.profileImageUrl} className="object-cover" />
                   <AvatarFallback className="bg-[var(--amber)] text-white text-[11px] font-bold">
                     {user?.firstName?.[0] || "U"}
