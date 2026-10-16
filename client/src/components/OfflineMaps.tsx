@@ -347,9 +347,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     return [];
   });
 
-  // Actually evict cache entries for regions that aged out on this load —
-  // previously the UI marked them "not downloaded" but left the tiles in
-  // Cache Storage forever, contradicting the "auto-expire" copy below.
+  // Evict cache entries for regions that aged out on this load, or the tiles stay in Cache Storage forever.
   useEffect(() => {
     if (staleTileUrlsToPurgeRef.current.length > 0) {
       deleteTiles(staleTileUrlsToPurgeRef.current);
@@ -978,11 +976,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const lat = Number(it.lat ?? it.latitude ?? it.location?.lat);
     const lon = Number(it.lon ?? it.longitude ?? it.location?.lng);
     if (Number.isNaN(lat)) return null;
-    // `it.address` is a plain formatted-address STRING from /places/search
-    // (Google's formatted_address) but an OBJECT with city/country keys
-    // from a Nominatim-shaped reverse-geocode result -- the two response
-    // shapes this function has always had to handle, just for a field
-    // nothing previously read correctly for the string case.
+    // `it.address` is a string from /places/search but an object (city/country keys) from a Nominatim reverse-geocode.
     const isAddressObject = it.address && typeof it.address === "object";
     const address =
       typeof it.address === "string"

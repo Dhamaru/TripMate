@@ -225,10 +225,7 @@ export default function TripDetail() {
     days: "",
     groupSize: "",
     travelStyle: "",
-    // Live-reported: a trip is often more than one mood at once (cultural
-    // AND culinary) — travelStyle stays as the "primary" (first selected)
-    // for every existing consumer that only reads one value; this is the
-    // full multi-select set the picker below actually edits.
+    // travelStyle is the primary (first selected) for single-value consumers; travelStyles is the full multi-select set.
     travelStyles: [] as string[],
     status: "planning" as "planning" | "active" | "completed",
     notes: "",
@@ -322,12 +319,7 @@ export default function TripDetail() {
     },
   });
 
-  // Was a flat "restaurants near {destination}" for every trip regardless
-  // of what the traveler actually eats — now folds in whatever cuisine/
-  // dietary preferences were set at trip creation (Profile.tsx has the
-  // same fields as a saved default; TripPlanner.tsx prefills from there
-  // but this trip's own values, not the profile's, are the source of
-  // truth here since they can diverge after trip creation).
+  // Folds in this trip's own cuisine/dietary prefs (not the profile's defaults, which can diverge after creation).
   const cuisinePrefs = (trip as any)?.cuisinePreferences as string[] | undefined;
   const dietaryPrefs = (trip as any)?.dietaryPreferences as string[] | undefined;
   const restaurantQuery = [...(cuisinePrefs || []), ...(dietaryPrefs || [])].join(" ").trim()
@@ -430,13 +422,7 @@ export default function TripDetail() {
     } catch {}
   }, [id, isAuthenticated]);
 
-  // Was firing unconditionally on mount — on a hard reload, checkSession()
-  // and this fetch raced, so a transient blip (auth not confirmed yet, a
-  // slow cold-start response, a dropped connection) permanently landed the
-  // page on "Trip Not Found" with no way to recover short of a second
-  // manual reload. Now waits for auth to resolve (matching the
-  // hotel/restaurant queries elsewhere in this file, which already gate on
-  // isAuthenticated) and auto-retries once on failure before giving up.
+  // Waits for auth to resolve (a hard-reload race otherwise landed on "Trip Not Found") and auto-retries once on failure.
   const retryCountRef = useRef(0);
   useEffect(() => {
     if (id && !authLoading && isAuthenticated) {
@@ -687,16 +673,7 @@ export default function TripDetail() {
   }, []);
 
   useEffect(() => {
-    // Live-reported: reducing Trip Duration/Group Size in Edit Trip and
-    // saving appeared to do nothing. Root cause: this effect re-seeds
-    // tripForm from the store's `trip` object on every change to it, with
-    // no guard for whether the edit form is actually open — a background
-    // refresh while the user is mid-edit (a collaborator's socket
-    // broadcast, an unrelated query invalidation) silently reverted their
-    // in-progress typed values back to whatever the server still had
-    // BEFORE they clicked Save. Save then genuinely worked, just on the
-    // stale values it had just been handed. Only reseed when the edit
-    // form isn't open — real edits should never get clobbered mid-typing.
+    // Only reseed from the store when the edit form is closed — a background refresh mid-edit (socket broadcast, query invalidation) would otherwise revert typed values.
     if (trip && !isEditing) {
       setTripForm({
         origin: trip.origin || "",
@@ -798,17 +775,7 @@ export default function TripDetail() {
       });
       return;
     }
-    // The itinerary is already trimmed on the server at this point -- this
-    // was previously a fire-and-forget `.mutate()` with setTrimConfirm(null)
-    // right after, dismissing the dialog before knowing whether the
-    // day-count metadata update actually succeeded. A failure here (network
-    // blip, a concurrent role change) left the trip permanently showing its
-    // old day count against an already-shortened itinerary, with the dialog
-    // gone and no indication anything still needed fixing -- the inverse of
-    // the mismatch this whole feature exists to prevent. There's no further
-    // fallback once the trim has happened, so this can't reopen the (now
-    // stale) confirmation dialog; the honest thing is a distinct error
-    // toast telling the user the itinerary changed but the day count didn't.
+    // The itinerary is already trimmed server-side; a failed day-count update can't reopen the dialog, so surface a distinct error toast instead.
     try {
       await updateTripMutation.mutateAsync(trimConfirm.updates);
     } catch (error: any) {
