@@ -634,7 +634,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
 
   // Style IS a real layer swap (unlike dark mode above) -- these are two
   // genuinely different tile sets, not a CSS filter on the same one. Guarded
-  // against the same every-effect-fires-once-on-mount trap documented above:
+  // because every effect also fires once on mount:
   // without mapStyleMountedRef, this would immediately remove and recreate
   // the layer the init effect just added, firing a redundant duplicate
   // request for every tile already in flight on first load.
