@@ -35,6 +35,7 @@ export type PushEnableResult =
         | "not-configured"
         | "no-service-worker"
         | "push-service"
+        | "private-window"
         | "server";
       detail?: string;
     };
@@ -91,7 +92,16 @@ export async function enablePushNotifications(): Promise<PushEnableResult> {
       // AbortError "push service error / not available": the browser's push
       // service is unreachable or disabled (e.g. Brave by default, embedded
       // webviews, some corporate networks).
-      return { ok: false, reason: "push-service", detail: `${err.name}: ${err.message}` };
+      // Chrome rejects push in incognito with "permission denied" even though
+      // notification permission is granted, and deliberately offers no way
+      // to detect incognito up front (crbug.com/41124656).
+      const privateWindow =
+        /permission denied/i.test(err.message) && Notification.permission === "granted";
+      return {
+        ok: false,
+        reason: privateWindow ? "private-window" : "push-service",
+        detail: `${err.name}: ${err.message}`,
+      };
     }
   }
 

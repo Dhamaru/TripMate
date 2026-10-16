@@ -69,6 +69,8 @@ export default function Profile() {
               "The app's background worker isn't running. Reload the page (Ctrl+Shift+R) and try again.",
             "push-service":
               'Your browser\'s push service refused the request. In Brave, enable "Use Google services for push messaging"; otherwise try Chrome, Edge or Firefox.',
+            "private-window":
+              "Push notifications don't work in private/incognito windows. Open TripMate in a normal window and try again.",
             server: "We couldn't save your device. Please try again in a moment.",
           };
           const reason = reasons[result.reason];
