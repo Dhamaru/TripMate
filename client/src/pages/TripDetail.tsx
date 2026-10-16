@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { TripMateLogo } from "@/components/TripMateLogo";
 import { motion, AnimatePresence } from "framer-motion";
 import { TripMap } from "@/components/TripMap";
 import { BudgetTracker } from "@/components/budget/BudgetTracker";
@@ -32,7 +31,6 @@ import { Link, useParams, useLocation } from "wouter";
 import { useAuthStore, useTripStore, useAgentStore } from "@/store";
 import type { Trip, JournalEntry } from "@/types/api.types";
 import { getCurrencySymbol } from "@/lib/currency";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -43,7 +41,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import ReactMarkdown from "react-markdown";
 import {
   Dialog,
   DialogContent,

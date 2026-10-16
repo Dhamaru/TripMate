@@ -4,17 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Reorder } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Plus,
   Trash2,
-  GripVertical,
-  AlertCircle,
   CheckCircle2,
-  ArrowLeft,
   Sun,
   Snowflake,
   CloudRain,
@@ -28,7 +24,6 @@ import {
   Save,
   MapPin,
   FolderOpen,
-  Loader2,
   ClipboardCopy,
   ClipboardPaste,
   Lightbulb,
@@ -47,7 +42,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -855,7 +849,6 @@ export default function PackingChecklist() {
     {} as Record<string, PackingItem[]>,
   );
 
-  const mandatoryItems = items.filter((i) => i.is_mandatory);
   const packedCount = items.filter((i) => i.packed).length;
 
   // Categories start collapsed — the user expands the ones they want to

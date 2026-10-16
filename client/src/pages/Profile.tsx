@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LogOut, Link as LinkIcon, AlertTriangle, Download } from "lucide-react";
+import { LogOut, Link as Download } from "lucide-react";
 import { apiRequest, apiRequestJson, getCsrfToken } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import {

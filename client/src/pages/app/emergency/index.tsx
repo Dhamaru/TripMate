@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmergencyServices } from "@/components/EmergencyServices";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSuggestions";
 import { PlaceSearchDropdown, usePlaceSearchKeys } from "@/components/PlaceSearchDropdown";
 import { friendlyGeolocationError } from "@/lib/geolocationMessage";

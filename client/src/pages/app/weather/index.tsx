@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { friendlyGeolocationError } from "@/lib/geolocationMessage";
