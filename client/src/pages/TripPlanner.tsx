@@ -1448,12 +1448,12 @@ export default function TripPlanner() {
                         <span className="text-sm font-bold text-foreground tracking-wide">
                           {style.name}
                         </span>
-                        <span className="text-[10px] text-muted-foreground font-sans-clean tracking-wide">
+                        <span className="text-xs text-muted-foreground font-sans-clean tracking-wide">
                           {style.caption}
                         </span>
                         {selectedStyles.includes(style.id) && (
                           <span
-                            className="stamp absolute top-2 right-2 text-[9px]"
+                            className="stamp absolute top-2 right-2 text-[11px]"
                             style={{ color: style.ink }}
                           >
                             Chosen
