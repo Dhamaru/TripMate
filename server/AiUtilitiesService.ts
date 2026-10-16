@@ -48,15 +48,7 @@ export class AiUtilitiesService {
   private inflight = new Map<string, Promise<any>>();
 
   constructor(apiKey?: string) {
-    // Was real OpenAI (config.OPENAI_API_KEY) — the rest of the agent stack
-    // (planner.controller.ts, journal_ai.controller.ts, agentLoop.ts,
-    // agent.controller.ts) already migrated to Gemini's OpenAI-compatible
-    // endpoint, but this client — which CriticAgent, DraftingAgent, and
-    // FormattingAgent all receive as `services.openai` — was left pointed
-    // at real OpenAI, so the multi-agent trip-planning pipeline kept
-    // failing with 429s once that account ran out of credits even though
-    // the rest of the app had already moved off it. Point it at Gemini
-    // like everywhere else.
+    // Gemini's OpenAI-compatible endpoint, like the rest of the agent stack.
     const key = apiKey || config.GEMINI_API_KEY;
     this.openai = key
       ? new OpenAI({
@@ -299,10 +291,7 @@ export class AiUtilitiesService {
       // Accept a few key-name variants defensively, in case the model still
       // deviates from the requested shape despite response_format.
       const translatedText = String(json.translatedText || json.translation || json.text || "");
-      // A malformed/differently-shaped JSON reply (wrong key name, empty
-      // object) previously became a "successful" result with an empty
-      // translatedText — no exception was thrown, so the Google/MyMemory
-      // fallbacks below never ran. Treat an empty result as a real failure.
+      // An empty/malformed result must throw, or the Google/MyMemory fallbacks below never run.
       if (!translatedText) throw new Error("empty_translation");
       const result = {
         translatedText,
@@ -349,15 +338,7 @@ export class AiUtilitiesService {
         /* fall through to Gemini */
       }
 
-      // Fallback 2: Gemini (reliable LLM translation). MyMemory's free
-      // crowd-sourced translation memory can return confidently wrong
-      // results even for common phrases — e.g. "Thank you" -> a sentence
-      // about reciting a poem, with match:1 (max confidence). Gemini gives
-      // a real translation instead of a lookup, so try it before falling
-      // all the way to MyMemory. Was NVIDIA (integrate.api.nvidia.com) —
-      // removed along with every other non-Google/Gemini LLM provider in
-      // this codebase; the prompt engineering below (subject-identification
-      // step, native-script instruction) is unchanged, only the transport is.
+      // Fallback 2: Gemini. MyMemory can return confidently wrong results for common phrases (e.g. "Thank you" -> a sentence about reciting a poem).
       try {
         // Small instruct models are unreliable with bare ISO codes (observed:
         // asking for "te" produced Hindi written in Roman transliteration,
@@ -450,10 +431,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       } catch {
         /* fall through */
       }
-      // All three backends failed — surface this as a real error instead of
-      // silently echoing the user's own input back as if it were a
-      // translation (previously done here, with only a small italic
-      // "Translation unavailable" pronunciation note as the only signal).
+      // All backends failed — throw rather than echo the user's input back as a translation.
       throw new Error("Translation unavailable — all providers failed");
     }
   }
@@ -631,13 +609,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       }
       const prompt = `Provide the current weather and 7-day forecast for ${c}. If exact realtime data is unavailable, provide best predictive estimation based on known climate patterns, season, geography, altitude, and historical averages. Return JSON EXACTLY matching this shape and these field names (temperatures in Celsius, plain numbers, no units in the value): { "current": { "temperature": number, "condition": string, "humidity": number, "windSpeed": number }, "forecast": [ { "day": string, "high": number, "low": number, "condition": string } ] (7 items), "recommendations": string[] }.`;
       let content: string;
-      // Was "if key configured, use OpenAI, else Gemini" — a *configured*
-      // key whose account runs out of credits/quota at runtime (confirmed
-      // live: this is exactly what's happening right now) still throws
-      // straight past this and down to the generic estimate, even though
-      // Gemini is a perfectly working alternative already used everywhere
-      // else in this class. Falls over to Gemini on any OpenAI failure,
-      // not just a missing key.
+      // Falls over to Gemini on any OpenAI failure (e.g. quota exhausted), not just a missing key.
       if (this.openai) {
         try {
           const completion = await this.openai.chat.completions.create({
@@ -691,10 +663,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       } = { current, forecast, recommendations, source: "ai" };
       return this.setCached(key, result);
     } catch (primaryErr) {
-      // Was silent here — every fallback layer failing (as observed live:
-      // OWM/AI *and* this Open-Meteo/Nominatim path both dead for a
-      // mainstream city) was undiagnosable without instrumenting a debugger,
-      // because nothing logged which layer actually broke.
+      // Log which layer broke; otherwise a fully-failed fallback chain is undiagnosable.
       const primaryErrMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
       console.warn(
         `[Weather] Primary (OWM/AI) path failed for "${c}", trying Open-Meteo fallback:`,
@@ -727,10 +696,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           const meteoRes = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&forecast_days=7&timezone=auto`,
           );
-          // Was previously "if (ok) {...}" with no else — a non-ok response
-          // fell out of this block, out of the try, straight to the generic
-          // estimate with nothing thrown and nothing logged. Silent, and
-          // indistinguishable from every other failure mode in this chain.
+          // Throw on non-ok so the failure is logged instead of silently falling through to the generic estimate.
           if (!meteoRes.ok) throw new Error(`open-meteo ${meteoRes.status}`);
           {
             const meteo = await meteoRes.json();
@@ -829,11 +795,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         condition:
           i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",
       }));
-      // Root cause confirmed live and fixed (see the OpenAI->Gemini
-      // fallback above and the Open-Meteo non-ok throw) — the primaryErrMsg/
-      // fallbackErrMsg captured above stay in the console.warn calls for
-      // future diagnosis; no longer echoed into the API response now that
-      // this isn't an active unknown.
+      // primaryErrMsg/fallbackErrMsg stay in the console.warn calls above, not echoed into the API response.
       const result = {
         current,
         forecast,
@@ -1067,12 +1029,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     const nationalEntry = this.getNationalEmergencyNumber(loc);
 
-    // Real nearby places only. This used to ask Gemini first and fall back
-    // to Places on error, but Gemini answers with an object
-    // ({ emergency_services: [...] } with latitude/longitude keys), which
-    // parsed to an empty list and got cached -- users saw no hospitals at
-    // all. For an SOS screen, invented hospitals/phone numbers/coordinates
-    // are worse than none anyway.
+    // Real places only (Google Places): invented hospitals/numbers/coordinates are worse than none on an SOS screen.
     {
       const types = ["hospital", "police", "embassy", "pharmacy"];
       const results: Array<{
@@ -1120,14 +1077,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           const radius = 5000; // meters
           for (const t of types) {
             try {
-              // Google Places has no formal `type=embassy` value, so this
-              // falls back to a free-text `keyword` match -- which also
-              // matches anything with "embassy"/"consulate" literally in its
-              // NAME, regardless of actual type. Live-reported false
-              // positives: "Hotel Embassy", "Hotel Embassy Suites" returned
-              // as emergency embassy contacts. "consulate" added to the
-              // keyword for better real recall; lodging-typed results
-              // filtered out below to cut the clearest false-positive class.
+              // No formal `type=embassy`, so this keyword match also hits names like "Hotel Embassy"; lodging-typed results are filtered below.
               const params =
                 t === "embassy"
                   ? `keyword=embassy consulate&radius=${radius}`
@@ -1438,18 +1388,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         persons: z.number(),
         totalEstimatedCost: z.number(),
         currency: z.string(),
-        // Was missing entirely -- FormattingAgent.ts's own copy of this
-        // schema includes travelStyle, but since this OUTER schema (the
-        // one that actually gates what `parsed.data` keeps, Zod strips any
-        // undeclared key) never declared it, travelStyle silently
-        // vanished from every generated plan's API response regardless of
-        // what the user picked or what the orchestrator did internally.
+        // Zod strips undeclared keys, so travelStyle must be declared here or it vanishes from the API response.
         travelStyle: z.string().optional(),
-        // Live-reported gaps: no travel/logistics guidance, no
-        // accommodation suggestions in a generated plan — see
-        // DraftingAgent.ts's prompt and the matching fields on
-        // FormattingAgent.ts's zTripPlan (this is a separate, locally
-        // duplicated schema that gates the actual live generation path).
+        // Mirrors FormattingAgent.ts's zTripPlan; this local copy is what gates the live generation path.
         travelLogistics: z
           .object({
             toDestination: z.string().optional(),
@@ -1497,15 +1438,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
                   cost: z.number().optional(),
                   duration_minutes: z.number(),
                   localFoodRecommendations: z.array(z.string()).default([]),
-                  // Genuinely optional, not a gap: a day's first activity has
-                  // no same-day previous stop to route from. The prompt now
-                  // explicitly tells the model to omit it there (see
-                  // DraftingAgent.ts) -- this was previously required,
-                  // which made every real omission a hard validation
-                  // failure straight to the fallback generator. The
-                  // post-processing pass below (calculateHaversineDistance)
-                  // already assumed this could be missing and fills a
-                  // from-hotel default for exactly this case.
+                  // Optional: a day's first activity has no previous stop; post-processing fills a from-hotel default.
                   routeFromPrevious: z
                     .object({
                       mode: z.string(),
@@ -1517,15 +1450,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
                     .optional(),
                 }),
               )
-              // Was .min(3) -- this duplicate of FormattingAgent.ts's
-              // zTripPlan (which uses .min(1)) had diverged, and the
-              // orchestrator's own fatigue-constraint enforcement
-              // (MasterOrchestrator's validation loop) deliberately trims a
-              // day to 2 activities when it exceeds the fatigue threshold --
-              // a legitimately light arrival/departure or fatigue-trimmed
-              // day passed FormattingAgent's gate then failed here,
-              // triggering a full fallback-to-generic-template for a plan
-              // that was actually fine. Matches FormattingAgent's .min(1).
+              // .min(1) to match FormattingAgent's zTripPlan: light or fatigue-trimmed days legitimately have <3 activities.
               .min(1),
             reasoning: z.string().optional(),
             confidenceScore: z.enum(["high", "medium", "low"]).optional(),
@@ -1653,12 +1578,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
           `[AiUtilities] planTrip failed for ${destination}, using fallback:`,
           genError.message,
         );
-        // Council-recommended first step, before touching the fix itself:
-        // this fallback was previously only ever a console.error (gone on
-        // the next Render restart), so nobody had an honest signal of how
-        // often the primary pipeline actually fails in production. Fire-
-        // and-forget -- a slow/failed write here must never block the
-        // fallback response the user is actually waiting on.
+        // Fire-and-forget: record fallback frequency without blocking the response the user is waiting on.
         AiFallbackEventModel.create({
           destination,
           reason: genError.message || "unknown",
@@ -1810,12 +1730,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   private validateDestination(destination: string): boolean {
     if (!destination || destination.length < 2) return false;
 
-    // Check for basic alphanumeric + common punctuation. Was ASCII-only
-    // (a-zA-Z), which rejected every real destination with a non-Latin
-    // character -- "München", "São Paulo", "Zürich", "Côte d'Ivoire" all
-    // failed this check and silently fell back to the generic template
-    // generator. \p{L}/\p{M} (Unicode letter/mark) covers diacritics and
-    // non-Latin scripts while still rejecting symbols/digits/emoji.
+    // \p{L}/\p{M} accept diacritics and non-Latin scripts (München, Côte d'Ivoire) while rejecting symbols/digits/emoji.
     const validPattern = /^[\p{L}\p{M}\s,.\-']+$/u;
     if (!validPattern.test(destination)) return false;
 
@@ -1899,12 +1814,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     const realPlaces = await this.searchPlaces(`${destination} tourist places`);
     // Specific search for restaurants to avoid generic results
     const restaurantPlaces = await this.searchPlaces(`best restaurants in ${destination}`);
-    // Live-reported gaps this fallback path (confirmed the one that
-    // actually runs a meaningful share of the time, per the "Ameenpur"
-    // note below) never had: hotel suggestions, and any logistics for
-    // getting to/around the destination. Real Google Places hotel search,
-    // same pattern as the tourist-places/restaurants calls above — no
-    // extra LLM cost.
+    // Real Google Places hotel search, same pattern as the calls above (no extra LLM cost).
     const hotelPlaces = await this.searchPlaces(`hotels in ${destination}`);
     const accommodationSuggestions = hotelPlaces.slice(0, 3).map((p: any) => ({
       name: p.name,
@@ -2120,12 +2030,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const timer = setTimeout(() => controller.abort(), 15000);
 
         const response = await fetch(
-          // Live-reported (caught while re-verifying the FormattingAgent
-          // fix): gemini-2.0-flash was retired -- confirmed by the exact
-          // API error this threw ("model ... is no longer available ...
-          // use models/gemini-3.6-flash"), silently killing restaurant/
-          // attraction grounding data for every real request. Same model
-          // already used everywhere else in this file.
+          // gemini-2.0-flash was retired (API: "no longer available"); use the same model as the rest of this file.
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
           {
             method: "POST",
@@ -2302,18 +2207,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
   // though it shares the destination name or a generic feature word with
   // something else, since that's a real, separate experience, not a
   // reworded duplicate.
-  // Live-reported: a 10-day Rajasthan schedule parsed into a JSON object
-  // that self-reported `days: 10` but only had ONE entry in `itinerary` —
-  // the model apparently detailed day 1 in full and then just stopped,
-  // rather than fabricating the rest from a light-detail input (a
-  // reasonable instinct given parseSchedule's "don't invent a different
-  // trip" rule, but an incomplete result either way). parseSchedule's
-  // retry check only ever fired on a fully EMPTY itinerary (length === 0),
-  // so this exact self-contradictory case — the model's own `days` field
-  // disagreeing with its own `itinerary.length` — sailed straight through
-  // silently. A day count under half of what the model itself claimed is
-  // a strong, checkable signal something went wrong mid-generation,
-  // independent of how detailed the user's original pasted text was.
+  // A model's own `days` disagreeing with its `itinerary.length` (e.g. days: 10, one entry) signals mid-generation truncation; the retry check only caught a fully empty itinerary.
   private isPlanSuspiciouslyShort(plan: any): boolean {
     return (
       !!plan &&
@@ -2818,13 +2712,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
 
     try {
       let rawContent = "";
-      // Two Gemini transports, not two providers — the OpenAI-compat chat-
-      // completions client (this.openai) is tried first, and a
-      // raw-generateContent call (generateWithGemini) below covers it if
-      // that fails, so one transport hiccup doesn't take the whole feature
-      // down. Was genuinely OpenAI-then-Gemini before that provider was
-      // removed; kept the two-attempt shape since it's still useful
-      // resilience against a single transport failing.
+      // Two Gemini transports, not two providers: the OpenAI-compat client first, then raw generateContent, so one transport failure doesn't take the feature down.
       if (this.openai) {
         try {
           const completion = await this.openai.chat.completions.create({
@@ -3306,11 +3194,7 @@ Start: ${startDate || "not specified"} | Group: ${groupSize} | Budget: ${budget 
 
     let parsed = this.parseJson(raw);
 
-    // One retry with a deliberately shorter, stricter prompt if the first
-    // response didn't parse into a usable plan — a real model failure
-    // mode (truncation, stray prose) that used to go straight to a 500
-    // with no second attempt. Also retries when the plan technically
-    // parsed but is suspiciously incomplete (see isPlanSuspiciouslyShort).
+    // One retry with a shorter, stricter prompt if the first response didn't parse (truncation, stray prose) or is suspiciously incomplete (see isPlanSuspiciouslyShort).
     if (
       !parsed ||
       typeof parsed !== "object" ||
