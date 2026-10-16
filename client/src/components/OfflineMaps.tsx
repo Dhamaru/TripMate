@@ -118,8 +118,6 @@ interface OfflineMapsProps {
 const STORAGE_KEY = "tripmate_offlinemaps_v2";
 const PINS_STORAGE_KEY = "tripmate_custom_pins_v2"; // Sync versioning
 
-const DEFAULT_REGIONS: MapRegion[] = [];
-
 export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   const [activeTab, setActiveTab] = useState<"explore" | "navigation" | "saved">("explore");
   // Focus-mode bottom sheet — collapsed shows a one-line peek (Storage Usage
@@ -346,7 +344,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         });
       }
     } catch {}
-    return DEFAULT_REGIONS;
+    return [];
   });
 
   // Actually evict cache entries for regions that aged out on this load —
@@ -541,6 +539,18 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     });
   };
 
+  // Adds the street/topo tile layer for the current mapStyle and applies the dark filter (CSS filter on the tile pane).
+  const makeTileLayer = (map: L.Map) => {
+    const layer = L.tileLayer(mapStyle === "street" ? STREET_TILE_URL : TILE_URL, {
+      attribution: mapStyle === "street" ? STREET_TILE_ATTRIBUTION : TILE_ATTRIBUTION,
+      maxZoom: mapStyle === "street" ? 19 : 17,
+      noWrap: true,
+    }).addTo(map);
+    tileLayerRef.current = layer;
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+  };
+
   // Initialize Leaflet
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
@@ -568,15 +578,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       maxBoundsViscosity: 1.0,
     }).setView([20, 0], 2);
 
-    const layer = L.tileLayer(mapStyle === "street" ? STREET_TILE_URL : TILE_URL, {
-      attribution: mapStyle === "street" ? STREET_TILE_ATTRIBUTION : TILE_ATTRIBUTION,
-      maxZoom: mapStyle === "street" ? 19 : 17,
-      noWrap: true,
-    }).addTo(map);
-
-    tileLayerRef.current = layer;
-    const tilePane = map.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+    makeTileLayer(map);
 
     mapInstanceRef.current = map;
 
@@ -587,6 +589,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     // those on load matters more than centering on wherever they are right
     // now, and re-centering on geolocation after the pin-fit already ran
     // would just reintroduce the exact "can't see my pins" bug.
+    const fallbackToDownloaded = () => {
+      const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
+      if (downloadedRegion && !pinsFitOnceRef.current) {
+        map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
+      }
+      setMapReady(true);
+    };
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -598,22 +607,12 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         },
         (err) => {
           console.error("Auto-locate failed, falling back to downloaded regions", err);
-          // Fallback: Use downloaded region if available
-          const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
-          if (downloadedRegion && !pinsFitOnceRef.current) {
-            map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
-          }
-          setMapReady(true);
+          fallbackToDownloaded();
         },
         { enableHighAccuracy: true, timeout: 5000 },
       );
     } else {
-      // No Geo support: specific fallback
-      const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
-      if (downloadedRegion && !pinsFitOnceRef.current) {
-        map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
-      }
-      setMapReady(true);
+      fallbackToDownloaded();
     }
 
     refreshPinMarkers();
@@ -627,17 +626,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Toggle dark mode — OpenTopoMap has no separate dark style, so this is a
-  // CSS filter on the tile pane, not a layer swap. Also fixes a real live
-  // bug: the old layer-swap version ran unconditionally on initial mount too
-  // (every useEffect fires once after first commit, regardless of its
-  // dependency array), and by then the mount effect above had already set
-  // mapInstanceRef/tileLayerRef, so this guard didn't skip it -- it
-  // immediately removed and recreated the tile layer, firing a redundant
-  // second request for every tile already in flight. Confirmed live via
-  // DevTools Network tab: each tile showed a 200 followed by a duplicate
-  // request for the same z/x/y returning 400. A pure CSS filter toggle has
-  // no such duplicate-fetch risk.
+  // Dark mode is a CSS filter on the tile pane (OpenTopoMap has no dark style), not a layer swap: a swap on mount refetched every in-flight tile.
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -659,14 +648,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const map = mapInstanceRef.current;
     if (!map || !tileLayerRef.current) return;
     map.removeLayer(tileLayerRef.current);
-    const layer = L.tileLayer(mapStyle === "street" ? STREET_TILE_URL : TILE_URL, {
-      attribution: mapStyle === "street" ? STREET_TILE_ATTRIBUTION : TILE_ATTRIBUTION,
-      maxZoom: mapStyle === "street" ? 19 : 17,
-      noWrap: true,
-    }).addTo(map);
-    tileLayerRef.current = layer;
-    const tilePane = map.getPane("tilePane");
-    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+    makeTileLayer(map);
   }, [mapStyle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live Navigation Logic
