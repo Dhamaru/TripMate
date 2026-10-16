@@ -1196,6 +1196,7 @@ export default function TripDetail() {
                   {isOwner && (
                     <Button
                       onClick={() => setShareDialogOpen(true)}
+                      aria-label="Share trip"
                       variant="outline"
                       size="sm"
                       className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] no-print"
@@ -1213,6 +1214,7 @@ export default function TripDetail() {
                   {activeMainTab === "itinerary" && (
                     <Button
                       onClick={() => window.print()}
+                      aria-label="Print trip"
                       variant="outline"
                       size="sm"
                       className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] no-print"
@@ -1231,6 +1233,7 @@ export default function TripDetail() {
                       {canEditTrip && (
                         <Button
                           onClick={() => setIsEditing(true)}
+                          aria-label="Edit trip"
                           variant="outline"
                           size="sm"
                           className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] "
@@ -1243,6 +1246,7 @@ export default function TripDetail() {
                       {isOwner && (
                         <Button
                           onClick={() => setDeleteConfirmOpen(true)}
+                          aria-label="Delete trip"
                           variant="outline"
                           size="sm"
                           className="bg-muted/50 border-[var(--stamp-red)] text-[var(--stamp-red)] hover:bg-[var(--stamp-red-deep)] hover:text-white "
