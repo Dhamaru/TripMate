@@ -14,7 +14,7 @@
 
 ## Exact next command
 
-None for these fixes. Next decision: separate dev/test DB before any swarm run (see below), then resume swarm Task 14 from `69d1420`.
+User decisions: merge `feat/persona-swarm` → main; run `npx tsx scratchpad/cleanup-prod-swarm.mts` (dry run) then `--delete`; top up Gemini credits. Then a full `npm run swarm`.
 
 ## Blocked on / decisions
 
