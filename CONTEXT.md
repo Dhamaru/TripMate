@@ -1,22 +1,5 @@
 # TripMate — Session Context
 
-## ⚠️ PRIORITY #1 — AI SPEND CAP (₹100 TOTAL FOR AGENTS) ⚠️
-
-**CLAUDE, ALL SUB-AGENTS AND THE PERSONA SWARM MAY SPEND AT MOST ₹100 OF GEMINI CREDIT IN TOTAL — EVER, ACROSS ALL SESSIONS.**
-**THE REST OF THE BALANCE (₹833 AS OF 2026-10-16) BELONGS TO REAL USERS, THE OWNER AND THE OWNER'S TESTER. DO NOT TOUCH IT.**
-
-- **BEFORE ANY ACTION THAT CALLS GEMINI** (swarm run, live Atlas/itinerary/AI test, any script hitting the API): estimate the cost in ₹, say it, and get the owner's explicit yes. No exceptions, no "small test".
-- **TRACK EVERY RUPEE**: update the "Agent AI spend ledger" in CONTEXT.md after each AI-using action. If the next action could push the total past ₹100, STOP and ask.
-- **ON 402 / 429 / RESOURCE_EXHAUSTED: STOP IMMEDIATELY. NEVER RETRY.** (2026-10-15/16: swarm retries drained the whole balance to −₹166.)
-- **THE SWARM MUST NOT RUN** until it has a hard spend guard in code (stop on 402/401, back off on 429, fixed call cap, one preflight call) AND the owner approves the run's estimate.
-- Prefer zero-cost verification (unit tests, mocked LLM, typecheck, Playwright without AI calls) wherever possible.
-
-### Agent AI spend ledger (cap ₹100)
-
-| Date       | Action                                                                                                 | Est. ₹ | Running total |
-| ---------- | ------------------------------------------------------------------------------------------------------ | ------ | ------------- |
-| 2026-10-16 | Ledger started (balance ₹833). Prior swarm runs overspent by ~₹166+ — not counted against the new cap. | 0      | 0             |
-
 Read this FIRST, before grepping/exploring the codebase for a new task. It's a
 living summary — update it (don't append forever; edit stale lines in place)
 at the end of any session that changes architecture, fixes a real bug, or
@@ -65,9 +48,8 @@ Deployed on Render: https://tripmate-ylt6.onrender.com
 
 ## Known open issues + live snapshot (read this before anything else — not yet fixed or not yet live-verified; don't re-discover or re-verify from scratch)
 
-- **ACTION NEEDED (2026-10-16): Gemini key out of prepaid credits** (402 RESOURCE_EXHAUSTED). Likely breaks prod AI (itinerary gen, Atlas, plan import) if Render uses the same key. User must top up in AI Studio.
 - **ACTION NEEDED: pre-isolation swarm data in prod `tripmate` DB** (swarm-*@example.com accounts + seed trips from 2026-10-15). Agent prod DB access is blocked by permission classifier; cleanup script at `scratchpad/cleanup-prod-swarm.mts` (dry run by default, `--delete` to apply; same cascade as delete-account) for the user to run.
-- **Swarm branch `feat/persona-swarm`**: complete + final-reviewed, unmerged, awaiting user's merge decision. Not live-proven after Gemini 402: full run, partner bell socket check, vision fix.
+- **Swarm branch `feat/persona-swarm`**: complete + final-reviewed, unmerged, awaiting user's merge decision. Not live-proven yet: full run, partner bell socket check, vision fix.
 - **OPEN (2026-10-15)**: user's Profile push toggle showed generic "Couldn't update push notification settings". Prod VAPID key is configured; in real Chrome the SW installs fine. `69fdba5` makes the toast name the failing step (no-service-worker / push-service / server). Next: ask user for the new toast text + browser (Brave blocks push by default; desktop app's WebView2 can't use web push).
 - **RESOLVED 2026-10-15, live-verified on production** (`ed3a615`, `d0bd1c5`): place-search Enter/click selection (shared `usePlaceSearchKeys`), and Emergency services empty — `AiUtilitiesService.emergency()` is now Places-only (Gemini's object reply had parsed to a cached `[]`), client queries rounded coords. Live: "RR Peta Vijayawada" → hospitals/police/pharmacies with real distances, 390/768/1280 no h-scroll.
 - **OPEN, unreproduced (2026-10-15)**: user saw Trip Map tab centred on Charleston SC for a Hyderabad trip. Fresh Hyderabad trip on prod geocodes and renders correctly; ruled out Google fallback, SW cache, offline tile keys. Waiting on user: web vs desktop app, persists after hard refresh?
