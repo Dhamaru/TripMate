@@ -577,7 +577,9 @@ export async function runAgentLoop(
     }
 
     return {
-      message: `I ran into an issue communicating with the AI service: ${err.message}. Please try again.`,
+      // The raw provider error ("402 status code (no body)") used to be shown
+      // to users; it's logged above, users get a plain message.
+      message: "Atlas is temporarily unavailable. Please try again in a few minutes.",
       toolsUsed,
       confidence: { score: 0.2, level: "low" },
       tokensUsed: totalTokens,
