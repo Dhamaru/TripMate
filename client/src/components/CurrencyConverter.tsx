@@ -77,6 +77,9 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
         const url = `/api/v1/currency?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(amt)}`;
         const res = await apiRequest("GET", url);
         const data = await res.json();
+        // A 5xx body ({ error }) used to be cached as rate: undefined and
+        // shown as "1 USD = undefined INR"; treat it as a failed fetch.
+        if (!res.ok || typeof data.rate !== "number") throw new Error(`currency ${res.status}`);
 
         // Cache the successful rate
         localStorage.setItem(
@@ -91,12 +94,12 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
       } catch (err) {
         // Fallback to cache if available
         const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const { rate } = JSON.parse(cached);
+        const cachedRate = cached ? Number(JSON.parse(cached).rate) : NaN;
+        if (Number.isFinite(cachedRate)) {
           const amtNum = parseFloat(amt) || 0;
           return {
-            rate,
-            convertedAmount: Math.round(amtNum * rate * 100) / 100,
+            rate: cachedRate,
+            convertedAmount: Math.round(amtNum * cachedRate * 100) / 100,
             currencyName: to,
             disclaimer: "Offline mode: Using cached rate",
           };
