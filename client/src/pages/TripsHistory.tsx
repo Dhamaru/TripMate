@@ -34,6 +34,7 @@ export default function TripsHistory() {
     data: trips,
     isLoading: tripsLoading,
     error,
+    refetch,
   } = useQuery<Trip[]>({
     queryKey: ["/api/v1/trips"],
     enabled: !isLoading && !!isAuthenticated,
@@ -148,6 +149,18 @@ export default function TripsHistory() {
       {tripsLoading ? (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--ink-blue)]" />
+        </div>
+      ) : error && !isUnauthorizedError(error as any) ? (
+        // A failed load used to fall through to "No trips yet" — reads as if
+        // the user's trips were deleted.
+        <div className="bg-card rounded-3xl border border-border p-16 text-center">
+          <h3 className="text-lg font-semibold text-foreground mb-2">Couldn't load your trips</h3>
+          <p className="text-muted-foreground text-sm mb-6">
+            Your trips are safe — check your connection and try again.
+          </p>
+          <Button onClick={() => refetch()} data-testid="button-retry-trips">
+            Try again
+          </Button>
         </div>
       ) : filteredTrips.length === 0 ? (
         <div className="bg-card rounded-3xl border border-border p-16 text-center">

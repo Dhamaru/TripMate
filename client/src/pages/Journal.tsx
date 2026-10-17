@@ -140,7 +140,12 @@ export default function Journal() {
     }
   }, [isAuthenticated, authLoading, toast, navigate]);
 
-  const { data: journalEntries = [], isLoading } = useQuery<JournalEntry[]>({
+  const {
+    data: journalEntries = [],
+    isLoading,
+    error: entriesError,
+    refetch: refetchEntries,
+  } = useQuery<JournalEntry[]>({
     queryKey: ["/api/v1/journal"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/v1/journal?light=true");
@@ -605,6 +610,17 @@ export default function Journal() {
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--amber)]" />
+        </div>
+      ) : entriesError && !isUnauthorizedError(entriesError as Error) ? (
+        // Was falling through to the empty "Start Your Travel Journal" state.
+        <div className="bg-card rounded-3xl border border p-16 text-center">
+          <h3 className="text-xl font-bold text-foreground mb-2">Couldn't load your journal</h3>
+          <p className="text-muted-foreground text-sm mb-6">
+            Your memories are safe — check your connection and try again.
+          </p>
+          <Button onClick={() => refetchEntries()} data-testid="button-retry-journal">
+            Try again
+          </Button>
         </div>
       ) : journalEntries && journalEntries.length > 0 ? (
         <div className="relative border-l-2 border ml-4 md:ml-8 space-y-8 pb-12">
