@@ -96,7 +96,11 @@ export default function TripsHistory() {
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">My Trips</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {filteredTrips.length} {filteredTrips.length === 1 ? "trip" : "trips"} found
+            {/* Only once loaded: "0 trips found" above a load error contradicted it.
+                A no-break space keeps the header from jumping. */}
+            {!tripsLoading && !error
+              ? `${filteredTrips.length} ${filteredTrips.length === 1 ? "trip" : "trips"} found`
+              : " "}
           </p>
         </div>
         <Link href="/app/planner">
