@@ -452,19 +452,35 @@ export default function TripDetail() {
     }
   }, [error, id]);
 
-  // Auto-fetch hero image if missing
+  // Auto-fetch hero image if missing — once per trip. Keyed on the store's
+  // trip (not the route id, which can be undefined while leaving the page:
+  // live "POST /trips/undefined/image" 500s), and not re-run on every trip
+  // update: the endpoint can fall back to billed Google Places.
+  const imageRequestedFor = useRef<string | null>(null);
+  const tripKey = trip
+    ? String((trip as { id?: string; _id?: string }).id ?? (trip as { _id?: string })._id ?? "")
+    : "";
   useEffect(() => {
-    if (trip && !trip.imageUrl && isAuthenticated) {
-      apiRequest("POST", `/api/v1/trips/${id}/image`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.imageUrl) {
-            setCurrentTrip({ ...trip, imageUrl: data.imageUrl, imageCaption: data.imageCaption });
-          }
-        })
-        .catch(() => {});
-    }
-  }, [trip, id, isAuthenticated, setCurrentTrip]);
+    if (!tripKey || trip?.imageUrl || !isAuthenticated) return;
+    if (imageRequestedFor.current === tripKey) return;
+    imageRequestedFor.current = tripKey;
+    apiRequest("POST", `/api/v1/trips/${tripKey}/image`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const latest = useTripStore.getState().currentTrip;
+        const latestKey = latest
+          ? String(
+              (latest as { id?: string; _id?: string }).id ??
+                (latest as { _id?: string })._id ??
+                "",
+            )
+          : "";
+        if (data?.imageUrl && latest && latestKey === tripKey) {
+          setCurrentTrip({ ...latest, imageUrl: data.imageUrl, imageCaption: data.imageCaption });
+        }
+      })
+      .catch(() => {});
+  }, [tripKey, trip?.imageUrl, isAuthenticated, setCurrentTrip]);
 
   const { data: journalEntries } = useQuery<JournalEntry[]>({
     queryKey: ["/api/v1/journal"],
