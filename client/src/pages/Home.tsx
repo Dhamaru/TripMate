@@ -345,9 +345,9 @@ export default function Home() {
         <section className="animate-fade-up animate-fade-up-delay-1">
           <div className="rounded-2xl border-2 border-[rgb(var(--ink-blue-rgb)/35%)] bg-[hsl(var(--card))] overflow-hidden shadow-[var(--shadow-hover)]">
             <div className="h-1.5 w-full bg-gradient-to-r from-[var(--amber)] via-[var(--ink-blue-bright)] to-[var(--customs-blue)]" />
-            <div className="grid md:grid-cols-[300px_1fr]">
+            <div className="grid lg:grid-cols-[300px_1fr]">
               {/* Photo */}
-              <div className="relative h-44 md:h-full min-h-[190px] bg-[hsl(var(--muted))]">
+              <div className="relative h-44 lg:h-full min-h-[190px] bg-[hsl(var(--muted))]">
                 {currentTrip.imageUrl ? (
                   <OptimizedImage
                     src={currentTrip.imageUrl}
@@ -377,7 +377,10 @@ export default function Home() {
                           ? "Last trip"
                           : "Next trip"}
                     </span>
-                    <h2 className="font-display text-2xl font-semibold text-[hsl(var(--foreground))] leading-tight mt-0.5 truncate">
+                    <h2
+                      className="font-display text-2xl font-semibold text-[hsl(var(--foreground))] leading-tight mt-0.5 line-clamp-2 break-words"
+                      title={currentTrip.destination}
+                    >
                       {currentTrip.destination}
                     </h2>
                     <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 font-sans-clean">
