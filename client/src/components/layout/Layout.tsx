@@ -472,8 +472,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
+          // relative: Radix Select's hidden 1px native <select> is absolutely
+          // positioned; with no positioned ancestor it escaped the shell's
+          // overflow-hidden and made the whole page scroll on short screens.
           className={
-            isFullBleed ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto pb-36 md:pb-20"
+            isFullBleed
+              ? "relative flex-1 overflow-hidden"
+              : "relative flex-1 overflow-y-auto pb-36 md:pb-20"
           }
         >
           <AnimatePresence mode="wait">
