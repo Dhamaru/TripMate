@@ -1,5 +1,5 @@
 /** @vitest-environment node */
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { config } from "../../server/config";
 import { AiUtilitiesService } from "../../server/AiUtilitiesService";
 
@@ -11,6 +11,8 @@ const place = (name: string, lat: number, lng: number) => ({
 });
 
 describe("AiUtilitiesService.emergency", () => {
+  // The service cache is shared across instances (by design) — isolate tests.
+  beforeEach(() => (AiUtilitiesService as any).cache.clear());
   afterEach(() => vi.unstubAllGlobals());
 
   it("returns real nearby Places results for coordinates and never asks the LLM", async () => {

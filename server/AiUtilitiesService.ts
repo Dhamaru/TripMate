@@ -43,9 +43,18 @@ const LANGUAGE_NAMES: Record<string, string> = {
 
 export class AiUtilitiesService {
   private openai: OpenAI | null;
-  private cache = new Map<string, CacheEntry<any>>();
+  // Static: controllers create a new AiUtilitiesService per request, so a
+  // per-instance cache never hit and every trip-page view re-billed the
+  // same hacks/quiet-places AI calls.
+  private static cache = new Map<string, CacheEntry<any>>();
   private ttlMs = 5 * 60 * 1000;
-  private inflight = new Map<string, Promise<any>>();
+  private static inflight = new Map<string, Promise<any>>();
+  private get cache() {
+    return AiUtilitiesService.cache;
+  }
+  private get inflight() {
+    return AiUtilitiesService.inflight;
+  }
 
   constructor(apiKey?: string) {
     // Gemini's OpenAI-compatible endpoint, like the rest of the agent stack.
@@ -130,8 +139,10 @@ export class AiUtilitiesService {
     return null;
   }
 
-  private setCached<T>(key: string, data: T): T {
-    this.cache.set(key, { data, expiresAt: Date.now() + this.ttlMs });
+  private setCached<T>(key: string, data: T, ttlMs = this.ttlMs): T {
+    // ponytail: oldest-first eviction at 1000 entries; an LRU only if hit rates show it matters.
+    if (this.cache.size >= 1000) this.cache.delete(this.cache.keys().next().value!);
+    this.cache.set(key, { data, expiresAt: Date.now() + ttlMs });
     return data;
   }
 
@@ -2508,7 +2519,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     destination: string,
     typeOfTrip: string = "relaxed",
   ): Promise<{ hacks: string[]; economicalAlternatives: string[] }> {
-    const key = `hacks:${destination}:${typeOfTrip}`;
+    const key = `hacks:${destination.trim().toLowerCase()}:${typeOfTrip}`;
     const cached = this.getCached<any>(key);
     if (cached) return cached;
 
@@ -2603,7 +2614,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         };
       }
 
-      return this.setCached(key, result);
+      return this.setCached(key, result, 24 * 60 * 60 * 1000);
     } catch (e: any) {
       console.error(`[getTravelHacks] Failed for ${destination}:`, e.message);
       return this.getRegionAwareFallbackHacks(destination);
@@ -2812,6 +2823,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       reason: string;
     }>
   > {
+    const quietKey = `quiet:${destination.trim().toLowerCase()}`;
+    const cachedSpots = this.getCached<any>(quietKey);
+    if (cachedSpots) return cachedSpots;
+
     const prompt = `Suggest 3 real, specific, lesser-known or low-crowd places to visit in ${destination} for someone who wants to avoid tourist crowds. Return JSON with a 'spots' array, each item having: 'name' (real place name in ${destination}), 'address' (real neighborhood/area in ${destination}), 'crowdLevel' ('Low' or 'Minimal'), 'type' (e.g. Nature, Heritage, Park, Cafe), 'bestTime' (time range), and 'reason' (one sentence, under 20 words).`;
     const system =
       "You are a local travel expert who knows real, specific places. Return only valid JSON, no markdown.";
@@ -2833,14 +2848,19 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       const json = this.parseJson(rawContent);
       const spots = Array.isArray(json.spots) ? json.spots : [];
       if (!spots.length) throw new Error("empty spots");
-      return spots.slice(0, 5).map((s: any) => ({
-        name: String(s.name || "Quiet Spot"),
-        address: String(s.address || destination),
-        crowdLevel: String(s.crowdLevel || "Low"),
-        type: String(s.type || "Outdoors"),
-        bestTime: String(s.bestTime || "Morning"),
-        reason: String(s.reason || "A calmer alternative away from the main tourist areas."),
-      }));
+      const quietTtl = 24 * 60 * 60 * 1000; // a place's quiet spots don't change day to day
+      return this.setCached(
+        quietKey,
+        spots.slice(0, 5).map((s: any) => ({
+          name: String(s.name || "Quiet Spot"),
+          address: String(s.address || destination),
+          crowdLevel: String(s.crowdLevel || "Low"),
+          type: String(s.type || "Outdoors"),
+          bestTime: String(s.bestTime || "Morning"),
+          reason: String(s.reason || "A calmer alternative away from the main tourist areas."),
+        })),
+        quietTtl,
+      );
     } catch (e) {
       console.error("[AiUtilities] Failed to generate quiet place suggestions:", e);
       return [
