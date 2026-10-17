@@ -1,60 +1,67 @@
-import { Request, Response, NextFunction } from 'express'
-import { AppError } from '../errors'
-import logger from '../logger'
-import { config } from '../config'
+import { Request, Response, NextFunction } from "express";
+import { AppError } from "../errors";
+import logger from "../logger";
+import { config } from "../config";
 
-export const errorHandler = (
-    err: Error, req: Request, res: Response, _next: NextFunction
-) => {
-    const statusCode = err instanceof AppError ? err.statusCode : 500;
-    const isAuthError = statusCode === 401 || statusCode === 403;
+export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction) => {
+  const statusCode = err instanceof AppError ? err.statusCode : 500;
+  const isAuthError = statusCode === 401 || statusCode === 403;
 
-    logger.error('ERROR', {
-        message: err.message,
-        stack: (config.NODE_ENV !== 'production' && !isAuthError) ? err.stack : undefined,
-        requestId: req.requestId,
-        path: req.path,
-    })
+  logger.error("ERROR", {
+    message: err.message,
+    stack: config.NODE_ENV !== "production" && !isAuthError ? err.stack : undefined,
+    requestId: req.requestId,
+    path: req.path,
+  });
 
-    if (err instanceof AppError) {
-        return res.status(err.statusCode).json({
-            success: false,
-            error: err.message,
-            code: (err as any).code,
-            requestId: req.requestId,
-        })
-    }
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+      code: (err as any).code,
+      requestId: req.requestId,
+    });
+  }
 
-    // Mongoose ValidationError
-    if (err.name === 'ValidationError') {
-        return res.status(400).json({
-            success: false,
-            error: 'Validation failed',
-            code: 'VALIDATION_ERROR',
-            requestId: req.requestId,
-        })
-    }
+  // Malformed ObjectId in a URL (e.g. /trips/undefined) — it can't match a
+  // record, so it's a 404, not a 500.
+  if (err.name === "CastError") {
+    return res.status(404).json({
+      success: false,
+      error: "Not found",
+      code: "NOT_FOUND",
+      requestId: req.requestId,
+    });
+  }
 
-    // Errors from body-parser/express itself (e.g. PayloadTooLargeError,
-    // entity.parse.failed) carry their own status/statusCode — honor it
-    // instead of always collapsing to a generic 500.
-    const nativeStatus = (err as any).status ?? (err as any).statusCode;
-    if (typeof nativeStatus === 'number' && nativeStatus >= 400 && nativeStatus < 500) {
-        return res.status(nativeStatus).json({
-            success: false,
-            error: err.message || 'Request error',
-            code: (err as any).type || 'REQUEST_ERROR',
-            requestId: req.requestId,
-        })
-    }
+  // Mongoose ValidationError
+  if (err.name === "ValidationError") {
+    return res.status(400).json({
+      success: false,
+      error: "Validation failed",
+      code: "VALIDATION_ERROR",
+      requestId: req.requestId,
+    });
+  }
 
-    // Default 500
-    return res.status(500).json({
-        success: false,
-        error: config.NODE_ENV === 'production'
-            ? 'Internal server error'
-            : err.message,
-        code: 'INTERNAL_ERROR',
-        requestId: req.requestId,
-    })
-}
+  // Errors from body-parser/express itself (e.g. PayloadTooLargeError,
+  // entity.parse.failed) carry their own status/statusCode — honor it
+  // instead of always collapsing to a generic 500.
+  const nativeStatus = (err as any).status ?? (err as any).statusCode;
+  if (typeof nativeStatus === "number" && nativeStatus >= 400 && nativeStatus < 500) {
+    return res.status(nativeStatus).json({
+      success: false,
+      error: err.message || "Request error",
+      code: (err as any).type || "REQUEST_ERROR",
+      requestId: req.requestId,
+    });
+  }
+
+  // Default 500
+  return res.status(500).json({
+    success: false,
+    error: config.NODE_ENV === "production" ? "Internal server error" : err.message,
+    code: "INTERNAL_ERROR",
+    requestId: req.requestId,
+  });
+};

@@ -22,6 +22,13 @@ describe("Trips API", () => {
     userId = signupRes.body.user.id;
   });
 
+  it("answers 404, not 500, for a malformed trip id", async () => {
+    const res = await request(app)
+      .get("/api/v1/trips/undefined")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+
   it("should create a new trip", async () => {
     const tripData = {
       destination: "Kyoto",
