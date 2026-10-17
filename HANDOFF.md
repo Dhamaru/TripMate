@@ -14,7 +14,7 @@
 
 ## Exact next command
 
-User decisions: merge `feat/persona-swarm` → main; run `npx tsx scratchpad/cleanup-prod-swarm.mts` (dry run) then `--delete`. Then a full `npm run swarm`.
+User decisions: merge `feat/persona-swarm` → main. Then a full `npm run swarm`.
 
 ## Blocked on / decisions
 

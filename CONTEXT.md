@@ -48,7 +48,7 @@ Deployed on Render: https://tripmate-ylt6.onrender.com
 
 ## Known open issues + live snapshot (read this before anything else — not yet fixed or not yet live-verified; don't re-discover or re-verify from scratch)
 
-- **ACTION NEEDED: pre-isolation swarm data in prod `tripmate` DB** (swarm-*@example.com accounts + seed trips from 2026-10-15). Agent prod DB access is blocked by permission classifier; cleanup script at `scratchpad/cleanup-prod-swarm.mts` (dry run by default, `--delete` to apply; same cascade as delete-account) for the user to run.
+- **RESOLVED 2026-10-17**: leftover swarm + throwaway QA accounts (17, all @example.com) deleted from prod with full cascade via `scratchpad/cleanup-prod-swarm.mts --delete`; 0 remain.
 - **Swarm branch `feat/persona-swarm`**: complete + final-reviewed, unmerged, awaiting user's merge decision. Not live-proven yet: full run, partner bell socket check, vision fix.
 - **OPEN (2026-10-15)**: user's Profile push toggle showed generic "Couldn't update push notification settings". Prod VAPID key is configured; in real Chrome the SW installs fine. `69fdba5` makes the toast name the failing step (no-service-worker / push-service / server). Next: ask user for the new toast text + browser (Brave blocks push by default; desktop app's WebView2 can't use web push).
 - **RESOLVED 2026-10-15, live-verified on production** (`ed3a615`, `d0bd1c5`): place-search Enter/click selection (shared `usePlaceSearchKeys`), and Emergency services empty — `AiUtilitiesService.emergency()` is now Places-only (Gemini's object reply had parsed to a cached `[]`), client queries rounded coords. Live: "RR Peta Vijayawada" → hospitals/police/pharmacies with real distances, 390/768/1280 no h-scroll.
