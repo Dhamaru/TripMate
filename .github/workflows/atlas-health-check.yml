@@ -10,7 +10,7 @@ name: Atlas Health Check
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # every 6 hours
+    - cron: '30 3 * * 1'  # weekly, Monday 03:30 UTC (09:00 IST)
   workflow_dispatch: {}     # allow manual trigger from the Actions tab
 
 jobs:
