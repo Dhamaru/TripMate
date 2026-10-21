@@ -185,7 +185,13 @@ export default function JournalDetail() {
     if (photos) {
       Array.from(photos).forEach((file) => formData.append("photos", file));
     }
-    formData.append("existingPhotos", JSON.stringify(keptPhotos));
+    // Positions, not the photos themselves: kept photos are base64 data URIs
+    // and one phone photo exceeds the multipart field limit (edit -> 500).
+    const original = entry?.photos || [];
+    formData.append(
+      "existingPhotoIndexes",
+      JSON.stringify(keptPhotos.map((p) => original.indexOf(p)).filter((i) => i >= 0)),
+    );
 
     updateEntryMutation.mutate(formData);
   };

@@ -188,9 +188,23 @@ export const updateEntry = asyncHandler(async (req: Request, res: Response, next
   }
 
   const uploadedPhotos = fileUrls(req);
+  // Kept photos come back as positions into the stored array (the photos
+  // themselves are base64 and overflow the multipart field limit). Legacy
+  // clients still sending photo strings are accepted only for photos this
+  // entry already has, so a client can't inject arbitrary photo data.
+  const current: string[] = entry.photos || [];
   let keptPhotos: string[] = [];
   try {
-    keptPhotos = JSON.parse(req.body.existingPhotos || "[]");
+    if (req.body.existingPhotoIndexes !== undefined) {
+      const idx: unknown[] = JSON.parse(req.body.existingPhotoIndexes);
+      keptPhotos = idx
+        .filter((i): i is number => Number.isInteger(i))
+        .map((i) => current[i])
+        .filter(Boolean);
+    } else {
+      const sent: unknown[] = JSON.parse(req.body.existingPhotos || "[]");
+      keptPhotos = sent.filter((p): p is string => typeof p === "string" && current.includes(p));
+    }
   } catch {}
   const allPhotos = [...keptPhotos, ...uploadedPhotos];
 
