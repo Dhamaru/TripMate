@@ -63,6 +63,10 @@ export class AiUtilitiesService {
       ? new OpenAI({
           apiKey: key,
           baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+          // No hidden SDK retries (default 2) or 10-min hangs: retries are explicit, and
+          // quota/credit errors must fail fast instead of multiplying billed calls.
+          maxRetries: 0,
+          timeout: 60_000,
         })
       : null;
   }
@@ -1495,6 +1499,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         // the existing genError catch below, straight to generateFallbackTrip
         // -- the same tested fallback path a real generation failure already uses.
         const reasoningTimeoutMs = 90000;
+        // Abort, not just race: the losing loop used to keep calling the AI
+        // after the user had already been given the fallback plan.
+        const reasoningAbort = new AbortController();
         const rawPlan = await Promise.race([
           orchestrator.executeReasoningLoop({
             goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s). It is CRITICAL that you generate EXACTLY ${days} days of itineraries.`,
@@ -1513,12 +1520,13 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
               dietaryPreferences,
             },
             maxIterations: 3,
+            signal: reasoningAbort.signal,
           }),
           new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error(`Timeout: Reasoning loop for ${destination}`)),
-              reasoningTimeoutMs,
-            ),
+            setTimeout(() => {
+              reasoningAbort.abort();
+              reject(new Error(`Timeout: Reasoning loop for ${destination}`));
+            }, reasoningTimeoutMs),
           ),
         ]);
 

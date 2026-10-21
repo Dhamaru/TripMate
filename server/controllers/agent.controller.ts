@@ -18,7 +18,7 @@ const emptyOpenai = config.GEMINI_API_KEY
       apiKey: config.GEMINI_API_KEY,
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
       timeout: 30_000,
-      maxRetries: 1,
+      maxRetries: 0, // quota/credit errors must not be retried
     })
   : null;
 const aiService = new AiUtilitiesService();

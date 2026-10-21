@@ -103,7 +103,10 @@ function classifyFallbackError(err: any): { shouldFallback: boolean; reason: str
   const isUpstreamProviderError =
     (typeof err?.status === "number" && err.status >= 500 && err.status < 600) ||
     /provider returned|empty response|bad gateway|service unavailable/i.test(msg);
-  if (isQuotaOrRateLimit) return { shouldFallback: true, reason: "Quota/rate-limit" };
+  // Every model in MODELS uses the same Gemini key, so a quota/credit error
+  // on one is guaranteed on the next — falling back only adds a wasted call.
+  if (isQuotaOrRateLimit || err?.status === 402)
+    return { shouldFallback: false, reason: "Quota/rate-limit" };
   if (isGone) return { shouldFallback: true, reason: "410 Gone" };
   if (isTimeoutOrConnection) return { shouldFallback: true, reason: "Timeout" };
   if (isUpstreamProviderError) return { shouldFallback: true, reason: "Upstream provider error" };

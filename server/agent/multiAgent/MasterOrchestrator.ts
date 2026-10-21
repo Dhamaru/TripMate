@@ -37,6 +37,10 @@ export class MasterOrchestrator {
       this.llm = new OpenAI({
         apiKey: config.GEMINI_API_KEY,
         baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+        // No hidden SDK retries (default 2) or 10-min hangs: retries are explicit, and
+        // quota/credit errors must fail fast instead of multiplying billed calls.
+        maxRetries: 0,
+        timeout: 60_000,
       });
     }
   }

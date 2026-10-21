@@ -15,6 +15,10 @@ export abstract class BaseAgent<T = any> {
     this.openai = new OpenAI({
       apiKey: config.GEMINI_API_KEY || "",
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      // No hidden SDK retries (default 2) or 10-min hangs: retries are explicit, and
+      // quota/credit errors must fail fast instead of multiplying billed calls.
+      maxRetries: 0,
+      timeout: 60_000,
     });
     this.skillPath = path.resolve(process.cwd(), "skills");
   }
@@ -73,7 +77,15 @@ export abstract class BaseAgent<T = any> {
       try {
         return await fn();
       } catch (err) {
-        if (i === attempts - 1) throw err;
+        // Quota/credit errors (429/402) can't succeed on retry and each retry is billed.
+        const e = err as { status?: number; message?: string };
+        const isQuota =
+          e?.status === 429 ||
+          e?.status === 402 ||
+          /rate limit|quota|resource.?exhausted|prepayment|insufficient balance/i.test(
+            e?.message || "",
+          );
+        if (i === attempts - 1 || isQuota) throw err;
         console.warn(`[${this.agentName}] Attempt ${i + 1} failed, retrying...`, err);
         await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i))); // exponential backoff
       }

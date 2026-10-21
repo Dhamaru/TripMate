@@ -38,6 +38,8 @@ export class MultiAgentOrchestrator {
     goal: string;
     constraints: Record<string, any>;
     maxIterations?: number;
+    /** Aborted by the caller's timeout so the loop stops spending AI calls nobody will use. */
+    signal?: AbortSignal;
   }): Promise<any> {
     const maxLoops = params.maxIterations || 3;
     let currentIteration = 1;
@@ -76,6 +78,7 @@ export class MultiAgentOrchestrator {
 
     // Phase 2: Deliberation Loop (Draft -> Critique)
     while (currentIteration <= maxLoops) {
+      if (params.signal?.aborted) throw new Error("Reasoning loop aborted (caller timed out)");
       console.log(`[Orchestrator] Loop ${currentIteration}/${maxLoops} starting...`);
 
       // Apply Graceful Degradation on the VERY LAST loop to force a successful generation
