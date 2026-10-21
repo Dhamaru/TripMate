@@ -53,3 +53,15 @@ export function nextAvailableTime(
   const roundedUp = Math.ceil(latestEnd / 30) * 30;
   return minutesToTimeString(roundedUp);
 }
+
+// <input type="time"> speaks 24h "HH:MM"; activities store "hh:mm AM/PM".
+// Binding the stored value directly left the field blank (live-reported).
+export function toInputTime(time?: string): string {
+  if (!time) return "";
+  const m = parseTimeToMinutes(time);
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+export function fromInputTime(value: string): string {
+  return value ? minutesToTimeString(parseTimeToMinutes(value)) : "";
+}

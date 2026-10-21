@@ -30,7 +30,7 @@ import { ModelConfidenceBadge } from "./ModelConfidenceBadge";
 import { AIReasoningPanel } from "./AIReasoningPanel";
 import { AtlasDayButton } from "./AtlasDayButton";
 import { VibeVoting } from "./VibeVoting";
-import { parseTimeToMinutes } from "@/lib/time";
+import { parseTimeToMinutes, minutesToTimeString } from "@/lib/time";
 import { getCurrencySymbol } from "@/lib/currency";
 
 interface ItineraryManagerProps {
@@ -391,7 +391,6 @@ export function ItineraryManager({
     dayIndex: number;
     activity: IItineraryActivity | null;
   } | null>(null);
-  const [conflictError, setConflictError] = useState<string | null>(null);
 
   // The server already rejects mutations from viewer-role collaborators
   // (403/404), but the Edit/Delete/Add controls were rendered unconditionally
@@ -482,69 +481,65 @@ export function ItineraryManager({
     }),
   );
 
-  const moveActivity = (dayIndex: number, actIndex: number, direction: "up" | "down") => {
-    const newItinerary = [...itinerary];
-    const dayActivities = [...newItinerary[dayIndex].activities];
+  /**
+   * Reorder a day's activities. The moved activities trade time slots: the
+   * day keeps the same set of times and each position keeps its slot, so the
+   * new order is chronological by construction. Keeping each activity's old
+   * time made every reorder fail the chronology check (live-reported:
+   * reorder never saved, by drag or keyboard).
+   */
+  const reorderDay = (dayIndex: number, from: number, to: number) => {
+    const dayActivities = itinerary[dayIndex].activities;
+    if (to < 0 || to >= dayActivities.length || from === to) return;
+    const slots = dayActivities.map((a) => a.time);
+    let moved = arrayMove(dayActivities, from, to);
+    if (slots.every(Boolean)) moved = moved.map((a, i) => ({ ...a, time: slots[i] }));
 
-    const targetIndex = direction === "up" ? actIndex - 1 : actIndex + 1;
-
-    if (targetIndex >= 0 && targetIndex < dayActivities.length) {
-      const moved = arrayMove(dayActivities, actIndex, targetIndex);
-
-      // Validate Logic Phase
-      const validation = validateChronology(moved);
-      if (!validation.valid) {
-        toast({
-          title: validation.type === "chronology" ? "Chronological Error" : "Scheduling Conflict",
-          description: `Activity "${moved[validation.errorIndex!].title}" starts before the previous one ends.`,
-          variant: "destructive",
-        });
-        // Was falling through to persist the invalid order anyway (unlike
-        // handleDragEnd's identical check below, which correctly returns) --
-        // the error toast was cosmetic, the bad reorder saved regardless.
-        return;
-      }
-      newItinerary[dayIndex] = { ...newItinerary[dayIndex], activities: moved };
-      setItinerary(newItinerary);
-      saveItinerary(newItinerary);
+    // Durations travel with their activity, so a long one can now run into
+    // the next slot. That's the traveler's call to adjust — warn, don't block.
+    const validation = validateChronology(moved);
+    if (!validation.valid && validation.errorIndex !== null) {
+      toast({
+        title: "Times overlap",
+        description: `"${moved[validation.errorIndex].title}" starts before the previous activity ends — adjust a time if needed.`,
+      });
     }
+    const updated = itinerary.map((d, idx) =>
+      idx === dayIndex ? { ...d, activities: moved } : d,
+    ) as IItineraryDay[];
+    setItinerary(updated);
+    saveItinerary(updated);
   };
+
+  const moveActivity = (dayIndex: number, actIndex: number, direction: "up" | "down") =>
+    reorderDay(dayIndex, actIndex, direction === "up" ? actIndex - 1 : actIndex + 1);
 
   const handleDragEnd = (event: DragEndEvent, dayIndex: number) => {
     const { active, over } = event;
-
-    if (active && over && active.id !== over.id) {
-      const dayActivities = itinerary[dayIndex].activities;
-      const oldIndex = dayActivities.findIndex((item) => item.id === active.id);
-      const newIndex = dayActivities.findIndex((item) => item.id === over.id);
-
-      const newActivities = arrayMove(dayActivities, oldIndex, newIndex);
-
-      // Validate chronological order before saving
-      const validation = validateChronology(newActivities);
-      if (!validation.valid) {
-        toast({
-          title: "Architecture Logic Alert",
-          description: "This move creates a time overlap or chronological error.",
-          variant: "destructive",
-        });
-        setConflictError("This move creates a time overlap or chronological conflict.");
-        return;
-      }
-      setConflictError(null);
-
-      const updated = itinerary.map((d, idx) =>
-        idx === dayIndex ? { ...d, activities: newActivities } : d,
-      ) as IItineraryDay[];
-      setItinerary(updated);
-      saveItinerary(updated);
-    }
+    if (!active || !over || active.id === over.id) return;
+    const dayActivities = itinerary[dayIndex].activities;
+    reorderDay(
+      dayIndex,
+      dayActivities.findIndex((item) => item.id === active.id),
+      dayActivities.findIndex((item) => item.id === over.id),
+    );
   };
 
   const handleEditActivity = (dayIndex: number, actIndex: number) => {
     const activity = itinerary[dayIndex].activities[actIndex];
     setEditingActivity({ dayIndex, activity });
     setDialogOpen(true);
+  };
+
+  // New activities are appended to the day, so start them when the day's
+  // last activity ends — a fixed 09:00 put them last in the list but first
+  // in time, which then broke reordering (live-reported).
+  const nextFreeTime = (dayIndex: number) => {
+    const acts = itinerary[dayIndex]?.activities ?? [];
+    const timed = acts.filter((a) => a.time);
+    if (!timed.length) return "09:00 AM";
+    const ends = timed.map((a) => parseTimeToMinutes(a.time) + (a.duration_minutes || 60));
+    return minutesToTimeString(Math.min(Math.max(...ends), 23 * 60));
   };
 
   const handleAddActivity = (dayIndex: number) => {
@@ -813,16 +808,6 @@ export function ItineraryManager({
               </SortableContext>
             </DndContext>
 
-            {conflictError && (
-              <p
-                className="mx-4 mb-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 flex items-center gap-2 mt-4"
-                role="alert"
-                aria-live="assertive"
-              >
-                ⚠️ {conflictError}
-              </p>
-            )}
-
             <div className="mt-4">
               {/* Atlas Day Optimization + AI Metadata */}
               <AtlasDayButton
@@ -881,6 +866,7 @@ export function ItineraryManager({
         onOpenChange={setDialogOpen}
         activity={editingActivity?.activity}
         dayIndex={editingActivity?.dayIndex || 0}
+        defaultTime={nextFreeTime(editingActivity?.dayIndex || 0)}
         onSave={handleSaveActivity}
         currency={trip.currency}
         destination={trip.destination}

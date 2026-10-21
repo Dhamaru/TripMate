@@ -16,6 +16,7 @@ import { usePlaceSuggestions, type PlaceSuggestion } from "@/hooks/usePlaceSugge
 import { useTripDestinationCoords } from "@/hooks/useTripDestinationCoords";
 import { PlaceSearchDropdown, usePlaceSearchKeys } from "@/components/PlaceSearchDropdown";
 import { Loader2, Search, MapPin } from "lucide-react";
+import { toInputTime, fromInputTime } from "@/lib/time";
 
 interface ActivityFormDialogProps {
   open: boolean;
@@ -29,6 +30,8 @@ interface ActivityFormDialogProps {
   // restaurants first, not whatever's nearest to wherever the planner
   // physically is right now.
   destination?: string;
+  /** Time a new activity starts at — the end of the day's last activity, so it lands in order. */
+  defaultTime?: string;
 }
 
 export function ActivityFormDialog({
@@ -39,10 +42,11 @@ export function ActivityFormDialog({
   onSave,
   currency,
   destination,
+  defaultTime = "09:00 AM",
 }: ActivityFormDialogProps) {
   const [formData, setFormData] = useState({
     title: "",
-    time: "09:00 AM",
+    time: defaultTime,
     placeName: "",
     address: "",
     type: "sightseeing",
@@ -87,7 +91,7 @@ export function ActivityFormDialog({
       // Reset for create mode
       setFormData({
         title: "",
-        time: "09:00 AM",
+        time: defaultTime,
         placeName: "",
         address: "",
         type: "sightseeing",
@@ -103,7 +107,7 @@ export function ActivityFormDialog({
       setSearchTerm("");
     }
     setShowSuggestions(false);
-  }, [activity, open]);
+  }, [activity, open, defaultTime]);
 
   const handleSearch = (val: string) => {
     setSearchTerm(val);
@@ -216,8 +220,10 @@ export function ActivityFormDialog({
                 <Input
                   id="time"
                   type="time"
-                  value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  value={toInputTime(formData.time)}
+                  onChange={(e) =>
+                    setFormData({ ...formData, time: fromInputTime(e.target.value) })
+                  }
                   className="bg-muted border-border text-foreground h-11"
                 />
               </div>
