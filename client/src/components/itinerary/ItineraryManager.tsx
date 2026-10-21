@@ -53,14 +53,13 @@ interface ItineraryManagerProps {
   onViewInPlaces?: (category: "food" | "hotels", placeName?: string) => void;
 }
 
-// Sortable Item Component with Move Buttons
+// Sortable Item Component
 function SortableActivity({
   activity,
   index,
   total,
   onEdit,
   onDelete,
-  onMove,
   tripId,
   dayIndex,
   canEdit,
@@ -74,7 +73,6 @@ function SortableActivity({
   total: number;
   onEdit: () => void;
   onDelete: () => void;
-  onMove: (direction: "up" | "down") => void;
   tripId: string;
   dayIndex: number;
   canEdit: boolean;
@@ -154,6 +152,7 @@ function SortableActivity({
         <div
           {...attributes}
           {...listeners}
+          data-testid={`drag-activity-${activity.id}`}
           className="shrink-0 text-[hsl(var(--muted-foreground))]/40 cursor-grab active:cursor-grabbing hover:text-[hsl(var(--muted-foreground))] transition-colors"
         >
           <GripVertical className="w-4 h-4" />
@@ -512,9 +511,6 @@ export function ItineraryManager({
     saveItinerary(updated);
   };
 
-  const moveActivity = (dayIndex: number, actIndex: number, direction: "up" | "down") =>
-    reorderDay(dayIndex, actIndex, direction === "up" ? actIndex - 1 : actIndex + 1);
-
   const handleDragEnd = (event: DragEndEvent, dayIndex: number) => {
     const { active, over } = event;
     if (!active || !over || active.id === over.id) return;
@@ -753,6 +749,7 @@ export function ItineraryManager({
                 {canEdit && (
                   <Button
                     onClick={() => handleAddActivity(dayIdx)}
+                    data-testid={`button-add-activity-${dayIdx}`}
                     size="sm"
                     className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
                   >
@@ -791,7 +788,6 @@ export function ItineraryManager({
                       onEdit={() => handleEditActivity(dayIdx, actIdx)}
                       onDelete={() => handleDeleteActivity(dayIdx, actIdx)}
                       canEdit={canEdit}
-                      onMove={(dir) => moveActivity(dayIdx, actIdx, dir)}
                       tripId={String(trip.id)}
                       dayIndex={dayIdx}
                       onViewOnMap={onViewOnMap}

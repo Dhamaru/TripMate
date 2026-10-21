@@ -220,6 +220,7 @@ export function ActivityFormDialog({
                 <Input
                   id="time"
                   type="time"
+                  data-testid="input-activity-time"
                   value={toInputTime(formData.time)}
                   onChange={(e) =>
                     setFormData({ ...formData, time: fromInputTime(e.target.value) })

@@ -305,6 +305,7 @@ export default function JournalDetail() {
                   variant="outline"
                   size="sm"
                   onClick={() => setIsEditing(true)}
+                  data-testid="button-edit-journal"
                   className="bg-card border text-foreground hover:bg-muted/50"
                 >
                   <Edit className="w-4 h-4 mr-2" />
@@ -342,6 +343,7 @@ export default function JournalDetail() {
                       type="text"
                       value={entryForm.title}
                       onChange={(e) => setEntryForm((prev) => ({ ...prev, title: e.target.value }))}
+                      data-testid="input-journal-title"
                       className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--explorer-blue)]"
                       required
                     />
@@ -421,6 +423,7 @@ export default function JournalDetail() {
                     </Button>
                     <Button
                       type="submit"
+                      data-testid="button-save-journal"
                       disabled={updateEntryMutation.isPending}
                       className="flex-1 bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
                     >
