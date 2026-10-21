@@ -625,7 +625,7 @@ async function fetchImageForTrip(
 // instance at ~1 req/sec — geocoding inline would make trip creation take
 // tens of seconds), one broadcastMutation once done so an already-open trip
 // page picks it up live instead of needing a manual refresh.
-async function backfillActivityCoords(tripId: string, destination: string) {
+export async function backfillActivityCoords(tripId: string, destination: string) {
   try {
     if (!tripId) return;
     const trip = await TripModel.findById(tripId);
@@ -658,8 +658,26 @@ async function backfillActivityCoords(tripId: string, destination: string) {
             const lat = Number(results[0].lat);
             const lon = Number(results[0].lon);
             if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
-              act.lat = lat;
-              act.lon = lon;
+              // Write just this activity's coords. Geocoding takes ~1s per
+              // activity, and saving the whole itinerary read at the start
+              // wiped any edit made in the meantime. Matches only if the
+              // activity still exists unchanged and still has no coords.
+              const match: Record<string, unknown> = {
+                "a.lat": null,
+                "a.title": act.title ?? null,
+                "a.location": act.location ?? null,
+              };
+              if (act.id) match["a.id"] = act.id;
+              await TripModel.updateOne(
+                { _id: tripId },
+                {
+                  $set: {
+                    "itinerary.$[d].activities.$[a].lat": lat,
+                    "itinerary.$[d].activities.$[a].lon": lon,
+                  },
+                },
+                { arrayFilters: [{ "d.activities": { $type: "array" } }, match] },
+              );
             }
           }
         }
@@ -671,10 +689,12 @@ async function backfillActivityCoords(tripId: string, destination: string) {
       await new Promise((r) => setTimeout(r, 1100));
     }
 
-    trip.markModified("itinerary");
-    trip.coordsBackfillAttempted = true;
-    const updated = await trip.save();
-    socketService.broadcastMutation(tripId, { type: "trip-updated", data: updated });
+    const updated = await TripModel.findByIdAndUpdate(
+      tripId,
+      { $set: { coordsBackfillAttempted: true } },
+      { new: true },
+    );
+    if (updated) socketService.broadcastMutation(tripId, { type: "trip-updated", data: updated });
   } catch (err) {
     console.error(`[backfillActivityCoords] Failed for trip ${tripId}:`, err);
   }
