@@ -12,6 +12,9 @@ export const createPackingListSchema = z.object({
           quantity: z.number().int().min(1).default(1),
           category: z.string().optional(),
           is_mandatory: z.boolean().optional(),
+          // Was missing: validation stripped it, so a new list's first save
+          // lost every checkmark (live-reproduced: 1/19 packed came back 0/19).
+          packed: z.boolean().optional(),
         }),
       )
       .optional(),
