@@ -187,10 +187,11 @@ export async function sendCollaboratorInviteEmail(
 
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = `${config.FRONTEND_URL || "http://localhost:5000"}/reset-password?token=${token}`;
-  console.log("=================================================================");
-  console.log("PASSWORD RESET LINK (Dev/Test Helper):");
-  console.log(resetUrl);
-  console.log("=================================================================");
+  // Never in production: the link is a working account-takeover token, and
+  // anyone with log access could use it within the hour.
+  if (config.NODE_ENV !== "production") {
+    console.log("PASSWORD RESET LINK (dev only):", resetUrl);
+  }
 
   const subject = "Password Reset Request — TripMate";
   const text = `You requested a password reset for your TripMate account.\n\nClick the link below to reset your password (valid for 1 hour):\n\n${resetUrl}\n\nIf you did not request this, ignore this email.`;
