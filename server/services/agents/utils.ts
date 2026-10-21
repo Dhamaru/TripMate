@@ -1,3 +1,15 @@
+// 429/402 (rate limit, quota, credit exhausted): retrying or falling back to
+// another model on the same key can't succeed and every extra call is billed.
+export function isQuotaError(error: any): boolean {
+  return (
+    error?.status === 429 ||
+    error?.status === 402 ||
+    /rate limit|quota|resource.?exhausted|prepayment|insufficient balance/i.test(
+      error?.message || "",
+    )
+  );
+}
+
 export async function withRetries<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3,
@@ -15,14 +27,8 @@ export async function withRetries<T>(
       // retrying can't succeed and every extra call drains the shared
       // AI balance (this pattern emptied it in Oct 2026). Only transient
       // server/network failures are worth another attempt.
-      const isQuota =
-        error.status === 429 ||
-        error.status === 402 ||
-        /rate limit|quota|resource.?exhausted|prepayment|insufficient balance/i.test(
-          error.message || "",
-        );
       const isRetryable =
-        !isQuota &&
+        !isQuotaError(error) &&
         (error.status >= 500 ||
           error.message?.includes("fetch failed") ||
           error.message?.includes("timeout"));

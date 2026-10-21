@@ -1,5 +1,5 @@
 import { FeasibilityModeler } from "../FeasibilityModeler";
-import { withRetries } from "./utils";
+import { withRetries, isQuotaError } from "./utils";
 
 export class CriticAgent {
   private openai: any;
@@ -132,6 +132,8 @@ Respond with ONLY a valid JSON object (no markdown): { "valid": boolean, "reason
         ...(adjustedConstraints ? { adjustedConstraints } : {}),
       };
     } catch (e: any) {
+      // Out of quota: stop the loop rather than re-drafting into the same error.
+      if (isQuotaError(e)) throw e;
       // LLM critique failed — degrade gracefully to quantitative result only
       console.error(
         `[CriticAgent] LLM critique failed, falling back to quantitative check:`,

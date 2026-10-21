@@ -76,9 +76,15 @@ export class MultiAgentOrchestrator {
       params.constraints.travelStyle,
     );
 
+    // The caller already served a fallback plan once this fires — stop
+    // between every AI step so no further calls are made for nothing.
+    const checkAborted = () => {
+      if (params.signal?.aborted) throw new Error("Reasoning loop aborted (caller timed out)");
+    };
+
     // Phase 2: Deliberation Loop (Draft -> Critique)
     while (currentIteration <= maxLoops) {
-      if (params.signal?.aborted) throw new Error("Reasoning loop aborted (caller timed out)");
+      checkAborted();
       console.log(`[Orchestrator] Loop ${currentIteration}/${maxLoops} starting...`);
 
       // Apply Graceful Degradation on the VERY LAST loop to force a successful generation
@@ -101,6 +107,7 @@ export class MultiAgentOrchestrator {
         context,
         params.constraints,
       );
+      checkAborted();
       bestDraft = draftResult.rawDraft;
       telemetry.modelsUsed.add(draftResult.source);
 
@@ -110,6 +117,7 @@ export class MultiAgentOrchestrator {
         params.constraints,
       );
 
+      checkAborted();
       if (critiqueResult.valid) {
         console.log(
           `[Orchestrator] Plan Validated on Loop ${currentIteration}. Proceeding to formatting.`,
@@ -153,6 +161,7 @@ export class MultiAgentOrchestrator {
     params.constraints.budget = originalBudget;
 
     // Phase 3: Structural Formatting Firewall
+    checkAborted();
     const finalPayload = await this.formattingAgent.formatFinalPayload(
       bestDraft,
       params.constraints,

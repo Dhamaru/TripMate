@@ -5,6 +5,7 @@ import { AgentName, AgentResult, OrchestratorInput } from "./types";
 import { config } from "../../config";
 import { TRIPMATE_TOOLS } from "../tools/definitions";
 import { executeTool } from "../tools/executor";
+import { isQuotaError } from "../../services/agents/utils";
 
 export abstract class BaseAgent<T = any> {
   protected abstract agentName: AgentName;
@@ -77,15 +78,7 @@ export abstract class BaseAgent<T = any> {
       try {
         return await fn();
       } catch (err) {
-        // Quota/credit errors (429/402) can't succeed on retry and each retry is billed.
-        const e = err as { status?: number; message?: string };
-        const isQuota =
-          e?.status === 429 ||
-          e?.status === 402 ||
-          /rate limit|quota|resource.?exhausted|prepayment|insufficient balance/i.test(
-            e?.message || "",
-          );
-        if (i === attempts - 1 || isQuota) throw err;
+        if (i === attempts - 1 || isQuotaError(err)) throw err;
         console.warn(`[${this.agentName}] Attempt ${i + 1} failed, retrying...`, err);
         await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i))); // exponential backoff
       }

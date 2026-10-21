@@ -1,4 +1,4 @@
-import { withRetries } from "./utils";
+import { withRetries, isQuotaError } from "./utils";
 
 export class DraftingAgent {
   private openai: any;
@@ -181,6 +181,8 @@ export class DraftingAgent {
         telemetry: { drafterLatencyMs: latency },
       };
     } catch (geminiError) {
+      // Fallback model shares the same key — a quota error would just repeat.
+      if (isQuotaError(geminiError)) throw geminiError;
       console.warn(`[DraftingAgent] Gemini failed. Falling back to OpenAI...`, geminiError);
 
       try {
