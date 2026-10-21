@@ -1,3 +1,4 @@
+import { clientIpMiddleware } from "./middleware/clientIp.middleware";
 import { config } from "./config";
 import express from "express";
 import fs from "fs";
@@ -59,6 +60,7 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 // 1. Global Middleware (Attach synchronously)
+app.use(clientIpMiddleware); // before anything that reads req.ip (rate limits, sessions)
 app.use(corsMiddleware);
 app.use(helmetMiddleware);
 // Performance-audit finding: this was previously registered inside
