@@ -27,7 +27,8 @@ describe("External Tools API (Proxies)", () => {
     expect(res.status).toBe(200);
     expect(res.body.current).toBeDefined();
     expect(Array.isArray(res.body.forecast)).toBe(true);
-  });
+    // Live OpenWeather/Open-Meteo calls in series; vitest's 5s default flaked.
+  }, 20_000);
 
   it("should search for places via Nominatim proxy", async () => {
     // /places/search is a billed-capable proxy — requireAuth as of the
