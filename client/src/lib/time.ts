@@ -50,7 +50,8 @@ export function nextAvailableTime(
   }
   if (latestEnd === 0) return defaultStart;
 
-  const roundedUp = Math.ceil(latestEnd / 30) * 30;
+  // Capped so a late-running day doesn't wrap the new activity to the morning.
+  const roundedUp = Math.min(Math.ceil(latestEnd / 30) * 30, 23 * 60);
   return minutesToTimeString(roundedUp);
 }
 

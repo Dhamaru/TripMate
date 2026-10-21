@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toInputTime, fromInputTime } from "@/lib/time";
+import { toInputTime, fromInputTime, nextAvailableTime } from "@/lib/time";
 
 // <input type="time"> needs 24h "HH:MM"; activities store "hh:mm AM/PM".
 describe("time input conversion", () => {
@@ -20,5 +20,17 @@ describe("time input conversion", () => {
   it("round-trips", () => {
     for (const t of ["06:05 AM", "11:59 PM", "12:00 PM"])
       expect(fromInputTime(toInputTime(t))).toBe(t);
+  });
+});
+
+describe("default time for a new activity", () => {
+  it("starts after the day's last activity, ignoring unparseable times", () => {
+    expect(
+      nextAvailableTime([{ time: "10:00 AM", duration_minutes: 90 }, { time: "Morning" }]),
+    ).toBe("11:30 AM");
+  });
+
+  it("never wraps past the end of the day", () => {
+    expect(nextAvailableTime([{ time: "11:00 PM", duration_minutes: 120 }])).toBe("11:00 PM");
   });
 });

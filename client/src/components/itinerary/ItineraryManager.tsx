@@ -30,7 +30,7 @@ import { ModelConfidenceBadge } from "./ModelConfidenceBadge";
 import { AIReasoningPanel } from "./AIReasoningPanel";
 import { AtlasDayButton } from "./AtlasDayButton";
 import { VibeVoting } from "./VibeVoting";
-import { parseTimeToMinutes, minutesToTimeString } from "@/lib/time";
+import { parseTimeToMinutes, nextAvailableTime } from "@/lib/time";
 import { getCurrencySymbol } from "@/lib/currency";
 
 interface ItineraryManagerProps {
@@ -490,7 +490,8 @@ export function ItineraryManager({
    */
   const reorderDay = (dayIndex: number, from: number, to: number) => {
     const dayActivities = itinerary[dayIndex].activities;
-    if (to < 0 || to >= dayActivities.length || from === to) return;
+    // from -1 (drag of a legacy activity without an id) would move the last item.
+    if (from < 0 || to < 0 || to >= dayActivities.length || from === to) return;
     const slots = dayActivities.map((a) => a.time);
     let moved = arrayMove(dayActivities, from, to);
     if (slots.every(Boolean)) moved = moved.map((a, i) => ({ ...a, time: slots[i] }));
@@ -534,13 +535,8 @@ export function ItineraryManager({
   // New activities are appended to the day, so start them when the day's
   // last activity ends — a fixed 09:00 put them last in the list but first
   // in time, which then broke reordering (live-reported).
-  const nextFreeTime = (dayIndex: number) => {
-    const acts = itinerary[dayIndex]?.activities ?? [];
-    const timed = acts.filter((a) => a.time);
-    if (!timed.length) return "09:00 AM";
-    const ends = timed.map((a) => parseTimeToMinutes(a.time) + (a.duration_minutes || 60));
-    return minutesToTimeString(Math.min(Math.max(...ends), 23 * 60));
-  };
+  const nextFreeTime = (dayIndex: number) =>
+    nextAvailableTime((itinerary[dayIndex]?.activities ?? []).filter((a) => a.time));
 
   const handleAddActivity = (dayIndex: number) => {
     setEditingActivity({ dayIndex, activity: null });
