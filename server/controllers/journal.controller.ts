@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import path from "path";
 import { JournalEntryModel, TripModel } from "@shared/schema";
-import { NotFoundError, ForbiddenError } from "../errors";
+import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from "../errors";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
 
@@ -193,19 +193,28 @@ export const updateEntry = asyncHandler(async (req: Request, res: Response, next
   // clients still sending photo strings are accepted only for photos this
   // entry already has, so a client can't inject arbitrary photo data.
   const current: string[] = entry.photos || [];
+  // Positions only mean something against the list the client loaded.
+  if (req.body.photoCount !== undefined && Number(req.body.photoCount) !== current.length) {
+    throw new ConflictError("This entry's photos changed while you were editing");
+  }
   let keptPhotos: string[] = [];
   try {
     if (req.body.existingPhotoIndexes !== undefined) {
-      const idx: unknown[] = JSON.parse(req.body.existingPhotoIndexes);
+      const idx: unknown = JSON.parse(req.body.existingPhotoIndexes);
+      if (!Array.isArray(idx)) throw new Error("bad existingPhotoIndexes");
       keptPhotos = idx
         .filter((i): i is number => Number.isInteger(i))
         .map((i) => current[i])
         .filter(Boolean);
     } else {
-      const sent: unknown[] = JSON.parse(req.body.existingPhotos || "[]");
+      const sent: unknown = JSON.parse(req.body.existingPhotos || "[]");
+      if (!Array.isArray(sent)) throw new Error("bad existingPhotos");
       keptPhotos = sent.filter((p): p is string => typeof p === "string" && current.includes(p));
     }
-  } catch {}
+  } catch {
+    // Was swallowed, leaving keptPhotos empty — which deleted every photo.
+    throw new BadRequestError("Invalid photo list");
+  }
   const allPhotos = [...keptPhotos, ...uploadedPhotos];
 
   // Allowlist only — spreading req.body directly let a client pass

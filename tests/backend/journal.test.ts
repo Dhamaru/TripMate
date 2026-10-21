@@ -89,4 +89,31 @@ describe("Journal API", () => {
     expect(res.status).toBe(200);
     expect(res.body.photos).toEqual([]);
   });
+
+  it("refuses stale photo positions and malformed lists instead of losing photos", async () => {
+    const created = await request(app)
+      .post("/api/v1/journal")
+      .set("Authorization", `Bearer ${token}`)
+      .field("tripId", tripId)
+      .field("title", "Beach")
+      .field("content", "Sand")
+      .attach("photos", Buffer.alloc(10, 1), { filename: "a.jpg", contentType: "image/jpeg" });
+    const url = `/api/v1/journal/${created.body.id || created.body._id}`;
+
+    const stale = await request(app)
+      .put(url)
+      .set("Authorization", `Bearer ${token}`)
+      .field("existingPhotoIndexes", "[0]")
+      .field("photoCount", "2");
+    expect(stale.status).toBe(409);
+
+    const bad = await request(app)
+      .put(url)
+      .set("Authorization", `Bearer ${token}`)
+      .field("existingPhotoIndexes", "{}");
+    expect(bad.status).toBe(400);
+
+    const after = await request(app).get(url).set("Authorization", `Bearer ${token}`);
+    expect(after.body.photos).toHaveLength(1);
+  });
 });

@@ -157,6 +157,17 @@ export default function JournalDetail() {
         navigate("/signin");
         return;
       }
+      // Someone else changed this entry's photos meanwhile; keep the
+      // form as typed so nothing is lost.
+      if (/^409:/.test(error.message)) {
+        toast({
+          title: "Photos changed",
+          description:
+            "Someone else just changed this entry's photos. Reload to see them, then save again.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Error",
         description: "Failed to update journal entry.",
@@ -192,6 +203,7 @@ export default function JournalDetail() {
       "existingPhotoIndexes",
       JSON.stringify(keptPhotos.map((p) => original.indexOf(p)).filter((i) => i >= 0)),
     );
+    formData.append("photoCount", String(original.length));
 
     updateEntryMutation.mutate(formData);
   };
