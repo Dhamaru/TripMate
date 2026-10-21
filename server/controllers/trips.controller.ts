@@ -114,6 +114,9 @@ export const getTrip = asyncHandler(async (req: Request, res: Response, next: Ne
   });
   if (!trip) throw new NotFoundError("Trip not found");
 
+  // Snapshot for the compare-and-set below (toObject deep-copies).
+  const storedItinerary = trip.toObject().itinerary;
+
   // Self-heal trips saved before activity ids were stamped at creation.
   let missingIds = false;
   for (const day of trip.itinerary || []) {
@@ -123,10 +126,6 @@ export const getTrip = asyncHandler(async (req: Request, res: Response, next: Ne
         missingIds = true;
       }
     }
-  }
-  if (missingIds) {
-    trip.markModified("itinerary");
-    await trip.save();
   }
 
   // Self-heal trips whose itinerary days never got a `dayIndex` field —
@@ -152,9 +151,15 @@ export const getTrip = asyncHandler(async (req: Request, res: Response, next: Ne
       dayIndexFixed = true;
     }
   });
-  if (dayIndexFixed) {
-    trip.markModified("itinerary");
-    await trip.save();
+  // Compare-and-set, not trip.save(): saving the whole document could undo
+  // an itinerary edit that landed after this read. If the itinerary changed
+  // meanwhile the write simply misses and the next read heals it.
+  if (missingIds || dayIndexFixed) {
+    await TripModel.updateOne(
+      // $eq: a bare array here gets cast to $in, matching any one equal day.
+      { _id: trip._id, itinerary: { $eq: storedItinerary } },
+      { $set: { itinerary: trip.itinerary } },
+    );
   }
 
   // Backfill coordinates for trips created before backfillActivityCoords
