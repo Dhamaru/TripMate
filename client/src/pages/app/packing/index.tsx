@@ -387,7 +387,7 @@ export default function PackingChecklist() {
         userId: "current-user",
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as PackingList;
+      } as unknown as PackingList;
       queryClient.setQueryData<PackingList[]>(["/api/v1/packing-lists"], (old) =>
         old ? [...old, optimisticList] : [optimisticList],
       );
@@ -471,7 +471,7 @@ export default function PackingChecklist() {
         userId: "current-user",
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as PackingList;
+      } as unknown as PackingList;
       queryClient.setQueryData<PackingList[]>(["/api/v1/packing-lists"], (old) =>
         old ? [...old, optimisticList] : [optimisticList],
       );

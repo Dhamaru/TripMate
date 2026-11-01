@@ -12,7 +12,7 @@ import {
   type PackingList,
   type InsertPackingList,
   type Feedback,
-  type InsertFeedback
+  type InsertFeedback,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -25,7 +25,16 @@ export interface IStorage {
   deleteAllUsers(): Promise<boolean>;
 
   // Trip operations
-  getUserTrips(userId: string, options?: { limit?: number; page?: number; sort?: string; status?: string; excludeHeavyFields?: boolean }): Promise<Trip[]>;
+  getUserTrips(
+    userId: string,
+    options?: {
+      limit?: number;
+      page?: number;
+      sort?: string;
+      status?: string;
+      excludeHeavyFields?: boolean;
+    },
+  ): Promise<Trip[]>;
   createTrip(trip: InsertTrip): Promise<Trip>;
   getTrip(id: string, userId: string): Promise<Trip | undefined>;
   updateTrip(id: string, userId: string, updates: Partial<InsertTrip>): Promise<Trip | undefined>;
@@ -34,17 +43,28 @@ export interface IStorage {
   deleteAllTrips(userId: string): Promise<boolean>;
 
   // Journal operations
-  getUserJournalEntries(userId: string, options?: { excludeHeavyFields?: boolean; limit?: number; page?: number }): Promise<JournalEntry[]>;
+  getUserJournalEntries(
+    userId: string,
+    options?: { excludeHeavyFields?: boolean; limit?: number; page?: number },
+  ): Promise<JournalEntry[]>;
   getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]>;
   getJournalEntry(id: string, userId: string): Promise<JournalEntry | undefined>;
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
-  updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined>;
+  updateJournalEntry(
+    id: string,
+    userId: string,
+    updates: Partial<InsertJournalEntry>,
+  ): Promise<JournalEntry | undefined>;
   deleteJournalEntry(id: string, userId: string): Promise<boolean>;
 
   // Packing list operations
   getUserPackingLists(userId: string): Promise<PackingList[]>;
   createPackingList(packingList: InsertPackingList): Promise<PackingList>;
-  updatePackingList(id: string, userId: string, updates: Partial<InsertPackingList>): Promise<PackingList | undefined>;
+  updatePackingList(
+    id: string,
+    userId: string,
+    updates: Partial<InsertPackingList>,
+  ): Promise<PackingList | undefined>;
   deletePackingList(id: string, userId: string): Promise<boolean>;
   duplicatePackingList(id: string, userId: string): Promise<PackingList | undefined>;
 
@@ -60,7 +80,7 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
-    return await UserModel.findById(id).exec() || undefined;
+    return (await UserModel.findById(id).exec()) || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
@@ -83,10 +103,12 @@ export class DatabaseStorage implements IStorage {
         lastName: userData.lastName,
         profileImageUrl: userData.profileImageUrl,
         phoneNumber: userData.phoneNumber,
-        ...(userData.googleConnected !== undefined && { googleConnected: userData.googleConnected }),
+        ...(userData.googleConnected !== undefined && {
+          googleConnected: userData.googleConnected,
+        }),
         ...(userData.googleId !== undefined && { googleId: userData.googleId }),
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true },
     ).exec();
     return user!;
   }
@@ -114,22 +136,20 @@ export class DatabaseStorage implements IStorage {
 
     if (Object.keys(updateOps).length === 0) {
       // Nothing to update
-      return await UserModel.findById(id).exec() || undefined;
+      return (await UserModel.findById(id).exec()) || undefined;
     }
 
-    const user = await UserModel.findByIdAndUpdate(
-      id,
-      updateOps,
-      { new: true }
-    ).exec();
+    const user = await UserModel.findByIdAndUpdate(id, updateOps, { new: true }).exec();
     return user || undefined;
   }
 
   async getUserByResetToken(token: string): Promise<User | undefined> {
-    return await UserModel.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() },
-    }).exec() || undefined;
+    return (
+      (await UserModel.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() },
+      }).exec()) || undefined
+    );
   }
 
   async deleteAllUsers(): Promise<boolean> {
@@ -138,23 +158,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Trip operations
-  async getUserTrips(userId: string, options?: { limit?: number; page?: number; sort?: string; status?: string; excludeHeavyFields?: boolean }): Promise<Trip[]> {
-    const { limit = 10, page = 1, sort = 'createdAt', status, excludeHeavyFields } = options || {};
+  async getUserTrips(
+    userId: string,
+    options?: {
+      limit?: number;
+      page?: number;
+      sort?: string;
+      status?: string;
+      excludeHeavyFields?: boolean;
+    },
+  ): Promise<Trip[]> {
+    const { limit = 10, page = 1, sort = "createdAt", status, excludeHeavyFields } = options || {};
 
     let query = TripModel.find({ userId });
 
     if (status) {
-      query = query.where('status').equals(status);
+      query = query.where("status").equals(status);
     }
 
     if (excludeHeavyFields) {
-      query = query.select('-aiPlanMarkdown -itinerary -costBreakdown');
+      query = query.select("-aiPlanMarkdown -itinerary -costBreakdown") as typeof query;
     }
 
     const sortOptions: any = {};
-    if (sort === 'createdAt') sortOptions.createdAt = -1;
-    else if (sort === 'startDate') sortOptions.startDate = -1;
-    else if (sort === 'budget') sortOptions.budget = -1;
+    if (sort === "createdAt") sortOptions.createdAt = -1;
+    else if (sort === "startDate") sortOptions.startDate = -1;
+    else if (sort === "budget") sortOptions.budget = -1;
 
     query = query.sort(sortOptions);
 
@@ -171,15 +200,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTrip(id: string, userId: string): Promise<Trip | undefined> {
-    return await TripModel.findOne({ _id: id, userId }).exec() || undefined;
+    return (await TripModel.findOne({ _id: id, userId }).exec()) || undefined;
   }
 
-  async updateTrip(id: string, userId: string, updates: Partial<InsertTrip>): Promise<Trip | undefined> {
-    return await TripModel.findOneAndUpdate(
-      { _id: id, userId },
-      updates,
-      { new: true }
-    ).exec() || undefined;
+  async updateTrip(
+    id: string,
+    userId: string,
+    updates: Partial<InsertTrip>,
+  ): Promise<Trip | undefined> {
+    return (
+      (await TripModel.findOneAndUpdate({ _id: id, userId }, updates, { new: true }).exec()) ||
+      undefined
+    );
   }
 
   async deleteTrip(id: string, userId: string): Promise<boolean> {
@@ -198,7 +230,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Journal operations
-  async getUserJournalEntries(userId: string, options?: { excludeHeavyFields?: boolean; limit?: number; page?: number }): Promise<JournalEntry[]> {
+  async getUserJournalEntries(
+    userId: string,
+    options?: { excludeHeavyFields?: boolean; limit?: number; page?: number },
+  ): Promise<JournalEntry[]> {
     const { excludeHeavyFields, limit = 0, page = 1 } = options || {};
     let query = JournalEntryModel.find({ userId }).sort({ createdAt: -1 });
 
@@ -211,7 +246,7 @@ export class DatabaseStorage implements IStorage {
       query = query.limit(limit).skip((page - 1) * limit);
     }
 
-    return await query.lean().exec() as JournalEntry[];
+    return (await query.lean().exec()) as unknown as JournalEntry[];
   }
 
   async getTripJournalEntries(tripId: string, userId: string): Promise<JournalEntry[]> {
@@ -219,7 +254,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getJournalEntry(id: string, userId: string): Promise<JournalEntry | undefined> {
-    return await JournalEntryModel.findOne({ _id: id, userId }).exec() || undefined;
+    return (await JournalEntryModel.findOne({ _id: id, userId }).exec()) || undefined;
   }
 
   async createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry> {
@@ -235,7 +270,9 @@ export class DatabaseStorage implements IStorage {
           const calculatedIndex = Math.floor(diffMs / (24 * 60 * 60 * 1000));
           if (calculatedIndex >= 0 && calculatedIndex < trip.days) {
             dayIndex = calculatedIndex;
-            console.log(`[JournalAutoContext] Linked entry to Day ${dayIndex + 1} for trip ${trip.id}`);
+            console.log(
+              `[JournalAutoContext] Linked entry to Day ${dayIndex + 1} for trip ${trip.id}`,
+            );
           }
         }
       } catch (e) {
@@ -247,12 +284,16 @@ export class DatabaseStorage implements IStorage {
     return await newEntry.save();
   }
 
-  async updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined> {
-    return await JournalEntryModel.findOneAndUpdate(
-      { _id: id, userId },
-      updates,
-      { new: true }
-    ).exec() || undefined;
+  async updateJournalEntry(
+    id: string,
+    userId: string,
+    updates: Partial<InsertJournalEntry>,
+  ): Promise<JournalEntry | undefined> {
+    return (
+      (await JournalEntryModel.findOneAndUpdate({ _id: id, userId }, updates, {
+        new: true,
+      }).exec()) || undefined
+    );
   }
 
   async deleteJournalEntry(id: string, userId: string): Promise<boolean> {
@@ -270,12 +311,16 @@ export class DatabaseStorage implements IStorage {
     return await newList.save();
   }
 
-  async updatePackingList(id: string, userId: string, updates: Partial<InsertPackingList>): Promise<PackingList | undefined> {
-    return await PackingListModel.findOneAndUpdate(
-      { _id: id, userId },
-      updates,
-      { new: true }
-    ).exec() || undefined;
+  async updatePackingList(
+    id: string,
+    userId: string,
+    updates: Partial<InsertPackingList>,
+  ): Promise<PackingList | undefined> {
+    return (
+      (await PackingListModel.findOneAndUpdate({ _id: id, userId }, updates, {
+        new: true,
+      }).exec()) || undefined
+    );
   }
 
   async deletePackingList(id: string, userId: string): Promise<boolean> {
@@ -293,10 +338,10 @@ export class DatabaseStorage implements IStorage {
       name: `${originalList.name} (Copy)`,
       season: originalList.season,
       isTemplate: false,
-      items: originalList.items.map(item => ({
+      items: originalList.items.map((item) => ({
         ...item,
-        packed: false // Reset packed status
-      }))
+        packed: false, // Reset packed status
+      })),
     });
 
     return await newList.save();

@@ -44,8 +44,7 @@ export interface IBaseUser {
   updatedAt?: Date;
 }
 
-export interface IUser extends IBaseUser, Document {
-  _id: string;
+export interface IUser extends Omit<IBaseUser, "_id">, Document<string> {
   id: string;
 }
 
