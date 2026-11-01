@@ -400,7 +400,7 @@ export default function Home() {
                 </div>
 
                 {/* Stat row */}
-                <div className="grid grid-cols-3 gap-px bg-[hsl(var(--border))] rounded-lg overflow-hidden border border-[hsl(var(--border))]">
+                <div className="grid grid-cols-1 min-[360px]:grid-cols-3 gap-px bg-[hsl(var(--border))] rounded-lg overflow-hidden border border-[hsl(var(--border))]">
                   <div className="bg-[hsl(var(--card))] p-3 min-w-0">
                     <div className="flex items-center gap-1.5 text-[hsl(var(--muted-foreground))] mb-1">
                       <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />

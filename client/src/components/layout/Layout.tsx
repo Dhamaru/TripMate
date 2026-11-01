@@ -570,7 +570,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       isActive && "drop-shadow-[0_0_6px_rgb(var(--ink-blue-rgb)/0.6)]",
                     )}
                   />
-                  <span className="label-xs">{item.label}</span>
+                  <span className="label-xs tracking-normal">{item.label}</span>
                 </div>
               );
 
@@ -601,7 +601,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     {user?.firstName?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="label-xs">Me</span>
+                <span className="label-xs tracking-normal">Me</span>
               </div>
             </Link>
           </div>
