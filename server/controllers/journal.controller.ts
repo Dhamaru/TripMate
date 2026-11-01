@@ -126,15 +126,14 @@ export const getEntries = asyncHandler(async (req: Request, res: Response, next:
   // risk as trips.controller.ts's getTrips, same fix (a safety cap, not
   // a response-shape-breaking cursor rewrite -- see that file's comment
   // for the full reasoning).
-  let entriesQuery = JournalEntryModel.find(query)
+  const entriesQuery = JournalEntryModel.find(query)
     .sort({ createdAt: -1 })
     .limit(MAX_JOURNAL_ENTRIES_RETURNED);
-  if (req.query.light === "true") {
-    entriesQuery = entriesQuery.select(
-      "title location photos createdAt updatedAt userId tripId isRecap dayIndex",
-    );
-  }
-  const entries = await entriesQuery;
+  const entries = await (req.query.light === "true"
+    ? entriesQuery.select(
+        "title location photos createdAt updatedAt userId tripId isRecap dayIndex",
+      )
+    : entriesQuery);
   res.json(entries);
 });
 
