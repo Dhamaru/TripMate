@@ -24,6 +24,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { getFrontendBaseUrl } from "../urls";
 import { storage } from "../storage";
+import { socketService } from "../services/SocketService";
 
 const JWT_EXPIRY = "7d";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -216,6 +217,7 @@ export const signout = async (req: Request, res: Response, next: NextFunction) =
       const decoded = jwt.verify(token, config.JWT_SECRET) as { sid?: string };
       if (decoded?.sid) {
         await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
+        socketService.disconnectSession(decoded.sid);
       }
     }
   } catch {
@@ -289,6 +291,7 @@ export const resetPassword = asyncHandler(
     // needs the same treatment, or a session an attacker already holds
     // stays valid for up to 7 more days after the "legitimate" reset.
     await SessionModel.updateMany({ userId: user.id }, { revoked: true });
+    socketService.disconnectUser(String(user.id));
 
     res.json({ message: "Password has been reset. You can now sign in." });
   },
@@ -501,6 +504,7 @@ export const deleteAccount = asyncHandler(
     ]);
     await UserModel.findByIdAndDelete(deletedUserId);
     clearAuthCookie(res);
+    socketService.disconnectUser(String(deletedUserId));
     req.session.destroy(() => res.json({ message: "Account deleted successfully" }));
   },
 );

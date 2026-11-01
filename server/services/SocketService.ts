@@ -3,6 +3,7 @@ import { Server as HTTPServer } from "http";
 import { log } from "../vite";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
+import { isValidObjectId } from "mongoose";
 import { TripModel, SessionModel } from "@shared/schema";
 
 interface UserPresence {
@@ -72,6 +73,7 @@ export class SocketService {
           return next(new Error("UNAUTHORIZED"));
         }
         socket.userId = decoded.sub;
+        socket.data.sessionId = decoded.sid;
         next();
       } catch {
         return next(new Error("UNAUTHORIZED"));
@@ -87,6 +89,7 @@ export class SocketService {
       // trip room. Every authenticated connection gets this for free.
       if (socket.userId) {
         socket.join(`user:${socket.userId}`);
+        socket.join(`session:${socket.data.sessionId}`);
       }
 
       socket.on("join-trip", async ({ tripId, userName, avatar }) => {
@@ -102,6 +105,10 @@ export class SocketService {
         // who learned a tripId (a shared link, a screenshot) could listen
         // to another trip's live itinerary/expense/collaborator events.
         // Can't write anything through sockets, but it leaked activity.
+        if (!isValidObjectId(tripId)) {
+          socket.emit("error", { message: "Not authorized to join this trip" });
+          return;
+        }
         const trip = await TripModel.findOne({
           _id: tripId,
           $or: [{ userId }, { "collaborators.userId": userId }],
@@ -166,6 +173,24 @@ export class SocketService {
       const members = Array.from(this.presence.get(tripId)!.values());
       this.io.to(`trip:${tripId}`).emit("presence-update", members);
     }
+  }
+
+  // Membership and session are only checked when a socket connects or joins,
+  // so a removed collaborator or revoked session would otherwise keep getting
+  // live trip updates for as long as the tab stays open.
+  public removeFromTrip(userId: string, tripId: string) {
+    if (!this.io) return;
+    this.io.in(`user:${userId}`).socketsLeave(`trip:${tripId}`);
+    this.presence.get(tripId)?.delete(userId);
+    this.broadcastPresence(tripId);
+  }
+
+  public disconnectSession(sessionId: string) {
+    this.io?.in(`session:${sessionId}`).disconnectSockets(true);
+  }
+
+  public disconnectUser(userId: string) {
+    this.io?.in(`user:${userId}`).disconnectSockets(true);
   }
 
   public broadcastMutation(

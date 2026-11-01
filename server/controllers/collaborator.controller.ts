@@ -105,6 +105,8 @@ export const removeCollaborator = asyncHandler(
       { new: true },
     );
 
+    // Out of the room first, so the removed user doesn't get this last update.
+    socketService.removeFromTrip(collaboratorId, tripId);
     socketService.broadcastMutation(
       tripId,
       { type: "collaborators-updated", data: updatedTrip },

@@ -15,6 +15,7 @@ import { config as appConfig } from "../config";
 import multer from "multer";
 import { UserModel, SessionModel } from "@shared/schema";
 import { imageFileFilter } from "../middleware/imageUpload";
+import { socketService } from "../services/SocketService";
 
 const router = Router();
 
@@ -167,6 +168,7 @@ router.post("/sessions/:id/revoke", requireAuth, async (req, res) => {
 
     session.revoked = true;
     await session.save();
+    socketService.disconnectSession(id);
 
     // Revoking your own current session should also sign this browser out
     // right now, not just take effect on requireAuth's next check.
