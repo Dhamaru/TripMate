@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import "./index.css";
+import "./icons.css";
 
 import { ThemeProvider } from "./components/layout/ThemeProvider";
 
