@@ -13,6 +13,14 @@ interface AuthStore {
   guestSignIn: () => Promise<void>;
 }
 
+// Whenever the account changes, drop everything cached for the previous one
+// so the next person on a shared device can't be shown their trips. The
+// service worker's trips cache also serves offline, outliving the tab.
+function clearUserCaches() {
+  queryClient.clear();
+  if (typeof caches !== "undefined") caches.delete("trips-api-cache").catch(() => {});
+}
+
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
   isLoading: true,
@@ -22,6 +30,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       email,
       password,
     });
+    clearUserCaches();
     set({ user, isAuthenticated: true, isLoading: false });
   },
   signUp: async (email, password, firstName, lastName) => {
@@ -31,10 +40,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       firstName,
       lastName,
     });
+    clearUserCaches();
     set({ user, isAuthenticated: true, isLoading: false });
   },
   signOut: async () => {
     await apiRequestJson("POST", "/api/v1/auth/signout");
+    clearUserCaches();
     set({ user: null, isAuthenticated: false });
   },
   checkSession: async (retryCount = 0) => {
@@ -71,9 +82,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
   guestSignIn: async () => {
-    // Clear any cached data from a previous authenticated session so the
-    // guest never sees another user's profile, trips, or personal data.
-    queryClient.clear();
+    clearUserCaches();
     const { user } = await apiRequestJson<{ user: AuthUser }>("POST", "/api/v1/auth/guest");
     set({ user, isAuthenticated: true, isLoading: false });
   },
