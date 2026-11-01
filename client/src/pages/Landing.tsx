@@ -172,7 +172,7 @@ function HeroCardStack() {
       ref={ref}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="relative h-[23.75rem] hidden lg:block"
+      className="relative h-[380px] hidden lg:block"
       style={{ perspective: 1400 }}
       aria-hidden="true"
     >

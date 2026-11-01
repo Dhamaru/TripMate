@@ -264,10 +264,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Keep the layout's proportions on large screens. rem-based sizes and
-       max-widths are fixed at 1536x730 and grow with the window above that;
-       smaller screens stay at the browser's default size. */
-    font-size: clamp(100%, min(1.0417vw, 2.19vh), 200%);
   }
 
   body {
