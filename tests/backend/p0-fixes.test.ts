@@ -68,20 +68,20 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
       //
       // A count-based test here can't actually discriminate: in
       // NODE_ENV=test both logsLimiter (config.NODE_ENV==="test" ? 1000
-      // : 10) and generalLimiter (100 * the 100x test multiplier =
-      // 10000) have ceilings far above any request volume a unit test
+      // : 10) and generalLimiter (1000 * the 100x test multiplier =
+      // 100000) have ceilings far above any request volume a unit test
       // would send, so a bounded loop of requests "succeeding" proves
       // nothing about which limiter actually ran. Asserting the
       // reported ratelimit-limit header value does discriminate: with
       // the bug, GET /api/v1/trips passes through logsLimiter last and
       // reports 1000; with the fix, only generalLimiter ever touches it
-      // and it reports 10000.
+      // and it reports 100000.
       const res = await request(app).get("/api/v1/trips").set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);
       expect(
         Number(res.headers["ratelimit-limit"]),
         "reports generalLimiter's ceiling, not logsLimiter's",
-      ).toBe(10000);
+      ).toBe(100000);
     });
   });
 

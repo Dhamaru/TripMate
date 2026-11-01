@@ -27,7 +27,7 @@ const testMultiplier = (max: number) => (config.NODE_ENV === "test" ? max * 100 
 
 export const generalLimiter = rateLimit({
   windowMs: config.RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000,
-  max: testMultiplier(config.RATE_LIMIT_MAX ?? 100),
+  max: testMultiplier(config.RATE_LIMIT_MAX ?? 1000),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json(rateLimitResponse(15 * 60)),

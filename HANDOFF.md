@@ -16,7 +16,6 @@ None queued. Next work is the owner's pick from the audit's P1/P2 list.
 
 ## Blocked on / decisions
 
-- General API rate limit (100/15 min) is low enough for real users to hit; recommend 1000. Owner decision.
 - Trip map "Charleston" bug: unreproduced; need user's device (web vs desktop) and hard-refresh result.
 - Push toggle failure: need the new toast text + browser from the user.
 - Audit P1/P2 items and the 11px label floor await the user's go-ahead.
