@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as toolsController from "../controllers/tools.controller";
-import { requireAuth } from "../middleware/auth.middleware";
+import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 import {
   generationLimiter,
   aiLimiter,
@@ -197,7 +197,9 @@ router.get("/currency/convert", requireAuth, toolsController.convertCurrency);
 // into 429s, forcing every subsequent request (including real users') onto
 // the billed path. /places/search got requireAuth for the same reason;
 // apiProxyLimiter is the minimum bound for an unauthenticated route.
-router.get("/geocode", apiProxyLimiter, toolsController.geocode);
+// optionalAuth: the signed-out landing search uses this, but only signed-in
+// callers can reach the billed Google fallback (see the controller).
+router.get("/geocode", optionalAuth, apiProxyLimiter, toolsController.geocode);
 
 /**
  * @swagger
@@ -218,7 +220,7 @@ router.get("/geocode", apiProxyLimiter, toolsController.geocode);
  *       200:
  *         description: Nominatim address object
  */
-router.get("/reverse-geocode", apiProxyLimiter, toolsController.reverseGeocode);
+router.get("/reverse-geocode", requireAuth, apiProxyLimiter, toolsController.reverseGeocode);
 
 // ─── Protected tool endpoints (auth required) ──────────────────────────────
 

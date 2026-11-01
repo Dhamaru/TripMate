@@ -1,6 +1,18 @@
 import { config } from "./config";
 import nodemailer from "nodemailer";
 
+// User-supplied names, trip text and feedback go into HTML emails sent from
+// TripMate's address; unescaped, anyone could send real TripMate mail with
+// their own links and markup.
+export function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Live-reported: a real feedback submission was stored fine but the site
 // owner never got notified, with nothing in the logs pointing at why —
 // sendFeedbackNotificationEmail/sendAgentTriagePlanEmail below silently
@@ -160,7 +172,7 @@ export async function sendCollaboratorInviteEmail(
   const text = `${inviterName} added you as a${role === "viewer" ? " viewer" : "n editor"} on their trip to ${destination}.\n\nOpen it here:\n${tripUrl}`;
   const html = `<div style="font-family:sans-serif;max-width:480px;margin:auto">
 <h2 style="color:#1E3A8A">You've been added to a trip</h2>
-<p><strong>${inviterName}</strong> added you as a${role === "viewer" ? " viewer" : "n editor"} on their trip to <strong>${destination}</strong>.</p>
+<p><strong>${escapeHtml(inviterName)}</strong> added you as a${role === "viewer" ? " viewer" : "n editor"} on their trip to <strong>${escapeHtml(destination)}</strong>.</p>
 <a href="${tripUrl}" style="display:inline-block;background:#F59E0B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">Open Trip</a>
 </div>`;
 
@@ -256,8 +268,8 @@ export async function sendFeedbackNotificationEmail(feedback: {
     : "";
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto">
 <h2 style="color:#1E3A8A">New ${kind}</h2>
-<p><strong>From:</strong> ${feedback.email}<br/><strong>Category:</strong> ${feedback.category}</p>
-<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px"><strong>${feedback.subject}</strong><br/><br/>${feedback.description.replace(/\n/g, "<br/>")}</p>
+<p><strong>From:</strong> ${escapeHtml(feedback.email)}<br/><strong>Category:</strong> ${escapeHtml(feedback.category)}</p>
+<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px"><strong>${escapeHtml(feedback.subject)}</strong><br/><br/>${escapeHtml(feedback.description).replace(/\n/g, "<br/>")}</p>
 ${attachmentsHtml}
 </div>`;
 
@@ -315,10 +327,10 @@ export async function sendAgentTriagePlanEmail(feedback: {
   const html = `<div style="font-family:sans-serif;max-width:560px;margin:auto">
 <h2 style="color:#1E3A8A">Triage plan ready</h2>
 <p style="color:#666;font-size:13px">The automated feedback-triage routine investigated this ${kind.toLowerCase()} and drafted a fix plan below. <strong>Nothing has been changed yet</strong> — this is a proposal for you to review.</p>
-<p><strong>Reported by:</strong> ${feedback.email}<br/><strong>Category:</strong> ${feedback.category}</p>
-<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px"><strong>${feedback.subject}</strong><br/><br/>${feedback.description.replace(/\n/g, "<br/>")}</p>
+<p><strong>Reported by:</strong> ${escapeHtml(feedback.email)}<br/><strong>Category:</strong> ${escapeHtml(feedback.category)}</p>
+<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px"><strong>${escapeHtml(feedback.subject)}</strong><br/><br/>${escapeHtml(feedback.description).replace(/\n/g, "<br/>")}</p>
 <h3 style="color:#1E3A8A;margin-top:20px">Proposed plan</h3>
-<div style="background:#f0f4fa;padding:12px 16px;border-radius:8px;white-space:pre-wrap;font-size:14px">${plan.replace(/\n/g, "<br/>")}</div>
+<div style="background:#f0f4fa;padding:12px 16px;border-radius:8px;white-space:pre-wrap;font-size:14px">${escapeHtml(plan).replace(/\n/g, "<br/>")}</div>
 </div>`;
 
   const adminEmail = config.ADMIN_EMAIL;
@@ -359,7 +371,7 @@ export async function sendFeedbackConfirmationEmail(
   const html = `<div style="font-family:sans-serif;max-width:480px;margin:auto">
 <h2 style="color:#1E3A8A">Thanks for your ${kind}</h2>
 <p>We received the following, and it's now in our queue:</p>
-<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px;font-style:italic">"${subjectLine}"</p>
+<p style="background:#f5f5f5;padding:12px 16px;border-radius:8px;font-style:italic">"${escapeHtml(subjectLine)}"</p>
 <p style="color:#666;font-size:13px">We typically respond within 24-48 hours. We'll follow up at this email address if we need more details or once it's resolved.</p>
 </div>`;
 

@@ -414,6 +414,9 @@ export const geocode = asyncHandler(async (req: Request, res: Response, next: Ne
       `[Geocode] Nominatim failed for "${query}", falling back to Google: ${nominatimError.message}`,
     );
 
+    // Anonymous callers must not be able to run up the Google bill.
+    if (!req.user) return res.json([]);
+
     const key = config.GOOGLE_API_KEY;
     if (!key) throw new Error("No geocoding fallback available");
 
