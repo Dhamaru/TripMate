@@ -18,10 +18,8 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       injectManifest: {
-        // Same rationale as the old build.chunkSizeWarningLimit: this repo
-        // ships one ~1.7-2MB vendor chunk on purpose (see the comment
-        // below on manualChunks) — the precache manifest needs to accept
-        // it instead of silently dropping it from the offline cache.
+        // The precache manifest must accept the larger chunks instead of
+        // silently dropping them from the offline cache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       includeAssets: ["apple-touch-icon.png", "robots.txt"],
@@ -115,27 +113,11 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        // Previously one ~1.7MB chunk with no vendor separation — every
-        // deploy invalidated the browser's cache for the entire app,
-        // including third-party code that never changes between our own
-        // releases. A single vendor/app split fixes that cache-busting
-        // problem safely.
-        //
-        // Tried splitting vendor further by package group (react-vendor,
-        // radix-vendor, motion-vendor, etc.) first — it broke at runtime
-        // ("Cannot set properties of undefined (setting 'Children')"),
-        // caught by an actual browser load, not the build or type-check.
-        // Nearly every heavy dependency here (Radix, framer-motion,
-        // recharts, react-leaflet) shares React's module singleton at
-        // import time; isolating react-dom into its own chunk broke the
-        // load-order guarantee those packages depend on. One vendor chunk
-        // preserves Rollup's natural intra-chunk ordering and still gets
-        // the real win: vendor code (which rarely changes) stays cached
-        // separately from app code (which changes every deploy).
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-          return "vendor";
-        },
+        // No manualChunks: Rollup's default splitting keeps recharts, leaflet,
+        // dnd-kit etc. in the lazy routes that use them. A catch-all "vendor"
+        // chunk made every page load 1.8MB. Don't isolate react-dom into its own
+        // chunk either: that broke at runtime ("Cannot set properties of
+        // undefined (setting 'Children')"), caught only by a real browser load.
       },
     },
     chunkSizeWarningLimit: 800,
