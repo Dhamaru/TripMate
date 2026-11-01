@@ -272,9 +272,10 @@ export const health = async (_req: Request, res: Response) => {
   const dbState = mongoose.connection.readyState;
   const dbStatus = dbState === 1 ? "connected" : dbState === 2 ? "connecting" : "disconnected";
 
-  // We return 200 even if degraded to keep monitoring tools like UptimeRobot happy,
-  // as long as the server process itself is healthy.
-  res.status(200).json({
+  // 503 when the database is unreachable: nothing useful works without it, and
+  // a 200 kept monitors and Render's restart logic from ever noticing. /ping
+  // stays the plain "process is up" check.
+  res.status(dbState === 1 ? 200 : 503).json({
     status: dbState === 1 ? "ok" : "degraded",
     services: {
       database: dbStatus,

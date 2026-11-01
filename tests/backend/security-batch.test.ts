@@ -59,3 +59,15 @@ describe("anonymous geocoding can't reach the billed fallback", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("health check", () => {
+  it("answers 503 when the database is unreachable, and ping stays 200", async () => {
+    const mongoose = (await import("mongoose")).default;
+    vi.spyOn(mongoose.connection, "readyState", "get").mockReturnValue(0 as any);
+    const res = await request(app).get("/api/v1/health");
+    expect(res.status).toBe(503);
+    expect(res.body.services.database).toBe("disconnected");
+    vi.restoreAllMocks();
+    expect((await request(app).get("/api/v1/ping")).status).toBe(200);
+  });
+});
