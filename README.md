@@ -19,8 +19,8 @@ git clone <repo> && cd tripmate
 npm install
 
 # 3. Configure environment
-cp .env.example .env
-# Edit .env and fill in your API keys
+# Create .env in the repo root using the variables listed below.
+# Set MONGODB_DB_NAME to a non-production database first (see the warning below).
 
 # 4. Seed database with test data
 npm run db:seed
@@ -31,17 +31,20 @@ npm run dev
 # Backend:  http://localhost:5000
 ```
 
+> **Warning:** `MONGODB_DB_NAME` defaults to `tripmate`, the production database name. If `MONGODB_URI` points at the production cluster, a local server, `db:seed` and `db:clear` can all change production data unless you set `MONGODB_DB_NAME` to something else.
+
 ## Environment Variables
 
-| Variable         | Required    | Description                                                                                                                                                                                                                                     |
-| ---------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MONGODB_URI`    | ✅          | MongoDB connection string (not `DATABASE_URL`)                                                                                                                                                                                                  |
-| `SESSION_SECRET` | ✅          | Random string for session signing                                                                                                                                                                                                               |
-| `JWT_SECRET`     | ✅          | Random string for JWT signing                                                                                                                                                                                                                   |
-| `GEMINI_API_KEY` | ✅          | AI-Studio-issued key — powers Atlas chat, the trip-planning multi-agent pipeline, and every AI utility (weather/travel-hacks/journal/translation). Every other LLM provider this app tried (OpenAI, NVIDIA, Groq, OpenRouter) has been removed. |
-| `GOOGLE_API_KEY` | Recommended | Places search, Maps, Cloud Translation — a plain Cloud Console key works for this (unlike `GEMINI_API_KEY`)                                                                                                                                     |
-| `NODE_ENV`       | ✅          | `development`, `production`, or `test`                                                                                                                                                                                                          |
-| `VITE_API_URL`   | Dev only    | Frontend API base: `http://localhost:5000`                                                                                                                                                                                                      |
+| Variable          | Required    | Description                                                                                                                                                                                                                                     |
+| ----------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI`     | ✅          | MongoDB connection string (not `DATABASE_URL`)                                                                                                                                                                                                  |
+| `SESSION_SECRET`  | ✅          | Random string for session signing                                                                                                                                                                                                               |
+| `JWT_SECRET`      | ✅          | Random string for JWT signing                                                                                                                                                                                                                   |
+| `GEMINI_API_KEY`  | ✅          | AI-Studio-issued key — powers Atlas chat, the trip-planning multi-agent pipeline, and every AI utility (weather/travel-hacks/journal/translation). Every other LLM provider this app tried (OpenAI, NVIDIA, Groq, OpenRouter) has been removed. |
+| `GOOGLE_API_KEY`  | Recommended | Places search, Maps, Cloud Translation — a plain Cloud Console key works for this (unlike `GEMINI_API_KEY`)                                                                                                                                     |
+| `NODE_ENV`        | ✅          | `development`, `production`, or `test`                                                                                                                                                                                                          |
+| `MONGODB_DB_NAME` | Dev: ✅     | Database name. Defaults to `tripmate` (production), so set it for local work                                                                                                                                                                    |
+| `VITE_API_URL`    | Optional    | Frontend API base. Leave unset for a same-origin deploy                                                                                                                                                                                         |
 
 See `server/config.ts` for the complete, authoritative list (SMTP, admin/feedback-routine secrets, rate-limit tuning, etc.) — this table covers what you need for local dev, not every optional var.
 
@@ -86,8 +89,11 @@ Express API (Node.js :5000)
         │                                    │── modifyItineraryHandler, expenseToolHandler
         │                                    └── collaboratorToolHandler, tripPlannerHandler
         │
-        │── MasterOrchestrator (server/agent/multiAgent/) — separate pipeline from Atlas chat,
-        │       runs SuggestionAgent/HeroImageAgent/ItineraryAgent/BudgetAgent/MapAgent/
+        │── MultiAgentOrchestrator (server/services/) — itinerary generation behind
+        │       POST /trips/generate-itinerary: Research, then Drafting/Critic loop, then Formatting
+        │
+        │── MasterOrchestrator (server/agent/multiAgent/) — event-driven domain agents:
+        │       SuggestionAgent/HeroImageAgent/ItineraryAgent/BudgetAgent/MapAgent/
         │       PackingAgent/JournalAgent, tracked via AgentJob records
         │
         │── Trip / Itinerary / Expense / Packing / Journal / Collaborator Routers

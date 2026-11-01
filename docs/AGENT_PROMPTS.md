@@ -5,8 +5,8 @@
 Atlas runs on two Gemini model slots (`gemini-3.6-flash`, `gemini-flash-latest`), with a circuit breaker and per-slot token-budget admission control (`server/agent/agentLoop.ts`, `providerHealth.ts`). Separate AI utility calls (weather estimates, travel hacks, journal enhancement — not the Atlas chat loop itself) also use **Gemini** (`gemini-3.5-flash-lite`) via `AiUtilitiesService`. Every other LLM provider this app tried (OpenRouter, Groq, NVIDIA, real OpenAI) has been removed.  
 All prompts are in `/server/agent/prompts/`.
 
-Context window management: if estimated tokens > 4000, `summarizeIfNeeded()` in  
-`agentLoop.ts` compresses old history into a 3-sentence summary automatically.
+Context window management: if estimated tokens reach 2500, `summarizeIfNeeded()` in  
+`agentLoop.ts` compresses old history into a short summary automatically.
 
 ---
 
@@ -86,46 +86,9 @@ Context window management: if estimated tokens > 4000, `summarizeIfNeeded()` in
 
 ---
 
-## buildPackingPrompt(input)
+## Packing prompt
 
-**File**: `/server/agent/prompts/packingPrompt.ts`  
-**Purpose**: Generates a context-aware packing list based on destination, weather, and activities.  
-**Inputs**:
-
-```ts
-{
-  destination: string
-  startDate: string
-  endDate: string
-  travelStyle: string
-  activities: string[]
-  companions: number
-}
-```
-
-**Output JSON schema**:
-
-```json
-{
-  "categories": [
-    {
-      "name": "Clothing",
-      "icon": "👕",
-      "items": [
-        { "name": "Light t-shirts", "quantity": 3, "essential": true, "note": "For humid weather" }
-      ]
-    }
-  ],
-  "weatherNote": "June in Tokyo is warm and humid (24–30°C).",
-  "totalItems": 18
-}
-```
-
-**Token estimate**: ~250 tokens (input) → ~800 tokens (output)  
-**Tuning notes**:
-
-- Add minimalism constraint: `"Assume carry-on only. Minimize items."`
-- Family-specific: `"Include children's items if companions > 2."`
+There is no standalone packing prompt file. The prompt lives in `server/agent/multiAgent/agents/PackingAgent.ts`.
 
 ---
 

@@ -5,6 +5,7 @@
 - 2026-10-21: all 7 P0s from the 2026-10-19 full audit, plus independent-review follow-ups, pushed to main (`8ed9dcf`..`ce1c01b`) and LIVE-VERIFIED on production with zero AI calls (details in CONTEXT.md open-issues section). Throwaway accounts deleted (sign-in 401).
 - 2026-10-22 follow-ups (`e5b0794`): getTrip self-heal compare-and-set; weather test flake fixed; rate-limit header spoofing checked live (Cloudflare rejects it); light-mode screenshots 375/430/768 clean.
 - Gate: typecheck clean, build clean, 217/217 tests.
+- 2026-11-02: README, `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/AGENT_PROMPTS.md`, `docs/PROJECT_RULES.md` and `CONTEXT.md` brought in line with the code. Docs only; committed locally, not pushed.
 
 ## In progress
 
