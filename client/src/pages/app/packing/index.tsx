@@ -968,7 +968,7 @@ export default function PackingChecklist() {
               title="Smart Suggest (AI)"
               aria-label="Smart Suggest (AI)"
               onClick={handleSmartSuggest}
-              className="border-[var(--amber-hover-border)] text-[var(--amber)] hover:bg-[var(--amber-dim)] hover:text-[var(--amber)]"
+              className="border-[var(--amber-hover-border)] text-[var(--ink-blue-text)] hover:bg-[var(--amber-dim)] hover:text-[var(--ink-blue-text)]"
             >
               <Lightbulb className="w-4 h-4" />
             </Button>
@@ -978,7 +978,7 @@ export default function PackingChecklist() {
               title={isDirtyGear || isDirtyDocs ? "Save List (unsaved changes)" : "Save List"}
               aria-label={isDirtyGear || isDirtyDocs ? "Save List (unsaved changes)" : "Save List"}
               onClick={handleSave}
-              className={`border hover:bg-muted/50 ${isDirtyGear || isDirtyDocs ? "text-[var(--explorer-blue)] border-[var(--explorer-blue)]" : "text-muted-foreground"}`}
+              className={`border hover:bg-muted/50 ${isDirtyGear || isDirtyDocs ? "text-[var(--ink-blue-text)] border-[var(--explorer-blue)]" : "text-muted-foreground"}`}
             >
               <Save className="w-4 h-4" />
             </Button>

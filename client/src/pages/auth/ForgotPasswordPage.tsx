@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
             className="text-center py-6 space-y-6"
           >
             <div className="mx-auto w-16 h-16 bg-[#163F73]/20 rounded-2xl flex items-center justify-center">
-              <Mail className="w-8 h-8 text-[#163F73]" />
+              <Mail className="w-8 h-8 text-[var(--ink-blue-bright)]" />
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-white">Check your email</h3>
@@ -129,7 +129,7 @@ export default function ForgotPasswordPage() {
                         <Input
                           placeholder="your@email.com"
                           autoFocus
-                          className="pl-12 bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] smooth-transition"
+                          className="pl-12 bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[var(--ink-blue-bright)] smooth-transition"
                           {...field}
                         />
                       </div>

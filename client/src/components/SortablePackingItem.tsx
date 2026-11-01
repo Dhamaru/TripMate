@@ -89,7 +89,7 @@ export function SortablePackingItem({
         }}
       >
         <div className="mr-3 text-muted-foreground">
-          <GripVertical className={`w-5 h-5 ${isPressing ? "text-[#163F73]" : ""}`} />
+          <GripVertical className={`w-5 h-5 ${isPressing ? "text-[var(--ink-blue-text)]" : ""}`} />
         </div>
 
         <div
@@ -105,22 +105,22 @@ export function SortablePackingItem({
             {item.name}
           </span>
           {item.is_mandatory && (
-            <span className="stamp text-[9px] px-1.5 py-0 border-[var(--stamp-red)] text-[var(--stamp-red)]">
+            <span className="stamp text-[11px] px-1.5 py-0 border-[var(--stamp-red)] text-[var(--stamp-red-text)]">
               Essential
             </span>
           )}
           {item.weatherDriven && (
-            <span className="stamp text-[9px] px-1.5 py-0 border-[var(--transit-green)] text-[var(--transit-green)]">
+            <span className="stamp text-[11px] px-1.5 py-0 border-[var(--transit-green)] text-[var(--transit-green-text)]">
               Weather
             </span>
           )}
           {item.activityDriven && (
-            <span className="stamp text-[9px] px-1.5 py-0 border-[var(--customs-blue)] text-[var(--customs-blue)]">
+            <span className="stamp text-[11px] px-1.5 py-0 border-[var(--customs-blue)] text-[var(--ink-blue-text)]">
               Activity
             </span>
           )}
           {item.category && (
-            <span className="text-[10px] font-mono-data text-muted-foreground bg-muted px-2 py-0.5 rounded-[4px] border border-border">
+            <span className="text-[11px] font-mono-data text-muted-foreground bg-muted px-2 py-0.5 rounded-[4px] border border-border">
               {item.category}
             </span>
           )}

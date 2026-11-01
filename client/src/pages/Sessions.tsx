@@ -72,7 +72,7 @@ export default function Sessions() {
                 Couldn't load your sessions.{" "}
                 <button
                   onClick={loadSessions}
-                  className="text-[var(--ink-blue)] font-semibold hover:underline"
+                  className="text-[var(--ink-blue-text)] font-semibold hover:underline"
                 >
                   Try again
                 </button>

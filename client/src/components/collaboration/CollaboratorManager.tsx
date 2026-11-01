@@ -193,7 +193,7 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
+                        <Badge variant="secondary" className="text-[11px] uppercase tracking-wider">
                           {col.role === "editor" ? (
                             <Edit2 className="w-3 h-3 mr-1" />
                           ) : (

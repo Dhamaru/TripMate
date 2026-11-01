@@ -583,7 +583,7 @@ export default function Profile() {
                     onClick={() => toggleChip(dietaryPreferences, setDietaryPreferences, opt)}
                     className={`stamp text-xs px-2.5 py-1 transition-colors ${
                       dietaryPreferences.includes(opt)
-                        ? "border-[var(--explorer-blue)] text-[var(--explorer-blue)] bg-[rgb(var(--explorer-blue-rgb)/10%)]"
+                        ? "border-[var(--explorer-blue)] text-[var(--ink-blue-text)] bg-[rgb(var(--explorer-blue-rgb)/10%)]"
                         : "border-[hsl(var(--border))] text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -608,7 +608,7 @@ export default function Profile() {
                     onClick={() => toggleChip(cuisinePreferences, setCuisinePreferences, opt)}
                     className={`stamp text-xs px-2.5 py-1 transition-colors ${
                       cuisinePreferences.includes(opt)
-                        ? "border-[var(--amber)] text-[var(--amber)] bg-[var(--amber-dim)]"
+                        ? "border-[var(--amber)] text-[var(--ink-blue-text)] bg-[var(--amber-dim)]"
                         : "border-[hsl(var(--border))] text-muted-foreground hover:text-foreground"
                     }`}
                   >

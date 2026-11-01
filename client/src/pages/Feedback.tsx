@@ -227,7 +227,7 @@ export default function Feedback() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-[rgba(29,78,137,0.1)] flex items-center justify-center">
-                          <Lightbulb className="w-4 h-4 text-[var(--explorer-blue)]" />
+                          <Lightbulb className="w-4 h-4 text-[var(--ink-blue-text)]" />
                         </div>
                         Feedback / Suggestion
                       </div>
@@ -238,7 +238,7 @@ export default function Feedback() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-[rgba(179,38,30,0.1)] flex items-center justify-center">
-                          <Bug className="w-4 h-4 text-[var(--ios-red)]" />
+                          <Bug className="w-4 h-4 text-[var(--stamp-red-text)]" />
                         </div>
                         Bug Report
                       </div>
@@ -249,7 +249,7 @@ export default function Feedback() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-[rgba(29,78,137,0.1)] flex items-center justify-center">
-                          <Sparkles className="w-4 h-4 text-[var(--explorer-blue)]" />
+                          <Sparkles className="w-4 h-4 text-[var(--ink-blue-text)]" />
                         </div>
                         Feature Request
                       </div>
@@ -498,7 +498,7 @@ export default function Feedback() {
           <Card className="bg-card border">
             <CardContent className="p-4">
               <div className="flex items-start space-x-3">
-                <i className="fas fa-clock text-[var(--explorer-blue)] text-xl mt-1"></i>
+                <i className="fas fa-clock text-[var(--ink-blue-text)] text-xl mt-1"></i>
                 <div>
                   <h3 className="text-foreground font-semibold mb-1">Response Time</h3>
                   <p className="text-muted-foreground text-sm">

@@ -476,7 +476,7 @@ export function TripMap({
               const editBtn = document.createElement("button");
               editBtn.innerHTML = '<i class="fas fa-pen mr-1"></i> Edit';
               editBtn.style.cssText =
-                "color: var(--explorer-blue); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
+                "color: var(--ink-blue-text); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
               editBtn.onclick = () => onViewInItinerary(act.id);
               actionsRow.appendChild(editBtn);
             }
@@ -929,7 +929,7 @@ export function TripMap({
                 // elsewhere in this file) — ink-blue text at low opacity on
                 // the dark card ground measures ~1.8:1 contrast, well under
                 // WCAG AA's 4.5:1 floor for normal text.
-                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? "bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)]" : "text-muted-foreground hover:text-[var(--explorer-blue)] hover:bg-[rgb(var(--explorer-blue-rgb)/10%)]"}`}
+                className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showPaths ? "bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)]" : "text-muted-foreground hover:text-[var(--ink-blue-text)] hover:bg-[rgb(var(--explorer-blue-rgb)/10%)]"}`}
               >
                 <i className="fas fa-route text-[11px]"></i>
                 {showPaths ? "Hide Route" : "Show Route"}
@@ -950,7 +950,7 @@ export function TripMap({
                     }
                   }}
                   title={`Navigate live to your next stop: ${nextActivity.label}`}
-                  className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showLiveNav ? "bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)]" : "text-muted-foreground hover:text-[var(--explorer-blue)] hover:bg-[rgb(var(--explorer-blue-rgb)/10%)]"}`}
+                  className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showLiveNav ? "bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)]" : "text-muted-foreground hover:text-[var(--ink-blue-text)] hover:bg-[rgb(var(--explorer-blue-rgb)/10%)]"}`}
                 >
                   <i className="fas fa-location-crosshairs text-[11px]"></i>
                   {showLiveNav ? "Stop Live Nav" : "Live Nav"}
@@ -982,7 +982,7 @@ export function TripMap({
                       step={1}
                       className="py-2"
                     />
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
                       <span>Quiet</span>
                       <span>Packed</span>
                     </div>
@@ -1015,7 +1015,7 @@ export function TripMap({
           {showLiveNav && liveEta && nextActivity && (
             <div className="absolute bottom-3 left-3 z-[500] bg-card/95 border border-border rounded-xl px-3 py-2 shadow-lg text-xs">
               <p className="font-semibold text-foreground flex items-center gap-1.5">
-                <i className="fas fa-car text-[var(--explorer-blue)]"></i>
+                <i className="fas fa-car text-[var(--ink-blue-text)]"></i>
                 {liveEta.min} min · {liveEta.km.toFixed(1)} km
               </p>
               <p className="text-muted-foreground">to {nextActivity.label}</p>

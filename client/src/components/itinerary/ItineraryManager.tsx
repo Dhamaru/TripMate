@@ -107,19 +107,19 @@ function SortableActivity({
   // FormattingAgent.ts's zTripPlan) — none of which existed here, so every
   // one fell through the `|| "Activity"` fallback below.
   const typeColors: Record<string, string> = {
-    travel: "border-[rgb(var(--ink-transit-rgb)/50%)] text-[var(--ink-transit)]",
-    food: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining)]",
-    restaurant: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining)]",
-    cafe: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining)]",
-    sightseeing: "border-[rgb(var(--ink-sightseeing-rgb)/50%)] text-[var(--ink-sightseeing)]",
-    accommodation: "border-[rgb(var(--ink-lodging-rgb)/50%)] text-[var(--ink-lodging)]",
-    culture: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture)]",
-    museum: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture)]",
-    temple: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture)]",
-    nature: "border-[rgb(var(--ink-nature-rgb)/50%)] text-[var(--ink-nature)]",
-    nightlife: "border-[rgb(var(--ink-nightlife-rgb)/50%)] text-[var(--ink-nightlife)]",
-    shopping: "border-[rgb(var(--ink-shopping-rgb)/50%)] text-[var(--ink-shopping)]",
-    market: "border-[rgb(var(--ink-shopping-rgb)/50%)] text-[var(--ink-shopping)]",
+    travel: "border-[rgb(var(--ink-transit-rgb)/50%)] text-[var(--ink-transit-text)]",
+    food: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining-text)]",
+    restaurant: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining-text)]",
+    cafe: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining-text)]",
+    sightseeing: "border-[rgb(var(--ink-sightseeing-rgb)/50%)] text-[var(--ink-sightseeing-text)]",
+    accommodation: "border-[rgb(var(--ink-lodging-rgb)/50%)] text-[var(--ink-lodging-text)]",
+    culture: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture-text)]",
+    museum: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture-text)]",
+    temple: "border-[rgb(var(--ink-culture-rgb)/50%)] text-[var(--ink-culture-text)]",
+    nature: "border-[rgb(var(--ink-nature-rgb)/50%)] text-[var(--ink-nature-text)]",
+    nightlife: "border-[rgb(var(--ink-nightlife-rgb)/50%)] text-[var(--ink-nightlife-text)]",
+    shopping: "border-[rgb(var(--ink-shopping-rgb)/50%)] text-[var(--ink-shopping-text)]",
+    market: "border-[rgb(var(--ink-shopping-rgb)/50%)] text-[var(--ink-shopping-text)]",
     activity: "border-[hsl(var(--muted-foreground))]/50 text-[hsl(var(--muted-foreground))]",
   };
   const typeLabel: Record<string, string> = {
@@ -161,7 +161,7 @@ function SortableActivity({
 
       {/* Time badge */}
       {activity.time && (
-        <div className="shrink-0 text-[10px] font-mono-data bg-[hsl(var(--muted))] px-2 py-0.5 rounded text-[hsl(var(--muted-foreground))] w-14 text-center">
+        <div className="shrink-0 text-[11px] font-mono-data bg-[hsl(var(--muted))] px-2 py-0.5 rounded text-[hsl(var(--muted-foreground))] w-14 text-center">
           {activity.time}
         </div>
       )}
@@ -207,7 +207,7 @@ function SortableActivity({
                 <span className="text-sm font-medium text-foreground">{activity.from}</span>
               )}
               {activity.from && activity.to && (
-                <span className="text-[var(--amber)] text-xs">→</span>
+                <span className="text-[var(--ink-blue-text)] text-xs">→</span>
               )}
               {activity.to && (
                 <span className="text-sm font-medium text-foreground">{activity.to}</span>
@@ -218,16 +218,16 @@ function SortableActivity({
               {activity.title || activity.placeName}
             </span>
           )}
-          <span className={`stamp text-[9px] px-1.5 py-0 shrink-0 ${typeClass}`}>
+          <span className={`stamp text-[11px] px-1.5 py-0 shrink-0 ${typeClass}`}>
             {typeLabel[activity.type || "activity"] || "Activity"}
           </span>
           {activity.bookingRequired && (
-            <span className="stamp text-[9px] px-1.5 py-0 shrink-0 border-[var(--stamp-red)] text-[var(--stamp-red)]">
+            <span className="stamp text-[11px] px-1.5 py-0 shrink-0 border-[var(--stamp-red)] text-[var(--stamp-red-text)]">
               Booking Req.
             </span>
           )}
           {activity.duration_minutes && (
-            <span className="text-[10px] font-mono-data text-[hsl(var(--muted-foreground))] shrink-0">
+            <span className="text-[11px] font-mono-data text-[hsl(var(--muted-foreground))] shrink-0">
               <Clock className="inline w-2.5 h-2.5 mr-0.5" />
               {activity.duration_minutes}m
             </span>
@@ -238,7 +238,7 @@ function SortableActivity({
               live-reported as itinerary details feeling less complete after
               confirming the trip. */}
           {(activity.cost || activity.entryFee) && (
-            <span className="text-[10px] font-mono-data text-[var(--emerald-horizon)] shrink-0">
+            <span className="text-[11px] font-mono-data text-[var(--emerald-horizon)] shrink-0">
               ~{getCurrencySymbol(currency)}
               {activity.cost || activity.entryFee}
             </span>
@@ -249,16 +249,16 @@ function SortableActivity({
               AiUtilitiesService.ts), it just never reached any UI. */}
           {activity.routeFromPrevious && (
             <span
-              className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0"
+              className="text-[11px] text-[hsl(var(--muted-foreground))] shrink-0"
               title={`${activity.routeFromPrevious.distance_km} km from the previous stop`}
             >
-              <i className="fas fa-route text-[9px] mr-0.5" />
+              <i className="fas fa-route text-[11px] mr-0.5" />
               {activity.routeFromPrevious.mode} · {activity.routeFromPrevious.travel_time_minutes}m
             </span>
           )}
         </div>
         {activity.location && (
-          <div className="flex items-center gap-1 text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">
+          <div className="flex items-center gap-1 text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">
             <MapPin className="w-2.5 h-2.5 shrink-0" />
             {activity.location}
           </div>
@@ -296,7 +296,7 @@ function SortableActivity({
                 variant="ghost"
                 size="icon"
                 data-testid="button-view-in-places"
-                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
+                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--ink-blue-text)]"
                 title={
                   type === "accommodation"
                     ? "View in Places (Hotels)"
@@ -319,7 +319,7 @@ function SortableActivity({
                 variant="ghost"
                 size="icon"
                 data-testid="button-view-on-map"
-                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--explorer-blue)]"
+                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--ink-blue-text)]"
                 title="View on map"
               >
                 <Navigation className="w-3.5 h-3.5" />
@@ -739,7 +739,7 @@ export function ItineraryManager({
                   Day {day.day || dayIdx + 1}
                 </h3>
                 {dateLabel && (
-                  <span className="stamp text-[10px] text-[var(--amber)]">{dateLabel}</span>
+                  <span className="stamp text-[11px] text-[var(--ink-blue-text)]">{dateLabel}</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -762,7 +762,7 @@ export function ItineraryManager({
 
             {day.reasoning && (
               <div className="px-4 py-1.5 text-xs text-[hsl(var(--muted-foreground))] border-b border-[hsl(var(--border))]/50 bg-[hsl(var(--muted))]/20 italic">
-                <span className="font-semibold not-italic text-[var(--customs-blue)] mr-1">
+                <span className="font-semibold not-italic text-[var(--ink-blue-text)] mr-1">
                   Intent:
                 </span>
                 {day.reasoning}

@@ -1,12 +1,18 @@
 import { useId } from "react";
 
 interface TripMateLogoProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   showText?: boolean;
   className?: string;
+  textClassName?: string;
 }
 
-export function TripMateLogo({ size = 'md', showText = true, className = '' }: TripMateLogoProps) {
+export function TripMateLogo({
+  size = "md",
+  showText = true,
+  className = "",
+  textClassName = "text-foreground",
+}: TripMateLogoProps) {
   // Unique per instance — an SVG gradient id is document-global, so two
   // logos on the same page (e.g. Landing's header + footer) would otherwise
   // collide and the second instance would silently render the first one's
@@ -14,15 +20,15 @@ export function TripMateLogo({ size = 'md', showText = true, className = '' }: T
   const gradientId = `tripmate-logo-gradient-${useId()}`;
 
   const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12'
+    sm: "w-6 h-6",
+    md: "w-8 h-8",
+    lg: "w-12 h-12",
   };
 
   const textSizeClasses = {
-    sm: 'text-lg',
-    md: 'text-xl',
-    lg: 'text-2xl'
+    sm: "text-lg",
+    md: "text-xl",
+    lg: "text-2xl",
   };
 
   return (
@@ -44,9 +50,7 @@ export function TripMateLogo({ size = 'md', showText = true, className = '' }: T
         </svg>
       </div>
       {showText && (
-        <span className={`font-bold text-foreground ${textSizeClasses[size]}`}>
-          TripMate
-        </span>
+        <span className={`font-bold ${textClassName} ${textSizeClasses[size]}`}>TripMate</span>
       )}
     </div>
   );

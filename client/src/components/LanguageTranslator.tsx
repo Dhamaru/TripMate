@@ -203,12 +203,12 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
         ) : translation?.translatedText ? (
           <div className="p-3 border rounded bg-muted">
             <div className="flex items-center justify-between gap-2">
-              <strong className="text-[var(--explorer-blue)]">Result:</strong>
+              <strong className="text-[var(--ink-blue-text)]">Result:</strong>
               {translation.source &&
                 translation.source !== "gemini" &&
                 translation.source !== "google" && (
                   <span
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--amber-dim)] text-[var(--amber)]"
+                    className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--amber-dim)] text-[var(--ink-blue-text)]"
                     title="Our primary translation engine is temporarily unavailable — this came from a backup source and may be less accurate for uncommon phrases."
                   >
                     Backup source
@@ -253,7 +253,7 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
             <Skeleton className="w-full h-20" />
           ) : replyTranslation?.translatedText ? (
             <div className="p-3 border rounded bg-muted">
-              <strong className="text-[var(--explorer-blue)]">What they meant:</strong>
+              <strong className="text-[var(--ink-blue-text)]">What they meant:</strong>
               <p className="text-[var(--emerald-horizon)] mt-1 text-lg">
                 {replyTranslation.translatedText}
               </p>

@@ -1696,7 +1696,7 @@ export default function TripPlanner() {
                                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`}
                                           target="_blank"
                                           rel="noreferrer"
-                                          className="text-xs text-[var(--amber)] underline"
+                                          className="text-xs text-[var(--ink-blue-text)] underline"
                                         >
                                           {String(a.address)}
                                         </a>

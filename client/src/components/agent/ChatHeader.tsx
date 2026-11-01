@@ -28,7 +28,7 @@ export function ChatHeader({ onClose }: Props) {
         <TripMateLogo size="sm" showText={false} />
         <div>
           <h2 className="text-foreground text-sm font-semibold leading-tight">Atlas AI</h2>
-          <span className="text-xs text-[var(--explorer-blue)]">{threadLabel}</span>
+          <span className="text-xs text-[var(--ink-blue-text)]">{threadLabel}</span>
         </div>
       </div>
       <div className="flex items-center gap-2">

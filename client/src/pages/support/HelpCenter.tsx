@@ -53,7 +53,7 @@ export default function HelpCenter() {
           <Card className="bg-card border-border hover:border-[#1D4E89] transition-colors cursor-pointer group">
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 bg-[#1D4E89]/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#1D4E89]/20 transition-colors">
-                <Layout className="text-[#1D4E89] dark:text-blue-400 w-6 h-6" />
+                <Layout className="text-[var(--ink-blue-text)] dark:text-blue-400 w-6 h-6" />
               </div>
               <h3 className="font-semibold text-lg mb-2 text-foreground">Getting Started</h3>
               <p className="text-muted-foreground text-sm">
@@ -77,7 +77,7 @@ export default function HelpCenter() {
           <Card className="bg-card border-border hover:border-[#163F73] transition-colors cursor-pointer group">
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 bg-[#163F73]/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#163F73]/20 transition-colors">
-                <FileText className="text-[#163F73] w-6 h-6" />
+                <FileText className="text-[var(--ink-blue-text)] w-6 h-6" />
               </div>
               <h3 className="font-semibold text-lg mb-2 text-foreground">Billing & Plans</h3>
               <p className="text-muted-foreground text-sm">

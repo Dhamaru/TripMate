@@ -93,7 +93,7 @@ export default function Tools() {
               </div>
 
               {/* Arrow */}
-              <ArrowRight className="w-4 h-4 text-[hsl(var(--muted-foreground))] group-hover:text-[var(--amber)] group-hover:translate-x-1 transition-all duration-150 flex-shrink-0" />
+              <ArrowRight className="w-4 h-4 text-[hsl(var(--muted-foreground))] group-hover:text-[var(--ink-blue-text)] group-hover:translate-x-1 transition-all duration-150 flex-shrink-0" />
             </div>
           </Link>
         ))}

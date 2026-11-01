@@ -103,7 +103,7 @@ export default function SignUpPage() {
                 value={formData.firstName}
                 onChange={handleChange}
                 required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[var(--ink-blue-bright)] transition-colors font-medium"
               />
             </div>
             <div className="space-y-2">
@@ -118,7 +118,7 @@ export default function SignUpPage() {
                 value={formData.lastName}
                 onChange={handleChange}
                 required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[var(--ink-blue-bright)] transition-colors font-medium"
               />
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function SignUpPage() {
               value={formData.email}
               onChange={handleChange}
               required
-              className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium"
+              className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[var(--ink-blue-bright)] transition-colors font-medium"
             />
           </div>
 
@@ -154,7 +154,7 @@ export default function SignUpPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium pr-12"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[var(--ink-blue-bright)] transition-colors font-medium pr-12"
               />
               <Button
                 type="button"
@@ -182,7 +182,7 @@ export default function SignUpPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[#163F73] transition-colors font-medium pr-12"
+                className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 focus:border-[var(--ink-blue-bright)] transition-colors font-medium pr-12"
               />
               <Button
                 type="button"
@@ -254,7 +254,7 @@ export default function SignUpPage() {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-white/10"></div>
           </div>
-          <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold">
+          <div className="relative flex justify-center text-[11px] uppercase tracking-widest font-bold">
             <span className="bg-transparent px-3 text-white/40">Already have an account?</span>
           </div>
         </div>
@@ -267,7 +267,7 @@ export default function SignUpPage() {
           Sign In Instead
         </Button>
 
-        <p className="mt-8 text-center text-[10px] text-white/60 font-medium uppercase tracking-widest px-8">
+        <p className="mt-8 text-center text-[11px] text-white/60 font-medium uppercase tracking-widest px-8">
           By creating an account, you agree to our Terms of Service and Privacy Policy.
         </p>
       </CardContent>

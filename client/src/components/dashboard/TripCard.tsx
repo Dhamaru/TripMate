@@ -38,17 +38,17 @@ const STATUS_STAMP: Record<string, { label: string; className: string }> = {
   planning: {
     label: "Planning",
     className:
-      "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--customs-blue)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
+      "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--ink-blue-text)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
   },
   active: {
     label: "Active",
     className:
-      "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green)] border border-[rgb(var(--transit-green-rgb)/40%)]",
+      "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green-text)] border border-[rgb(var(--transit-green-rgb)/40%)]",
   },
   completed: {
     label: "Completed",
     className:
-      "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
+      "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red-text)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
   },
 };
 
@@ -150,7 +150,7 @@ export function TripCard({
         )}
 
         <span
-          className={`absolute top-2.5 right-2.5 text-[10px] font-mono-data uppercase tracking-[0.08em] px-2 py-0.5 rounded-full backdrop-blur-sm ${stamp.className}`}
+          className={`absolute top-2.5 right-2.5 text-[11px] font-mono-data uppercase tracking-[0.08em] px-2 py-0.5 rounded-full backdrop-blur-sm ${stamp.className}`}
           aria-label={`Trip status: ${stamp.label}`}
         >
           {stamp.label}

@@ -118,7 +118,7 @@ export default function ResetPasswordPage() {
       <CardContent className="p-8">
         <div className="flex flex-col items-center text-center mt-2 mb-8">
           <div className="w-16 h-16 bg-[#163F73]/20 rounded-2xl flex items-center justify-center mb-6">
-            <Lock className="w-8 h-8 text-[#163F73]" />
+            <Lock className="w-8 h-8 text-[var(--ink-blue-bright)]" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
           <p className="text-white/60 font-medium">Create a strong new password for your account</p>
@@ -140,7 +140,7 @@ export default function ResetPasswordPage() {
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         autoFocus
-                        className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#163F73] smooth-transition"
+                        className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[var(--ink-blue-bright)] smooth-transition"
                         {...field}
                       />
                       <Button
@@ -176,7 +176,7 @@ export default function ResetPasswordPage() {
                       <Input
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[#163F73] smooth-transition"
+                        className="bg-white/10 border-white/20 h-14 rounded-xl text-white placeholder:text-white/40 pr-12 focus:border-[var(--ink-blue-bright)] smooth-transition"
                         {...field}
                       />
                       <Button

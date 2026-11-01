@@ -122,8 +122,8 @@ export function EmergencyServices({
 
   const serviceIcons: Record<EmergencyService["type"], { icon: string; color: string }> = {
     hospital: { icon: "fas fa-hospital", color: "text-red-500" },
-    police: { icon: "fas fa-shield-alt", color: "text-[#1D4E89] dark:text-blue-400" },
-    embassy: { icon: "fas fa-building", color: "text-[#163F73]" },
+    police: { icon: "fas fa-shield-alt", color: "text-[var(--ink-blue-text)] dark:text-blue-400" },
+    embassy: { icon: "fas fa-building", color: "text-[var(--ink-blue-text)]" },
     fire: { icon: "fas fa-fire-extinguisher", color: "text-red-500" },
     pharmacy: { icon: "fas fa-pills", color: "text-emerald-500" },
   };
@@ -209,7 +209,7 @@ export function EmergencyServices({
             variant="ghost"
             size="sm"
             onClick={handleShareLocation}
-            className="text-[#1D4E89] dark:text-blue-400 hover:text-blue-600 flex-shrink-0"
+            className="text-[var(--ink-blue-text)] dark:text-blue-400 hover:text-blue-600 flex-shrink-0"
           >
             <i className="fas fa-share-alt mr-1"></i> Share
           </Button>
@@ -284,7 +284,7 @@ export function EmergencyServices({
                           )}
                         </div>
                       </div>
-                      <span className="text-xs text-[#1D4E89] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
+                      <span className="text-xs text-[var(--ink-blue-text)] dark:text-blue-400 bg-[#1D4E89]/10 px-2 py-1 rounded">
                         {service.type.charAt(0).toUpperCase() + service.type.slice(1)}
                       </span>
                     </div>
@@ -315,7 +315,7 @@ export function EmergencyServices({
 
         {/* Local Numbers Reference */}
         <div className="bg-[#1D4E89]/10 rounded-xl p-4 border border-[#1D4E89]/20">
-          <h4 className="font-medium text-[#1D4E89] dark:text-blue-400 mb-2 flex items-center text-sm">
+          <h4 className="font-medium text-[var(--ink-blue-text)] dark:text-blue-400 mb-2 flex items-center text-sm">
             <i className="fas fa-info-circle mr-2"></i>
             Local Emergency Stats ({countryCode})
           </h4>

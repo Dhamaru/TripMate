@@ -479,7 +479,7 @@ export default function Journal() {
                       size="sm"
                       onClick={handleAiEnhance}
                       disabled={isAugmenting}
-                      className="text-[var(--amber)] hover:text-[var(--amber)] hover:bg-[var(--amber-dim)] h-7 text-xs gap-1"
+                      className="text-[var(--ink-blue-text)] hover:text-[var(--ink-blue-text)] hover:bg-[var(--amber-dim)] h-7 text-xs gap-1"
                     >
                       <Sparkles className="w-3 h-3" />
                       {isAugmenting ? "Enhancing…" : "AI Enhance"}
@@ -489,7 +489,7 @@ export default function Journal() {
                       variant="ghost"
                       size="sm"
                       onClick={isListening ? stopListening : startListening}
-                      className={`h-7 text-xs gap-1 ${isListening ? "text-destructive animate-pulse" : "text-[var(--explorer-blue)] hover:bg-[var(--amber-dim)]"}`}
+                      className={`h-7 text-xs gap-1 ${isListening ? "text-destructive animate-pulse" : "text-[var(--ink-blue-text)] hover:bg-[var(--amber-dim)]"}`}
                     >
                       {isListening ? <Square className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                       {isListening ? "Stop" : "Dictate"}
@@ -528,7 +528,7 @@ export default function Journal() {
                 />
                 {photos && photos.length > 0 && (
                   <div className="mt-2 p-3 bg-[var(--amber-dim)] border border-[var(--amber-hover-border)] rounded-xl">
-                    <p className="text-sm text-[var(--amber)] font-semibold mb-1">
+                    <p className="text-sm text-[var(--ink-blue-text)] font-semibold mb-1">
                       {photos.length} file{photos.length > 1 ? "s" : ""} selected
                     </p>
                     <ul className="text-xs text-muted-foreground space-y-0.5">
@@ -729,7 +729,7 @@ export default function Journal() {
                                   size="sm"
                                   variant="ghost"
                                   aria-label="Delete entry"
-                                  className="h-10 w-10 p-0 text-[var(--stamp-red)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] text-xs"
+                                  className="h-10 w-10 p-0 text-[var(--stamp-red-text)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] text-xs"
                                 >
                                   ✕
                                 </Button>
@@ -745,7 +745,7 @@ export default function Journal() {
                                 {entry.title}
                               </h4>
                               {entry.location && (
-                                <span className="text-[10px] text-[var(--amber)] bg-[var(--amber-dim)] px-1.5 py-0.5 rounded-full flex-shrink-0 flex items-center border border-[var(--amber-hover-border)]">
+                                <span className="text-[11px] text-[var(--ink-blue-text)] bg-[var(--amber-dim)] px-1.5 py-0.5 rounded-full flex-shrink-0 flex items-center border border-[var(--amber-hover-border)]">
                                   <MapPin className="w-2.5 h-2.5 mr-1" />
                                   <span className="truncate max-w-[80px]">{entry.location}</span>
                                 </span>
@@ -755,7 +755,7 @@ export default function Journal() {
                               {entry.content}
                             </p>
                           </div>
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2">
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-2">
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               {new Date(entry.createdAt).toLocaleTimeString([], {

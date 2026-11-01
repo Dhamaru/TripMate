@@ -340,7 +340,7 @@ export function NotificationBell() {
             // text on navy (design-audit P0). An unread count is an alert,
             // not a primary action — stamp-red + white reads correctly and
             // matches the alert semantic.
-            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-[var(--stamp-red)] text-white text-[9px] font-bold flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-[var(--stamp-red)] text-white text-[11px] font-bold flex items-center justify-center">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -405,7 +405,7 @@ export function NotificationBell() {
             {notifications.length > 0 && (
               <button
                 onClick={clearAll}
-                className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[var(--stamp-red)]"
+                className="text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[var(--stamp-red-text)]"
               >
                 Clear all
               </button>
@@ -421,7 +421,7 @@ export function NotificationBell() {
             <button
               onClick={deleteSelected}
               disabled={selected.size === 0}
-              className="flex items-center gap-1 text-[11px] text-[var(--stamp-red)] hover:underline disabled:opacity-40 disabled:hover:no-underline"
+              className="flex items-center gap-1 text-[11px] text-[var(--stamp-red-text)] hover:underline disabled:opacity-40 disabled:hover:no-underline"
             >
               <Trash2 className="h-3 w-3" /> Delete selected
             </button>
@@ -500,7 +500,7 @@ export function NotificationBell() {
                           {notif.message}
                         </p>
                         <div className="flex items-center justify-between gap-2 mt-1">
-                          <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                          <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
                             {timeAgo(notif.createdAt)}
                           </span>
                           {isExpanded &&
@@ -532,7 +532,7 @@ export function NotificationBell() {
                             deleteOne(notif.id);
                           }}
                           aria-label="Delete notification"
-                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-[hsl(var(--muted-foreground))] hover:text-[var(--stamp-red)] transition-opacity p-0.5 -mr-1 -mt-0.5"
+                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-[hsl(var(--muted-foreground))] hover:text-[var(--stamp-red-text)] transition-opacity p-0.5 -mr-1 -mt-0.5"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>

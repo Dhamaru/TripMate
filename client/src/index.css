@@ -50,6 +50,20 @@
   --ink-blue-bright-rgb: 79 130 196;
 
   /* ── 8-Way Activity Category Ink Register ─────────────────── */
+  /* Text roles. The inks above are dark fills: fine with white text on top and
+     as text on light paper, but only 1.6-3.3:1 as text on the dark theme. Use
+     these for text and the plain inks for fills. */
+  --ink-blue-text: #6fa0e0;
+  --stamp-red-text: #f2837b;
+  --transit-green-text: #5cc08d;
+  --ink-sightseeing-text: #8ab4f0;
+  --ink-dining-text: #f0a070;
+  --ink-lodging-text: #a0aec0;
+  --ink-transit-text: #6fa0e0;
+  --ink-culture-text: #d9a441;
+  --ink-nature-text: #5cc08d;
+  --ink-nightlife-text: #f2837b;
+  --ink-shopping-text: #4fc4b0;
   --ink-sightseeing: #1e3a8a;
   --ink-sightseeing-rgb: 30 58 138;
   --ink-dining: #c2410c;
@@ -129,7 +143,7 @@
 
   --border: 211 20% 26%; /* subtle cool-ink border — top of the ramp */
   --input: 211 24% 21%;
-  --ring: 211 68% 27%;
+  --ring: 211 70% 66%;
 
   --hairline-lit: 0 0% 100% / 6%; /* simulated top-edge light source */
 
@@ -141,7 +155,7 @@
   --sidebar-accent: 211 28% 17%;
   --sidebar-accent-foreground: 38 20% 80%;
   --sidebar-border: 211 22% 21%;
-  --sidebar-ring: 211 68% 27%;
+  --sidebar-ring: 211 70% 66%;
 
   /* ── Legacy bridge (used by older components) ─────────── */
   --airbnb-ink: hsl(var(--foreground));
@@ -174,6 +188,17 @@
 /* ── Light mode overrides — kraft/parchment passport page ─────────── */
 .light {
   color-scheme: light;
+  --ink-blue-text: #163f73;
+  --stamp-red-text: #b3261e;
+  --transit-green-text: #2f6f4e;
+  --ink-sightseeing-text: #1e3a8a;
+  --ink-dining-text: #c2410c;
+  --ink-lodging-text: #334155;
+  --ink-transit-text: #1d4e89;
+  --ink-culture-text: #854d0e;
+  --ink-nature-text: #2f6f4e;
+  --ink-nightlife-text: #b3261e;
+  --ink-shopping-text: #0f766e;
   --background: 42 38% 90%; /* kraft/parchment paper    */
   --foreground: 211 40% 14%; /* ink-navy text            */
 
@@ -239,6 +264,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* Keep the layout's proportions on large screens. rem-based sizes and
+       max-widths are fixed at 1536x730 and grow with the window above that;
+       smaller screens stay at the browser's default size. */
+    font-size: clamp(100%, min(1.0417vw, 2.19vh), 200%);
   }
 
   body {
@@ -362,7 +391,7 @@
   }
   /* Uppercase label — tracked mono, like an official form field label */
   .label-xs {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -528,7 +557,7 @@
     align-items: center;
     border-radius: 3px;
     padding: 2px 8px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -606,7 +635,7 @@
     border-radius: 999px;
     border: 1px solid hsl(var(--border));
     background: hsl(var(--card));
-    color: var(--explorer-blue);
+    color: var(--ink-blue-text);
     font-size: 0.78rem;
     font-weight: 500;
     white-space: nowrap;

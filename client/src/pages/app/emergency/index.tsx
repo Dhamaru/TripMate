@@ -310,7 +310,7 @@ export default function EmergencyPage() {
             title="Use my location"
             disabled={loading}
           >
-            <i className="fas fa-location-arrow text-[var(--amber)]" />
+            <i className="fas fa-location-arrow text-[var(--ink-blue-text)]" />
           </Button>
           <Button
             onClick={() => {
@@ -326,7 +326,9 @@ export default function EmergencyPage() {
             title="Keep this list updated as you travel"
             disabled={loading}
           >
-            <i className={`fas fa-satellite-dish ${liveTracking ? "" : "text-[var(--amber)]"}`} />
+            <i
+              className={`fas fa-satellite-dish ${liveTracking ? "" : "text-[var(--ink-blue-text)]"}`}
+            />
           </Button>
         </div>
         {message && <p className="text-destructive mt-2 text-sm">{message}</p>}

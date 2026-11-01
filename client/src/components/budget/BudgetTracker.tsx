@@ -29,9 +29,9 @@ interface BudgetTrackerProps {
 // budget screen. Reusing the same 6-way activity-category ink register
 // index.css already defines rather than inventing a 7th color set).
 const COLORS = [
-  "#1e3a8a", // --ink-sightseeing
+  "#4f82c4", // --ink-sightseeing, lifted: the ink itself vanishes on the dark card
   "#c2410c", // --ink-dining
-  "#334155", // --ink-lodging
+  "#64748b", // --ink-lodging, lifted for the same reason
   "#854d0e", // --ink-culture
   "#2f6f4e", // --ink-nature
   "#0f766e", // --ink-shopping
@@ -234,15 +234,17 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
           >
             <Card className="bg-[rgb(var(--stamp-red-rgb)/10%)] border-[rgb(var(--stamp-red-rgb)/20%)] overflow-hidden">
               <CardContent className="p-4 flex items-start gap-3">
-                <div className="p-2 bg-[rgb(var(--stamp-red-rgb)/20%)] rounded-full text-[var(--stamp-red)]">
+                <div className="p-2 bg-[rgb(var(--stamp-red-rgb)/20%)] rounded-full text-[var(--stamp-red-text)]">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-[var(--stamp-red)]">High Burn Rate Detected</h4>
+                    <h4 className="font-bold text-[var(--stamp-red-text)]">
+                      High Burn Rate Detected
+                    </h4>
                     <Badge
                       variant="outline"
-                      className="text-[var(--stamp-red)] border-[rgb(var(--stamp-red-rgb)/50%)] bg-[rgb(var(--stamp-red-rgb)/10%)]"
+                      className="text-[var(--stamp-red-text)] border-[rgb(var(--stamp-red-rgb)/50%)] bg-[rgb(var(--stamp-red-rgb)/10%)]"
                     >
                       {Math.round((forecast.burnRate - 1) * 100)}% Over Target
                     </Badge>
@@ -275,7 +277,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">{spentLabel}</p>
-                <p className="text-2xl font-bold font-mono-data tabular-nums text-[var(--customs-blue)]">
+                <p className="text-2xl font-bold font-mono-data tabular-nums text-[var(--ink-blue-text)]">
                   {trip.currency || "INR"} {totalSpent.toLocaleString()}
                 </p>
               </div>
@@ -287,7 +289,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
               />
             </div>
             <p
-              className={`text-right mt-2 text-sm font-mono-data tabular-nums ${remaining < 0 ? "text-[var(--stamp-red)]" : "text-[var(--transit-green)]"}`}
+              className={`text-right mt-2 text-sm font-mono-data tabular-nums ${remaining < 0 ? "text-[var(--stamp-red-text)]" : "text-[var(--transit-green-text)]"}`}
             >
               {remaining < 0
                 ? `Over budget by ${Math.abs(remaining).toLocaleString()}`
@@ -346,7 +348,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
             <Card className="bg-[#1D4E89]/5 border-[#1D4E89]/20">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Lightbulb className="w-4 h-4 text-[#1D4E89] dark:text-blue-400" />
+                  <Lightbulb className="w-4 h-4 text-[var(--ink-blue-text)] dark:text-blue-400" />
                   AI Smart Pivots
                 </CardTitle>
               </CardHeader>
@@ -357,7 +359,9 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                       key={i}
                       className="flex gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border/50"
                     >
-                      <div className="text-[#1D4E89] dark:text-blue-400 font-bold">#{i + 1}</div>
+                      <div className="text-[var(--ink-blue-text)] dark:text-blue-400 font-bold">
+                        #{i + 1}
+                      </div>
                       <div>{pivot}</div>
                     </div>
                   ))}
@@ -370,7 +374,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                       {trip.currency || "INR"} {forecast?.estimatedFinalCost?.toLocaleString()}
                     </span>
                   </div>
-                  <div className="text-[#1D4E89] dark:text-blue-400 flex items-center gap-1">
+                  <div className="text-[var(--ink-blue-text)] dark:text-blue-400 flex items-center gap-1">
                     <i className="fas fa-robot"></i> AI Forecast
                   </div>
                 </div>
@@ -502,7 +506,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                   className="flex items-center justify-between p-3 bg-secondary rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[#1D4E89] dark:text-blue-400">
+                    <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[var(--ink-blue-text)] dark:text-blue-400">
                       <i
                         className={`fas fa-${expense.category === "Food" ? "utensils" : expense.category === "Transport" ? "car" : "tag"}`}
                       ></i>
@@ -532,7 +536,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(expense.id)}
-                      className="text-[var(--stamp-red)] hover:text-[rgb(var(--stamp-red-rgb)/80%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] h-8 w-8"
+                      className="text-[var(--stamp-red-text)] hover:text-[rgb(var(--stamp-red-rgb)/80%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] h-8 w-8"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

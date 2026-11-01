@@ -75,7 +75,7 @@ export function ChatMessageList() {
                 key={s}
                 type="button"
                 onClick={() => void streamMessage(s)}
-                className="text-left text-xs px-3 py-2 rounded-lg border border-border bg-card hover:border-[var(--explorer-blue)] hover:text-[var(--explorer-blue)] text-muted-foreground transition-colors"
+                className="text-left text-xs px-3 py-2 rounded-lg border border-border bg-card hover:border-[var(--explorer-blue)] hover:text-[var(--ink-blue-text)] text-muted-foreground transition-colors"
               >
                 {s}
               </button>
@@ -90,7 +90,7 @@ export function ChatMessageList() {
             className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             {msg.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-[var(--explorer-blue)] flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-bold text-white">
+              <div className="w-7 h-7 rounded-full bg-[var(--explorer-blue)] flex items-center justify-center flex-shrink-0 mt-0.5 text-[11px] font-bold text-white">
                 A
               </div>
             )}

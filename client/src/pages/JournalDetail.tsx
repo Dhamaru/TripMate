@@ -319,7 +319,7 @@ export default function JournalDetail() {
                       deleteEntryMutation.mutate(entry.id);
                     }
                   }}
-                  className="bg-card border-[var(--ios-red)] text-[var(--ios-red)] hover:bg-[var(--ios-red)] hover:text-white"
+                  className="bg-card border-[var(--ios-red)] text-[var(--stamp-red-text)] hover:bg-[var(--ios-red)] hover:text-white"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete
@@ -498,7 +498,7 @@ export default function JournalDetail() {
                     variants={itemVariants}
                     className="flex items-center bg-card px-3 py-1.5 rounded-full border border"
                   >
-                    <MapPin className="w-4 h-4 mr-2 text-[var(--explorer-blue)]" />
+                    <MapPin className="w-4 h-4 mr-2 text-[var(--ink-blue-text)]" />
                     <span className="text-sm font-medium text-foreground">{entry.location}</span>
                   </motion.div>
                 )}

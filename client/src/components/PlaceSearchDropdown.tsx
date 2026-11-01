@@ -100,9 +100,9 @@ export function PlaceSearchDropdown({
             onClick={() => onSelect(place)}
             className={`w-full text-left px-4 py-2.5 hover:bg-[var(--amber-dim)] border-b border-[hsl(var(--border))] last:border-0 transition-colors group flex items-start gap-2.5 ${i === activeIndex ? "bg-[var(--amber-dim)]" : ""}`}
           >
-            <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--amber)]" />
+            <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--ink-blue-text)]" />
             <div className="min-w-0">
-              <div className="font-medium text-[hsl(var(--foreground))] group-hover:text-[var(--amber)] transition-colors truncate">
+              <div className="font-medium text-[hsl(var(--foreground))] group-hover:text-[var(--ink-blue-text)] transition-colors truncate">
                 {place.name || place.display_name?.split(",")[0]}
               </div>
               {place.address && (

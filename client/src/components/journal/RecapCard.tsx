@@ -129,8 +129,8 @@ export function RecapCard({ recap, destination }: Props) {
               variants={item}
               className="p-4 rounded-2xl bg-muted/30 border border-border/50 text-center"
             >
-              <Heart className="h-4 w-4 mx-auto mb-2 text-[var(--ios-red)]" />
-              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">
+              <Heart className="h-4 w-4 mx-auto mb-2 text-[var(--stamp-red-text)]" />
+              <p className="text-[11px] uppercase font-bold text-muted-foreground tracking-tighter">
                 Memorable Moment
               </p>
               <p className="text-sm font-semibold mt-1 truncate">
@@ -141,8 +141,8 @@ export function RecapCard({ recap, destination }: Props) {
               variants={item}
               className="p-4 rounded-2xl bg-muted/30 border border-border/50 text-center"
             >
-              <Calendar className="h-4 w-4 mx-auto mb-2 text-[var(--explorer-blue)]" />
-              <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-tighter">
+              <Calendar className="h-4 w-4 mx-auto mb-2 text-[var(--ink-blue-text)]" />
+              <p className="text-[11px] uppercase font-bold text-muted-foreground tracking-tighter">
                 Atlas Wisdom
               </p>
               <p className="text-sm font-semibold mt-1 truncate">

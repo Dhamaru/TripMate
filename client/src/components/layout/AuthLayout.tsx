@@ -23,14 +23,14 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
         <div className="relative z-10 p-12 flex flex-col justify-between w-full">
           <header>
-            <TripMateLogo size="lg" showText={true} />
+            <TripMateLogo size="lg" showText={true} textClassName="text-white" />
           </header>
 
           <div className="space-y-6 max-w-md">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-5xl font-bold leading-tight"
+              className="text-5xl font-bold leading-tight text-white"
             >
               Your Intelligent <br />
               {/* Was --ink-blue (#163F73) on a black photo scrim — ~2:1
@@ -78,7 +78,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       {/* Form Side */}
       <main className="flex-1 flex flex-col p-6 md:p-12 overflow-y-auto">
         <div className="md:hidden mb-8">
-          <TripMateLogo size="md" showText={true} />
+          <TripMateLogo size="md" showText={true} textClassName="text-white" />
         </div>
 
         <div className="flex-1 flex items-center justify-center w-full max-w-[480px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">

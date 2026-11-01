@@ -243,7 +243,7 @@ function TripWeather({ location }: { location: string }) {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-mono-data text-[10px] uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">
+    <span className="font-mono-data text-[11px] uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">
       {children}
     </span>
   );
@@ -307,7 +307,7 @@ export default function Home() {
 
   const phaseTone =
     phase?.kind === "active"
-      ? "text-[var(--transit-green)]"
+      ? "text-[var(--transit-green-text)]"
       : phase?.kind === "past"
         ? "text-[hsl(var(--muted-foreground))]"
         : "text-[var(--ink-blue-bright)]";
@@ -370,7 +370,7 @@ export default function Home() {
               <div className="p-5 md:p-6 flex flex-col gap-5 bg-[rgb(var(--ink-blue-rgb)/4%)]">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <span className="font-mono-data text-[10px] uppercase tracking-[0.14em] text-[var(--ink-blue-bright)] font-semibold">
+                    <span className="font-mono-data text-[11px] uppercase tracking-[0.14em] text-[var(--ink-blue-bright)] font-semibold">
                       {currentTrip.status === "active"
                         ? "Current trip"
                         : currentTrip.status === "completed"
@@ -449,7 +449,9 @@ export default function Home() {
                     </div>
                     <div
                       className={`font-mono-data text-xs ${
-                        budget.over ? "text-[var(--stamp-red)]" : "text-[hsl(var(--foreground))]"
+                        budget.over
+                          ? "text-[var(--stamp-red-text)]"
+                          : "text-[hsl(var(--foreground))]"
                       }`}
                     >
                       {budget.hasBudget
@@ -477,7 +479,7 @@ export default function Home() {
                       <span
                         className={`font-mono-data ${
                           budget.over
-                            ? "text-[var(--stamp-red)]"
+                            ? "text-[var(--stamp-red-text)]"
                             : "text-[hsl(var(--muted-foreground))]"
                         }`}
                       >
@@ -504,7 +506,7 @@ export default function Home() {
                           {initials.map((ini, i) => (
                             <span
                               key={i}
-                              className="w-6 h-6 rounded-full border border-[hsl(var(--card))] bg-[hsl(var(--muted))] text-[9px] font-semibold text-[hsl(var(--foreground))] flex items-center justify-center font-sans-clean"
+                              className="w-6 h-6 rounded-full border border-[hsl(var(--card))] bg-[hsl(var(--muted))] text-[11px] font-semibold text-[hsl(var(--foreground))] flex items-center justify-center font-sans-clean"
                             >
                               {ini}
                             </span>
@@ -676,7 +678,7 @@ export default function Home() {
                       </div>
                     )}
                     <span
-                      className={`absolute top-2 right-2 text-[10px] font-mono-data uppercase tracking-[0.08em] px-2 py-0.5 rounded-full backdrop-blur-sm ${
+                      className={`absolute top-2 right-2 text-[11px] font-mono-data uppercase tracking-[0.08em] px-2 py-0.5 rounded-full backdrop-blur-sm ${
                         t.status === "active"
                           ? "bg-[rgb(var(--transit-green-rgb)/90%)] text-white"
                           : t.status === "completed"

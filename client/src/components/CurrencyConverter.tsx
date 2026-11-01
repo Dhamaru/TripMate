@@ -293,7 +293,7 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
           <div className="space-y-4">
             <div className="bg-muted rounded-xl p-4" data-testid="conversion-result">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl font-bold text-[var(--explorer-blue)] font-mono-data">
+                <span className="text-2xl font-bold text-[var(--ink-blue-text)] font-mono-data">
                   {(conversion.convertedAmount ?? 0).toLocaleString()}{" "}
                   {CURRENCIES.find((c) => c.code === toCurrency)?.symbol}
                 </span>
@@ -301,7 +301,7 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
               <p className="text-xs text-muted-foreground">
                 1 {fromCurrency} = {conversion.rate} {toCurrency}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
+              <p className="text-[11px] text-muted-foreground mt-1 opacity-70">
                 {conversion.disclaimer}
               </p>
             </div>
@@ -325,7 +325,7 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
                       borderColor: "hsl(var(--border))",
                       color: "hsl(var(--foreground))",
                     }}
-                    itemStyle={{ color: "var(--explorer-blue)" }}
+                    itemStyle={{ color: "var(--ink-blue-text)" }}
                     formatter={(value: number) => [value, "Rate"]}
                     labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                   />

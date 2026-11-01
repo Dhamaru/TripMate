@@ -145,7 +145,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div className="font-display text-[15px] font-bold text-[hsl(var(--sidebar-foreground))] leading-none tracking-tight">
                   TripMate
                 </div>
-                <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.12em] mt-0.5 font-sans-clean">
+                <div className="text-[11px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.12em] mt-0.5 font-sans-clean">
                   AI Companion
                 </div>
               </div>
@@ -170,7 +170,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         className={cn(
                           "flex items-center justify-center h-10 cursor-pointer relative group rounded-lg transition-all duration-150",
                           isGroupActive
-                            ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                            ? "text-[var(--ink-blue-text)] bg-[var(--amber-dim)]"
                             : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
                         )}
                         title={item.label}
@@ -188,7 +188,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         className={cn(
                           "w-full flex items-center gap-3 h-10 px-3 cursor-pointer relative group rounded-lg transition-all duration-150",
                           isGroupActive
-                            ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                            ? "text-[var(--ink-blue-text)] bg-[var(--amber-dim)]"
                             : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
                         )}
                       >
@@ -198,7 +198,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <item.icon
                           className={cn(
                             "h-[18px] w-[18px] flex-shrink-0 transition-all duration-150",
-                            isGroupActive ? "text-[var(--ink-blue)]" : "group-hover:scale-110",
+                            isGroupActive ? "text-[var(--ink-blue-text)]" : "group-hover:scale-110",
                           )}
                         />
                         <span className="text-[13px] font-medium tracking-wide whitespace-nowrap font-sans-clean flex-1 text-left">
@@ -231,7 +231,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       className={cn(
                                         "flex items-center gap-2.5 h-8 [@media(pointer:coarse)]:h-10 px-2 rounded-md cursor-pointer text-[12.5px] font-medium transition-colors duration-150",
                                         toolActive
-                                          ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                                          ? "text-[var(--ink-blue-text)] bg-[var(--amber-dim)]"
                                           : "text-[hsl(var(--foreground)/0.55)] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
                                       )}
                                     >
@@ -261,7 +261,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     "flex items-center gap-3 h-10 cursor-pointer relative group transition-all duration-150 rounded-lg",
                     collapsed ? "px-0 justify-center" : "px-3",
                     isActive
-                      ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                      ? "text-[var(--ink-blue-text)] bg-[var(--amber-dim)]"
                       : // Senior-review finding: --muted-foreground reads fine
                         // for body text but was borderline invisible on an
                         // 18px icon glyph against the dark ground — icons
@@ -277,7 +277,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <item.icon
                     className={cn(
                       "h-[18px] w-[18px] flex-shrink-0 transition-all duration-150",
-                      isActive ? "text-[var(--ink-blue)]" : "group-hover:scale-110",
+                      isActive ? "text-[var(--ink-blue-text)]" : "group-hover:scale-110",
                     )}
                   />
                   {!collapsed && (
@@ -329,7 +329,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             title="Toggle theme"
           >
             {theme === "dark" ? (
-              <Sun className="h-[16px] w-[16px] text-[var(--ink-blue)] flex-shrink-0" />
+              <Sun className="h-[16px] w-[16px] text-[var(--ink-blue-text)] flex-shrink-0" />
             ) : (
               <Moon className="h-[16px] w-[16px] flex-shrink-0" />
             )}
@@ -359,7 +359,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <div className="text-[12px] font-semibold text-[hsl(var(--foreground))] truncate font-sans-clean">
                     {user?.firstName} {user?.lastName}
                   </div>
-                  <div className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.08em] font-sans-clean">
+                  <div className="text-[11px] text-[hsl(var(--muted-foreground))] uppercase tracking-[0.08em] font-sans-clean">
                     {user?.isGuest ? "Guest" : "Member"}
                   </div>
                 </div>
@@ -432,12 +432,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Link href="/app/profile">
               <div className="flex items-center gap-3 cursor-pointer group min-h-10">
                 {user?.isGuest && (
-                  <span className="bg-[var(--amber-dim)] text-[var(--ink-blue)] text-[9px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
+                  <span className="bg-[var(--amber-dim)] text-[var(--ink-blue-text)] text-[11px] px-2 py-0.5 rounded-full border border-[var(--amber-dim)] font-bold tracking-wide">
                     GUEST
                   </span>
                 )}
                 <div className="hidden md:flex flex-col items-end">
-                  <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--ink-blue)] transition-colors flex items-center gap-1.5 font-sans-clean">
+                  <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] group-hover:text-[var(--ink-blue-text)] transition-colors flex items-center gap-1.5 font-sans-clean">
                     {user?.firstName} {user?.lastName}
                   </span>
                   <span className="label-xs text-[hsl(var(--muted-foreground))]">
@@ -530,7 +530,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         className={cn(
                           "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium",
                           active
-                            ? "text-[var(--ink-blue)] bg-[var(--amber-dim)]"
+                            ? "text-[var(--ink-blue-text)] bg-[var(--amber-dim)]"
                             : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
                         )}
                       >
@@ -560,7 +560,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   className={cn(
                     "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl transition-all duration-150",
                     isActive
-                      ? "text-[var(--ink-blue)]"
+                      ? "text-[var(--ink-blue-text)]"
                       : "text-[hsl(var(--foreground)/0.62)] hover:text-[hsl(var(--foreground))]",
                   )}
                 >
@@ -597,7 +597,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-all">
                 <Avatar className="h-[18px] w-[18px] rounded-full border border-[hsl(var(--border))]">
                   <AvatarImage src={user?.profileImageUrl} />
-                  <AvatarFallback className="bg-[var(--amber)] text-white text-[8px] font-bold">
+                  <AvatarFallback className="bg-[var(--amber)] text-white text-[11px] font-bold">
                     {user?.firstName?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>

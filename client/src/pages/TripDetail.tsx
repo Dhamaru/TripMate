@@ -52,9 +52,9 @@ import {
 import { Copy, Check } from "lucide-react";
 
 const travelStyles = [
-  { id: "adventure", icon: Mountain, name: "Adventure", color: "text-[var(--customs-blue)]" },
+  { id: "adventure", icon: Mountain, name: "Adventure", color: "text-[var(--ink-blue-text)]" },
   { id: "relaxed", icon: Armchair, name: "Relaxed", color: "text-amber-500" },
-  { id: "cultural", icon: Landmark, name: "Cultural", color: "text-[var(--customs-blue)]" },
+  { id: "cultural", icon: Landmark, name: "Cultural", color: "text-[var(--ink-blue-text)]" },
   { id: "culinary", icon: Utensils, name: "Culinary", color: "text-emerald-500" },
 ];
 
@@ -63,11 +63,11 @@ const travelStyles = [
 // against the light paper ground.
 const statusColors = {
   planning:
-    "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--customs-blue)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
+    "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--ink-blue-text)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
   active:
-    "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green)] border border-[rgb(var(--transit-green-rgb)/40%)]",
+    "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green-text)] border border-[rgb(var(--transit-green-rgb)/40%)]",
   completed:
-    "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
+    "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red-text)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
 };
 
 // Throws on a failed search (rate-limited, upstream error) so the empty-state can tell "search failed" from a genuine zero-result search.
@@ -86,7 +86,7 @@ export default function TripDetail() {
     const c = (condition || "").toLowerCase();
     if (c.includes("clear") || c.includes("sun")) return "fas fa-sun text-amber-500";
     if (c.includes("rain") || c.includes("drizzle"))
-      return "fas fa-cloud-rain text-[var(--customs-blue)]";
+      return "fas fa-cloud-rain text-[var(--ink-blue-text)]";
     if (c.includes("snow")) return "fas fa-snowflake text-blue-200";
     if (c.includes("storm") || c.includes("thunder")) return "fas fa-bolt text-purple-400";
     return "fas fa-cloud text-muted-foreground";
@@ -611,9 +611,9 @@ export default function TripDetail() {
           onClick={() => addPlaceToItinerary(place, type)}
           disabled={addActivityMutation.isPending}
           data-testid="button-add-place-to-itinerary"
-          className="text-xs text-[var(--explorer-blue)] hover:underline inline-flex items-center disabled:opacity-50"
+          className="text-xs text-[var(--ink-blue-text)] hover:underline inline-flex items-center disabled:opacity-50"
         >
-          <i className="fas fa-plus mr-1 text-[10px]"></i> Add to Itinerary
+          <i className="fas fa-plus mr-1 text-[11px]"></i> Add to Itinerary
         </button>
         {hasCoords && (
           <button
@@ -622,9 +622,9 @@ export default function TripDetail() {
               handleViewOnMap(place.location.lat, place.location.lng, place.name || place.title)
             }
             data-testid="button-view-place-on-map"
-            className="text-xs text-[var(--explorer-blue)] hover:underline inline-flex items-center"
+            className="text-xs text-[var(--ink-blue-text)] hover:underline inline-flex items-center"
           >
-            View on Map <i className="fas fa-map-marker-alt ml-1 text-[10px]"></i>
+            View on Map <i className="fas fa-map-marker-alt ml-1 text-[11px]"></i>
           </button>
         )}
       </div>
@@ -1017,7 +1017,7 @@ export default function TripDetail() {
       <div className=" flex items-center justify-center">
         <Card className="bg-card border-border max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="text-[var(--stamp-red)] mb-4">
+            <div className="text-[var(--stamp-red-text)] mb-4">
               <i className="fas fa-exclamation-triangle text-5xl"></i>
             </div>
             <h2 className="text-xl font-bold text-foreground mb-2">
@@ -1189,7 +1189,7 @@ export default function TripDetail() {
                       className="w-1.5 h-1.5 bg-[var(--customs-blue)] rounded-full"
                     />
                   </div>
-                  <span className="text-xs font-medium text-[var(--customs-blue)]">
+                  <span className="text-xs font-medium text-[var(--ink-blue-text)]">
                     Atlas is thinking...
                   </span>
                 </motion.div>
@@ -1215,7 +1215,7 @@ export default function TripDetail() {
                       aria-label="Share trip"
                       variant="outline"
                       size="sm"
-                      className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] no-print"
+                      className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue-text)] no-print"
                       data-testid="button-share-trip"
                     >
                       <i className="fas fa-share-nodes md:mr-2"></i>
@@ -1233,7 +1233,7 @@ export default function TripDetail() {
                       aria-label="Print trip"
                       variant="outline"
                       size="sm"
-                      className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] no-print"
+                      className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue-text)] no-print"
                       data-testid="button-print-itinerary"
                     >
                       <i className="fas fa-print md:mr-2"></i>
@@ -1252,7 +1252,7 @@ export default function TripDetail() {
                           aria-label="Edit trip"
                           variant="outline"
                           size="sm"
-                          className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue)] "
+                          className="border-border text-foreground hover:border-[var(--ink-blue)] hover:text-[var(--ink-blue-text)] "
                           data-testid="button-edit-trip"
                         >
                           <i className="fas fa-edit md:mr-2"></i>
@@ -1265,7 +1265,7 @@ export default function TripDetail() {
                           aria-label="Delete trip"
                           variant="outline"
                           size="sm"
-                          className="bg-muted/50 border-[var(--stamp-red)] text-[var(--stamp-red)] hover:bg-[var(--stamp-red-deep)] hover:text-white "
+                          className="bg-muted/50 border-[var(--stamp-red)] text-[var(--stamp-red-text)] hover:bg-[var(--stamp-red-deep)] hover:text-white "
                           data-testid="button-delete-trip"
                         >
                           <i className="fas fa-trash md:mr-2"></i>
@@ -1294,7 +1294,7 @@ export default function TripDetail() {
                 {(trip as any).imageCaption && (
                   <div className="absolute bottom-4 left-4 z-10">
                     <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                      <i className="fas fa-camera text-[var(--customs-blue)] text-xs"></i>
+                      <i className="fas fa-camera text-[var(--ink-blue-text)] text-xs"></i>
                       <span className="text-white text-xs font-medium tracking-wide drop-shadow-sm">
                         {(trip as any).imageCaption}
                       </span>
@@ -1373,7 +1373,7 @@ export default function TripDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
-                      Destination <span className="text-[var(--stamp-red)]">*</span>
+                      Destination <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <Input
                       type="text"
@@ -1438,7 +1438,7 @@ export default function TripDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
-                      Trip Duration <span className="text-[var(--stamp-red)]">*</span>
+                      Trip Duration <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <div className="relative">
                       <Input
@@ -1456,7 +1456,7 @@ export default function TripDetail() {
                     {Array.isArray(trip.itinerary) &&
                       trip.itinerary.length > 0 &&
                       Number(tripForm.days) < trip.itinerary.length && (
-                        <p className="text-xs text-[var(--ink-blue)] mt-1.5">
+                        <p className="text-xs text-[var(--ink-blue-text)] mt-1.5">
                           Your itinerary has {trip.itinerary.length}{" "}
                           {trip.itinerary.length === 1 ? "day" : "days"} planned — saving will ask
                           you to confirm before removing the extra{" "}
@@ -1495,7 +1495,7 @@ export default function TripDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-foreground mb-2">
-                      Group Size <span className="text-[var(--stamp-red)]">*</span>
+                      Group Size <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     {/* Live-reported: this field was required by handleSave's
                         validation and included in every PUT payload, but had
@@ -1541,7 +1541,7 @@ export default function TripDetail() {
 
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Travel Style <span className="text-[var(--stamp-red)]">*</span>
+                    Travel Style <span className="text-[var(--stamp-red-text)]">*</span>
                   </label>
                   {/* Live-reported (friend's feedback): "the Travel Style
                       section shows only one option" — that was true twice
@@ -1717,7 +1717,7 @@ export default function TripDetail() {
                   <Card className="bg-card border-[rgb(var(--transit-green-rgb)/40%)] border-2">
                     <CardHeader>
                       <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <span className="stamp text-[10px] text-[var(--forest)]">Today</span>
+                        <span className="stamp text-[11px] text-[var(--forest)]">Today</span>
                         Day {todayDay.day ?? todayDay.dayIndex + 1}
                       </CardTitle>
                     </CardHeader>
@@ -1753,12 +1753,12 @@ export default function TripDetail() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-muted/50 rounded-xl">
-                    <i className="fas fa-calendar text-[var(--customs-blue)] text-xl mb-2"></i>
+                    <i className="fas fa-calendar text-[var(--ink-blue-text)] text-xl mb-2"></i>
                     <p className="text-sm text-muted-foreground">Duration</p>
                     <p className="font-bold text-foreground">{trip.days} days</p>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-xl">
-                    <i className="fas fa-wallet text-[var(--transit-green)] text-xl mb-2"></i>
+                    <i className="fas fa-wallet text-[var(--transit-green-text)] text-xl mb-2"></i>
                     <p className="text-sm text-muted-foreground">Budget</p>
                     <p className="font-bold text-foreground">
                       {getCurrencySymbol(trip.currency)}
@@ -1816,7 +1816,7 @@ export default function TripDetail() {
                   {trip.transportMode && (
                     <div className="text-center p-4 bg-muted/50 rounded-xl">
                       <i
-                        className={`${trip.transportMode === "flight" ? "fas fa-plane" : trip.transportMode === "train" ? "fas fa-train" : trip.transportMode === "bus" ? "fas fa-bus" : trip.transportMode === "car" ? "fas fa-car-side" : "fas fa-ship"} text-[var(--customs-blue)] text-xl mb-2`}
+                        className={`${trip.transportMode === "flight" ? "fas fa-plane" : trip.transportMode === "train" ? "fas fa-train" : trip.transportMode === "bus" ? "fas fa-bus" : trip.transportMode === "car" ? "fas fa-car-side" : "fas fa-ship"} text-[var(--ink-blue-text)] text-xl mb-2`}
                       ></i>
                       <p className="text-sm text-muted-foreground">Transport</p>
                       <p className="font-bold text-foreground capitalize">{trip.transportMode}</p>
@@ -1851,7 +1851,7 @@ export default function TripDetail() {
                   aria-label="Have Atlas build a weather-aware packing list for this trip"
                 >
                   <div className="flex items-center gap-3">
-                    <i className="fas fa-suitcase-rolling text-[var(--customs-blue)] text-lg"></i>
+                    <i className="fas fa-suitcase-rolling text-[var(--ink-blue-text)] text-lg"></i>
                     <div>
                       <p className="font-semibold text-foreground">Smart packing list</p>
                       <p className="text-xs text-muted-foreground">
@@ -1895,7 +1895,7 @@ export default function TripDetail() {
                         {hacks.economicalAlternatives.map((alt: string, i: number) => (
                           <div
                             key={i}
-                            className="bg-[rgb(var(--transit-green-rgb)/10%)] border border-[rgb(var(--transit-green-rgb)/20%)] rounded-xl p-3 text-xs text-[var(--transit-green)]"
+                            className="bg-[rgb(var(--transit-green-rgb)/10%)] border border-[rgb(var(--transit-green-rgb)/20%)] rounded-xl p-3 text-xs text-[var(--transit-green-text)]"
                           >
                             <i className="fas fa-wallet mr-2"></i>
                             {alt}
@@ -1911,7 +1911,7 @@ export default function TripDetail() {
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <i className="fas fa-leaf text-[var(--transit-green)]"></i>
+                    <i className="fas fa-leaf text-[var(--transit-green-text)]"></i>
                     Escape the Crowds
                   </CardTitle>
                 </CardHeader>
@@ -1926,7 +1926,7 @@ export default function TripDetail() {
                           {spot.crowdLevel && (
                             <Badge
                               variant="outline"
-                              className="text-xs bg-[rgb(var(--transit-green-rgb)/15%)] text-[var(--transit-green)] border-[rgb(var(--transit-green-rgb)/40%)]"
+                              className="text-xs bg-[rgb(var(--transit-green-rgb)/15%)] text-[var(--transit-green-text)] border-[rgb(var(--transit-green-rgb)/40%)]"
                             >
                               <i className="fas fa-users-slash mr-1"></i> {spot.crowdLevel} Crowds
                             </Badge>
@@ -1934,7 +1934,7 @@ export default function TripDetail() {
                           {spot.type && (
                             <Badge
                               variant="outline"
-                              className="text-xs bg-[rgb(var(--customs-blue-rgb)/15%)] text-[var(--customs-blue)] border-[rgb(var(--customs-blue-rgb)/40%)]"
+                              className="text-xs bg-[rgb(var(--customs-blue-rgb)/15%)] text-[var(--ink-blue-text)] border-[rgb(var(--customs-blue-rgb)/40%)]"
                             >
                               {spot.type}
                             </Badge>
@@ -1949,7 +1949,7 @@ export default function TripDetail() {
                           )}
                         </div>
 
-                        <div className="text-xs text-[var(--customs-blue)] bg-[rgb(var(--customs-blue-rgb)/10%)] border border-[rgb(var(--customs-blue-rgb)/20%)] p-2 rounded-lg">
+                        <div className="text-xs text-[var(--ink-blue-text)] bg-[rgb(var(--customs-blue-rgb)/10%)] border border-[rgb(var(--customs-blue-rgb)/20%)] p-2 rounded-lg">
                           <i className="fas fa-info-circle mr-2"></i>
                           {spot.reason}
                         </div>
@@ -2003,7 +2003,7 @@ export default function TripDetail() {
             <div id="suggested-places-section" className="space-y-6">
               <div className="flex flex-col items-center gap-4">
                 <h3 className="text-foreground font-semibold text-lg flex items-center gap-2">
-                  <i className="fas fa-map-marked-alt text-[var(--customs-blue)]"></i>
+                  <i className="fas fa-map-marked-alt text-[var(--ink-blue-text)]"></i>
                   What are you looking for at your destination?
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg mx-auto">
@@ -2074,7 +2074,7 @@ export default function TripDetail() {
                           {showHotels && (
                             <div>
                               <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
-                                <i className="fas fa-bed text-[var(--customs-blue)]"></i> Hotels
+                                <i className="fas fa-bed text-[var(--ink-blue-text)]"></i> Hotels
                               </div>
                               {placesTarget?.category === "hotels" && (
                                 <div
@@ -2086,7 +2086,7 @@ export default function TripDetail() {
                                     type="button"
                                     onClick={() => setPlacesTarget(null)}
                                     data-testid="button-show-all-hotels"
-                                    className="text-[var(--explorer-blue)] hover:underline"
+                                    className="text-[var(--ink-blue-text)] hover:underline"
                                   >
                                     Show all hotels
                                   </button>
@@ -2143,7 +2143,7 @@ export default function TripDetail() {
                                     })}
                                     {hotelsError ? (
                                       <div className="text-xs" data-testid="error-hotels">
-                                        <p className="text-[var(--ios-red)]">
+                                        <p className="text-[var(--stamp-red-text)]">
                                           Couldn't load hotels — the search failed, not that there
                                           aren't any.
                                         </p>
@@ -2151,7 +2151,7 @@ export default function TripDetail() {
                                           type="button"
                                           onClick={() => refetchHotels()}
                                           data-testid="button-retry-hotels"
-                                          className="text-[var(--explorer-blue)] hover:underline mt-1"
+                                          className="text-[var(--ink-blue-text)] hover:underline mt-1"
                                         >
                                           Try again
                                         </button>
@@ -2185,7 +2185,7 @@ export default function TripDetail() {
                                     type="button"
                                     onClick={() => setPlacesTarget(null)}
                                     data-testid="button-show-all-restaurants"
-                                    className="text-[var(--explorer-blue)] hover:underline"
+                                    className="text-[var(--ink-blue-text)] hover:underline"
                                   >
                                     Show all restaurants
                                   </button>
@@ -2242,7 +2242,7 @@ export default function TripDetail() {
                                     })}
                                     {foodError ? (
                                       <div className="text-xs" data-testid="error-restaurants">
-                                        <p className="text-[var(--ios-red)]">
+                                        <p className="text-[var(--stamp-red-text)]">
                                           Couldn't load restaurants — the search failed, not that
                                           there aren't any.
                                         </p>
@@ -2250,7 +2250,7 @@ export default function TripDetail() {
                                           type="button"
                                           onClick={() => refetchFood()}
                                           data-testid="button-retry-restaurants"
-                                          className="text-[var(--explorer-blue)] hover:underline mt-1"
+                                          className="text-[var(--ink-blue-text)] hover:underline mt-1"
                                         >
                                           Try again
                                         </button>
@@ -2314,7 +2314,7 @@ export default function TripDetail() {
                                     ))}
                                     {sightsError ? (
                                       <div className="text-xs" data-testid="error-spots">
-                                        <p className="text-[var(--ios-red)]">
+                                        <p className="text-[var(--stamp-red-text)]">
                                           Couldn't load spots — the search failed, not that there
                                           aren't any.
                                         </p>
@@ -2322,7 +2322,7 @@ export default function TripDetail() {
                                           type="button"
                                           onClick={() => refetchSights()}
                                           data-testid="button-retry-spots"
-                                          className="text-[var(--explorer-blue)] hover:underline mt-1"
+                                          className="text-[var(--ink-blue-text)] hover:underline mt-1"
                                         >
                                           Try again
                                         </button>
@@ -2491,7 +2491,7 @@ export default function TripDetail() {
                   aria-label="Copy link"
                 >
                   {linkCopied ? (
-                    <Check className="h-4 w-4 text-[var(--transit-green)]" />
+                    <Check className="h-4 w-4 text-[var(--transit-green-text)]" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
@@ -2502,7 +2502,7 @@ export default function TripDetail() {
                 size="sm"
                 onClick={() => toggleShare(false)}
                 disabled={shareLoading}
-                className="text-[var(--stamp-red)] border-[rgb(var(--stamp-red-rgb)/50%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)]"
+                className="text-[var(--stamp-red-text)] border-[rgb(var(--stamp-red-rgb)/50%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)]"
               >
                 {shareLoading ? "Working…" : "Stop sharing"}
               </Button>

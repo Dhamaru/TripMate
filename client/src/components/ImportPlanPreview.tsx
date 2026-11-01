@@ -47,9 +47,9 @@ function ActivityRow({ act }: { act: any }) {
         {isMeal ? (
           <Utensils className="w-4 h-4 text-[var(--emerald-horizon)]" />
         ) : isTimeSensitive ? (
-          <Clock className="w-4 h-4 text-[var(--amber)]" />
+          <Clock className="w-4 h-4 text-[var(--ink-blue-text)]" />
         ) : (
-          <MapPin className="w-4 h-4 text-[var(--explorer-blue)]" />
+          <MapPin className="w-4 h-4 text-[var(--ink-blue-text)]" />
         )}
       </div>
       <div className="min-w-0 flex-1">
@@ -63,7 +63,7 @@ function ActivityRow({ act }: { act: any }) {
         </div>
         {act.whyVisit && <p className="text-xs text-muted-foreground mt-0.5">{act.whyVisit}</p>}
         {isTimeSensitive && act.timeNote && (
-          <p className="text-xs text-[var(--amber)] mt-1 flex items-center gap-1">
+          <p className="text-xs text-[var(--ink-blue-text)] mt-1 flex items-center gap-1">
             <Sunrise className="w-3 h-3 shrink-0" /> {act.timeNote}
           </p>
         )}
@@ -110,7 +110,7 @@ function DayCard({ day, defaultOpen }: { day: any; defaultOpen: boolean }) {
         <CollapsibleContent>
           <CardContent className="pt-0 px-4 pb-4">
             {day.headlineExperience && (
-              <p className="text-sm text-[var(--amber)] font-medium mb-2">
+              <p className="text-sm text-[var(--ink-blue-text)] font-medium mb-2">
                 ✨ {day.headlineExperience}
               </p>
             )}
@@ -125,7 +125,7 @@ function DayCard({ day, defaultOpen }: { day: any; defaultOpen: boolean }) {
             </div>
             {day.departureReminder && (
               <div className="mt-3 rounded-lg border border-[rgb(var(--ios-red-rgb)/40%)] bg-[rgb(var(--ios-red-rgb)/10%)] px-3 py-2.5 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-[var(--ios-red)] shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-[var(--stamp-red-text)] shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <p className="font-semibold text-foreground">
                     Depart by {show(day.departureReminder.departBy)} —{" "}
@@ -179,7 +179,7 @@ export function ImportPlanPreview({
                 {plan?.tripStyle ? ` · ${plan.tripStyle}` : ""}
               </p>
             </div>
-            <Badge variant="outline" className="border-[var(--amber)] text-[var(--amber)]">
+            <Badge variant="outline" className="border-[var(--amber)] text-[var(--ink-blue-text)]">
               {bracketLabel}
             </Badge>
           </div>
@@ -197,7 +197,7 @@ export function ImportPlanPreview({
         <Card className="bg-card border elev-1">
           <CardContent className="p-4">
             <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
-              <ListChecks className="w-4 h-4 text-[var(--explorer-blue)]" /> Booking priorities
+              <ListChecks className="w-4 h-4 text-[var(--ink-blue-text)]" /> Booking priorities
             </h3>
             <div className="space-y-2">
               {plan.bookingPriorities.map((b: any, i: number) => (

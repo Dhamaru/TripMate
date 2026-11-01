@@ -74,7 +74,7 @@ export function ChatInput() {
       />
       {text.length >= COUNTER_THRESHOLD && (
         <span
-          className="absolute right-14 bottom-14 text-[10px] text-muted-foreground"
+          className="absolute right-14 bottom-14 text-[11px] text-muted-foreground"
           aria-label={`${MAX_CHARS - text.length} characters remaining`}
         >
           {MAX_CHARS - text.length}

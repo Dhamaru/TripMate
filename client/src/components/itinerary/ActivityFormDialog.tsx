@@ -167,7 +167,7 @@ export function ActivityFormDialog({
               htmlFor="placeSearch"
               className="text-foreground font-medium mb-1.5 flex items-center gap-2"
             >
-              <MapPin className="w-4 h-4 text-[var(--explorer-blue)]" />
+              <MapPin className="w-4 h-4 text-[var(--ink-blue-text)]" />
               Find Location
             </Label>
             <div className="relative">
@@ -268,7 +268,7 @@ export function ActivityFormDialog({
                 rows={2}
               />
               {formData.lat && (
-                <div className="text-[10px] text-[var(--explorer-blue)] mt-1 flex items-center gap-1">
+                <div className="text-[11px] text-[var(--ink-blue-text)] mt-1 flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-[var(--explorer-blue)] animate-pulse" />
                   Coordinates captured: {formData.lat.toFixed(4)}, {formData.lon?.toFixed(4)}
                 </div>

@@ -172,7 +172,7 @@ function HeroCardStack() {
       ref={ref}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="relative h-[380px] hidden lg:block"
+      className="relative h-[23.75rem] hidden lg:block"
       style={{ perspective: 1400 }}
       aria-hidden="true"
     >
@@ -207,13 +207,13 @@ function HeroCardStack() {
           style={{ transform: "translateZ(-10px) translateX(-10px) rotate(-3deg)" }}
         >
           <div className="flex items-center gap-2 mb-2">
-            <Wallet className="w-3.5 h-3.5 text-[var(--amber)]" />
+            <Wallet className="w-3.5 h-3.5 text-[var(--ink-blue-text)]" />
             <span className="label-xs text-[hsl(var(--muted-foreground))]">Budget</span>
           </div>
           <p className="font-display text-2xl font-bold text-[hsl(var(--foreground))] font-mono-data">
             ₹42,600
           </p>
-          <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1">
+          <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">
             of ₹55,000 · 6 days
           </p>
         </div>
@@ -422,7 +422,7 @@ export default function Landing() {
                     key={link.name}
                     href={link.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="block text-base font-medium text-[hsl(var(--foreground))] hover:text-[var(--amber)] transition-colors"
+                    className="block text-base font-medium text-[hsl(var(--foreground))] hover:text-[var(--ink-blue-text)] transition-colors"
                   >
                     {link.name}
                   </a>
@@ -474,7 +474,7 @@ export default function Landing() {
             {/* Hero search bar with autocomplete */}
             <div className="max-w-xl mb-8 relative" ref={searchRef}>
               <div className="flex items-center bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-full px-4 sm:px-6 py-3 sm:py-4 gap-2 sm:gap-4 focus-within:border-[var(--amber)] transition-colors">
-                <MapPin className="w-5 h-5 text-[var(--amber)] flex-shrink-0" />
+                <MapPin className="w-5 h-5 text-[var(--ink-blue-text)] flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="Where do you want to go?"
@@ -544,7 +544,7 @@ export default function Landing() {
                           setShowSuggestions(false);
                         }}
                       >
-                        <MapPin className="w-4 h-4 text-[var(--amber)] flex-shrink-0" />
+                        <MapPin className="w-4 h-4 text-[var(--ink-blue-text)] flex-shrink-0" />
                         <div>
                           <span className="text-sm font-medium text-[hsl(var(--foreground))]">
                             {s.name}
@@ -695,7 +695,10 @@ export default function Landing() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))] leading-relaxed flex-1">
                   {feature.description}
                 </p>
-                <span className="stamp text-[10px] flex-shrink-0" style={{ color: "var(--amber)" }}>
+                <span
+                  className="stamp text-[11px] flex-shrink-0"
+                  style={{ color: "var(--ink-blue-text)" }}
+                >
                   {feature.tag}
                 </span>
               </motion.div>
@@ -756,7 +759,9 @@ export default function Landing() {
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: i * 0.12 }}
                 className={`pt-6 pr-6 ${i > 0 ? "md:border-l md:border-[hsl(var(--border))] md:pl-8" : ""} border-t-2 border-[var(--amber)]`}
               >
-                <div className="font-mono-data text-sm text-[var(--amber)] mb-3">{item.step}</div>
+                <div className="font-mono-data text-sm text-[var(--ink-blue-text)] mb-3">
+                  {item.step}
+                </div>
                 <h3 className="font-semibold text-[hsl(var(--foreground))] mb-2 text-lg">
                   {item.title}
                 </h3>
@@ -939,7 +944,7 @@ export default function Landing() {
                     <div className="font-semibold text-[hsl(var(--foreground))] text-sm">
                       {member.name}
                     </div>
-                    <div className="text-[var(--amber)] text-xs font-medium mb-1">
+                    <div className="text-[var(--ink-blue-text)] text-xs font-medium mb-1">
                       {member.role}
                     </div>
                     <p className="text-xs text-[hsl(var(--muted-foreground))] leading-relaxed">
