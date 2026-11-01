@@ -32,6 +32,8 @@ export interface AgentInput {
   userId: string;
   context: AgentContext;
   conversationHistory?: Message[];
+  // Where this conversation is stored, so its summary can be reused next turn.
+  conversationKey?: string;
   onToolCall?: (toolName: string) => void;
 }
 

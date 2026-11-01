@@ -1,5 +1,6 @@
 import { AtlasConversationModel } from "@shared/schema";
 import type { Message, ToolCall } from "./types";
+import type { HistorySummary } from "./historyContext";
 
 export class AtlasMemoryService {
   /**
@@ -31,6 +32,27 @@ export class AtlasMemoryService {
       console.error("[Atlas:Memory] Failed to get history:", error);
       return [];
     }
+  }
+
+  static async getSummary(tripId: string, userId: string): Promise<HistorySummary> {
+    try {
+      const doc = await AtlasConversationModel.findOne({ tripId, userId })
+        .select("summary summaryThrough")
+        .lean()
+        .exec();
+      return { summary: doc?.summary, summaryThrough: doc?.summaryThrough?.toISOString() };
+    } catch {
+      return {};
+    }
+  }
+
+  static async saveSummary(tripId: string, userId: string, value: Required<HistorySummary>) {
+    await AtlasConversationModel.updateOne(
+      { tripId, userId },
+      { $set: { summary: value.summary, summaryThrough: new Date(value.summaryThrough) } },
+    )
+      .exec()
+      .catch((err) => console.warn("[Atlas:Memory] Failed to save summary:", err));
   }
 
   /**

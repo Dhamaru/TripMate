@@ -56,6 +56,7 @@ export const chat = asyncHandler(async (req: Request, res: Response, next: NextF
         tripId: actualTripId,
       },
       conversationHistory: history,
+      conversationKey,
     },
     {
       openai: emptyOpenai,
@@ -150,6 +151,7 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
           tripId: tripIdStr,
         },
         conversationHistory: history,
+        conversationKey,
         onToken: (token) => {
           tokensSent = true;
           res.write(`data: ${JSON.stringify({ type: "token", content: token })}\n\n`);

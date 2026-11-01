@@ -23,7 +23,6 @@ import { requestLoggerMiddleware } from "./middleware/requestLogger.middleware";
 import { errorHandler } from "./middleware/errorHandler.middleware";
 import { generalLimiter } from "./middleware/rateLimit.middleware";
 import { csrfMiddleware } from "./middleware/csrf.middleware";
-import { initSkills } from "./agent/skillsLoader";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./swagger";
 
@@ -191,14 +190,6 @@ async function startServer() {
   // every boot after the first, never blocks startup on itself.
   runStartupMigrations().catch((err) => console.error("[Server] Startup migrations failed:", err));
   console.log("[Server] Current NODE_ENV:", config.NODE_ENV);
-
-  console.log("[Server] Initializing Atlas Skills...");
-  try {
-    await initSkills();
-    console.log("[Server] Atlas Skills initialization finished.");
-  } catch (err) {
-    console.error("[Server] Atlas Skills initialization failed:", err);
-  }
 
   const server = createServer(app);
 

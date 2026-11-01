@@ -2,6 +2,9 @@
 
 import OpenAI from "openai";
 import type { AgentInput, AgentResponse, AgentStructuredData, Mutation } from "./types";
+import type { Message } from "./types";
+import { AtlasMemoryService } from "./memory";
+import { prepareHistory } from "./historyContext";
 import { buildSystemPrompt } from "./systemPrompt";
 import { TRIPMATE_TOOLS } from "./tools/definitions";
 import { executeTool, type ExecutorDeps } from "./tools/executor";
@@ -17,7 +20,7 @@ import {
 import { TripModel } from "../../shared/schema";
 import { config } from "../config";
 
-const MAX_ITERATIONS = 10;
+const MAX_ITERATIONS = 6;
 // Atlas runs on Google Gemini via its OpenAI-compatible endpoint (billed
 // account, function-calling verified live 2026-09-10). The old free-tier
 // chain (OpenRouter / Groq / NVIDIA ×2) was pulled — providers kept
@@ -113,62 +116,6 @@ function classifyFallbackError(err: any): { shouldFallback: boolean; reason: str
   return { shouldFallback: false, reason: "" };
 }
 
-/** Summarizes conversation history when estimated tokens exceed 4000 to prevent context overflow. */
-async function summarizeIfNeeded(
-  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-  openai: OpenAI,
-  model: string,
-): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
-  const estimatedTokens = messages.reduce((sum, m) => {
-    const content = typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "");
-    return sum + Math.ceil(content.length / 4);
-  }, 0);
-
-  // Was 4000 — lowered so long conversations get compressed sooner,
-  // directly cutting the resent-history cost on every subsequent turn
-  // against Groq's measured 12k-tokens/minute ceiling. The summarization
-  // call itself costs tokens too (though a small, fixed amount — 300
-  // max_tokens, short prompt), so this isn't free, but summarizing a bit
-  // earlier is cheaper than resending an ever-growing raw history on
-  // every single turn of a long conversation.
-  if (estimatedTokens < 2500) return messages;
-
-  const systemMsg = messages.find((m) => m.role === "system");
-  const recentMessages = messages.slice(-4);
-  const toSummarize = messages.filter((m) => m.role !== "system" && !recentMessages.includes(m));
-
-  if (toSummarize.length === 0) return messages;
-
-  const summaryResponse = await openai.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: "system",
-        content:
-          "Summarize this conversation in 3 sentences, preserving key decisions, trip details, and data.",
-      },
-      {
-        role: "user",
-        content: toSummarize
-          .map(
-            (m) =>
-              `${m.role}: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`,
-          )
-          .join("\n"),
-      },
-    ],
-    max_tokens: 300,
-  });
-
-  const summary = summaryResponse.choices[0].message.content ?? "";
-  const summaryMessage: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
-    role: "assistant",
-    content: `[Previous conversation summary: ${summary}]`,
-  };
-
-  return [...(systemMsg ? [systemMsg] : []), summaryMessage, ...recentMessages];
-}
-
 /**
  * Runs the Atlas agent loop using Gemini.
  */
@@ -225,18 +172,17 @@ export async function runAgentLoop(
     { role: "system", content: systemPrompt },
   ];
 
+  const toApiMessage = (msg: Message) =>
+    ({
+      // Gemini's OpenAI-compat endpoint uses standard OpenAI roles
+      role: msg.role,
+      content: msg.content,
+      ...(msg.tool_calls ? { tool_calls: msg.tool_calls } : {}),
+      ...(msg.tool_call_id ? { tool_call_id: msg.tool_call_id } : {}),
+    }) as OpenAI.Chat.Completions.ChatCompletionMessageParam;
+
   // Add conversation history
-  if (input.conversationHistory) {
-    for (const msg of input.conversationHistory) {
-      // Map roles if necessary — Gemini's OpenAI-compat endpoint uses standard OpenAI roles
-      messages.push({
-        role: msg.role as any,
-        content: msg.content,
-        ...(msg.tool_calls ? { tool_calls: msg.tool_calls } : {}),
-        ...(msg.tool_call_id ? { tool_call_id: msg.tool_call_id } : {}),
-      });
-    }
-  }
+  messages.push(...(input.conversationHistory ?? []).map(toApiMessage));
 
   // Add current user message
   messages.push({ role: "user", content: input.message });
@@ -286,22 +232,40 @@ export async function runAgentLoop(
   }
 
   try {
-    // Summarize old messages if context window is getting too long. This
-    // always calls NVIDIA directly (hardcoded model, no fallback chain)
-    // and sat outside any error handling — if that one call failed, the
-    // whole request died right here without ever reaching the real
-    // fallback loop below, even though Groq and a second NVIDIA key were
-    // still available for the actual conversation. Summarization is
-    // strictly an optimization; failing it should degrade to the
-    // unsummarized (longer) message list, not the whole response.
-    try {
-      const summarized = await summarizeIfNeeded([...messages], deps.openai ?? openai, MODELS[0]);
-      messages.splice(0, messages.length, ...summarized);
-    } catch (summarizeErr) {
-      console.warn(
-        "[Atlas:Loop] Context summarization failed, proceeding with full history:",
-        summarizeErr,
+    // Replace the raw history with the stored summary plus recent turns.
+    if (input.conversationHistory?.length) {
+      const prior = input.conversationKey
+        ? await AtlasMemoryService.getSummary(input.conversationKey, input.userId)
+        : {};
+      const { context, updated } = await prepareHistory(
+        input.conversationHistory,
+        prior,
+        async (previousSummary, turns) => {
+          const res = await (deps.openai ?? openai).chat.completions.create({
+            model: MODELS[0],
+            messages: [
+              {
+                role: "system",
+                content:
+                  "Summarize this conversation in 3 sentences, preserving key decisions, trip details, and data. Build on the earlier summary if there is one.",
+              },
+              {
+                role: "user",
+                content: [
+                  ...(previousSummary ? [`Earlier summary: ${previousSummary}`] : []),
+                  ...turns.map((m) => `${m.role}: ${m.content ?? JSON.stringify(m.tool_calls)}`),
+                ].join("\n"),
+              },
+            ],
+            max_tokens: 300,
+          });
+          return res.choices[0].message.content ?? "";
+        },
       );
+      messages.splice(1, input.conversationHistory.length, ...context.map(toApiMessage));
+      if (updated && input.conversationKey) {
+        await AtlasMemoryService.saveSummary(input.conversationKey, input.userId, updated);
+      }
     }
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       lastIteration = iteration;
