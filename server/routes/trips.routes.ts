@@ -17,6 +17,7 @@ import {
   updateActivitySchema,
   reorderItinerarySchema,
   trimItinerarySchema,
+  deleteActivitySchema,
 } from "../schemas/itinerary.schemas";
 import { addExpenseSchema, updateExpenseSchema } from "../schemas/expense.schemas";
 import { addCollaboratorSchema } from "../schemas/collaborator.schemas";
@@ -72,7 +73,11 @@ router.put(
   validate(updateActivitySchema),
   itineraryController.updateActivity,
 );
-router.delete("/:id/itinerary/activity/:activityId", itineraryController.deleteActivity);
+router.delete(
+  "/:id/itinerary/activity/:activityId",
+  validate(deleteActivitySchema),
+  itineraryController.deleteActivity,
+);
 router.put(
   "/:id/itinerary/reorder",
   validate(reorderItinerarySchema),

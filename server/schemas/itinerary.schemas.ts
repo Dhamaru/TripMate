@@ -99,6 +99,16 @@ export const reorderItinerarySchema = z.object({
   }),
 });
 
+export const deleteActivitySchema = z.object({
+  params: z.object({
+    id: z.string().min(1, "Trip ID is required"),
+    activityId: z.string().min(1, "Activity ID is required"),
+  }),
+  body: z.object({
+    dayIndex: z.coerce.number().int().min(0),
+  }),
+});
+
 export const trimItinerarySchema = z.object({
   params: z.object({
     id: z.string().min(1, "Trip ID is required"),

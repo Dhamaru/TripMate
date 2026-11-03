@@ -44,11 +44,29 @@ export const addActivity = asyncHandler(async (req: Request, res: Response, next
     const existing = await TripModel.exists(editorAccessFilter(tripId, String(userId)));
     if (!existing) throw new NotFoundError("Trip not found or access denied");
 
-    trip = await TripModel.findOneAndUpdate(
-      { ...editorAccessFilter(tripId, String(userId)), "itinerary.dayIndex": { $ne: dayIndex } },
-      { $push: { itinerary: { dayIndex, activities: [newActivity] } } },
-      { new: true },
-    );
+    // Appending just this day put it at the end of the array, so its
+    // dayIndex no longer matched its position whenever earlier days were
+    // missing. Fill the gap with empty days. The $size filter makes this a
+    // compare-and-set against concurrent changes.
+    const current = await TripModel.findOne(editorAccessFilter(tripId, String(userId)), {
+      itinerary: 1,
+    });
+    const length = current?.itinerary?.length ?? 0;
+    if (dayIndex >= length) {
+      const days = Array.from({ length: dayIndex - length + 1 }, (_, i) => ({
+        dayIndex: length + i,
+        activities: length + i === dayIndex ? [newActivity] : [],
+      }));
+      trip = await TripModel.findOneAndUpdate(
+        {
+          ...editorAccessFilter(tripId, String(userId)),
+          itinerary: { $size: length },
+          "itinerary.dayIndex": { $ne: dayIndex },
+        },
+        { $push: { itinerary: { $each: days } } },
+        { new: true },
+      );
+    }
 
     if (!trip) {
       // Either we lost the race (someone else just created the day)
@@ -196,11 +214,13 @@ export const trimItinerary = asyncHandler(
       itinerary: 1,
     });
     if (!before) throw new NotFoundError("Trip not found or access denied");
-    const droppedCount = (before.itinerary || []).filter((d) => d.dayIndex >= days).length;
+    const droppedCount = Math.max(0, (before.itinerary || []).length - days);
 
+    // Keep the first `days` days by position. Pulling by dayIndex did nothing
+    // on older trips whose days were saved without a dayIndex.
     const trip = await TripModel.findOneAndUpdate(
       editorAccessFilter(tripId, String(userId)),
-      { $pull: { itinerary: { dayIndex: { $gte: days } } } },
+      { $push: { itinerary: { $each: [], $slice: days } } },
       { new: true },
     );
     if (!trip) throw new NotFoundError("Trip not found or access denied");

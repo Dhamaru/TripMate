@@ -108,6 +108,8 @@ function SortableActivity({
   // one fell through the `|| "Activity"` fallback below.
   const typeColors: Record<string, string> = {
     travel: "border-[rgb(var(--ink-transit-rgb)/50%)] text-[var(--ink-transit-text)]",
+    transport: "border-[rgb(var(--ink-transit-rgb)/50%)] text-[var(--ink-transit-text)]",
+    hotel: "border-[rgb(var(--ink-lodging-rgb)/50%)] text-[var(--ink-lodging-text)]",
     food: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining-text)]",
     restaurant: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining-text)]",
     cafe: "border-[rgb(var(--ink-dining-rgb)/50%)] text-[var(--ink-dining-text)]",
@@ -124,6 +126,8 @@ function SortableActivity({
   };
   const typeLabel: Record<string, string> = {
     travel: "Travel",
+    transport: "Travel",
+    hotel: "Stay",
     food: "Food",
     restaurant: "Food",
     cafe: "Cafe",
@@ -281,7 +285,8 @@ function SortableActivity({
                 to the map. */}
       {(() => {
         const type = (activity.type || "").toLowerCase();
-        const isFoodOrStay = type === "restaurant" || type === "cafe" || type === "accommodation";
+        const isFoodOrStay =
+          type === "restaurant" || type === "cafe" || type === "accommodation" || type === "hotel";
         if (isFoodOrStay && onViewInPlaces) {
           return (
             <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
@@ -344,6 +349,8 @@ function SortableActivity({
             size="icon"
             className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-foreground"
             title="Edit"
+            aria-label={`Edit ${activity.title || "activity"}`}
+            data-testid={`button-edit-activity-${activity.id}`}
           >
             <Edit2 className="w-3.5 h-3.5" />
           </Button>
@@ -356,6 +363,8 @@ function SortableActivity({
             size="icon"
             className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-red-400"
             title="Delete"
+            aria-label={`Delete ${activity.title || "activity"}`}
+            data-testid={`button-delete-activity-${activity.id}`}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
