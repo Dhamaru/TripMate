@@ -47,9 +47,12 @@ const devCsp = {
   "object-src": ["'none'"],
 };
 
+// Hash of the inline theme script in client/index.html; must change with it.
+const THEME_SCRIPT_HASH = "'sha256-LYT3qqTDwZom/yaQYnZPb6sstptNd2+8GC8dpn/7gQk='";
+
 const prodCsp = {
   "default-src": ["'self'"],
-  "script-src": ["'self'"],
+  "script-src": ["'self'", THEME_SCRIPT_HASH],
   "style-src": [
     "'self'",
     "'unsafe-inline'",

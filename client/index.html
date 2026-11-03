@@ -9,6 +9,9 @@
          Internet "auto dark theme", which was force-darkening our already
          theme-aware UI whenever the phone was in dark mode. -->
     <meta name="color-scheme" content="dark light" />
+    <!-- Saved theme before the bundle loads (no dark flash in light mode).
+         Its sha256 is allowed in the production CSP; keep the two in sync. -->
+    <script>try{var t=localStorage.getItem('tripmate-ui-theme');document.documentElement.classList.add(t==='light'?'light':'dark')}catch(e){document.documentElement.classList.add('dark')}</script>
     <meta name="description" content="TripMate — Your AI travel companion" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

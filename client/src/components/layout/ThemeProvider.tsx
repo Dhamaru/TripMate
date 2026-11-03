@@ -27,9 +27,14 @@ export function ThemeProvider({
   defaultTheme?: Theme;
   storageKey?: string;
 }) {
+  // Storage can throw (private mode, blocked site data): fall back, don't crash.
   const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem(storageKey);
-    return stored === "light" || stored === "dark" ? stored : defaultTheme;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored === "light" || stored === "dark" ? stored : defaultTheme;
+    } catch {
+      return defaultTheme;
+    }
   });
 
   useEffect(() => {
@@ -41,7 +46,11 @@ export function ThemeProvider({
   const value = {
     theme,
     setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
+      try {
+        localStorage.setItem(storageKey, theme);
+      } catch {
+        /* the choice just won't persist */
+      }
       setTheme(theme);
     },
   };
