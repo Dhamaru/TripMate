@@ -40,7 +40,7 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
       // mounted it with no path at all, which also metered every static
       // asset/SPA load against the same budget and made /signin itself
       // start 429ing under real traffic — narrowed to "/api" instead.
-      const res = await request(app).get("/api/tools/ping");
+      const res = await request(app).get("/api/tools/public/top-destinations");
       expect(
         res.headers["ratelimit-limit"],
         "ratelimit-limit header present on /api/tools",
@@ -48,7 +48,7 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
     });
 
     it("still carries the header on the primary /api/v1 prefix (no regression)", async () => {
-      const res = await request(app).get("/api/v1/ping");
+      const res = await request(app).get("/api/v1/public/top-destinations");
       expect(res.headers["ratelimit-limit"]).toBeDefined();
     });
   });
