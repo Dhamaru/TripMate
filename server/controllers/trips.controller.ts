@@ -308,6 +308,7 @@ export const deleteTrip = asyncHandler(async (req: Request, res: Response, next:
 export const shareTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?._id || req.user?.id;
   const { isPublic } = req.body;
+  if (typeof isPublic !== "boolean") throw new BadRequestError("isPublic must be true or false");
 
   if (isPublic) {
     // Was read-then-write (findOne to check shareId, then a separate
@@ -326,9 +327,11 @@ export const shareTrip = asyncHandler(async (req: Request, res: Response, next: 
     );
   }
 
+  // Turning sharing off deletes the link, so copies already sent stop
+  // working; turning it back on issues a new one (the branch above).
   const trip = await TripModel.findOneAndUpdate(
     { _id: req.params.id, userId },
-    { $set: { isPublic } },
+    isPublic ? { $set: { isPublic } } : { $set: { isPublic }, $unset: { shareId: "" } },
     { new: true },
   );
 
@@ -818,14 +821,20 @@ export const getPublicTrip = asyncHandler(
     // but this same PII class was still reachable one level down. Strip
     // it per-activity rather than widening the top-level projection,
     // since Mongo field selection can't reach inside a Mixed value.
+    // Per-activity allowlist of what the share page actually shows: deleting
+    // known-bad keys still leaked notes, costs, entry fees and internal ids.
     const json = trip.toJSON() as any;
-    if (Array.isArray(json.itinerary)) {
-      for (const day of json.itinerary) {
-        for (const activity of day?.activities || []) {
-          delete activity.userVotes;
-        }
-      }
-    }
+    json.itinerary = (Array.isArray(json.itinerary) ? json.itinerary : []).map((day: any) => ({
+      day: day?.day,
+      dayIndex: day?.dayIndex,
+      activities: (day?.activities || []).map((a: any) => ({
+        id: a?.id,
+        title: a?.title,
+        placeName: a?.placeName,
+        time: a?.time,
+        type: a?.type,
+      })),
+    }));
     res.json(json);
   },
 );
