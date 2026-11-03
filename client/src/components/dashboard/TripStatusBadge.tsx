@@ -4,7 +4,7 @@ const CONFIG = {
   upcoming: {
     label: "Upcoming",
     className:
-      "bg-[rgb(var(--customs-blue-deep-rgb)/15%)] text-[#4F82C4] border-[rgb(var(--customs-blue-rgb)/50%)]",
+      "bg-[rgb(var(--customs-blue-deep-rgb)/15%)] text-[var(--ink-blue-text)] border-[rgb(var(--customs-blue-rgb)/50%)]",
   },
   ongoing: {
     label: "Ongoing",

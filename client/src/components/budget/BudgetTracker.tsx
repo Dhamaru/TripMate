@@ -329,7 +329,13 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     }}
                     itemStyle={{ color: "hsl(var(--foreground))" }}
                   />
-                  <Legend layout="vertical" align="right" verticalAlign="middle" />
+                  <Legend
+                    layout="vertical"
+                    align="right"
+                    verticalAlign="middle"
+                    // Labels in the text colour; the swatch carries the slice colour.
+                    formatter={(value) => <span className="text-foreground">{value}</span>}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
