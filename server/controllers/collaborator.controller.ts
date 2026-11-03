@@ -30,8 +30,10 @@ export const addCollaborator = asyncHandler(
       throw new BadRequestError("User is already a collaborator");
     }
 
-    const updatedTrip = await TripModel.findByIdAndUpdate(
-      tripId,
+    // Conditional push: two simultaneous invites for the same person both
+    // passed the check above and added them twice.
+    const updatedTrip = await TripModel.findOneAndUpdate(
+      { _id: tripId, "collaborators.userId": { $ne: userToAddId } },
       {
         $push: {
           collaborators: {
@@ -43,6 +45,7 @@ export const addCollaborator = asyncHandler(
       },
       { new: true },
     );
+    if (!updatedTrip) throw new BadRequestError("User is already a collaborator");
 
     socketService.broadcastMutation(
       tripId,

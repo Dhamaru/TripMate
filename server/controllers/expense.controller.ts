@@ -42,6 +42,7 @@ export const addExpense = asyncHandler(async (req: Request, res: Response, next:
     message: `${newExpense.amount} ${newExpense.currency} (${newExpense.category}) added to your trip to ${trip.destination}.`,
     link: `/app/trips/${tripId}`,
     tripId,
+    groupKey: `expense-updated:${tripId}`,
   });
 
   res.status(201).json(trip);
@@ -80,6 +81,7 @@ export const updateExpense = asyncHandler(
       message: `An expense was updated on your trip to ${trip.destination}.`,
       link: `/app/trips/${tripId}`,
       tripId,
+      groupKey: `expense-updated:${tripId}`,
     });
 
     res.json(trip);
@@ -109,6 +111,7 @@ export const deleteExpense = asyncHandler(
       message: `An expense was removed from your trip to ${trip.destination}.`,
       link: `/app/trips/${tripId}`,
       tripId,
+      groupKey: `expense-updated:${tripId}`,
     });
 
     res.status(204).send();
