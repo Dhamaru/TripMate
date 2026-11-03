@@ -347,7 +347,7 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
           <CardHeader>
             <CardTitle className="text-foreground">Spending Breakdown</CardTitle>
           </CardHeader>
-          <CardContent className="h-[200px]">
+          <CardContent className="h-[260px]">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -374,9 +374,11 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     itemStyle={{ color: "hsl(var(--foreground))" }}
                   />
                   <Legend
-                    layout="vertical"
-                    align="right"
-                    verticalAlign="middle"
+                    // Below the donut: beside it, labels ran over the chart on
+                    // tablet widths where this card is ~200px wide.
+                    layout="horizontal"
+                    align="center"
+                    verticalAlign="bottom"
                     // Labels in the text colour; the swatch carries the slice colour.
                     formatter={(value) => <span className="text-foreground">{value}</span>}
                   />
