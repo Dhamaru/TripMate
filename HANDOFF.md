@@ -10,6 +10,8 @@
 
 - 2026-11-03 (triage): all READY items from the triage list plus share revoke/public allowlist fixed and pushed; test suite no longer spends AI credit. Gate: 261/261.
 
+- 2026-11-03 (night): Budget tab now includes a getting-there-and-back estimate (`1a49211`). Gate: 270/270.
+
 ## In progress
 
 - Persona swarm (`feat/persona-swarm`) stays local, unmerged, not to be pushed.
@@ -22,5 +24,3 @@ None queued. With the owner's approval of the estimate, run a short live Atlas c
 
 - Atlas summary + iteration cap are unit-tested only; a live check spends AI credit.
 - Backups, error tracking and an uptime monitor need owner accounts; set Render's health check path to `/api/v1/health`.
-- Owner decision still open: grandTransit (save the transit-to-destination estimate on trips, or remove the unused chart branch).
-- Should contact-form messages skip the hourly feedback triage? Owner decision.
