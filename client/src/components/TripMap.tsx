@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import L from "leaflet";
+// Without this, tiles lay out as plain images in page flow on any page that
+// isn't the Offline Maps route (which used to be the only importer).
+import "leaflet/dist/leaflet.css";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,19 +83,23 @@ export function TripMap({
   // tracked so a second, different focus request removes the stale one
   // instead of leaving orphaned pins on the map.
   const adhocMarkerRef = useRef<L.Marker | null>(null);
+  const searchMarkerRef = useRef<L.Marker | null>(null);
+  // Camera is set once per destination and fitted to the pins once, so a
+  // refetch or theme change doesn't throw away the user's pan/zoom.
+  const viewedCoordsRef = useRef("");
+  const fittedRef = useRef(false);
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [geocodeError, setGeocodeError] = useState(false);
   const [loading, setLoading] = useState(false);
   const { theme: mapTheme } = useTheme();
-  const [isAddMode, setIsAddMode] = useState(false);
   const [addSpotDialogOpen, setAddSpotDialogOpen] = useState(false);
   const [pendingAddSpot, setPendingAddSpot] = useState<{
     lat: number;
     lon: number;
+    name: string;
     address: string;
     marker: L.Marker;
   } | null>(null);
-  const isAddModeRef = useRef(isAddMode);
   const [showHeatMap, setShowHeatMap] = useState(false);
   const [crowdReports, setCrowdReports] = useState<any[]>([]);
   const heatLayerRef = useRef<any>(null);
@@ -164,11 +171,6 @@ export function TripMap({
     (window as any).L = L;
     import("leaflet.heat").catch(() => {});
   }, []);
-
-  // Sync ref with state to avoid stale closures in map handlers
-  useEffect(() => {
-    isAddModeRef.current = isAddMode;
-  }, [isAddMode]);
 
   // Reset coords when destination changes
   useEffect(() => {
@@ -291,15 +293,30 @@ export function TripMap({
   }, [showHeatMap, crowdReports]);
 
   const handleReportCrowd = async () => {
-    if (!coords || !mapInstanceRef.current) return;
-    const center = mapInstanceRef.current.getCenter();
+    let here: GeolocationPosition;
+    try {
+      here = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation
+          ? navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
+          : reject(new Error("unsupported")),
+      );
+    } catch {
+      // The map centre is wherever the user panned, not where they are.
+      toast({
+        title: "Location needed",
+        description: "Turn on location to report how crowded it is where you are.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      await apiRequest("POST", "/api/v1/crowd/density", {
-        latitude: center.lat,
-        longitude: center.lng,
+      const reportRes = await apiRequest("POST", "/api/v1/crowd/density", {
+        latitude: here.coords.latitude,
+        longitude: here.coords.longitude,
         density: reportDensity,
       });
+      if (!reportRes.ok) throw new Error(String(reportRes.status));
       toast({
         title: "Report Submitted",
         description: "Thank you for sharing the current crowd density!",
@@ -344,10 +361,13 @@ export function TripMap({
       });
 
       const map = L.map(mapContainerRef.current).setView([coords.lat, coords.lon], 12);
+      viewedCoordsRef.current = `${coords.lat},${coords.lon}`;
 
       tileLayerRef.current = L.tileLayer(TILE_URL, {
         attribution: TILE_ATTRIBUTION,
         maxZoom: 17,
+        // CORS so the service worker can cache tiles (it skips opaque ones).
+        crossOrigin: true,
       }).addTo(map);
       const tilePane = map.getPane("tilePane");
       if (tilePane) tilePane.style.filter = mapTheme === "dark" ? DARK_TILE_FILTER : "";
@@ -374,11 +394,12 @@ export function TripMap({
       // map.on('click', async (e) => { ... });
 
       mapInstanceRef.current = map;
-    } else {
-      // Update existing map view
+    } else if (viewedCoordsRef.current !== `${coords.lat},${coords.lon}`) {
+      // New destination: recenter. Itinerary or theme changes land here too
+      // and must not reset the user's pan/zoom.
+      viewedCoordsRef.current = `${coords.lat},${coords.lon}`;
+      fittedRef.current = false;
       mapInstanceRef.current.setView([coords.lat, coords.lon], 12);
-
-      // Update bounds
       const southWest = L.latLng(coords.lat - 0.1, coords.lon - 0.1);
       const northEast = L.latLng(coords.lat + 0.1, coords.lon + 0.1);
       const bounds = L.latLngBounds(southWest, northEast);
@@ -485,7 +506,10 @@ export function TripMap({
               delBtn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> Delete';
               delBtn.style.cssText =
                 "color: var(--ios-red); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
-              delBtn.onclick = () => onDeleteActivity(act.dayIndex, act.actIndex);
+              delBtn.onclick = () => {
+                if (window.confirm(`Remove "${act.placeName || act.title}" from your itinerary?`))
+                  onDeleteActivity(act.dayIndex, act.actIndex);
+              };
               actionsRow.appendChild(delBtn);
             }
             if (actionsRow.childNodes.length > 0) item.appendChild(actionsRow);
@@ -504,6 +528,12 @@ export function TripMap({
           markerIndexRef.current.set(key, marker);
         });
       }
+      // First open: show every pin instead of a fixed city zoom that clips some.
+      if (!fittedRef.current && markerIndexRef.current.size > 0 && mapInstanceRef.current) {
+        const pins = [...markerIndexRef.current.values()].map((m) => m.getLatLng());
+        mapInstanceRef.current.fitBounds(L.latLngBounds(pins).pad(0.2), { maxZoom: 15 });
+        fittedRef.current = true;
+      }
     }
     // A place viewed via the ad-hoc marker above and then actually added to
     // the itinerary now has a real marker at the same key — drop the
@@ -516,7 +546,7 @@ export function TripMap({
         adhocMarkerRef.current = null;
       }
     }
-  }, [coords, mapTheme, itinerary]);
+  }, [coords, itinerary]);
 
   // "View on Map" from the itinerary — fly to and open that activity's
   // marker. Keyed by the same rounded lat/lon the marker-building effect
@@ -569,7 +599,12 @@ export function TripMap({
       const adhocMarker = L.marker([focusTarget.lat, focusTarget.lon], { icon: adhocIcon })
         .addTo(mapInstanceRef.current)
         .bindPopup(
-          `<div style="min-width: 160px; color: #1a1a1a;"><div style="font-weight: bold;">${focusTarget.label || "Selected location"}</div></div>`,
+          (() => {
+            const el = document.createElement("div");
+            el.style.cssText = "min-width: 160px; color: #1a1a1a; font-weight: bold;";
+            el.textContent = focusTarget.label || "Selected location";
+            return el;
+          })(),
         );
       adhocMarkerRef.current = adhocMarker;
       marker = adhocMarker;
@@ -637,7 +672,14 @@ export function TripMap({
             drawStraightFallback();
             return;
           }
-          L.polyline(coords, { color, weight: 3, opacity: 0.7, lineJoin: "round" }).addTo(
+          // White casing under the colour so the route reads over busy topo tiles.
+          L.polyline(coords, {
+            color: "#ffffff",
+            weight: 8,
+            opacity: 0.85,
+            lineJoin: "round",
+          }).addTo(pathLayerRef.current);
+          L.polyline(coords, { color, weight: 5, opacity: 0.95, lineJoin: "round" }).addTo(
             pathLayerRef.current,
           );
         })
@@ -647,7 +689,7 @@ export function TripMap({
     return () => {
       cancelled = true;
     };
-  }, [showPaths, itinerary]);
+  }, [showPaths, itinerary, coords]);
 
   // Live navigation leg — the route from wherever the user actually is
   // right now to their next scheduled activity, drawn distinct from the
@@ -785,7 +827,10 @@ export function TripMap({
                         const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(q)}`);
                         const data = await res.json();
                         if (Array.isArray(data) && data.length > 0) {
-                          const { lat, lon, display_name: displayName } = data[0];
+                          const { display_name: displayName } = data[0];
+                          // Nominatim returns strings; the activity API requires numbers.
+                          const lat = Number(data[0].lat);
+                          const lon = Number(data[0].lon);
                           // Short, readable label from Nominatim's full
                           // address string — "Parul University, SH 158,
                           // ..., India" all the way through reads as noise
@@ -860,10 +905,12 @@ export function TripMap({
                             addBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add to Trip';
                             popupContent.appendChild(addBtn);
 
+                            searchMarkerRef.current?.remove();
                             const marker = L.marker([lat, lon], { icon: searchIcon })
                               .addTo(mapInstanceRef.current)
                               .bindPopup(popupContent)
                               .openPopup();
+                            searchMarkerRef.current = marker;
 
                             // Handle click on the popup button
                             setTimeout(() => {
@@ -879,6 +926,7 @@ export function TripMap({
                                   setPendingAddSpot({
                                     lat,
                                     lon,
+                                    name: shortName,
                                     address: displayName || q,
                                     marker,
                                   });
@@ -887,11 +935,9 @@ export function TripMap({
                               }
                             }, 100);
 
-                            // Enable Add Mode
-                            setIsAddMode(true);
                             toast({
                               title: "Location Found",
-                              description: "Click anywhere on the map to pin this spot!",
+                              description: "Tap \u201cAdd to Trip\u201d on the pin to save it.",
                             });
                           }
                         } else {
@@ -913,7 +959,11 @@ export function TripMap({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowHeatMap(!showHeatMap)}
+                onClick={() => {
+                  if (!showHeatMap && crowdReports.length === 0)
+                    toast({ title: "No crowd reports nearby yet" });
+                  setShowHeatMap(!showHeatMap);
+                }}
                 className={`h-8 px-3 text-xs font-medium rounded-lg gap-1.5 transition-all ${showHeatMap ? "bg-orange-500/15 text-orange-500 hover:bg-orange-500/25" : "text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10"}`}
               >
                 <i className="fas fa-fire text-[11px]"></i>
@@ -972,7 +1022,7 @@ export function TripMap({
                   <div className="space-y-4">
                     <div className="text-sm font-bold text-foreground">Report Crowd Density</div>
                     <div className="text-xs text-muted-foreground">
-                      How crowded is it here right now?
+                      How crowded is it where you are right now?
                     </div>
                     <Slider
                       value={[reportDensity]}
@@ -1027,7 +1077,7 @@ export function TripMap({
       <NamePromptDialog
         open={addSpotDialogOpen}
         title="Location name"
-        defaultValue={pendingAddSpot?.address ?? ""}
+        defaultValue={pendingAddSpot?.name ?? ""}
         confirmLabel="Add to Trip"
         onOpenChange={(open) => {
           setAddSpotDialogOpen(open);

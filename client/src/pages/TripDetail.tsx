@@ -23,7 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, invalidateTrips } from "@/lib/queryClient";
+import { apiRequest, apiRequestJson, invalidateTrips } from "@/lib/queryClient";
 import { haversineMeters } from "@/lib/geo";
 import { z } from "zod";
 import { logInfo, logError } from "@/lib/logger";
@@ -566,11 +566,12 @@ export default function TripDetail() {
 
   const addActivityMutation = useMutation({
     mutationFn: async ({ dayIndex, activity }: { dayIndex: number; activity: any }) => {
-      const response = await apiRequest("POST", `/api/v1/trips/${id}/itinerary/activity`, {
+      // apiRequestJson throws on a 4xx/5xx, so a rejected add reaches onError
+      // instead of showing "Activity added".
+      return apiRequestJson("POST", `/api/v1/trips/${id}/itinerary/activity`, {
         dayIndex,
         activity,
       });
-      return response.json();
     },
     onSuccess: () => {
       fetchTrip(id);
@@ -633,12 +634,9 @@ export default function TripDetail() {
 
   const deleteActivityMutation = useMutation({
     mutationFn: async ({ dayIndex, activityId }: { dayIndex: number; activityId: string }) => {
-      const response = await apiRequest(
-        "DELETE",
-        `/api/v1/trips/${id}/itinerary/activity/${activityId}`,
-        { dayIndex },
-      );
-      return response.json();
+      return apiRequestJson("DELETE", `/api/v1/trips/${id}/itinerary/activity/${activityId}`, {
+        dayIndex,
+      });
     },
     onSuccess: () => {
       fetchTrip(id);
