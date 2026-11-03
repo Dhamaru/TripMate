@@ -11,7 +11,7 @@ import {
   aiLimiter,
   importPlanLimiter,
 } from "../middleware/rateLimit.middleware";
-import { createTripSchema, parseScheduleSchema } from "../schemas/trip.schemas";
+import { createTripSchema, updateTripSchema, parseScheduleSchema } from "../schemas/trip.schemas";
 import {
   addActivitySchema,
   updateActivitySchema,
@@ -33,7 +33,7 @@ router.use(requireAuth);
 router.get("/", tripsController.getTrips);
 router.post("/", validate(createTripSchema), tripsController.createTrip);
 router.get("/:id", tripsController.getTrip);
-router.put("/:id", tripsController.updateTrip);
+router.put("/:id", validate(updateTripSchema), tripsController.updateTrip);
 router.delete("/:id", tripsController.deleteTrip);
 
 // Sharing

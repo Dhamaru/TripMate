@@ -95,22 +95,39 @@ export const createTripSchema = z.object({
   }),
 });
 
+// Mirrors UPDATABLE_TRIP_FIELDS in trips.controller.ts: validate() strips
+// anything not declared here, so every updatable field must be listed.
 export const updateTripSchema = z.object({
   params: z.object({
     id: z.string().min(1, "Trip ID is required"),
   }),
   body: z
     .object({
-      destination: z.string().optional(),
-      days: z.coerce.number().int().min(1).optional(),
-      groupSize: z.coerce.number().int().min(1).optional(),
-      travelStyle: z.string().optional(),
-      travelStyles: z.array(z.string()).min(1).optional(),
-      status: z.enum(["planning", "active", "completed"]).optional(),
-      budget: z.coerce.number().min(0).optional(),
-      startDate: z.coerce.date().optional(),
-      endDate: z.coerce.date().optional(),
-      notes: z.string().optional(),
+      origin: z.string().max(200),
+      destination: z.string().min(1).max(200),
+      imageUrl: z.string().max(5000),
+      imageCaption: z.string().max(500),
+      currency: z.string().max(10),
+      budget: z.coerce.number().min(0),
+      days: z.coerce.number().int().min(1).max(365),
+      groupSize: z.coerce.number().int().min(1).max(500),
+      travelStyle: z.string().max(50),
+      travelStyles: z.array(z.string().max(50)).min(1).max(20),
+      transportMode: z.string().max(50),
+      isInternational: z.boolean(),
+      cuisinePreferences: z.array(z.string().max(50)).max(50),
+      dietaryPreferences: z.array(z.string().max(50)).max(50),
+      status: z.enum(["planning", "active", "completed"]),
+      startDate: z.coerce.date().nullable(),
+      endDate: z.coerce.date().nullable(),
+      notes: z.string().max(20000),
+      aiPlanMarkdown: z.string().max(200000),
+      isDraft: z.boolean(),
+      syncStatus: z.string().max(50),
+      // Free-form, but bounded: arbitrary JSON of any size was persisted.
+      costBreakdown: z
+        .record(z.string(), z.any())
+        .refine((v) => JSON.stringify(v).length <= 20000, "costBreakdown is too large"),
     })
     .partial(),
 });
