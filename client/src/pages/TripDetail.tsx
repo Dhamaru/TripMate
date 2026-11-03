@@ -612,15 +612,18 @@ export default function TripDetail() {
     const hasCoords = place.location?.lat != null && place.location?.lng != null;
     return (
       <div className="flex items-center gap-3 mt-2">
-        <button
-          type="button"
-          onClick={() => addPlaceToItinerary(place, type)}
-          disabled={addActivityMutation.isPending}
-          data-testid="button-add-place-to-itinerary"
-          className="text-xs text-[var(--ink-blue-text)] hover:underline inline-flex items-center disabled:opacity-50"
-        >
-          <i className="fas fa-plus mr-1 text-[11px]"></i> Add to Itinerary
-        </button>
+        {/* Viewers can't change the itinerary; the server would reject it. */}
+        {canEditTrip && (
+          <button
+            type="button"
+            onClick={() => addPlaceToItinerary(place, type)}
+            disabled={addActivityMutation.isPending}
+            data-testid="button-add-place-to-itinerary"
+            className="text-xs text-[var(--ink-blue-text)] hover:underline inline-flex items-center disabled:opacity-50"
+          >
+            <i className="fas fa-plus mr-1 text-[11px]"></i> Add to Itinerary
+          </button>
+        )}
         {hasCoords && (
           <button
             type="button"
@@ -1986,8 +1989,8 @@ export default function TripDetail() {
               destination={trip.destination}
               itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []}
               origin={trip.origin}
-              onAddActivity={handleMapAddActivity}
-              onDeleteActivity={handleMapDeleteActivity}
+              onAddActivity={canEditTrip ? handleMapAddActivity : undefined}
+              onDeleteActivity={canEditTrip ? handleMapDeleteActivity : undefined}
               onViewInItinerary={handleViewInItinerary}
               focusTarget={mapFocusTarget}
               tripStatus={trip.status}

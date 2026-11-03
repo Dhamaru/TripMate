@@ -903,7 +903,7 @@ export function TripMap({
                             addBtn.style.cssText =
                               "background: var(--explorer-blue); color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-top: 5px; display: inline-block;";
                             addBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add to Trip';
-                            popupContent.appendChild(addBtn);
+                            if (onAddActivity) popupContent.appendChild(addBtn);
 
                             searchMarkerRef.current?.remove();
                             const marker = L.marker([lat, lon], { icon: searchIcon })
