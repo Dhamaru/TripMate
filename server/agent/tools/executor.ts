@@ -75,14 +75,18 @@ export interface ExecutorDeps {
     calculateBudgetBreakdown: (
       totalBudget: number,
       travelStyle: string,
-    ) => {
+      origin?: string,
+      destination?: string,
+      travelMedium?: string,
+    ) => Promise<{
       accommodation: number;
       food: number;
       transport: number;
       activities: number;
       buffer: number;
       total: number;
-    };
+      grandTransit?: number;
+    }>;
     augmentJournalEntry: (
       content: string,
       destination?: string,

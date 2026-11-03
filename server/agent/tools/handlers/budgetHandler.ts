@@ -21,7 +21,7 @@ export async function budgetHandler(
         origin?: string,
         destination?: string,
         travelMedium?: string,
-      ) => {
+      ) => Promise<{
         accommodation: number;
         food: number;
         transport: number;
@@ -29,7 +29,7 @@ export async function budgetHandler(
         buffer: number;
         total: number;
         grandTransit?: number;
-      };
+      }>;
     };
   },
 ): Promise<ToolResult> {
@@ -49,7 +49,8 @@ export async function budgetHandler(
     }
 
     // Delegate to existing AiUtilitiesService — no reimplementation
-    const breakdown = deps.aiService.calculateBudgetBreakdown(
+    // Async: without await, spreading the Promise below returned no numbers.
+    const breakdown = await deps.aiService.calculateBudgetBreakdown(
       totalBudget,
       travelStyle,
       origin,
