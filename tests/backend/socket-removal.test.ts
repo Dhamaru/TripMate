@@ -93,4 +93,14 @@ describe("socket access after removal or revocation", () => {
     s.emit("join-trip", { tripId: "not-an-id" });
     expect(await err).toBeTruthy();
   });
+
+  it("keeps a user present while any of their tabs is still open", async () => {
+    const tab1 = await client("partner", "s-tab1");
+    const tab2 = await client("partner", "s-tab2");
+    const update = once(tab2, "presence-update");
+    tab1.disconnect();
+    const members = await update;
+    expect(Array.isArray(members) && members.some((m: any) => m.userId === "partner")).toBe(true);
+    expect(members.every((m: any) => !("sockets" in m))).toBe(true);
+  });
 });

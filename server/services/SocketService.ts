@@ -11,6 +11,9 @@ interface UserPresence {
   userName: string;
   avatar?: string;
   lastSeen: number;
+  // One user can have the trip open in several tabs; they stay "present"
+  // until the last of those sockets leaves.
+  sockets: Set<string>;
 }
 
 interface AuthenticatedSocket extends Socket {
@@ -126,11 +129,13 @@ export class SocketService {
         if (!this.presence.has(tripId)) {
           this.presence.set(tripId, new Map());
         }
+        const prior = this.presence.get(tripId)!.get(userId);
         this.presence.get(tripId)!.set(userId, {
           userId,
           userName: userName ?? "Unknown",
           avatar,
           lastSeen: Date.now(),
+          sockets: new Set([...(prior?.sockets ?? []), socket.id]),
         });
 
         this.broadcastPresence(tripId);
@@ -142,7 +147,9 @@ export class SocketService {
 
         if (userId && this.presence.has(tripId)) {
           const members = this.presence.get(tripId)!;
-          members.delete(userId);
+          const me = members.get(userId);
+          me?.sockets.delete(socket.id);
+          if (!me || me.sockets.size === 0) members.delete(userId);
           // Was leaking one empty inner Map per trip ever viewed, forever
           // -- the outer presence Map only ever grew for the life of the
           // process, since neither this handler nor disconnect below
@@ -157,8 +164,9 @@ export class SocketService {
         // Clean up presence for this socket's user across all rooms
         if (socket.userId) {
           for (const [tripId, members] of this.presence.entries()) {
-            if (members.has(socket.userId)) {
-              members.delete(socket.userId);
+            const me = members.get(socket.userId);
+            if (me?.sockets.delete(socket.id)) {
+              if (me.sockets.size === 0) members.delete(socket.userId);
               if (members.size === 0) this.presence.delete(tripId);
               this.broadcastPresence(tripId);
             }
@@ -170,7 +178,9 @@ export class SocketService {
 
   private broadcastPresence(tripId: string) {
     if (this.io && this.presence.has(tripId)) {
-      const members = Array.from(this.presence.get(tripId)!.values());
+      const members = Array.from(this.presence.get(tripId)!.values()).map(
+        ({ sockets: _sockets, ...member }) => member,
+      );
       this.io.to(`trip:${tripId}`).emit("presence-update", members);
     }
   }
