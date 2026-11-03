@@ -1,0 +1,68 @@
+name: Database Backup
+
+# MongoDB's free Atlas tier has no backups of its own. This takes a nightly
+# mongodump of the production database, encrypts it, and keeps it as a
+# workflow artifact for 30 days. The repo is public, so the dump is never
+# uploaded unencrypted: only someone holding BACKUP_PASSPHRASE can read it.
+# Restore steps: docs/BACKUP.md.
+#
+# Needs two repository secrets: MONGODB_URI and BACKUP_PASSPHRASE. Without
+# them the job exits early instead of failing every night.
+
+on:
+  schedule:
+    - cron: '0 21 * * *'  # daily, 21:00 UTC (02:30 IST)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        id: check
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$MONGODB_URI" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning::MONGODB_URI or BACKUP_PASSPHRASE secret missing; skipping backup."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install MongoDB database tools
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          curl -fsSL https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.10.0.tgz -o tools.tgz
+          tar -xzf tools.tgz
+          echo "$PWD/mongodb-database-tools-ubuntu2204-x86_64-100.10.0/bin" >> "$GITHUB_PATH"
+
+      - name: Dump and encrypt
+        if: steps.check.outputs.ready == 'true'
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          name="tripmate-$(date -u +%Y-%m-%dT%H%MZ)"
+          mongodump --uri="$MONGODB_URI" --db=tripmate --archive --gzip --quiet \
+            | gpg --batch --yes --symmetric --cipher-algo AES256 \
+                  --passphrase-fd 3 3<<<"$BACKUP_PASSPHRASE" -o "$name.archive.gz.gpg"
+          size=$(stat -c%s "$name.archive.gz.gpg")
+          # An empty or tiny file means the dump failed even if gpg exited 0.
+          if [ "$size" -lt 1024 ]; then echo "::error::Backup is only $size bytes"; exit 1; fi
+          echo "BACKUP_FILE=$name.archive.gz.gpg" >> "$GITHUB_ENV"
+          echo "Backup $name: $size bytes"
+
+      - name: Upload encrypted backup
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error
