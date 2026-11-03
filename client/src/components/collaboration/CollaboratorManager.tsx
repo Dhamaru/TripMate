@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store";
+import { useLocation } from "wouter";
 import { apiRequestJson } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -49,6 +50,8 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
   const [isOpen, setIsOpen] = useState(false);
 
   const isOwner = user?.id === ownerId || (user as any)?._id === ownerId;
+  const myId = String(user?.id ?? (user as any)?._id ?? "");
+  const [, navigate] = useLocation();
 
   // Live-caught bug: a collaborator added anywhere other than this exact
   // mounted instance's own addMutation — the socket "collaborators-updated"
@@ -93,7 +96,12 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
   const removeMutation = useMutation({
     mutationFn: (collaboratorId: string) =>
       apiRequestJson("DELETE", `/api/v1/trips/${tripId}/collaborators/${collaboratorId}`),
-    onSuccess: () => {
+    onSuccess: (_data, collaboratorId) => {
+      if (!isOwner && collaboratorId === myId) {
+        toast({ title: "You left the trip" });
+        navigate("/app/trips");
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["trips", tripId, "collaborators"] });
       toast({
         title: "Collaborator removed",
@@ -201,12 +209,22 @@ export function CollaboratorManager({ tripId, ownerId }: CollaboratorManagerProp
                           )}
                           {col.role}
                         </Badge>
-                        {isOwner && (
+                        {(isOwner || getCollaboratorUserId(col) === myId) && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => removeMutation.mutate(getCollaboratorUserId(col))}
+                            aria-label={isOwner ? "Remove from trip" : "Leave this trip"}
+                            title={isOwner ? "Remove from trip" : "Leave this trip"}
+                            onClick={() => {
+                              const self = !isOwner;
+                              if (
+                                self &&
+                                !window.confirm("Leave this trip? You'll lose access to it.")
+                              )
+                                return;
+                              removeMutation.mutate(getCollaboratorUserId(col));
+                            }}
                             disabled={removeMutation.isPending}
                           >
                             <X className="w-4 h-4" />

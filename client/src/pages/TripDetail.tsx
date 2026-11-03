@@ -140,7 +140,7 @@ export default function TripDetail() {
     const socket = socketRef.current;
     if (!socket || !id) return;
 
-    socket.on("trip-mutation", (mutation: { type: string; data?: any }) => {
+    socket.on("trip-mutation", (mutation: { type: string; data?: any; actorId?: string }) => {
       // Invalidate relevant queries based on mutation type
       if (
         mutation.type === "itinerary-updated" ||
@@ -162,9 +162,14 @@ export default function TripDetail() {
         queryClient.invalidateQueries({ queryKey: ["trips", id, "collaborators"] });
       }
 
+      // Atlas changes reach the actor's own tab too; don't call that "a collaborator".
+      const me = useAuthStore.getState().user?.id;
+      const mine = !!mutation.actorId && mutation.actorId === String(me ?? "");
       toast({
         title: "Live Update",
-        description: `A collaborator updated the ${mutation.type.split("-")[0]}.`,
+        description: mine
+          ? `Atlas updated the ${mutation.type.split("-")[0]}.`
+          : `A collaborator updated the ${mutation.type.split("-")[0]}.`,
       });
     });
 

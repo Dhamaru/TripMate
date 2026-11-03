@@ -94,8 +94,11 @@ export const removeCollaborator = asyncHandler(
     const userId = req.user?._id || req.user?.id;
     const { id: tripId, collaboratorId } = req.params;
 
-    // Only the primary owner can remove collaborators
-    const trip = await TripModel.findOne({ _id: tripId, userId });
+    // The owner can remove anyone; a collaborator can remove themselves (leave).
+    const leaving = String(userId) === String(collaboratorId);
+    const trip = await TripModel.findOne(
+      leaving ? { _id: tripId, "collaborators.userId": String(userId) } : { _id: tripId, userId },
+    );
     if (!trip) throw new NotFoundError("Trip not found or access denied");
 
     const updatedTrip = await TripModel.findByIdAndUpdate(

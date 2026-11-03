@@ -65,6 +65,7 @@ export async function expenseToolHandler(args: {
       // that's a notification-bell ping for OTHER collaborators, correctly
       // separate from this.)
       socketService.broadcastMutation(tripId, {
+        actorId: userId,
         type: "expenses-updated",
         data: trip.expenses,
       });
@@ -113,6 +114,7 @@ export async function expenseToolHandler(args: {
       // that's a notification-bell ping for OTHER collaborators, correctly
       // separate from this.)
       socketService.broadcastMutation(tripId, {
+        actorId: userId,
         type: "expenses-updated",
         data: trip.expenses,
       });

@@ -268,7 +268,7 @@ export const updateTrip = asyncHandler(async (req: Request, res: Response, next:
 
   // Only notify collaborators about changes that actually matter to
   // their planning — dates, destination, budget — not every field poke.
-  const MEANINGFUL = ["startDate", "endDate", "destination", "budget", "totalBudget", "days"];
+  const MEANINGFUL = ["startDate", "endDate", "destination", "budget", "days"];
   if (MEANINGFUL.some((f) => f in updates)) {
     const tid = (trip as any)._id.toString();
     await notifyTripParticipants(trip, String(userId), {

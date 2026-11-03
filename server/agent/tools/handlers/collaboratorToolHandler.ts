@@ -84,7 +84,11 @@ export async function collaboratorToolHandler(args: {
         { new: true },
       );
       // No excludeUserId — see modifyItineraryHandler.ts's comment on the same pattern.
-      socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updated });
+      socketService.broadcastMutation(tripId, {
+        type: "collaborators-updated",
+        data: updated,
+        actorId: userId,
+      });
 
       // Tell the added person — same email + in-app notification the REST
       // "add collaborator" path sends. Without this an Atlas-added
@@ -142,7 +146,11 @@ export async function collaboratorToolHandler(args: {
       // Out of the room first, so the removed user doesn't get this last update.
       socketService.removeFromTrip(args.collaboratorId, tripId);
       // No excludeUserId — see modifyItineraryHandler.ts's comment on the same pattern.
-      socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updated });
+      socketService.broadcastMutation(tripId, {
+        type: "collaborators-updated",
+        data: updated,
+        actorId: userId,
+      });
       await notifyUser({
         userId: args.collaboratorId,
         type: "collaborator-removed",

@@ -274,6 +274,8 @@ export async function modifyItineraryHandler(
     // right now never got the live update, and had to reload to see
     // what Atlas just did — live-reported.
     socketService.broadcastMutation(tripId, {
+      // Lets the actor's own tab say "Atlas updated…" instead of "a collaborator".
+      actorId: userId,
       type: "itinerary-updated",
       data: written.itinerary,
     });

@@ -195,7 +195,7 @@ export class SocketService {
 
   public broadcastMutation(
     tripId: string,
-    mutation: { type: string; data?: any },
+    mutation: { type: string; data?: any; actorId?: string },
     excludeUserId?: string,
   ) {
     if (!this.io) return;
