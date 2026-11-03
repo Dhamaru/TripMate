@@ -6,6 +6,8 @@
 - 2026-11-02: audit P1/P2 batch pushed and live-checked with zero AI calls (details in CONTEXT.md).
 - 2026-11-03: independent review of that batch done, all 7 fixable findings fixed; light/dark contrast sweep clean. Gate: typecheck clean, build clean, 234/234 tests.
 
+- 2026-11-03 (later): Trip Map + Offline Maps fixed and live-verified, Windows-app notifications, Atlas token-count fix, nightly backup workflow, dependency upgrades, dead-code removal. Gate: 233/233 tests.
+
 ## In progress
 
 - Parallel-session work, uncommitted and awaiting the owner: root font-size clamp in `client/src/index.css`, hero height in `client/src/pages/Landing.tsx`, one CONTEXT.md bullet. Don't commit these without asking.
