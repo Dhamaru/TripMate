@@ -1,5 +1,5 @@
 import { config } from "./config";
-import nodemailer from "nodemailer";
+import nodemailer, { type SendMailOptions } from "nodemailer";
 
 // User-supplied names, trip text and feedback go into HTML emails sent from
 // TripMate's address; unescaped, anyone could send real TripMate mail with
@@ -99,7 +99,7 @@ async function createTransporter() {
 // Initialize transporter wrapper
 const transporterPromise = createTransporter();
 
-export async function sendEmail(options: nodemailer.SendMailOptions) {
+export async function sendEmail(options: SendMailOptions) {
   try {
     const transporter = await transporterPromise;
     if (!transporter) {
@@ -397,7 +397,7 @@ export async function sendFeedbackConfirmationEmail(
 }
 
 export async function sendEmailDetailed(
-  options: nodemailer.SendMailOptions,
+  options: SendMailOptions,
 ): Promise<{ ok: boolean; error?: any; messageId?: string }> {
   try {
     const transporter = await transporterPromise;
