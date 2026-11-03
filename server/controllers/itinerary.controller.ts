@@ -260,7 +260,7 @@ export const trimItinerary = asyncHandler(
 // read current updatedAt, CAS the write, retry a few times on conflict.
 export const reorderItinerary = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { itinerary, baseUpdatedAt } = req.body;
+    const { itinerary } = req.body;
     const tripId = req.params.id;
     const userId = req.user!._id;
     const accessFilter = editorAccessFilter(tripId, String(userId));
@@ -279,23 +279,44 @@ export const reorderItinerary = asyncHandler(
       if (day) day.dayIndex = idx;
     });
 
-    // The client sends the whole itinerary as it last saw it. Retrying on a
-    // fresh version would overwrite whatever changed in between (an added or
-    // deleted activity), so when the client says which version it edited,
-    // a mismatch is a conflict for the user to see, not something to retry.
-    const attempts = baseUpdatedAt ? 1 : 3;
-    for (let attempt = 0; attempt < attempts; attempt++) {
-      const current = await TripModel.findOne(accessFilter, { updatedAt: 1 });
+    // A reorder may only change order and times. The client sends the whole
+    // itinerary as it last saw it, so writing that back could undo an
+    // activity someone added/removed meanwhile, or background updates such
+    // as map coordinates. Instead: refuse if the set of activities differs
+    // (a real conflict), otherwise apply the client's order and times onto
+    // the latest stored activities.
+    const ids = (days: any[]) =>
+      days.flatMap((d) => (d?.activities || []).map((a: any) => a?.id)).sort();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const current = await TripModel.findOne(accessFilter, { itinerary: 1, updatedAt: 1 });
       if (!current) throw new NotFoundError("Trip not found or access denied");
-      if (baseUpdatedAt && current.updatedAt?.getTime() !== new Date(baseUpdatedAt).getTime()) {
+      const stored: any[] = (current.toObject().itinerary as any[]) || [];
+
+      const sent = ids(itinerary);
+      const now = ids(stored);
+      const comparable = sent.every(Boolean) && now.every(Boolean);
+      if (comparable && (itinerary.length !== stored.length || sent.join("|") !== now.join("|"))) {
         throw new ConflictError(
           "The itinerary changed while you were moving things. Your move wasn't saved; please try again.",
         );
       }
+      const byId = new Map<string, Record<string, unknown>>(
+        stored.flatMap((d) => (d?.activities || []).map((a: any) => [a.id, a] as [string, any])),
+      );
+      const merged = comparable
+        ? itinerary.map((day: any, idx: number) => ({
+            ...(stored[idx] || {}),
+            dayIndex: idx,
+            activities: (day.activities || []).map((a: any) => ({
+              ...byId.get(a.id),
+              time: a.time,
+            })),
+          }))
+        : itinerary; // legacy activities without ids: nothing to match on
 
       const trip = await TripModel.findOneAndUpdate(
         { ...accessFilter, updatedAt: current.updatedAt },
-        { itinerary },
+        { itinerary: merged },
         { new: true },
       );
 

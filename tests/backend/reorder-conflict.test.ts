@@ -97,4 +97,51 @@ describe("itinerary reorder against a stale version", () => {
       });
     expect(res.status).toBe(200);
   });
+
+  it("isn't blocked by background updates, and keeps them", async () => {
+    const trip = await TripModel.create({
+      userId,
+      destination: "Goa",
+      days: 1,
+      groupSize: 1,
+      itinerary: [
+        {
+          dayIndex: 0,
+          activities: [
+            { id: "a", title: "A", time: "09:00 AM" },
+            { id: "b", title: "B", time: "11:00 AM" },
+          ],
+        },
+      ],
+    });
+    const seen = (await TripModel.findById(trip._id).lean()) as any;
+    // e.g. the map-pin backfill adds coordinates after the page loaded
+    await new Promise((r) => setTimeout(r, 5));
+    await TripModel.updateOne(
+      { _id: trip._id },
+      { $set: { "itinerary.0.activities.0.lat": 15.5, "itinerary.0.activities.0.lon": 73.8 } },
+    );
+    const res = await request(app)
+      .put(`/api/v1/trips/${trip._id}/itinerary/reorder`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        itinerary: [
+          {
+            dayIndex: 0,
+            activities: [
+              { id: "b", title: "B", time: "09:00 AM" },
+              { id: "a", title: "A", time: "11:00 AM" },
+            ],
+          },
+        ],
+        baseUpdatedAt: new Date(seen.updatedAt).toISOString(),
+      });
+    expect(res.status).toBe(200);
+    const stored: any = await TripModel.findById(trip._id).lean();
+    expect(stored.itinerary[0].activities.map((x: any) => [x.id, x.time])).toEqual([
+      ["b", "09:00 AM"],
+      ["a", "11:00 AM"],
+    ]);
+    expect(stored.itinerary[0].activities[1].lat).toBe(15.5);
+  });
 });
