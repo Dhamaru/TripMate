@@ -18,8 +18,17 @@ export const addExpense = asyncHandler(async (req: Request, res: Response, next:
   const userId = req.user!._id;
   const expenseData = req.body;
 
+  // No currency given: use the trip's own, not whatever the client defaulted to.
+  let currency = expenseData.currency;
+  if (!currency) {
+    const t = await TripModel.findOne(editorAccessFilter(tripId, String(userId)), { currency: 1 });
+    if (!t) throw new NotFoundError("Trip not found or access denied");
+    currency = t.currency || "INR";
+  }
+
   const newExpense = {
     ...expenseData,
+    currency,
     id: nanoid(),
     date: expenseData.date || new Date(),
   };

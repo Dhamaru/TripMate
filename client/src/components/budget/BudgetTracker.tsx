@@ -116,7 +116,14 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
   }
 
   const handleAdd = async () => {
-    if (!newExpense.amount || !newExpense.description) return;
+    if (!newExpense.amount || !newExpense.description) {
+      toast({
+        title: "Missing details",
+        description: "Enter an amount and a description to save this expense.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (Number(newExpense.amount) <= 0) {
       toast({
         title: "Invalid amount",
