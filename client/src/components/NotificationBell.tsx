@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest } from "@/lib/queryClient";
 import { useSocket } from "@/hooks/useSocket";
+import { showDesktopNotification } from "@/lib/push";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
@@ -98,6 +99,7 @@ export function NotificationBell() {
     if (!socket) return;
 
     const onNotification = (notif: NotificationItem & { grouped?: boolean }) => {
+      showDesktopNotification(notif, navigate);
       patchAll((prev) => {
         const list = prev?.notifications ?? [];
         if (notif.grouped) {

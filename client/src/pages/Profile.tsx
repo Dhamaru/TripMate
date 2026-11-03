@@ -20,6 +20,9 @@ import { apiRequest, apiRequestJson, getCsrfToken } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import {
   isPushSupported,
+  isDesktopApp,
+  desktopNotificationsEnabled,
+  setDesktopNotifications,
   getCurrentPushSubscription,
   enablePushNotifications,
   disablePushNotifications,
@@ -45,7 +48,9 @@ export default function Profile() {
   const [pushEnabled, setPushEnabled] = useState<boolean>(false);
   const [pushBusy, setPushBusy] = useState<boolean>(false);
   const pushSupported = useMemo(() => isPushSupported(), []);
+  const desktopApp = useMemo(() => isDesktopApp(), []);
   useEffect(() => {
+    if (desktopApp) setPushEnabled(desktopNotificationsEnabled());
     if (!pushSupported) return;
     getCurrentPushSubscription()
       .then((sub) => setPushEnabled(!!sub))
@@ -54,6 +59,20 @@ export default function Profile() {
   const togglePush = async (checked: boolean) => {
     setPushBusy(true);
     try {
+      if (desktopApp) {
+        if ((await setDesktopNotifications(checked)) === "denied") {
+          toast({
+            title: "Couldn't enable notifications",
+            description:
+              "Windows blocked notifications for TripMate. Allow them in Settings > System > Notifications, then try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        setPushEnabled(checked);
+        toast({ title: checked ? "Notifications enabled" : "Notifications turned off" });
+        return;
+      }
       if (checked) {
         const result = await enablePushNotifications();
         if (result.ok) {
@@ -817,13 +836,14 @@ export default function Profile() {
               {isCheckingUpdate ? "Updating…" : "Check for updates"}
             </Button>
           </div>
-          {pushSupported && (
+          {(pushSupported || desktopApp) && (
             <div className="mt-8 pt-6 border-t border-border flex items-center justify-between gap-4">
               <div>
                 <h3 className="font-medium text-foreground">Push Notifications</h3>
                 <p className="text-sm text-muted-foreground">
-                  Get notified on this device even when TripMate isn't open — trip updates,
-                  collaborator activity, reminders.
+                  {desktopApp
+                    ? "Get Windows notifications for trip updates, collaborator activity and reminders while the TripMate app is open, even minimized."
+                    : "Get notified on this device even when TripMate isn't open — trip updates, collaborator activity, reminders."}
                 </p>
               </div>
               <Switch

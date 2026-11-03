@@ -3,8 +3,59 @@
 // in-app list, which only updates while a TripMate tab is actually open.
 import { apiRequest } from "./queryClient";
 
+// The Windows app is a WebView2 wrapper (window.chrome.webview). WebView2 has
+// no browser push service, so subscribing always fails there; the app shows
+// native Windows notifications for live events instead (below).
+export function isDesktopApp(): boolean {
+  return typeof window !== "undefined" && !!(window as any).chrome?.webview;
+}
+
 export function isPushSupported(): boolean {
-  return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+  return (
+    typeof window !== "undefined" &&
+    !isDesktopApp() &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window
+  );
+}
+
+const DESKTOP_KEY = "tripmate-desktop-notifications";
+
+export function desktopNotificationsEnabled(): boolean {
+  try {
+    return (
+      isDesktopApp() &&
+      localStorage.getItem(DESKTOP_KEY) === "1" &&
+      Notification.permission === "granted"
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function setDesktopNotifications(on: boolean): Promise<"ok" | "denied"> {
+  if (on && (await Notification.requestPermission()) !== "granted") return "denied";
+  try {
+    if (on) localStorage.setItem(DESKTOP_KEY, "1");
+    else localStorage.removeItem(DESKTOP_KEY);
+  } catch {
+    /* storage unavailable: the setting just won't persist */
+  }
+  return "ok";
+}
+
+// Shown only while the window isn't in front; in front, the bell already shows it.
+export function showDesktopNotification(
+  n: { id: string; title: string; message: string; link?: string },
+  open: (link: string) => void,
+) {
+  if (!desktopNotificationsEnabled() || document.visibilityState === "visible") return;
+  const note = new Notification(n.title, { body: n.message, tag: n.id });
+  note.onclick = () => {
+    window.focus();
+    if (n.link) open(n.link);
+    note.close();
+  };
 }
 
 // applicationServerKey wants a Uint8Array, the VAPID public key travels as
