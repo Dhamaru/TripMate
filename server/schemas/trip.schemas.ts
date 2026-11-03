@@ -56,7 +56,7 @@ export const createTripSchema = z.object({
     notes: z.string().optional(),
     cuisinePreferences: z.array(z.string()).optional(),
     dietaryPreferences: z.array(z.string()).optional(),
-    costBreakdown: z.record(z.any()).optional(),
+    costBreakdown: z.record(z.string(), z.any()).optional(),
     itinerary: z
       .array(
         z

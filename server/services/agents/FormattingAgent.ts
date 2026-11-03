@@ -271,7 +271,7 @@ export class FormattingAgent {
         ${JSON.stringify(candidatePayload)}
         
         Zod Error:
-        ${JSON.stringify(e.errors)}
+        ${JSON.stringify(e.issues ?? e.errors)}
 
         Fix the JSON structure to resolve the missing or incorrect types. 
         DO NOT alter the itinerary data, ONLY fix the keys and type shapes. Return ONLY the JSON object.

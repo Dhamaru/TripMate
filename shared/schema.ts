@@ -434,7 +434,7 @@ export const insertTripSchema = z.object({
   aiPlanMarkdown: z.string().optional(),
   isDraft: z.boolean().optional(),
   syncStatus: z.enum(["synced", "pending", "conflict"]).optional(),
-  costBreakdown: z.record(z.any()).optional(), // Store flexible JSON cost data
+  costBreakdown: z.record(z.string(), z.any()).optional(), // Store flexible JSON cost data
   shareId: z.string().optional(),
   isPublic: z.boolean().optional(),
   expenses: z
