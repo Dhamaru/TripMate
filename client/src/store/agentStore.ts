@@ -71,7 +71,12 @@ function streamAgentChat(
 
   es.onmessage = (e: MessageEvent<string>) => {
     resetStallTimer();
-    const parsed = JSON.parse(e.data) as SSEMessage;
+    let parsed: SSEMessage;
+    try {
+      parsed = JSON.parse(e.data) as SSEMessage;
+    } catch {
+      return; // a malformed frame shouldn't kill the whole reply
+    }
     if (parsed.type === "token" && parsed.content) onToken(parsed.content);
     if (parsed.type === "tool" && parsed.tool) onTool(parsed.tool);
     if (parsed.type === "done") {

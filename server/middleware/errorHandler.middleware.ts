@@ -23,13 +23,14 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
     });
   }
 
-  // Malformed ObjectId in a URL (e.g. /trips/undefined) — it can't match a
-  // record, so it's a 404, not a 500.
+  // Malformed ObjectId in a URL (e.g. /trips/undefined) can't match a record:
+  // 404. A cast failure on any other field is bad input: 400.
   if (err.name === "CastError") {
-    return res.status(404).json({
+    const isId = (err as any).path === "_id";
+    return res.status(isId ? 404 : 400).json({
       success: false,
-      error: "Not found",
-      code: "NOT_FOUND",
+      error: isId ? "Not found" : "Invalid value",
+      code: isId ? "NOT_FOUND" : "INVALID_INPUT",
       requestId: req.requestId,
     });
   }

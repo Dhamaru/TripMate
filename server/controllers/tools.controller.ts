@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { snapWikimediaThumb } from "@shared/wikimediaThumb";
 import { config } from "../config";
-import { BadRequestError } from "../errors";
+import { BadRequestError, NotFoundError } from "../errors";
 import mongoose from "mongoose";
 import { AiUtilitiesService } from "../AiUtilitiesService";
 import { TripModel, UserModel } from "@shared/schema";
@@ -100,7 +100,12 @@ async function buildTopDestinations() {
     },
     {
       $group: {
-        _id: { $toLower: { $trim: { input: "$destination" } } },
+        // "Goa" and "Goa, India" are one place: group on the part before the comma.
+        _id: {
+          $trim: {
+            input: { $arrayElemAt: [{ $split: [{ $toLower: "$destination" }, ","] }, 0] },
+          },
+        },
         destination: { $first: "$destination" },
         imageUrl: { $first: "$imageUrl" },
         tripCount: { $sum: 1 },
@@ -194,7 +199,8 @@ export const getDestinationImage = asyncHandler(
     }
 
     const rawUrl = destinationImageUrls.get(destination);
-    if (!rawUrl) throw new BadRequestError("Unknown destination");
+    // A card can outlive the 5-minute list it came from; that's "gone", not a bad request.
+    if (!rawUrl) throw new NotFoundError("Unknown destination");
 
     // Live-reported: GET .../destination-image?d=VISHAKAPATNAM 500'd on
     // every request, breaking that image slot on the landing page for

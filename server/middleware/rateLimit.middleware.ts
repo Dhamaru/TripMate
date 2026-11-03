@@ -45,6 +45,7 @@ export const generalLimiter = rateLimit({
     const path = (req.path ?? "").replace(/^\/(?:v1|tools)/, "");
     return (
       path.startsWith("/health") ||
+      path.startsWith("/ping") ||
       path.startsWith("/liveness") ||
       path.startsWith("/readiness") ||
       path.startsWith("/version")
