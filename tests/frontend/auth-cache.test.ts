@@ -37,3 +37,23 @@ describe("sign-out clears cached user data", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 });
+
+describe("offline cold start", () => {
+  it("keeps the last signed-in user when the device is offline", async () => {
+    useAuthStore.setState({ user: { id: "u1", firstName: "Qa" } as any, isAuthenticated: true });
+    useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: true });
+    useAuthStore.setState({ user: { id: "u1", firstName: "Qa" } as any });
+    useAuthStore.setState({ isAuthenticated: false, isLoading: true });
+    const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    await useAuthStore.getState().checkSession();
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().user?.id).toBe("u1");
+    online.mockRestore();
+  });
+});

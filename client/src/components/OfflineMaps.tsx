@@ -330,7 +330,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
           return {
             id: r.id!,
             name: r.name!,
-            country: r.country || "Unknown",
+            country: r.country || "",
             bytes: typeof r.bytes === "number" ? r.bytes : 0,
             tileUrls: migratedUrls,
             downloaded: stillDownloaded,
@@ -398,6 +398,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
   // started (current GPS position while live-tracking, not the original
   // start point), so they read correctly as "time left" rather than
   // "original trip time" once the user has been moving for a while.
+  const routeAbortRef = useRef<AbortController | null>(null);
   const [routeSteps, setRouteSteps] = useState<Array<{ instruction: string; distanceM: number }>>(
     [],
   );
@@ -543,6 +544,13 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
       attribution: mapStyle === "street" ? STREET_TILE_ATTRIBUTION : TILE_ATTRIBUTION,
       maxZoom: mapStyle === "street" ? 19 : 17,
       noWrap: true,
+      // CORS tiles: readable for "Save to Device" and not padded in storage.
+      crossOrigin: true,
+      // noWrap alone still requests off-world tiles (403/404 at low zoom).
+      bounds: [
+        [-90, -180],
+        [90, 180],
+      ],
     }).addTo(map);
     tileLayerRef.current = layer;
     const tilePane = map.getPane("tilePane");
@@ -754,13 +762,21 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     // the component unmounts) can't land its response afterward and apply
     // stale distance/ETA/step-list state for a navigation session that's
     // already over.
+    // Only a newer reroute (at most every 8s) or stopping cancels it; a GPS
+    // tick on its own must not, or slow connections never get an update.
+    routeAbortRef.current?.abort();
     const controller = new AbortController();
+    routeAbortRef.current = controller;
     computeRoute(userLocation, selectedPlace, { silent: true, signal: controller.signal });
-    return () => controller.abort();
     // computeRoute is defined in the same render scope and doesn't need to
     // be a dep -- it closes over routePolylineRef/toast which are stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNavigating, userLocation, selectedPlace, routeArrived]);
+
+  useEffect(() => {
+    if (!isNavigating || routeArrived) routeAbortRef.current?.abort();
+  }, [isNavigating, routeArrived]);
+  useEffect(() => () => routeAbortRef.current?.abort(), []);
 
   const fetchNavDestSuggestions = (query: string) => {
     if (navDestDebounceRef.current) clearTimeout(navDestDebounceRef.current);
@@ -1273,7 +1289,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             onClick={() => setActiveTab("saved")}
             className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "saved" ? "bg-[#163F73] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
           >
-            Saved Pins
+            <span className="whitespace-nowrap">Saved Pins</span>
           </button>
         </div>
         {offlineModeRegion ? (
@@ -1517,7 +1533,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                         {routeSteps[0] && (
                           <p className="text-sm font-semibold text-foreground">
                             <i className="fas fa-directions mr-1.5 text-[var(--ink-blue-text)]"></i>
-                            {routeSteps[0].instruction}
+                            {/* The route is recomputed from where you are, so step 0 is
+                                always "Head ..."; the next turn is what matters. */}
+                            {routeSteps[1]
+                              ? `In ${routeSteps[0].distanceM >= 1000 ? `${(routeSteps[0].distanceM / 1000).toFixed(1)} km` : `${Math.round(routeSteps[0].distanceM)} m`}, ${routeSteps[1].instruction}`
+                              : routeSteps[0].instruction}
                           </p>
                         )}
                         {routeSteps.length > 1 && (
@@ -1611,7 +1631,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
             // collapsing it first) — now stays visible and just moves
             // higher to clear the expanded sheet instead.
             className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border transition-all"
-            style={{ bottom: sheetExpanded ? 200 : 140 }}
+            style={{ bottom: sheetExpanded ? "calc(65% + 88px)" : 140 }}
             title="Locate Me"
           >
             <i className="fas fa-crosshairs"></i>

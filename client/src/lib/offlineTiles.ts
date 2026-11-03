@@ -83,17 +83,14 @@ export async function downloadTiles(
       const url = urls[idx++];
       try {
         const existing = await cache.match(url);
-        if (existing) {
+        // An opaque entry (cached before tiles were requested with CORS) is
+        // unreadable for export and inflates storage; fetch it again.
+        if (existing && existing.type !== "opaque") {
           const len = existing.headers.get("content-length");
           bytes += len ? parseInt(len, 10) : ESTIMATED_TILE_BYTES;
         } else {
-          let res: Response;
-          try {
-            res = await fetch(url, { mode: "cors" });
-          } catch {
-            res = await fetch(url, { mode: "no-cors" });
-          }
-          if (res.status === 200 || res.type === "opaque") {
+          const res = await fetch(url, { mode: "cors" });
+          if (res.status === 200) {
             await cache.put(url, res.clone());
             const len = res.headers.get("content-length");
             bytes += len ? parseInt(len, 10) : ESTIMATED_TILE_BYTES;

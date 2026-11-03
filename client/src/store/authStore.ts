@@ -61,6 +61,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         // Expired or revoked session: the next person must not see its data.
         clearUserCaches();
         set({ user: null, isAuthenticated: false, isLoading: false });
+      } else if (status === 0 && typeof navigator !== "undefined" && !navigator.onLine) {
+        // Offline cold start: trust the last confirmed sign-in so downloaded
+        // offline maps stay reachable. The server still checks the session
+        // on every request once the device is back online.
+        const remembered = readRememberedUser();
+        if (remembered) set({ user: remembered, isAuthenticated: true, isLoading: false });
+        else set({ isLoading: false });
       } else if ((status === 429 || status >= 500 || status === 0) && retryCount < 3) {
         // On a fresh page load there's no prior authenticated state to
         // fall back on — the store just initialized with
@@ -92,6 +99,29 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ user, isAuthenticated: true, isLoading: false });
   },
 }));
+
+const REMEMBERED_USER_KEY = "tripmate-last-user";
+
+function readRememberedUser(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem(REMEMBERED_USER_KEY);
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Kept only while signed in: sign-out, a 401 and account deletion all set
+// user to null, which removes it.
+useAuthStore.subscribe((state, prev) => {
+  if (state.user === prev.user) return;
+  try {
+    if (state.user) localStorage.setItem(REMEMBERED_USER_KEY, JSON.stringify(state.user));
+    else localStorage.removeItem(REMEMBERED_USER_KEY);
+  } catch {
+    /* storage unavailable: offline cold start just won't be signed in */
+  }
+});
 
 if (typeof window !== "undefined") {
   window.addEventListener("tripmate:unauthorized", () => {

@@ -74,7 +74,7 @@ registerRoute(
     cacheName: "map-tiles-cache",
     plugins: [
       new ExpirationPlugin({ maxEntries: 6000, maxAgeSeconds: 60 * 60 * 24 * 60 }),
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new CacheableResponsePlugin({ statuses: [200] }),
     ],
   }),
 );
