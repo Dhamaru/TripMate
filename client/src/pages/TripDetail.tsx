@@ -482,8 +482,13 @@ export default function TripDetail() {
       .catch(() => {});
   }, [tripKey, trip?.imageUrl, isAuthenticated, setCurrentTrip]);
 
-  const { data: journalEntries } = useQuery<JournalEntry[]>({
-    queryKey: ["/api/v1/journal"],
+  // Only this trip's entries: the whole journal (every trip, with photos)
+  // used to be fetched and filtered here. Key stays under "/api/v1/journal"
+  // so existing invalidations still refresh it.
+  const { data: tripJournalEntries = [] } = useQuery<JournalEntry[]>({
+    queryKey: ["/api/v1/journal", "trip", id],
+    queryFn: () => apiRequestJson("GET", `/api/v1/journal?tripId=${encodeURIComponent(id)}`),
+    enabled: !!id,
   });
 
   const trimItineraryMutation = useMutation({
@@ -851,8 +856,6 @@ export default function TripDetail() {
     setIsEditing(false);
   };
 
-  const tripJournalEntries =
-    journalEntries?.filter((entry) => entry.tripId?.toString() === id) || [];
   // TravelStyle's type allows both "Adventure" and "adventure" (the import-
   // schedule flow can produce either), but travelStyles' own ids are always
   // lowercase — a trip created via that path never matched a style tile
