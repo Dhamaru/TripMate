@@ -677,8 +677,13 @@ export function ItineraryManager({
     try {
       const response = await apiRequest("PUT", `/api/v1/trips/${trip.id}/itinerary/reorder`, {
         itinerary: updated,
-        // Lets the server refuse instead of overwriting a newer itinerary.
-        baseUpdatedAt: trip.updatedAt,
+        // Times as loaded from the server, so a collaborator's time change
+        // made meanwhile is refused (409) rather than overwritten.
+        baseTimes: Object.fromEntries(
+          (trip.itinerary || []).flatMap((d: any) =>
+            (d?.activities || []).filter((a: any) => a?.id).map((a: any) => [a.id, a.time ?? null]),
+          ),
+        ),
       });
       // Adopt the saved trip right away, so a quick second move carries the
       // new version instead of tripping a false conflict.

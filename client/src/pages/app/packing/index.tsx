@@ -139,6 +139,8 @@ const SEASONAL_DEFAULTS: Record<Season, { name: string; category: string }[]> = 
   ],
 };
 
+class ListConflictError extends Error {}
+
 export default function PackingChecklist() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -410,12 +412,29 @@ export default function PackingChecklist() {
     },
   });
 
+  // Whole-list save with the version this page loaded: if a collaborator
+  // saved in between, the server answers 409 instead of erasing their change.
+  const saveListItems = async (id: string, newItems: IPackingListItem[]) => {
+    const loaded = queryClient
+      .getQueryData<PackingList[]>(["/api/v1/packing-lists"])
+      ?.find((l) => getId(l) === id) as { updatedAt?: string | Date } | undefined;
+    const res = await apiRequest("PUT", `/api/v1/packing-lists/${id}`, {
+      items: newItems,
+      ...(loaded?.updatedAt ? { baseUpdatedAt: new Date(loaded.updatedAt).toISOString() } : {}),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      throw new ListConflictError(
+        body?.error || "Someone else just changed this list. Reload to see their changes.",
+      );
+    }
+    await throwIfResNotOk(res);
+    return res.json();
+  };
+
   const updateListMutation = useMutation({
-    mutationFn: async ({ id, newItems }: { id: string; newItems: IPackingListItem[] }) => {
-      const res = await apiRequest("PUT", `/api/v1/packing-lists/${id}`, { items: newItems });
-      await throwIfResNotOk(res);
-      return res.json();
-    },
+    mutationFn: ({ id, newItems }: { id: string; newItems: IPackingListItem[] }) =>
+      saveListItems(id, newItems),
     onMutate: async ({ id, newItems }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/v1/packing-lists"] });
       const previousLists = queryClient.getQueryData<PackingList[]>(["/api/v1/packing-lists"]);
@@ -438,8 +457,9 @@ export default function PackingChecklist() {
     onError: (err, variables, context) => {
       queryClient.setQueryData(["/api/v1/packing-lists"], context?.previousLists);
       toast({
-        title: "Error",
-        description: "Failed to update packing list",
+        title: err instanceof ListConflictError ? "List changed" : "Error",
+        description:
+          err instanceof ListConflictError ? err.message : "Failed to update packing list",
         variant: "destructive",
       });
     },
@@ -490,11 +510,8 @@ export default function PackingChecklist() {
   });
 
   const updateDocsListMutation = useMutation({
-    mutationFn: async ({ id, newItems }: { id: string; newItems: IPackingListItem[] }) => {
-      const res = await apiRequest("PUT", `/api/v1/packing-lists/${id}`, { items: newItems });
-      await throwIfResNotOk(res);
-      return res.json();
-    },
+    mutationFn: ({ id, newItems }: { id: string; newItems: IPackingListItem[] }) =>
+      saveListItems(id, newItems),
     onMutate: async ({ id, newItems }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/v1/packing-lists"] });
       const previousLists = queryClient.getQueryData<PackingList[]>(["/api/v1/packing-lists"]);
@@ -512,7 +529,11 @@ export default function PackingChecklist() {
     },
     onError: (err, variables, context) => {
       queryClient.setQueryData(["/api/v1/packing-lists"], context?.previousLists);
-      toast({ title: "Error", description: "Failed to save documents", variant: "destructive" });
+      toast({
+        title: err instanceof ListConflictError ? "List changed" : "Error",
+        description: err instanceof ListConflictError ? err.message : "Failed to save documents",
+        variant: "destructive",
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/packing-lists"] });

@@ -94,6 +94,9 @@ export default function TripDetail() {
 
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  // For the socket handler below without re-subscribing on every render.
+  const navigateRef = useRef(setLocation);
+  navigateRef.current = setLocation;
   const { user, isLoading: authLoading, isAuthenticated } = useAuthStore();
   const {
     currentTrip: trip,
@@ -141,6 +144,11 @@ export default function TripDetail() {
     if (!socket || !id) return;
 
     socket.on("trip-mutation", (mutation: { type: string; data?: any; actorId?: string }) => {
+      if (mutation.type === "trip-deleted") {
+        toast({ title: "Trip deleted", description: "The owner deleted this trip." });
+        navigateRef.current("/app/trips");
+        return;
+      }
       // Invalidate relevant queries based on mutation type
       if (
         mutation.type === "itinerary-updated" ||

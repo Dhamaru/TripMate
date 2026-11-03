@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { splitByCurrency } from "@/lib/expenseTotals";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -169,10 +170,8 @@ function collaboratorInitials(trip: Trip): string[] {
 
 function budgetState(trip: Trip) {
   const total = trip.totalBudget || trip.budget || 0;
-  // Expenses can technically be in mixed currencies (rare); we sum raw
-  // amounts and label with the trip currency rather than pretend to do
-  // FX we don't have a rate for here. Good enough for an at-a-glance bar.
-  const spent = (trip.expenses ?? []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  // Only expenses in the trip's currency count (see splitByCurrency).
+  const spent = splitByCurrency(trip.expenses as any, trip.currency).inTripCurrency;
   const remaining = total - spent;
   const pct = total > 0 ? Math.min(100, Math.max(0, (spent / total) * 100)) : 0;
   const sym = getCurrencySymbol(trip.currency);

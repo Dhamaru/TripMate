@@ -106,15 +106,13 @@ export const removeCollaborator = asyncHandler(
     );
     if (!trip) throw new NotFoundError("Trip not found or access denied");
 
-    const updatedTrip = await TripModel.findByIdAndUpdate(
-      tripId,
-      {
-        $pull: {
-          collaborators: { userId: collaboratorId },
-        },
-      },
+    // Only someone actually on the trip can be removed (and notified).
+    const updatedTrip = await TripModel.findOneAndUpdate(
+      { _id: tripId, "collaborators.userId": String(collaboratorId) },
+      { $pull: { collaborators: { userId: String(collaboratorId) } } },
       { new: true },
     );
+    if (!updatedTrip) throw new NotFoundError("That person isn't on this trip");
 
     // Out of the room first, so the removed user doesn't get this last update.
     socketService.removeFromTrip(collaboratorId, tripId);
@@ -126,12 +124,14 @@ export const removeCollaborator = asyncHandler(
     // Notify the removed person directly — they're no longer in
     // trip.collaborators after the $pull above, so notifyTripParticipants
     // (which reads the trip's current participant list) can't reach them.
-    await notifyUser({
-      userId: collaboratorId,
-      type: "collaborator-removed",
-      title: "Removed from a trip",
-      message: `You were removed as a collaborator on the trip to ${trip.destination}.`,
-    });
+    if (!leaving) {
+      await notifyUser({
+        userId: collaboratorId,
+        type: "collaborator-removed",
+        title: "Removed from a trip",
+        message: `You were removed as a collaborator on the trip to ${trip.destination}.`,
+      });
+    }
 
     res.json(updatedTrip);
   },

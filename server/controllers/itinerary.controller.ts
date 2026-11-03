@@ -50,8 +50,14 @@ export const addActivity = asyncHandler(async (req: Request, res: Response, next
     // compare-and-set against concurrent changes.
     const current = await TripModel.findOne(editorAccessFilter(tripId, String(userId)), {
       itinerary: 1,
+      days: 1,
     });
     const length = current?.itinerary?.length ?? 0;
+    // A day past the end of the trip used to silently grow the itinerary
+    // (day 40 on a 2-day trip made 41 days).
+    if (dayIndex >= Math.max(current?.days ?? 0, length)) {
+      throw new BadRequestError("That day is outside this trip's dates.");
+    }
     if (dayIndex >= length) {
       const days = Array.from({ length: dayIndex - length + 1 }, (_, i) => ({
         dayIndex: length + i,
@@ -60,7 +66,11 @@ export const addActivity = asyncHandler(async (req: Request, res: Response, next
       trip = await TripModel.findOneAndUpdate(
         {
           ...editorAccessFilter(tripId, String(userId)),
-          itinerary: { $size: length },
+          // A trip saved without an itinerary field has no array to size.
+          // ($and, not $or: the access filter already uses $or.)
+          ...(length === 0
+            ? { $and: [{ $or: [{ itinerary: { $size: 0 } }, { itinerary: { $exists: false } }] }] }
+            : { itinerary: { $size: length } }),
           "itinerary.dayIndex": { $ne: dayIndex },
         },
         { $push: { itinerary: { $each: days } } },
@@ -303,6 +313,16 @@ export const reorderItinerary = asyncHandler(
       const byId = new Map<string, Record<string, unknown>>(
         stored.flatMap((d) => (d?.activities || []).map((a: any) => [a.id, a] as [string, any])),
       );
+      const baseTimes = req.body.baseTimes as Record<string, string | null> | undefined;
+      if (
+        comparable &&
+        baseTimes &&
+        [...byId].some(([id, a]) => id in baseTimes && (a.time ?? null) !== (baseTimes[id] ?? null))
+      ) {
+        throw new ConflictError(
+          "Someone just changed a time on this day. Your move wasn't saved; please try again.",
+        );
+      }
       const merged = comparable
         ? itinerary.map((day: any, idx: number) => ({
             ...(stored[idx] || {}),

@@ -56,6 +56,8 @@ export const updatePackingListSchema = z.object({
         }),
       )
       .optional(),
+    // The list's updatedAt when the client loaded it (409 if it changed).
+    baseUpdatedAt: z.string().optional(),
   }),
 });
 

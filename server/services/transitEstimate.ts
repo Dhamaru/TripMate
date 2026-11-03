@@ -142,7 +142,8 @@ export async function refreshTransitEstimate(tripId: string): Promise<void> {
         isInternational: trip.isInternational,
       },
       { $set: { transitEstimate: amount } },
-      { new: true },
+      // Background fill, not a trip edit: leave updatedAt alone.
+      { new: true, timestamps: false },
     );
     if (updated) socketService.broadcastMutation(tripId, { type: "trip-refreshed", data: updated });
     lastFailure.delete(tripId);

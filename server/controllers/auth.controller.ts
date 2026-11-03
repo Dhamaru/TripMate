@@ -471,6 +471,19 @@ export const deleteAccount = asyncHandler(
     // that list itself was incomplete — MapPin, CrowdDensity, AgentJob, and
     // TripSuggestion all carry a userId field too and were still orphaned.
     const deletedUserId = req.user!._id;
+    // Trips this account owns go away; so do their packing lists (even ones
+    // collaborators created), and collaborators' journal entries are kept
+    // but detached from the deleted trip.
+    const ownedTripIds = (await TripModel.find({ userId: deletedUserId }).distinct("_id")).map(
+      String,
+    );
+    await Promise.all([
+      PackingListModel.deleteMany({ tripId: { $in: ownedTripIds } }),
+      JournalEntryModel.updateMany(
+        { tripId: { $in: ownedTripIds }, userId: { $ne: deletedUserId } },
+        { $unset: { tripId: 1, dayIndex: 1 } },
+      ),
+    ]);
     await Promise.all([
       TripModel.deleteMany({ userId: deletedUserId }),
       JournalEntryModel.deleteMany({ userId: deletedUserId }),

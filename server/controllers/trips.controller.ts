@@ -197,6 +197,8 @@ export const getTrip = asyncHandler(async (req: Request, res: Response, next: Ne
             coordsBackfillAttempted: true,
           },
         },
+        // Bookkeeping, not a trip edit: don't change updatedAt.
+        { timestamps: false },
       );
       if (claimed.modifiedCount > 0) {
         setImmediate(() => backfillActivityCoords(String(trip.id), trip.destination));
@@ -207,6 +209,7 @@ export const getTrip = asyncHandler(async (req: Request, res: Response, next: Ne
       await TripModel.updateOne(
         { _id: trip.id },
         { $set: { coordsBackfillActivityCount: totalActivityCount } },
+        { timestamps: false },
       ).catch(() => {});
     }
   }
@@ -281,6 +284,12 @@ export const updateTrip = asyncHandler(async (req: Request, res: Response, next:
   // traveler has likely logged real tickets and a group-size edit shouldn't
   // bring the guess back. (0 from "same city" etc. behaves the same way.)
   let routeChanged = false;
+  let startDateChanged = false;
+  if ("startDate" in updates) {
+    const prev: any = await TripModel.findOne(canEdit, "startDate").lean();
+    const toDay = (v: unknown) => (v ? new Date(v as any).toISOString().slice(0, 10) : "");
+    startDateChanged = !!prev && toDay(prev.startDate) !== toDay(updates.startDate);
+  }
   if (!("transitEstimate" in updates) && TRANSIT_INPUTS.some((f) => f in updates)) {
     const before: any = await TripModel.findOne(
       canEdit,
@@ -301,7 +310,15 @@ export const updateTrip = asyncHandler(async (req: Request, res: Response, next:
   }
   const trip = await TripModel.findOneAndUpdate(
     canEdit,
-    { $set: updates, ...(routeChanged ? { $unset: { transitEstimate: "" } } : {}) },
+    {
+      $set: {
+        ...updates,
+        // New dates, new countdown: reminders already sent for the old start
+        // date would otherwise block every reminder for the new one.
+        ...(startDateChanged ? { remindersSent: [] } : {}),
+      },
+      ...(routeChanged ? { $unset: { transitEstimate: "" } } : {}),
+    },
     { new: true, runValidators: true },
   );
   if (!trip) throw new ForbiddenError("Trip not found or insufficient permissions");
@@ -350,7 +367,14 @@ export const deleteTrip = asyncHandler(async (req: Request, res: Response, next:
   // packing list or a non-trip journal entry has no tripId at all), so
   // this only ever touches docs that were actually tied to this trip.
   await JournalEntryModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
-  await PackingListModel.deleteMany({ tripId: req.params.id, userId }).catch(() => {});
+  // Collaborators' entries are their own memories: keep them, detached.
+  await JournalEntryModel.updateMany(
+    { tripId: req.params.id },
+    { $unset: { tripId: 1, dayIndex: 1 } },
+  ).catch(() => {});
+  // A trip's packing list belongs to the trip, whoever created it.
+  await PackingListModel.deleteMany({ tripId: req.params.id }).catch(() => {});
+  socketService.broadcastMutation(req.params.id, { type: "trip-deleted" }, String(userId));
   res.status(204).send();
 });
 
@@ -681,7 +705,7 @@ async function fetchImageForTrip(
           imageUrl,
           imageCaption,
         },
-        { new: true },
+        { new: true, timestamps: false },
       );
 
       if (updated) {
@@ -720,7 +744,11 @@ export async function backfillActivityCoords(tripId: string, destination: string
       }
     }
     if (missing.length === 0) {
-      await TripModel.updateOne({ _id: tripId }, { $set: { coordsBackfillAttempted: true } });
+      await TripModel.updateOne(
+        { _id: tripId },
+        { $set: { coordsBackfillAttempted: true } },
+        { timestamps: false },
+      );
       return;
     }
 
@@ -768,7 +796,7 @@ export async function backfillActivityCoords(tripId: string, destination: string
     const updated = await TripModel.findByIdAndUpdate(
       tripId,
       { $set: { coordsBackfillAttempted: true } },
-      { new: true },
+      { new: true, timestamps: false },
     );
     if (updated) socketService.broadcastMutation(tripId, { type: "trip-refreshed", data: updated });
   } catch (err) {

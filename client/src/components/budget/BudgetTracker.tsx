@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { splitByCurrency, formatOther } from "@/lib/expenseTotals";
 import type { Trip } from "@/types/api.types";
 import { type IExpense } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,7 +76,11 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
     });
   }
 
-  const manualSpent = expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  // Only expenses in the trip's currency are added up; others are listed below the total.
+  const { inTripCurrency: manualSpent, other: otherCurrencies } = splitByCurrency(
+    expenses,
+    trip.currency,
+  );
   // Round trip from the trip's origin, estimated by the server; 0/unset = none.
   const transit = Number(trip.transitEstimate || 0);
   const plannedCost = itineraryCost + transit;
@@ -102,9 +107,10 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
   // Prepare Chart Data
   // We add an "AI Itinerary" slice to the pie chart to represent the planned activities
   const chartData = CATEGORIES.map((cat) => {
-    let value = expenses
-      .filter((e) => e.category === cat)
-      .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    let value = splitByCurrency(
+      expenses.filter((e) => e.category === cat),
+      trip.currency,
+    ).inTripCurrency;
 
     // If the category is Activities, include the AI itinerary cost
     if (cat === "Activities" && itineraryCost > 0) {
@@ -321,6 +327,18 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                 ? `Over budget by ${Math.abs(remaining).toLocaleString()}`
                 : `${remaining.toLocaleString()} remaining`}
             </p>
+            {Object.keys(otherCurrencies).length > 0 && (
+              <p
+                className="mt-3 text-xs text-muted-foreground"
+                data-testid="other-currency-expenses"
+              >
+                Not included above:{" "}
+                <span className="font-mono-data tabular-nums text-foreground">
+                  {formatOther(otherCurrencies)}
+                </span>{" "}
+                in other currencies.
+              </p>
+            )}
             {transit > 0 && (
               <div
                 className="mt-3 flex items-start justify-between gap-3 text-xs text-muted-foreground"

@@ -1,7 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { PackingListModel, PackingListTemplateModel, TripModel } from "@shared/schema";
-import { NotFoundError, InternalServerError, ForbiddenError, BadRequestError } from "../errors";
+import {
+  NotFoundError,
+  InternalServerError,
+  ForbiddenError,
+  BadRequestError,
+  ConflictError,
+} from "../errors";
 import logger from "../logger";
 import { MasterOrchestrator } from "../agent/multiAgent/MasterOrchestrator";
 import { OrchestratorInput } from "../agent/multiAgent/types";
@@ -41,6 +47,17 @@ export const deletePackingListTemplate = asyncHandler(
     res.status(204).send();
   },
 );
+
+// Who may change a list: its creator, the trip's owner, or an editor on the
+// trip. (The trip owner used to be refused on a list a collaborator made.)
+async function canEditList(list: { userId?: string; tripId?: unknown }, userId: string) {
+  if (list.userId === userId) return true;
+  if (!list.tripId) return false;
+  return !!(await TripModel.exists({
+    _id: list.tripId,
+    $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+  }));
+}
 
 export const generatePackingList = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -174,7 +191,13 @@ export const getPackingLists = asyncHandler(
       if (!trip) throw new ForbiddenError("Trip access denied");
       query = { tripId };
     } else {
-      query = { userId }; // Fallback to personal lists if no tripId
+      // Own lists plus the lists of every trip the user is on: the packing
+      // page loads this and picks the trip's list on the client, so a
+      // collaborator used to see nothing and save a duplicate list.
+      const tripIds = await TripModel.find({
+        $or: [{ userId }, { "collaborators.userId": userId }],
+      }).distinct("_id");
+      query = { $or: [{ userId }, { tripId: { $in: tripIds.map(String) } }] };
     }
 
     const lists = await PackingListModel.find(query).sort({ createdAt: -1 });
@@ -190,38 +213,34 @@ export const updatePackingItem = asyncHandler(
 
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const list = await PackingListModel.findById(listId);
+    const list = await PackingListModel.findById(listId, { userId: 1, tripId: 1 }).lean();
     if (!list) throw new NotFoundError("Packing list not found");
-
-    // Check permission: Owner of list OR Collaborator (editor) on the trip
-    if (list.userId !== userId.toString()) {
-      if (list.tripId) {
-        const trip = await TripModel.findOne({
-          _id: list.tripId,
-          collaborators: { $elemMatch: { userId, role: "editor" } },
-        });
-        if (!trip) throw new ForbiddenError("Insufficient permissions");
-      } else {
-        throw new ForbiddenError("Insufficient permissions");
-      }
+    if (!(await canEditList(list as any, String(userId)))) {
+      throw new ForbiddenError("Insufficient permissions");
     }
 
-    const item = (list.items as any).id(itemId);
-    if (!item) throw new NotFoundError("Item not found");
+    // Atomic, by item id: save() rewrote items by array position, so a
+    // concurrent removal landed edits on the wrong slot and could leave a
+    // nameless row that failed validation on every later save.
+    const set: Record<string, unknown> = {};
+    if (packed !== undefined) set["items.$.packed"] = packed;
+    if (quantity !== undefined) set["items.$.quantity"] = quantity;
+    if (name !== undefined) set["items.$.name"] = name;
+    const updated = await PackingListModel.findOneAndUpdate(
+      { _id: listId, "items._id": itemId },
+      { $set: set },
+      { new: true, runValidators: true },
+    );
+    if (!updated) throw new NotFoundError("Item not found");
 
-    if (packed !== undefined) item.packed = packed;
-    if (quantity !== undefined) item.quantity = quantity;
-    if (name !== undefined) item.name = name;
-
-    await list.save();
-    if (list.tripId) {
+    if (updated.tripId) {
       socketService.broadcastMutation(
-        list.tripId.toString(),
-        { type: "packing-updated", data: list },
+        updated.tripId.toString(),
+        { type: "packing-updated", data: updated },
         String(userId),
       );
     }
-    res.json(list);
+    res.json(updated);
   },
 );
 
@@ -259,40 +278,39 @@ export const updatePackingList = asyncHandler(
     const userId = req.user?._id || req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const list = await PackingListModel.findById(id);
+    const list = await PackingListModel.findById(id, { userId: 1, tripId: 1 }).lean();
     if (!list) throw new NotFoundError("Packing list not found");
-
-    // Same permission model as updatePackingItem: owner of the list, or
-    // an editor collaborator on the trip it's attached to. The previous
-    // owner-only findOneAndUpdate query silently 404'd for any
-    // collaborator trying to save changes to a shared trip's list.
-    if (list.userId !== userId.toString()) {
-      if (list.tripId) {
-        const trip = await TripModel.findOne({
-          _id: list.tripId,
-          collaborators: { $elemMatch: { userId, role: "editor" } },
-        });
-        if (!trip) throw new ForbiddenError("Insufficient permissions");
-      } else {
-        throw new ForbiddenError("Insufficient permissions");
-      }
+    if (!(await canEditList(list as any, String(userId)))) {
+      throw new ForbiddenError("Insufficient permissions");
     }
 
-    const UPDATABLE_LIST_FIELDS = ["name", "season", "items"] as const;
-    for (const field of UPDATABLE_LIST_FIELDS) {
-      if (field in req.body) (list as any)[field] = req.body[field];
+    const set: Record<string, unknown> = {};
+    for (const field of ["name", "season", "items"] as const) {
+      if (field in req.body) set[field] = req.body[field];
     }
-    await list.save();
+    // The client saves the whole list. With the version it loaded, a save
+    // made after someone else's save is refused instead of erasing theirs.
+    const base = req.body.baseUpdatedAt ? new Date(req.body.baseUpdatedAt) : null;
+    const updated = await PackingListModel.findOneAndUpdate(
+      { _id: id, ...(base && !isNaN(base.getTime()) ? { updatedAt: base } : {}) },
+      { $set: set },
+      { new: true, runValidators: true },
+    );
+    if (!updated) {
+      throw new ConflictError(
+        "Someone else just changed this list. Reload to see their changes, then save again.",
+      );
+    }
 
-    if (list.tripId) {
+    if (updated.tripId) {
       socketService.broadcastMutation(
-        list.tripId.toString(),
-        { type: "packing-updated", data: list },
+        updated.tripId.toString(),
+        { type: "packing-updated", data: updated },
         String(userId),
       );
     }
 
-    res.json(list);
+    res.json(updated);
   },
 );
 
@@ -348,36 +366,31 @@ export const togglePackingItem = asyncHandler(
 
     const list = await PackingListModel.findById(listId);
     if (!list) throw new NotFoundError("Packing list not found");
-
-    // Same permission model as updatePackingItem/updatePackingList: owner
-    // of the list, or an editor collaborator on the trip it's attached
-    // to. The previous owner-only query 404'd for any collaborator.
-    if (list.userId !== userId.toString()) {
-      if (list.tripId) {
-        const trip = await TripModel.findOne({
-          _id: list.tripId,
-          collaborators: { $elemMatch: { userId, role: "editor" } },
-        });
-        if (!trip) throw new ForbiddenError("Insufficient permissions");
-      } else {
-        throw new ForbiddenError("Insufficient permissions");
-      }
+    if (!(await canEditList(list as any, String(userId)))) {
+      throw new ForbiddenError("Insufficient permissions");
     }
 
     const item = (list.items as any).id(itemId);
     if (!item) throw new NotFoundError("Item not found");
 
-    item.packed = !item.packed;
-    await list.save();
+    // Flip only if the value is still what we read (atomic, by item id).
+    const updated = await PackingListModel.findOneAndUpdate(
+      { _id: listId, items: { $elemMatch: { _id: itemId, packed: !!item.packed } } },
+      { $set: { "items.$.packed": !item.packed } },
+      { new: true },
+    );
+    if (!updated) {
+      throw new ConflictError("This item just changed. Reload the list and try again.");
+    }
 
-    if (list.tripId) {
+    if (updated.tripId) {
       socketService.broadcastMutation(
-        list.tripId.toString(),
-        { type: "packing-updated", data: list },
+        updated.tripId.toString(),
+        { type: "packing-updated", data: updated },
         String(userId),
       );
     }
 
-    res.json(item);
+    res.json((updated.items as any).id(itemId));
   },
 );

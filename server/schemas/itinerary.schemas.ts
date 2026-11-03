@@ -96,8 +96,13 @@ export const reorderItinerarySchema = z.object({
   }),
   body: z.object({
     itinerary: z.array(reorderDaySchema),
-    // The trip version the reorder was made against (trip.updatedAt).
+    // Kept for older clients; not used (any trip write changes updatedAt,
+    // so it caused false conflicts).
     baseUpdatedAt: z.string().optional(),
+    // Each activity's time as the client loaded it, by activity id. If a
+    // stored time differs, someone changed it meanwhile: 409 instead of
+    // silently putting the old time back.
+    baseTimes: z.record(z.string(), z.string().max(40).nullable()).optional(),
   }),
 });
 

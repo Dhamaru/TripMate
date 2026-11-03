@@ -121,8 +121,13 @@ function firstActivityLine(trip: TripDoc, dayIndex: number): string | null {
     : `First up today: ${first.title}.`;
 }
 
+// Only expenses in the trip's currency: a "$20" expense on an INR trip is
+// not ₹20, and there's no exchange rate here to convert it.
 function totalSpent(trip: TripDoc): number {
-  return (trip.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+  const home = (trip.currency || "INR").toUpperCase();
+  return (trip.expenses || [])
+    .filter((e: any) => !e.currency || String(e.currency).toUpperCase() === home)
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
 }
 
 export async function runReminderSweep(): Promise<void> {
@@ -152,6 +157,14 @@ export async function runReminderSweep(): Promise<void> {
     link?: string,
   ) => {
     if (trip.remindersSent?.includes(key)) return;
+    // Claim the reminder first, atomically: the sweep now runs hourly and on
+    // boot, and two overlapping runs must not both notify.
+    const claimed = await TripModel.updateOne(
+      { _id: trip._id, remindersSent: { $ne: key } },
+      { $addToSet: { remindersSent: key } },
+      { timestamps: false },
+    );
+    if (claimed.modifiedCount === 0) return;
     await notifyTripParticipants(trip, "", {
       type: "trip-reminder",
       title,
@@ -159,7 +172,6 @@ export async function runReminderSweep(): Promise<void> {
       link: link ?? `/app/trips/${String(trip._id)}`,
       tripId: String(trip._id),
     });
-    await TripModel.updateOne({ _id: trip._id }, { $addToSet: { remindersSent: key } });
     sent++;
   };
 
@@ -246,8 +258,14 @@ export async function runReminderSweep(): Promise<void> {
 }
 
 export function startScheduler(): void {
-  // 09:00 server time, every day.
-  cron.schedule("0 9 * * *", () => {
+  const sweep = () =>
     runReminderSweep().catch((e) => console.error("[scheduler] reminder sweep failed:", e));
-  });
+  // Milestones match an exact day, and on Render's free tier the server
+  // sleeps when idle: a once-a-day 09:00 run was skipped whenever the
+  // instance was asleep at that minute. Hourly plus once shortly after boot
+  // covers any time the server is awake that day; reminders are claimed
+  // atomically, so repeats are no-ops. (.github/workflows/wake.yml wakes it
+  // each morning.)
+  cron.schedule("15 * * * *", sweep);
+  setTimeout(sweep, 60_000).unref?.();
 }
