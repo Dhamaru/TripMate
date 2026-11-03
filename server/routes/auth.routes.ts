@@ -9,6 +9,7 @@ import {
   signUpSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from "../schemas/auth.schemas";
 import passport from "passport";
 import { config as appConfig } from "../config";
@@ -123,8 +124,18 @@ router.post("/google/disconnect", requireAuth, async (req, res, next) => {
 });
 
 // Settings & Security
-router.post("/change-password", requireAuth, authController.changePassword);
-router.put("/change-password", requireAuth, authController.changePassword); // Support both
+router.post(
+  "/change-password",
+  requireAuth,
+  validate(changePasswordSchema),
+  authController.changePassword,
+);
+router.put(
+  "/change-password",
+  requireAuth,
+  validate(changePasswordSchema),
+  authController.changePassword,
+); // Support both
 router.get("/user/export", requireAuth, authController.exportUserData);
 router.post("/delete-account", requireAuth, authController.deleteAccount);
 router.delete("/delete-account", requireAuth, authController.deleteAccount); // Support both

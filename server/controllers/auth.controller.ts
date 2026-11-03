@@ -334,28 +334,12 @@ export const changePassword = asyncHandler(
     if (!isMatch) throw new UnauthorizedError("Incorrect current password");
     user.password = await hashPassword(newPassword);
     await user.save();
-    // Rotate cookie token after password change — revoke the old session
-    // too, not just swap the cookie, so a stolen pre-change token can't
-    // keep working after the user thinks they've secured their account.
-    const oldToken = req.cookies?.token;
-    if (oldToken) {
-      try {
-        // jwt.decode() doesn't check the signature — the same gap fixed in
-        // signout applies here: a forged cookie's sid would target and
-        // revoke an arbitrary session. Isolated in its own try/catch (unlike
-        // signout, this runs after user.save() already succeeded) so an
-        // expired-but-otherwise-fine old cookie doesn't turn a successful
-        // password change into an error response.
-        const decoded = jwt.verify(oldToken, config.JWT_SECRET) as { sid?: string };
-        if (decoded?.sid) {
-          await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
-          // This tab's socket reconnects on the new session (useSocket.ts).
-          socketService.disconnectSession(decoded.sid);
-        }
-      } catch {
-        // Non-fatal — the new session issued below still supersedes it
-      }
-    }
+    // Sign out everywhere, same as a reset: someone holding a stolen session
+    // on another device must not keep access after the user changes their
+    // password. This tab gets a fresh session below, and its socket
+    // reconnects on it (useSocket.ts).
+    await SessionModel.updateMany({ userId: user.id, revoked: { $ne: true } }, { revoked: true });
+    socketService.disconnectUser(String(user.id));
     const token = await issueSession(req, user.id);
     setAuthCookie(req, res, token);
     res.json({ message: "Password changed successfully" });
