@@ -8,9 +8,10 @@
 
 - 2026-11-03 (later): Trip Map + Offline Maps fixed and live-verified, Windows-app notifications, Atlas token-count fix, nightly backup workflow, dependency upgrades, dead-code removal. Gate: 233/233 tests.
 
+- 2026-11-03 (triage): all READY items from the triage list plus share revoke/public allowlist fixed and pushed; test suite no longer spends AI credit. Gate: 261/261.
+
 ## In progress
 
-- Parallel-session work, uncommitted and awaiting the owner: root font-size clamp in `client/src/index.css`, hero height in `client/src/pages/Landing.tsx`, one CONTEXT.md bullet. Don't commit these without asking.
 - Persona swarm (`feat/persona-swarm`) stays local, unmerged, not to be pushed.
 
 ## Exact next command
@@ -21,5 +22,5 @@ None queued. With the owner's approval of the estimate, run a short live Atlas c
 
 - Atlas summary + iteration cap are unit-tested only; a live check spends AI credit.
 - Backups, error tracking and an uptime monitor need owner accounts; set Render's health check path to `/api/v1/health`.
-- Remaining npm advisories need major version bumps.
+- Owner decisions still open: grandTransit (feature vs cleanup), destination-image 429 caching, Swagger docs exposure, contact messages vs feedback triage.
 - Should contact-form messages skip the hourly feedback triage? Owner decision.
