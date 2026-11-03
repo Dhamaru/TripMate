@@ -96,6 +96,8 @@ export const reorderItinerarySchema = z.object({
   }),
   body: z.object({
     itinerary: z.array(reorderDaySchema),
+    // The trip version the reorder was made against (trip.updatedAt).
+    baseUpdatedAt: z.string().optional(),
   }),
 });
 

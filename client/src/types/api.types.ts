@@ -107,6 +107,7 @@ export interface ItineraryDay {
 export interface Trip {
   id?: string;
   _id?: string;
+  updatedAt?: string;
   userId: string;
   origin?: string;
   destination: string;

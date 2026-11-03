@@ -677,9 +677,14 @@ export function ItineraryManager({
     try {
       const response = await apiRequest("PUT", `/api/v1/trips/${trip.id}/itinerary/reorder`, {
         itinerary: updated,
+        // Lets the server refuse instead of overwriting a newer itinerary.
+        baseUpdatedAt: trip.updatedAt,
       });
-      await parseOrThrow(response);
-      useTripStore.getState().fetchTrip(trip.id!);
+      // Adopt the saved trip right away, so a quick second move carries the
+      // new version instead of tripping a false conflict.
+      const saved = await parseOrThrow(response);
+      if (saved?.updatedAt) useTripStore.getState().setCurrentTrip(saved);
+      else useTripStore.getState().fetchTrip(trip.id!);
     } catch (e: any) {
       console.error("Failed to save itinerary", e);
       // Re-sync from the server — the drag-and-drop already reordered

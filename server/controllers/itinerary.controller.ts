@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { TripModel } from "@shared/schema";
-import { NotFoundError, BadRequestError } from "../errors";
+import { NotFoundError, BadRequestError, ConflictError } from "../errors";
 import { nanoid } from "nanoid";
 import { socketService } from "../services/SocketService";
 import { notifyTripParticipants } from "../notifications";
@@ -260,7 +260,7 @@ export const trimItinerary = asyncHandler(
 // read current updatedAt, CAS the write, retry a few times on conflict.
 export const reorderItinerary = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { itinerary } = req.body;
+    const { itinerary, baseUpdatedAt } = req.body;
     const tripId = req.params.id;
     const userId = req.user!._id;
     const accessFilter = editorAccessFilter(tripId, String(userId));
@@ -279,9 +279,19 @@ export const reorderItinerary = asyncHandler(
       if (day) day.dayIndex = idx;
     });
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // The client sends the whole itinerary as it last saw it. Retrying on a
+    // fresh version would overwrite whatever changed in between (an added or
+    // deleted activity), so when the client says which version it edited,
+    // a mismatch is a conflict for the user to see, not something to retry.
+    const attempts = baseUpdatedAt ? 1 : 3;
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const current = await TripModel.findOne(accessFilter, { updatedAt: 1 });
       if (!current) throw new NotFoundError("Trip not found or access denied");
+      if (baseUpdatedAt && current.updatedAt?.getTime() !== new Date(baseUpdatedAt).getTime()) {
+        throw new ConflictError(
+          "The itinerary changed while you were moving things. Your move wasn't saved; please try again.",
+        );
+      }
 
       const trip = await TripModel.findOneAndUpdate(
         { ...accessFilter, updatedAt: current.updatedAt },
@@ -308,7 +318,9 @@ export const reorderItinerary = asyncHandler(
       }
       // Lost the race — someone else wrote in between. Retry with a fresh read.
     }
-    throw new BadRequestError("Trip was modified by someone else at the same time. Please retry.");
+    throw new ConflictError(
+      "The itinerary changed while you were moving things. Your move wasn't saved; please try again.",
+    );
   },
 );
 
