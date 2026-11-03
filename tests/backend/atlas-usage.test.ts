@@ -36,5 +36,7 @@ describe("Atlas token accounting", () => {
     );
     expect(res.message).toContain("Hello there");
     expect(res.tokensUsed).toBe(1200);
-  });
+    // Importing the whole agent takes ~3s alone; under full-suite load it
+    // overran the 5s default.
+  }, 30000);
 });
