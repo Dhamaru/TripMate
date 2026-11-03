@@ -355,8 +355,9 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
+                    // Relative, so the donut fits the narrow tablet card.
+                    innerRadius="45%"
+                    outerRadius="80%"
                     paddingAngle={5}
                     dataKey="value"
                   >
