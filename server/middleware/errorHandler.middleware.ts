@@ -37,7 +37,7 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
   // Upload limits (file too large, too many files, oversized form field) are
   // the client's fault, not a server error.
   if (err.name === "MulterError") {
-    const tooLarge = /LIMIT_(FILE|FIELD_VALUE)_SIZE/.test((err as any).code);
+    const tooLarge = /^LIMIT_(FILE_SIZE|FIELD_VALUE)$/.test((err as any).code);
     return res.status(tooLarge ? 413 : 400).json({
       success: false,
       error: tooLarge ? "That file or field is too large." : err.message,
