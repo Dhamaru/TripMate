@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { appendCompressed } from "@/lib/compressImage";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -331,7 +332,7 @@ export default function Journal() {
     recognitionRef.current?.stop();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!entryForm.title.trim() || !entryForm.content.trim()) {
       toast({
@@ -347,7 +348,7 @@ export default function Journal() {
     if (entryForm.location) formData.append("location", entryForm.location);
     if (entryForm.latitude) formData.append("latitude", entryForm.latitude);
     if (entryForm.longitude) formData.append("longitude", entryForm.longitude);
-    if (photos) Array.from(photos).forEach((file) => formData.append("photos", file));
+    if (photos) await appendCompressed(formData, "photos", photos);
 
     if (editingEntry) {
       // Positions, not the photos: kept photos are base64 and one phone photo

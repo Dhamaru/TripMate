@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { appendCompressed } from "@/lib/compressImage";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -182,7 +183,7 @@ export default function JournalDetail() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!entryForm.title.trim() || !entryForm.content.trim()) {
       toast({
@@ -199,9 +200,7 @@ export default function JournalDetail() {
     if (entryForm.location) formData.append("location", entryForm.location);
     if (entryForm.latitude) formData.append("latitude", entryForm.latitude);
     if (entryForm.longitude) formData.append("longitude", entryForm.longitude);
-    if (photos) {
-      Array.from(photos).forEach((file) => formData.append("photos", file));
-    }
+    if (photos) await appendCompressed(formData, "photos", photos);
     // Positions, not the photos themselves: kept photos are base64 data URIs
     // and one phone photo exceeds the multipart field limit (edit -> 500).
     const original = entry?.photos || [];

@@ -129,15 +129,76 @@ export const getEntries = asyncHandler(async (req: Request, res: Response, next:
   // risk as trips.controller.ts's getTrips, same fix (a safety cap, not
   // a response-shape-breaking cursor rewrite -- see that file's comment
   // for the full reasoning).
-  const entriesQuery = JournalEntryModel.find(query)
+  if (req.query.light === "true") {
+    // Photos are base64 inside the entry; the list used to ship every one
+    // of them (multi-MB responses). Send a URL per photo instead; the
+    // browser fetches and caches each one from getEntryPhoto.
+    const rows = await JournalEntryModel.aggregate([
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      { $limit: MAX_JOURNAL_ENTRIES_RETURNED },
+      {
+        $project: {
+          title: 1,
+          location: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          userId: 1,
+          tripId: 1,
+          isRecap: 1,
+          dayIndex: 1,
+          photoCount: { $size: { $ifNull: ["$photos", []] } },
+        },
+      },
+    ]);
+    return res.json(
+      rows.map(({ _id, photoCount, ...rest }) => {
+        const id = String(_id);
+        const v = new Date(rest.updatedAt).getTime() || 0;
+        return {
+          ...rest,
+          id,
+          photos: Array.from(
+            { length: photoCount },
+            (_, i) => `/api/v1/journal/${id}/photos/${i}?v=${v}`,
+          ),
+        };
+      }),
+    );
+  }
+  const entries = await JournalEntryModel.find(query)
     .sort({ createdAt: -1 })
     .limit(MAX_JOURNAL_ENTRIES_RETURNED);
-  const entries = await (req.query.light === "true"
-    ? entriesQuery.select(
-        "title location photos createdAt updatedAt userId tripId isRecap dayIndex",
-      )
-    : entriesQuery);
   res.json(entries);
+});
+
+/** One photo of an entry as image bytes (same access rule as getEntry). */
+export const getEntryPhoto = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id || req.user?.id;
+  const index = Number(req.params.index);
+  if (!Number.isInteger(index) || index < 0) throw new NotFoundError("Photo not found");
+  const entry = await JournalEntryModel.findById(req.params.id, {
+    userId: 1,
+    tripId: 1,
+    photos: { $slice: [index, 1] },
+  }).lean();
+  if (!entry) throw new NotFoundError("Photo not found");
+  if (entry.userId !== String(userId)) {
+    const trip = entry.tripId
+      ? await TripModel.exists({
+          _id: entry.tripId,
+          $or: [{ userId }, { "collaborators.userId": userId }],
+        })
+      : null;
+    if (!trip) throw new NotFoundError("Photo not found");
+  }
+  const photo = entry.photos?.[0];
+  if (!photo) throw new NotFoundError("Photo not found");
+  const m = /^data:(image\/[\w.+-]+);base64,(.*)$/s.exec(photo);
+  if (!m) return res.redirect(photo); // legacy /api/v1/journal/photo/<file> or remote URL
+  res.setHeader("Content-Type", m[1]);
+  res.setHeader("Cache-Control", "private, max-age=604800");
+  res.send(Buffer.from(m[2], "base64"));
 });
 
 export const getEntry = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
