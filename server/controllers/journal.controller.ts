@@ -64,7 +64,10 @@ export const createEntry = asyncHandler(async (req: Request, res: Response, next
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const entryData = req.body;
+  // Allowlist: spreading req.body let a client set server-owned fields such
+  // as isRecap/recapMeta (or userId) on a new entry.
+  const { title, content, location, latitude, longitude, tripId, dayIndex } = req.body;
+  const entryData = { title, content, location, latitude, longitude, tripId, dayIndex };
   const uploadedPhotos = fileUrls(req);
 
   // If tripId is provided, verify access
