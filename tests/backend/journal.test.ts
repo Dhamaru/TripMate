@@ -116,4 +116,16 @@ describe("Journal API", () => {
     const after = await request(app).get(url).set("Authorization", `Bearer ${token}`);
     expect(after.body.photos).toHaveLength(1);
   });
+
+  it("answers 413, not 500, when a form field is over the upload limit", async () => {
+    const created = await request(app)
+      .post("/api/v1/journal")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ tripId, title: "t", content: "c" });
+    const res = await request(app)
+      .put(`/api/v1/journal/${created.body.id || created.body._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .field("existingPhotos", "x".repeat(1.5 * 1024 * 1024));
+    expect(res.status).toBe(413);
+  });
 });

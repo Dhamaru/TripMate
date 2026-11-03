@@ -202,9 +202,15 @@ export default function Journal() {
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) return void handleUnauthorized();
+      const status = Number(error.message.split(":")[0]);
       toast({
-        title: "Error",
-        description: "Failed to update journal entry.",
+        title: status === 409 ? "Photos changed" : "Error",
+        description:
+          status === 409
+            ? "Someone else just changed this entry's photos. Reopen it to see them, then save again."
+            : status === 413
+              ? "That photo is too large. Please pick a smaller one."
+              : "Failed to update journal entry.",
         variant: "destructive",
       });
     },
@@ -342,8 +348,14 @@ export default function Journal() {
     if (photos) Array.from(photos).forEach((file) => formData.append("photos", file));
 
     if (editingEntry) {
-      if (keptPhotos.length > 0) formData.append("existingPhotos", JSON.stringify(keptPhotos));
-      else formData.append("existingPhotos", JSON.stringify([]));
+      // Positions, not the photos: kept photos are base64 and one phone photo
+      // overflows the upload field limit (same fix as JournalDetail.tsx).
+      const original = editingEntry.photos || [];
+      formData.append(
+        "existingPhotoIndexes",
+        JSON.stringify(keptPhotos.map((p) => original.indexOf(p)).filter((i) => i >= 0)),
+      );
+      formData.append("photoCount", String(original.length));
       updateEntryMutation.mutate({ id: editingEntry.id, updates: formData as any });
     } else {
       createEntryMutation.mutate(formData);
