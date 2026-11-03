@@ -352,11 +352,14 @@ export async function runAgentLoop(
       let fullContent = "";
       const toolCalls: any[] = [];
 
+      let streamUsage = 0;
       try {
         for await (const chunk of stream) {
+          // Usage can arrive on several chunks (Gemini repeats the running
+          // total); summing them inflated the count several times over and
+          // tripped the token budget early. Keep the latest value per call.
           if ((chunk as any).usage) {
-            totalTokens += (chunk as any).usage.total_tokens;
-            iterationTokens += (chunk as any).usage.total_tokens;
+            streamUsage = (chunk as any).usage.total_tokens ?? streamUsage;
           }
           const delta = chunk.choices[0]?.delta;
           if (delta?.content) {
@@ -431,6 +434,8 @@ export async function runAgentLoop(
         throw streamErr;
       }
 
+      iterationTokens += streamUsage;
+      totalTokens += streamUsage;
       recordSuccess(currentModelIndex);
       recordTokenUsage(currentModelIndex, iterationTokens);
 
