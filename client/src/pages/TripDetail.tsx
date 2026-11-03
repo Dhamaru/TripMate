@@ -145,7 +145,8 @@ export default function TripDetail() {
       if (
         mutation.type === "itinerary-updated" ||
         mutation.type === "expenses-updated" ||
-        mutation.type === "trip-updated"
+        mutation.type === "trip-updated" ||
+        mutation.type === "trip-refreshed"
       ) {
         fetchTrip(id);
       } else if (mutation.type === "packing-updated" || mutation.type === "packing-deleted") {
@@ -161,6 +162,9 @@ export default function TripDetail() {
         // already-open "Manage Trip Team" dialog stuck showing stale data.
         queryClient.invalidateQueries({ queryKey: ["trips", id, "collaborators"] });
       }
+
+      // Server-side background fills (coords, travel estimate): nobody to credit.
+      if (mutation.type === "trip-refreshed") return;
 
       // Atlas changes reach the actor's own tab too; don't call that "a collaborator".
       const me = useAuthStore.getState().user?.id;

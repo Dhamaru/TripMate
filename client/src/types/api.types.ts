@@ -132,6 +132,7 @@ export interface Trip {
   currency?: string;
   days: number;
   budgetBreakdown: BudgetBreakdown;
+  transitEstimate?: number;
   itinerary: ItineraryDay[];
   expenses?: IExpense[];
   collaborators?: ICollaborator[];

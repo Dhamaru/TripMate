@@ -16,6 +16,7 @@ import { notifyTripParticipants } from "../notifications";
 
 import { BadRequestError, NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
+import { nominatimSearch, refreshTransitEstimate } from "../services/transitEstimate";
 import { config } from "../config";
 import { insertTripSchema } from "@shared/schema";
 import { nanoid } from "nanoid";
@@ -79,6 +80,7 @@ export const createTrip = asyncHandler(async (req: Request, res: Response, next:
   // Background coordinate backfill for AI-generated/imported activities
   // that never got geocoded — see backfillActivityCoords for why.
   setImmediate(() => backfillActivityCoords(savedTrip.id, savedTrip.destination));
+  if (savedTrip.origin) setImmediate(() => refreshTransitEstimate(savedTrip.id));
 
   res.status(201).json(savedTrip);
 });
@@ -206,6 +208,12 @@ export const getTrip = asyncHandler(async (req: Request, res: Response, next: Ne
     }
   }
 
+  // Trips saved before the getting-there estimate existed, or whose route
+  // changed since (updateTrip clears it).
+  if (trip.origin && trip.transitEstimate === undefined) {
+    setImmediate(() => refreshTransitEstimate(String(trip.id)));
+  }
+
   res.json(trip);
 });
 
@@ -238,7 +246,18 @@ const UPDATABLE_TRIP_FIELDS = new Set([
   "isDraft",
   "syncStatus",
   "costBreakdown",
+  "transitEstimate",
 ]);
+
+// Changing any of these makes the stored getting-there estimate wrong.
+const TRANSIT_INPUTS = [
+  "origin",
+  "destination",
+  "currency",
+  "groupSize",
+  "transportMode",
+  "isInternational",
+];
 
 export const updateTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?._id || req.user?.id;
@@ -250,15 +269,42 @@ export const updateTrip = asyncHandler(async (req: Request, res: Response, next:
   const updates = Object.fromEntries(
     Object.entries(req.body ?? {}).filter(([key]) => UPDATABLE_TRIP_FIELDS.has(key)),
   );
+  const canEdit = {
+    _id: req.params.id,
+    $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+  };
+  // Edit forms resend unchanged fields; only a real change clears the estimate.
+  // A removed estimate (0) stays removed unless the route itself changes: the
+  // traveler has likely logged real tickets and a group-size edit shouldn't
+  // bring the guess back. (0 from "same city" etc. behaves the same way.)
+  let routeChanged = false;
+  if (!("transitEstimate" in updates) && TRANSIT_INPUTS.some((f) => f in updates)) {
+    const before: any = await TripModel.findOne(
+      canEdit,
+      [...TRANSIT_INPUTS, "transitEstimate"].join(" "),
+    ).lean();
+    const norm = (f: string, v: unknown) =>
+      f === "isInternational"
+        ? !!v
+        : f === "currency"
+          ? String(v ?? "INR").toUpperCase()
+          : String(v ?? "").trim();
+    const changed = (f: string) => f in updates && norm(f, updates[f]) !== norm(f, before?.[f]);
+    routeChanged =
+      !!before &&
+      (changed("origin") ||
+        changed("destination") ||
+        (before.transitEstimate !== 0 && TRANSIT_INPUTS.some(changed)));
+  }
   const trip = await TripModel.findOneAndUpdate(
-    {
-      _id: req.params.id,
-      $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
-    },
-    { $set: updates },
+    canEdit,
+    { $set: updates, ...(routeChanged ? { $unset: { transitEstimate: "" } } : {}) },
     { new: true, runValidators: true },
   );
   if (!trip) throw new ForbiddenError("Trip not found or insufficient permissions");
+  if (trip.origin && trip.transitEstimate === undefined) {
+    setImmediate(() => refreshTransitEstimate(String(trip.id)));
+  }
 
   socketService.broadcastMutation(
     (trip as any)._id.toString(),
@@ -656,10 +702,7 @@ export async function backfillActivityCoords(tripId: string, destination: string
     for (const act of missing) {
       try {
         const query = `${act.location || act.title}, ${destination}`;
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
-          { headers: { "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)" } },
-        );
+        const res = await nominatimSearch(query);
         if (res.ok) {
           const results = await res.json();
           if (Array.isArray(results) && results.length > 0) {
@@ -694,7 +737,7 @@ export async function backfillActivityCoords(tripId: string, destination: string
         // won't render for it, same graceful degradation as any activity
         // that never had a resolvable location. Not fatal to the batch.
       }
-      await new Promise((r) => setTimeout(r, 1100));
+      // Pacing to Nominatim's 1 request/second is done by nominatimSearch.
     }
 
     const updated = await TripModel.findByIdAndUpdate(
@@ -702,7 +745,7 @@ export async function backfillActivityCoords(tripId: string, destination: string
       { $set: { coordsBackfillAttempted: true } },
       { new: true },
     );
-    if (updated) socketService.broadcastMutation(tripId, { type: "trip-updated", data: updated });
+    if (updated) socketService.broadcastMutation(tripId, { type: "trip-refreshed", data: updated });
   } catch (err) {
     console.error(`[backfillActivityCoords] Failed for trip ${tripId}:`, err);
   }

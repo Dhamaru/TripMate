@@ -74,8 +74,9 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
   }
 
   const manualSpent = expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-  const grandTransit = Number(trip.budgetBreakdown?.grandTransit || 0);
-  const plannedCost = itineraryCost + grandTransit;
+  // Round trip from the trip's origin, estimated by the server; 0/unset = none.
+  const transit = Number(trip.transitEstimate || 0);
+  const plannedCost = itineraryCost + transit;
   const totalSpent = manualSpent + plannedCost;
   const budget = trip.budget || 0;
   const remaining = budget - totalSpent;
@@ -111,9 +112,23 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
     return { name: cat, value };
   }).filter((d) => d.value > 0);
 
-  if (grandTransit > 0) {
-    chartData.push({ name: "Transit to Destination", value: grandTransit });
+  if (transit > 0) {
+    chartData.push({ name: "Getting there & back", value: transit });
   }
+
+  // Travelers who log their real tickets don't want the estimate counted too.
+  const removeTransit = async () => {
+    const res = await apiRequest("PUT", `/api/v1/trips/${trip.id}`, { transitEstimate: 0 });
+    if (!res.ok) {
+      toast({
+        title: "Couldn't remove the estimate",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    useTripStore.getState().fetchTrip(trip.id!);
+  };
 
   const handleAdd = async () => {
     if (!newExpense.amount || !newExpense.description) {
@@ -302,6 +317,28 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                 ? `Over budget by ${Math.abs(remaining).toLocaleString()}`
                 : `${remaining.toLocaleString()} remaining`}
             </p>
+            {transit > 0 && (
+              <div
+                className="mt-3 flex items-start justify-between gap-3 text-xs text-muted-foreground"
+                data-testid="transit-estimate"
+              >
+                <p>
+                  Includes about{" "}
+                  <span className="font-mono-data tabular-nums text-foreground">
+                    {trip.currency || "INR"} {transit.toLocaleString()}
+                  </span>{" "}
+                  to get from {trip.origin} to {trip.destination} and back (rough estimate).
+                </p>
+                <button
+                  type="button"
+                  onClick={removeTransit}
+                  className="shrink-0 underline underline-offset-2 hover:text-foreground"
+                  data-testid="button-remove-transit"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

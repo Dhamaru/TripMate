@@ -124,6 +124,8 @@ export const updateTripSchema = z.object({
       aiPlanMarkdown: z.string().max(200000),
       isDraft: z.boolean(),
       syncStatus: z.string().max(50),
+      // Set to 0 when the traveler removes the getting-there estimate.
+      transitEstimate: z.coerce.number().min(0).max(1e9),
       // Free-form, but bounded: arbitrary JSON of any size was persisted.
       costBreakdown: z
         .record(z.string(), z.any())

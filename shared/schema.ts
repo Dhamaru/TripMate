@@ -245,6 +245,10 @@ export interface ITrip extends Document {
   isDraft?: boolean;
   syncStatus?: "synced" | "pending" | "conflict";
   costBreakdown?: Record<string, unknown>;
+  // Round-trip origin->destination estimate in the trip currency; unset =
+  // not computed yet, 0 = none (same city, no geocode, or removed by user).
+  // See server/services/transitEstimate.ts.
+  transitEstimate?: number;
   shareId?: string;
   isPublic?: boolean;
   createdAt: Date;
@@ -330,6 +334,7 @@ const tripSchema = new Schema<ITrip>(
     notes: { type: String },
     aiPlanMarkdown: { type: String },
     costBreakdown: { type: Schema.Types.Mixed }, // JSON object for budget details
+    transitEstimate: { type: Number, min: 0 },
     shareId: { type: String, unique: true, sparse: true },
     isPublic: { type: Boolean, default: false },
     // Zod's insertTripSchema has validated and accepted these on every write
