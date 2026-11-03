@@ -22,6 +22,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface BudgetTrackerProps {
   trip: Trip;
+  // View-only collaborators: the server refuses their edits, so hide the controls.
+  canEdit?: boolean;
 }
 
 // On-system category ink tokens (design-audit P0 fix — this was the
@@ -39,7 +41,7 @@ const COLORS = [
 
 const CATEGORIES = ["Accommodation", "Food", "Transport", "Activities", "Shopping", "Other"];
 
-export function BudgetTracker({ trip }: BudgetTrackerProps) {
+export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
   const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [newExpense, setNewExpense] = useState<Partial<IExpense>>({
@@ -283,7 +285,9 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Side by side only from lg: next to the sidebar on tablets each card
+          was ~200px and the totals ran into the card edge. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Summary Card */}
         <Card className="bg-card border-border">
           <CardHeader>
@@ -329,14 +333,16 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                   </span>{" "}
                   to get from {trip.origin} to {trip.destination} and back (rough estimate).
                 </p>
-                <button
-                  type="button"
-                  onClick={removeTransit}
-                  className="shrink-0 underline underline-offset-2 hover:text-foreground"
-                  data-testid="button-remove-transit"
-                >
-                  Remove
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={removeTransit}
+                    className="shrink-0 underline underline-offset-2 hover:text-foreground"
+                    data-testid="button-remove-transit"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             )}
           </CardContent>
@@ -441,12 +447,19 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-foreground">Expenses</CardTitle>
-          <Button variant="outline" size="sm" onClick={() => setIsAdding(!isAdding)}>
-            <Plus className="w-4 h-4 mr-2" /> Add Expense
-          </Button>
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAdding(!isAdding)}
+              data-testid="button-add-expense"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Add Expense
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
-          {isAdding && (
+          {canEdit && isAdding && (
             <div className="mb-4 p-4 bg-secondary rounded-lg grid gap-4 md:grid-cols-4 items-end">
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Description</label>
@@ -577,22 +590,26 @@ export function BudgetTracker({ trip }: BudgetTrackerProps) {
                     <div className="font-bold text-foreground mr-2">
                       {expense.currency} {expense.amount}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => startEdit(expense)}
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(expense.id)}
-                      className="text-[var(--stamp-red-text)] hover:text-[rgb(var(--stamp-red-rgb)/80%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] h-8 w-8"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canEdit && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startEdit(expense)}
+                          className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(expense.id)}
+                          className="text-[var(--stamp-red-text)] hover:text-[rgb(var(--stamp-red-rgb)/80%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] h-8 w-8"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ),

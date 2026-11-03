@@ -2008,7 +2008,7 @@ export default function TripDetail() {
 
           {/* ── Budget tab ─────────────────────────────────── */}
           <TabsContent value="budget" className="mt-0">
-            <BudgetTracker trip={trip} />
+            <BudgetTracker trip={trip} canEdit={canEditTrip} />
           </TabsContent>
 
           {/* ── Places tab ─────────────────────────────────── */}
