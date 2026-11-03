@@ -79,6 +79,35 @@ const destinationImageUrls = new Map<string, string>();
 // same hygiene rule as excluding QA accounts from real-user stats.
 const JUNK_DESTINATION_RE = /\b(test|spoof|sample|dummy|lorem|asdf|qwerty)\b/i;
 
+// Only images our own pipeline produced (Places via our proxy, Wikimedia);
+// a trip's imageUrl is user-editable and must not reach the public page.
+const OWN_IMAGE_RE = /^(\/api\/v1\/places\/photo\?|https:\/\/upload\.wikimedia\.org\/)/;
+// Destinations whose image failed to load; left off the showcase until the
+// next restart rather than showing a broken tile to every visitor.
+const brokenDestinationImages = new Set<string>();
+
+// "MANALI" -> "Manali"; mixed-case names are left as the traveler typed them.
+const displayName = (name: string) =>
+  name === name.toUpperCase()
+    ? name.toLowerCase().replace(/(^|[\s\-(])(\p{L})/gu, (_, sep, c) => sep + c.toUpperCase())
+    : name;
+
+// Spelling variants of one place ("vishakapatnam" / "visakhapatnam").
+function nearlySame(a: string, b: string) {
+  if (Math.min(a.length, b.length) < 6 || Math.abs(a.length - b.length) > 2) return false;
+  const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = d[0];
+    d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return d[b.length] <= 2;
+}
+
 // Shared by both handlers below: getTopDestinations serves it as the list
 // response, getDestinationImage relies on it (rebuilding if stale/cold) to
 // resolve a destination name back to its real upstream URL.
@@ -96,7 +125,7 @@ async function buildTopDestinations() {
       $match: {
         userId: { $nin: excludedUserIds },
         isDraft: { $ne: true },
-        imageUrl: { $exists: true, $nin: [null, ""] },
+        imageUrl: { $regex: OWN_IMAGE_RE },
       },
     },
     {
@@ -110,25 +139,51 @@ async function buildTopDestinations() {
         destination: { $first: "$destination" },
         imageUrl: { $first: "$imageUrl" },
         tripCount: { $sum: 1 },
+        users: { $addToSet: "$userId" },
       },
     },
     { $sort: { tripCount: -1 } },
-    { $limit: 20 }, // buffer above the junk filter below, then trimmed to 10
-    { $project: { _id: 0, destination: 1, imageUrl: 1, tripCount: 1 } },
+    { $limit: 40 }, // buffer above the filters below, then trimmed to 10
+    {
+      $project: {
+        _id: 1,
+        destination: 1,
+        imageUrl: 1,
+        tripCount: 1,
+        userCount: { $size: "$users" },
+      },
+    },
   ]);
 
+  // Merge spelling variants into the more-travelled entry.
+  const merged: typeof raw = [];
+  for (const r of raw) {
+    const same = merged.find((m) => nearlySame(m._id, r._id));
+    if (same) {
+      same.tripCount += r.tripCount;
+      same.userCount = Math.max(same.userCount, r.userCount);
+    } else merged.push({ ...r });
+  }
+  const usable = merged.filter(
+    (r) =>
+      !JUNK_DESTINATION_RE.test(r.destination) &&
+      !brokenDestinationImages.has(r.destination.trim().toLowerCase()),
+  );
+  // A place on the public page needs trips from two different accounts, so
+  // one account can't put its own text there. ponytail: while real data is
+  // still thin (<4 such places) single-account places are allowed again.
+  const shared = usable.filter((r) => r.userCount >= 2);
+  const shown = shared.length >= 4 ? shared : usable;
+
   destinationImageUrls.clear();
-  const results = raw
-    .filter((r) => !JUNK_DESTINATION_RE.test(r.destination))
-    .slice(0, 10)
-    .map((r) => {
-      destinationImageUrls.set(r.destination.trim().toLowerCase(), r.imageUrl);
-      return {
-        destination: r.destination,
-        tripCount: r.tripCount,
-        imageUrl: `/api/v1/public/destination-image?d=${encodeURIComponent(r.destination)}`,
-      };
-    });
+  const results = shown.slice(0, 10).map((r) => {
+    destinationImageUrls.set(r.destination.trim().toLowerCase(), r.imageUrl);
+    return {
+      destination: displayName(r.destination),
+      tripCount: r.tripCount,
+      imageUrl: `/api/v1/public/destination-image?d=${encodeURIComponent(r.destination)}`,
+    };
+  });
 
   const data = { destinations: results, generatedAt: new Date().toISOString() };
   topDestinationsCache = { data, expiresAt: Date.now() + PUBLIC_STATS_TTL_MS };
@@ -280,7 +335,11 @@ export const getDestinationImage = asyncHandler(
     const response =
       (await fetchImage(target.toString())) ??
       (await fallbackImageUrl(destination).then((u) => (u ? fetchImage(u) : null)));
-    if (!response) throw new BadRequestError("Failed to fetch image");
+    if (!response) {
+      brokenDestinationImages.add(destination.trim().toLowerCase());
+      topDestinationsCache = null;
+      throw new BadRequestError("Failed to fetch image");
+    }
     const contentType = response.headers.get("content-type")!;
 
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -485,14 +544,27 @@ export const geocode = asyncHandler(async (req: Request, res: Response, next: Ne
 
 // ─── Protected endpoints (auth required) ──────────────────────────────────────
 
+const WEATHER_LAYERS = new Set([
+  "clouds_new",
+  "precipitation_new",
+  "pressure_new",
+  "wind_new",
+  "temp_new",
+]);
+
 export const weatherProxy = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { layer, z, x, y } = req.params;
     const key = config.OPENWEATHER_API_KEY;
     if (!key) throw new BadRequestError("Weather API key missing");
+    // Raw path pieces went straight into the upstream URL ("..", "%2F", "?"
+    // reached any path on that host with our appid).
+    if (!WEATHER_LAYERS.has(layer) || ![z, x, y].every((n) => /^\d{1,7}$/.test(n))) {
+      throw new BadRequestError("Unknown weather tile");
+    }
 
     const url = `https://tile.openweathermap.org/map/${layer}/${z}/${x}/${y}.png?appid=${key}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new BadRequestError("Failed to fetch tile");
 
     const buffer = await response.arrayBuffer();

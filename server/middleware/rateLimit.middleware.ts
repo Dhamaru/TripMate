@@ -62,17 +62,36 @@ export const apiProxyLimiter = rateLimit({
   handler: (req, res) => res.status(429).json(rateLimitResponse(60)),
 });
 
-// Strict limiter for auth endpoints — prevents brute-force and credential stuffing
-// (test env gets a much higher ceiling so a single test file's sequential
-// signup/signin calls don't trip the same brute-force guard real users hit —
-// the header/shape behavior itself is still exercised, just not the low cap)
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: config.NODE_ENV === "test" ? 1000 : 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => res.status(429).json(rateLimitResponse(15 * 60)),
+// Auth limiters. These used to be one shared bucket of 5 requests per 15
+// minutes per IP covering signup, signin, guest and password reset, with
+// successful requests counted too: signing up, signing out and mistyping
+// once locked the correct password out (live-reproduced 2026-11-04), and a
+// household on one connection hit it constantly. Each route now has its own
+// budget, and sign-in counts only failures, per IP and email together.
+const authLimit = (minutes: number, max: number, extra: Parameters<typeof rateLimit>[0] = {}) =>
+  rateLimit({
+    windowMs: minutes * 60 * 1000,
+    max: config.NODE_ENV === "test" ? 1000 : max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) =>
+      res.status(429).json({
+        ...rateLimitResponse(minutes * 60),
+        error: `Too many attempts. Please wait ${minutes} minutes and try again.`,
+      }),
+    ...extra,
+  });
+
+export const signinLimiter = authLimit(15, 5, {
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) =>
+    `${ipKeyGenerator(req.ip || "unknown")}:${String(req.body?.email || "")
+      .toLowerCase()
+      .trim()}`,
 });
+export const signupLimiter = authLimit(60, 10);
+export const guestLimiter = authLimit(60, 10);
+export const passwordResetLimiter = authLimit(15, 5);
 
 export const aiLimiter = rateLimit({
   windowMs: config.AI_RATE_LIMIT_WINDOW_MS ?? 60 * 1000,
@@ -141,4 +160,19 @@ export const feedbackLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json(rateLimitResponse(60 * 60)),
+});
+
+// Each invite emails and notifies a real person and reveals whether an
+// email has an account, so cap invites per signed-in user.
+export const inviteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: testMultiplier(20),
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?._id || ipKeyGenerator(req.ip || "unknown"),
+  handler: (req, res) =>
+    res.status(429).json({
+      ...rateLimitResponse(60 * 60),
+      error: "You've sent a lot of invites. Please try again in an hour.",
+    }),
 });

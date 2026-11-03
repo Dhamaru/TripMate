@@ -4,7 +4,7 @@ import { log } from "../vite";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
 import { isValidObjectId } from "mongoose";
-import { TripModel, SessionModel } from "@shared/schema";
+import { TripModel, SessionModel, UserModel } from "@shared/schema";
 
 interface UserPresence {
   userId: string;
@@ -95,7 +95,7 @@ export class SocketService {
         socket.join(`session:${socket.data.sessionId}`);
       }
 
-      socket.on("join-trip", async ({ tripId, userName, avatar }) => {
+      socket.on("join-trip", async ({ tripId }) => {
         // Always use server-verified userId from JWT — never trust client payload
         const userId = socket.userId;
         if (!userId) {
@@ -123,8 +123,20 @@ export class SocketService {
           return;
         }
 
+        // The socket may have dropped while the checks above awaited.
+        if (!socket.connected) return;
         socket.join(`trip:${tripId}`);
         log(`[Socket] User ${userId} joined trip room: ${tripId}`);
+
+        // Name and avatar come from the account, not the client message
+        // (a collaborator could otherwise appear as someone else).
+        const me = await UserModel.findById(userId)
+          .select("firstName lastName profileImageUrl avatar")
+          .lean()
+          .catch(() => null);
+        const shownName =
+          [me?.firstName, me?.lastName].filter(Boolean).join(" ").trim() || "Traveler";
+        if (!socket.connected) return;
 
         if (!this.presence.has(tripId)) {
           this.presence.set(tripId, new Map());
@@ -132,8 +144,10 @@ export class SocketService {
         const prior = this.presence.get(tripId)!.get(userId);
         this.presence.get(tripId)!.set(userId, {
           userId,
-          userName: userName ?? "Unknown",
-          avatar,
+          userName: shownName,
+          // Uploaded avatars are base64 data URIs; never fan those out to
+          // every member. Remote URLs only, otherwise the client shows initials.
+          avatar: [me?.avatar, me?.profileImageUrl].find((u) => /^https?:\/\//.test(u ?? "")),
           lastSeen: Date.now(),
           sockets: new Set([...(prior?.sockets ?? []), socket.id]),
         });

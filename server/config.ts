@@ -60,8 +60,14 @@ const envSchema = z.object({
   AI_RATE_LIMIT_WINDOW_MS: z.coerce.number().optional(),
   GENERATION_RATE_LIMIT_MAX: z.coerce.number().optional(),
   GENERATION_RATE_LIMIT_WINDOW_MS: z.coerce.number().optional(),
-  CSRF_ENABLED: z.coerce.boolean().optional(),
-  ACCOUNT_LOCK_MAX_ATTEMPTS: z.coerce.number().default(5),
+  // z.coerce.boolean() turned the string "false" into true.
+  CSRF_ENABLED: z.preprocess(
+    (v) => (typeof v === "string" ? !/^(false|0|no|off)$/i.test(v.trim()) : v),
+    z.boolean().optional(),
+  ),
+  // Account-wide lock across all IPs; the per-IP+account limiter on
+  // /auth/signin (5 failures) stops a single guesser well before this.
+  ACCOUNT_LOCK_MAX_ATTEMPTS: z.coerce.number().default(20),
   ACCOUNT_LOCK_DURATION_MS: z.coerce.number().default(15 * 60 * 1000),
   // Daily ceilings on billed Google (Places/Translate) calls; see server/services/billedQuota.ts.
   GOOGLE_DAILY_USER_MAX: z.coerce.number().default(300),

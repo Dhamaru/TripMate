@@ -11,6 +11,7 @@ import {
   aiLimiter,
   importPlanLimiter,
   placesPhotoLimiter,
+  inviteLimiter,
 } from "../middleware/rateLimit.middleware";
 import { createTripSchema, updateTripSchema, parseScheduleSchema } from "../schemas/trip.schemas";
 import {
@@ -91,6 +92,7 @@ router.put("/:id/itinerary/trim", validate(trimItinerarySchema), itineraryContro
 router.get("/:id/collaborators", collaboratorController.getCollaborators);
 router.post(
   "/:id/collaborators",
+  inviteLimiter,
   validate(addCollaboratorSchema),
   collaboratorController.addCollaborator,
 );

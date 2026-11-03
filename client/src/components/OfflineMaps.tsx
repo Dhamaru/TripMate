@@ -507,7 +507,8 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     customPins.forEach((pin) => {
       const icon = L.divIcon({
         className: "custom-pin-icon",
-        html: `<div style="background-color: ${pin.color}; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white;"></div>`,
+        // pin.color is user input that lands in HTML: only a hex colour passes.
+        html: `<div style="background-color: ${/^#[0-9a-f]{3,8}$/i.test(pin.color || "") ? pin.color : "#1d4e89"}; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white;"></div>`,
         iconSize: [20, 20],
       });
 
@@ -827,7 +828,10 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     const map = mapInstanceRef.current;
     if (map) {
       if (markerRef.current) markerRef.current.remove();
-      markerRef.current = L.marker([lat, lon]).addTo(map).bindPopup(name).openPopup();
+      // A string popup is parsed as HTML; place names come from geocoders.
+      const label = document.createElement("span");
+      label.textContent = name;
+      markerRef.current = L.marker([lat, lon]).addTo(map).bindPopup(label).openPopup();
       map.flyTo([lat, lon], 14, { duration: 1 });
     }
   };

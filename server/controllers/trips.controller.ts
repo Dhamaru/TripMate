@@ -905,6 +905,10 @@ export const getPublicTrip = asyncHandler(
         type: a?.type,
       })),
     }));
+    // The real trip id let anyone keep addressing the trip after sharing
+    // was turned off; the share page doesn't need it.
+    delete json.id;
+    delete json._id;
     res.json(json);
   },
 );

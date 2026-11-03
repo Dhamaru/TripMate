@@ -36,8 +36,12 @@ describe("write routes reject bad input", () => {
       (await post("/api/v1/map-pins", { lat: 17, lng: 78, name: "", color: "red" })).status,
     ).toBe(400);
     expect(
-      (await post("/api/v1/map-pins", { lat: 17, lng: 78, name: "Cafe", color: "red" })).status,
+      (await post("/api/v1/map-pins", { lat: 17, lng: 78, name: "Cafe", color: "#b3261e" })).status,
     ).toBe(201);
+    // The colour lands in map-marker HTML, so only hex values are accepted.
+    expect(
+      (await post("/api/v1/map-pins", { lat: 17, lng: 78, name: "Cafe", color: "red;x" })).status,
+    ).toBe(400);
   });
 
   it("journal entries can't set server-owned fields", async () => {

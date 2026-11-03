@@ -11,6 +11,8 @@ import {
   NotificationModel,
   MapPinModel,
   FeedbackModel,
+  PushSubscriptionModel,
+  ImportPlanRequestLogModel,
 } from "@shared/schema";
 import { AgentJob } from "../models/AgentJob";
 import { TripSuggestion } from "../models/TripSuggestion";
@@ -25,6 +27,11 @@ import jwt from "jsonwebtoken";
 import { getFrontendBaseUrl } from "../urls";
 import { storage } from "../storage";
 import { socketService } from "../services/SocketService";
+
+// The session lives in the httpOnly cookie. Returning the JWT in the body
+// handed it to any script or proxy that could read the response; only the
+// test suite (which authenticates with a Bearer header) still gets it.
+const bodyToken = (token: string) => (config.NODE_ENV === "test" ? { token } : {});
 
 const JWT_EXPIRY = "7d";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -141,10 +148,7 @@ export const signup = asyncHandler(async (req: Request, res: Response, next: Nex
   const token = await issueSession(req, user.id);
   setAuthCookie(req, res, token);
   void sendWelcomeNotification(user.id, user.firstName);
-  req.login(user, (err) => {
-    if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
-    res.status(201).json({ user, token });
-  });
+  res.status(201).json({ user, ...bodyToken(token) });
 });
 
 export const guestSignin = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
@@ -159,10 +163,7 @@ export const guestSignin = asyncHandler(async (req: Request, res: Response, next
 
   const token = await issueSession(req, user.id, { isGuest: true });
   setAuthCookie(req, res, token);
-  req.login(user, (err) => {
-    if (err) console.warn("[Auth] Guest session init failed (non-fatal):", err?.message);
-    res.json({ user, token });
-  });
+  res.json({ user, ...bodyToken(token) });
 });
 
 export const signin = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
@@ -183,28 +184,39 @@ export const signin = asyncHandler(async (req: Request, res: Response, next: Nex
 
   const isMatch = await comparePasswords(password, user.password);
   if (!isMatch) {
-    const nextAttempts = (user.failedLoginAttempts ?? 0) + 1;
-    if (nextAttempts >= config.ACCOUNT_LOCK_MAX_ATTEMPTS) {
-      user.failedLoginAttempts = 0;
-      user.lockUntil = new Date(Date.now() + config.ACCOUNT_LOCK_DURATION_MS);
-    } else {
-      user.failedLoginAttempts = nextAttempts;
+    // Atomic: a read-increment-save let parallel guesses all write "1" and
+    // never reach the lock. The per-IP+account limiter on the route stops a
+    // single guesser early; this account-wide lock (higher threshold) stops a
+    // spread-out attack without letting a stranger lock someone out quickly.
+    const updated = await UserModel.findOneAndUpdate(
+      { _id: user._id },
+      { $inc: { failedLoginAttempts: 1 } },
+      { new: true, projection: { failedLoginAttempts: 1 } },
+    ).lean();
+    if ((updated?.failedLoginAttempts ?? 0) >= config.ACCOUNT_LOCK_MAX_ATTEMPTS) {
+      await UserModel.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            failedLoginAttempts: 0,
+            lockUntil: new Date(Date.now() + config.ACCOUNT_LOCK_DURATION_MS),
+          },
+        },
+      );
     }
-    await user.save();
     return invalidCreds();
   }
 
-  // Reset lockout on success
-  if ((user.failedLoginAttempts ?? 0) > 0) user.failedLoginAttempts = 0;
-  if (user.lockUntil) user.lockUntil = undefined;
-  await user.save();
+  if ((user.failedLoginAttempts ?? 0) > 0 || user.lockUntil) {
+    await UserModel.updateOne(
+      { _id: user._id },
+      { $set: { failedLoginAttempts: 0 }, $unset: { lockUntil: 1 } },
+    );
+  }
 
   const token = await issueSession(req, user.id);
   setAuthCookie(req, res, token);
-  req.login(user, (err) => {
-    if (err) console.warn("[Auth] Session init failed (non-fatal):", err?.message);
-    res.json({ user, token });
-  });
+  res.json({ user, ...bodyToken(token) });
 });
 
 export const signout = async (req: Request, res: Response, next: NextFunction) => {
@@ -225,13 +237,10 @@ export const signout = async (req: Request, res: Response, next: NextFunction) =
     // missing, expired, or fails verification
   }
   clearAuthCookie(res);
-  req.logout((err) => {
-    if (err) return next(err);
-    req.session.destroy(() => {
-      res.clearCookie("sid");
-      res.json({ message: "Signed out successfully" });
-    });
-  });
+  // Old express-session cookies ("connect.sid"/"sid") from before it was removed.
+  res.clearCookie("connect.sid");
+  res.clearCookie("sid");
+  res.json({ message: "Signed out successfully" });
 };
 
 export const googleCallback = asyncHandler(
@@ -479,6 +488,10 @@ export const deleteAccount = asyncHandler(
       AgentJob.deleteMany({ userId: deletedUserId }),
       TripSuggestion.deleteMany({ userId: deletedUserId }),
       UserMemoryModel.deleteMany({ userId: deletedUserId }),
+      // Device endpoints + keys: a Google account reuses its email as _id,
+      // so signing up again would otherwise re-link the old devices.
+      PushSubscriptionModel.deleteMany({ userId: deletedUserId }),
+      ImportPlanRequestLogModel.deleteMany({ userId: deletedUserId }),
       // TripModel.deleteMany above only removes trips this account owned —
       // a trip they were invited onto as a collaborator belongs to someone
       // else and stays, but the deleted account's userId was lingering
@@ -492,6 +505,6 @@ export const deleteAccount = asyncHandler(
     await UserModel.findByIdAndDelete(deletedUserId);
     clearAuthCookie(res);
     socketService.disconnectUser(String(deletedUserId));
-    req.session.destroy(() => res.json({ message: "Account deleted successfully" }));
+    res.json({ message: "Account deleted successfully" });
   },
 );

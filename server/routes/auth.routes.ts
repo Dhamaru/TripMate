@@ -3,7 +3,13 @@ import * as authController from "../controllers/auth.controller";
 import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth.middleware";
 import { getCsrfToken } from "../middleware/csrf.middleware";
-import { authLimiter } from "../middleware/rateLimit.middleware";
+import {
+  signinLimiter,
+  signupLimiter,
+  guestLimiter,
+  passwordResetLimiter,
+} from "../middleware/rateLimit.middleware";
+import crypto from "crypto";
 import {
   signInSchema,
   signUpSchema,
@@ -19,6 +25,7 @@ import { imageFileFilter } from "../middleware/imageUpload";
 import { socketService } from "../services/SocketService";
 
 const router = Router();
+const OAUTH_STATE_COOKIE = "oauth_state";
 
 // Avatars are stored as a base64 data URI directly on the User document
 // (see uploadAvatar in auth.controller.ts) rather than written to disk —
@@ -36,19 +43,19 @@ const upload = multer({
 
 // Public routes
 router.get("/csrf", getCsrfToken);
-router.post("/signup", authLimiter, validate(signUpSchema), authController.signup);
-router.post("/signin", authLimiter, validate(signInSchema), authController.signin);
-router.post("/guest", authLimiter, authController.guestSignin);
+router.post("/signup", signupLimiter, validate(signUpSchema), authController.signup);
+router.post("/signin", signinLimiter, validate(signInSchema), authController.signin);
+router.post("/guest", guestLimiter, authController.guestSignin);
 router.post("/signout", authController.signout);
 router.post(
   "/forgot-password",
-  authLimiter,
+  passwordResetLimiter,
   validate(forgotPasswordSchema),
   authController.forgotPassword,
 );
 router.post(
   "/reset-password",
-  authLimiter,
+  passwordResetLimiter,
   validate(resetPasswordSchema),
   authController.resetPassword,
 );
@@ -61,13 +68,33 @@ router.get("/google", (req, res, next) => {
   if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
     return res.redirect("/signin?error=google_not_configured");
   }
-  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+  // OAuth `state` ties the callback to this browser (login CSRF: without it
+  // an attacker could send a victim to the callback with the attacker's own
+  // code and sign them into the attacker's account).
+  const state = crypto.randomBytes(16).toString("hex");
+  res.cookie(OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: appConfig.NODE_ENV === "production",
+    maxAge: 10 * 60 * 1000,
+    path: "/api/v1/auth/google",
+  });
+  passport.authenticate("google", { scope: ["profile", "email"], session: false, state })(
+    req,
+    res,
+    next,
+  );
 });
 router.get(
   "/google/callback",
   (req, res, next) => {
     if (!appConfig.GOOGLE_CLIENT_ID || !appConfig.GOOGLE_CLIENT_SECRET) {
       return res.redirect("/signin?error=google_not_configured");
+    }
+    const expected = req.cookies?.[OAUTH_STATE_COOKIE];
+    res.clearCookie(OAUTH_STATE_COOKIE, { path: "/api/v1/auth/google" });
+    if (!expected || req.query.state !== expected) {
+      return res.redirect("/signin?error=auth_failed");
     }
     // Was passport.authenticate("google", { failureRedirect:
     // "/signin?error=auth_failed" }) — passport's built-in failureRedirect

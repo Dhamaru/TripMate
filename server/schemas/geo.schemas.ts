@@ -20,6 +20,6 @@ export const createMapPinSchema = z.object({
     lng,
     name: z.string().trim().min(1).max(200),
     note: z.string().max(2000).optional(),
-    color: z.string().max(32),
+    color: z.string().regex(/^#[0-9a-fA-F]{3,8}$/, "Colour must be a hex value like #1d4e89"),
   }),
 });

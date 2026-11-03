@@ -83,11 +83,15 @@ const prodCsp = {
     "https://*.basemaps.cartocdn.com",
     "https://api.maptiler.com",
     "https://tile.openstreetmap.org",
-    "wss:",
+    // Socket.io to this app only (was any wss: host).
+    ...(config.FRONTEND_URL ? [config.FRONTEND_URL.replace(/^http/, "ws")] : ["wss:"]),
   ],
   "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
   "frame-src": ["'none'"],
   "object-src": ["'none'"],
+  "base-uri": ["'self'"],
+  "form-action": ["'self'"],
+  "frame-ancestors": ["'self'"],
 };
 
 export const helmetMiddleware = helmet({
@@ -128,7 +132,9 @@ export const corsMiddleware = cors({
     ) {
       return callback(null, true);
     }
-    callback(new Error(`CORS: Origin ${origin} not allowed`));
+    // Refuse quietly (no CORS headers) instead of throwing, which turned
+    // every cross-origin probe into a logged 500.
+    callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

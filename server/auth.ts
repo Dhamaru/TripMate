@@ -1,11 +1,8 @@
 import { config } from "./config";
 import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
 import { Strategy as JwtStrategy, ExtractJwt } from "passport-jwt";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import session from "express-session";
 import type { Express, RequestHandler } from "express";
-import MemoryStore from "memorystore";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { sendWelcomeNotification } from "./welcome";
@@ -18,31 +15,12 @@ export async function comparePasswords(supplied: string, stored: string) {
   return await bcrypt.compare(supplied, stored);
 }
 
-export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000;
-  const MemoryStoreSession = MemoryStore(session);
-  const sessionStore = new MemoryStoreSession({ checkPeriod: 86400000 });
-  return session({
-    secret: config.SESSION_SECRET,
-    store: sessionStore,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      // HTTPS-only in production (trust proxy is set, so Render's TLS counts).
-      // lax still allows the top-level redirect back from Google sign-in.
-      secure: config.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: sessionTtl,
-    },
-  });
-}
-
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
-  app.use(getSession());
+  // JWT-in-cookie only. The old express-session + passport.session layer
+  // kept the full user (password hash included) in an in-memory session and
+  // still counted as signed in after the JWT session was revoked.
   app.use(passport.initialize());
-  app.use(passport.session());
 
   // Extract JWT from httpOnly cookie first, then fall back to Bearer header
   const cookieOrBearerExtractor = (req: any) => {
@@ -156,54 +134,6 @@ export async function setupAuth(app: Express) {
     );
   }
 
-  passport.use(
-    new LocalStrategy(
-      {
-        usernameField: "email",
-        passwordField: "password",
-      },
-      async (email, password, done) => {
-        try {
-          const localUser = await storage.getUserByEmail(email);
-
-          if (!localUser) {
-            return done(null, false, { message: "User not found. Please register first." });
-          }
-
-          if (
-            !localUser ||
-            !localUser.password ||
-            !(await bcrypt.compare(password, localUser.password))
-          ) {
-            return done(null, false, { message: "Invalid credentials" });
-          }
-
-          return done(null, {
-            _id: localUser.id,
-            id: localUser.id,
-            email: localUser.email!,
-            firstName: localUser.firstName,
-            lastName: localUser.lastName,
-            profileImageUrl: localUser.profileImageUrl,
-            claims: {
-              sub: localUser.id,
-              email: localUser.email!,
-              first_name: localUser.firstName,
-              last_name: localUser.lastName,
-              profile_image_url: localUser.profileImageUrl,
-            },
-          } as any);
-        } catch (error) {
-          console.error("Authentication error:", error);
-          return done(error);
-        }
-      },
-    ),
-  );
-
-  passport.serializeUser((user: any, cb) => cb(null, user));
-  passport.deserializeUser((user: any, cb) => cb(null, user));
-
   // OAuth routes have been moved to server/routes.ts
   // to ensure consistent session creation (Access+Refresh Tokens)
   // using the shared session store logic.
@@ -211,13 +141,6 @@ export async function setupAuth(app: Express) {
   // Routes for forgot/reset password have been moved to server/routes.ts
   // to share access to memoryUsers/storage logic correctly.
 }
-
-export const isAuthenticated: RequestHandler = (req, res, next) => {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ message: "Unauthorized" });
-};
 
 export const isJwtAuthenticated: RequestHandler = (req, res, next) => {
   passport.authenticate("jwt", { session: false }, (err: any, user: any) => {

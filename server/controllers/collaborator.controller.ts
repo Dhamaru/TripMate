@@ -12,6 +12,11 @@ export const addCollaborator = asyncHandler(
     const { id: tripId } = req.params;
     const { email, role } = req.body;
 
+    // Guest accounts are free and anonymous; inviting real people needs an account.
+    if ((req.user as any)?.isGuest) {
+      throw new BadRequestError("Create a free account to invite people to your trip.");
+    }
+
     // Only the primary owner can add collaborators
     const trip = await TripModel.findOne({ _id: tripId, userId });
     if (!trip) throw new NotFoundError("Trip not found or access denied");
