@@ -139,6 +139,8 @@ export async function collaboratorToolHandler(args: {
         { $pull: { collaborators: { userId: args.collaboratorId } } },
         { new: true },
       );
+      // Out of the room first, so the removed user doesn't get this last update.
+      socketService.removeFromTrip(args.collaboratorId, tripId);
       // No excludeUserId — see modifyItineraryHandler.ts's comment on the same pattern.
       socketService.broadcastMutation(tripId, { type: "collaborators-updated", data: updated });
       await notifyUser({

@@ -67,4 +67,11 @@ describe("Atlas conversation context", () => {
     expect(context).toEqual(history);
     expect(updated).toBeUndefined();
   });
+
+  it("never stores an empty summary (it would drop those turns for good)", async () => {
+    const history = convo(6);
+    const { context, updated } = await prepareHistory(history, {}, vi.fn().mockResolvedValue("  "));
+    expect(updated).toBeUndefined();
+    expect(context).toEqual(history);
+  });
 });

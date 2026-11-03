@@ -476,7 +476,7 @@ export function TripMap({
               const editBtn = document.createElement("button");
               editBtn.innerHTML = '<i class="fas fa-pen mr-1"></i> Edit';
               editBtn.style.cssText =
-                "color: var(--ink-blue-text); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
+                "color: #1d4e89; font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
               editBtn.onclick = () => onViewInItinerary(act.id);
               actionsRow.appendChild(editBtn);
             }

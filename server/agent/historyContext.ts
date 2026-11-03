@@ -42,7 +42,9 @@ export async function prepareHistory(
     return { context: [...withSummary(prior.summary), ...pending, ...recent] };
   }
   try {
-    const summary = await summarize(prior.summary, pending);
+    const summary = (await summarize(prior.summary, pending)).trim();
+    // Storing an empty summary would drop these turns for good.
+    if (!summary) throw new Error("empty summary");
     const summaryThrough = older[older.length - 1].timestamp;
     return {
       context: [...withSummary(summary), ...recent],

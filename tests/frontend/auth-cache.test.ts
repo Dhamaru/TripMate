@@ -19,4 +19,21 @@ describe("sign-out clears cached user data", () => {
     expect(queryClient.getQueryData(["/api/v1/trips"])).toBeUndefined();
     expect(del).toHaveBeenCalledWith("trips-api-cache");
   });
+
+  it("still clears everything when the sign-out request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 500 })),
+    );
+    const del = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal("caches", { delete: del });
+    queryClient.setQueryData(["/api/v1/trips"], [{ id: "secret" }]);
+    await useAuthStore
+      .getState()
+      .signOut()
+      .catch(() => {});
+    expect(queryClient.getQueryData(["/api/v1/trips"])).toBeUndefined();
+    expect(del).toHaveBeenCalledWith("trips-api-cache");
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
 });

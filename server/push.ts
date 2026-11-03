@@ -4,6 +4,7 @@
 // whatever's currently rendered. Registers itself against every
 // Notification write via the hook in shared/schema.ts, so no controller
 // or notification-creation call site needs to know push exists.
+import { isPushServiceUrl } from "./controllers/push.controller";
 import webpush from "web-push";
 import { config } from "./config";
 import { PushSubscriptionModel, onNotificationCreated, type INotification } from "@shared/schema";
@@ -33,6 +34,11 @@ export async function sendPushToUser(
   const json = JSON.stringify(payload);
   await Promise.all(
     subs.map(async (sub) => {
+      // Rows saved before the subscribe allowlist existed could point anywhere.
+      if (!isPushServiceUrl(sub.endpoint)) {
+        await PushSubscriptionModel.deleteOne({ _id: sub._id }).catch(() => {});
+        return;
+      }
       try {
         await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, json);
       } catch (err: any) {

@@ -347,8 +347,11 @@ export const changePassword = asyncHandler(
         // expired-but-otherwise-fine old cookie doesn't turn a successful
         // password change into an error response.
         const decoded = jwt.verify(oldToken, config.JWT_SECRET) as { sid?: string };
-        if (decoded?.sid)
+        if (decoded?.sid) {
           await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
+          // This tab's socket reconnects on the new session (useSocket.ts).
+          socketService.disconnectSession(decoded.sid);
+        }
       } catch {
         // Non-fatal — the new session issued below still supersedes it
       }

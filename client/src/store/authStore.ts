@@ -44,9 +44,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ user, isAuthenticated: true, isLoading: false });
   },
   signOut: async () => {
-    await apiRequestJson("POST", "/api/v1/auth/signout");
-    clearUserCaches();
-    set({ user: null, isAuthenticated: false });
+    try {
+      await apiRequestJson("POST", "/api/v1/auth/signout");
+    } finally {
+      clearUserCaches();
+      set({ user: null, isAuthenticated: false });
+    }
   },
   checkSession: async (retryCount = 0) => {
     try {
@@ -55,6 +58,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (err) {
       const status = (err as { status?: number }).status ?? 0;
       if (status === 401 || status === 403) {
+        // Expired or revoked session: the next person must not see its data.
+        clearUserCaches();
         set({ user: null, isAuthenticated: false, isLoading: false });
       } else if ((status === 429 || status >= 500 || status === 0) && retryCount < 3) {
         // On a fresh page load there's no prior authenticated state to

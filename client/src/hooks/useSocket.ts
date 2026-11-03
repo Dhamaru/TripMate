@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef } from "react";
+import { io, Socket } from "socket.io-client";
 
 // Module-level singleton: every caller of useSocket() must share the SAME
 // connection. Previously each call created its own independent `io()`
@@ -12,47 +12,53 @@ let sharedSocket: Socket | null = null;
 let refCount = 0;
 
 function getSharedSocket(): Socket {
-    if (!sharedSocket) {
-        sharedSocket = io({
-            path: '/socket.io',
-            transports: ['websocket'],
-            withCredentials: true,
-            autoConnect: true,
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-        });
+  if (!sharedSocket) {
+    sharedSocket = io({
+      path: "/socket.io",
+      transports: ["websocket"],
+      withCredentials: true,
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
 
-        sharedSocket.on('connect', () => {
-            console.log('[Socket] Connected to server:', sharedSocket!.id);
-        });
-        sharedSocket.on('connect_error', (error) => {
-            console.error('[Socket] Connection error:', error);
-        });
-        sharedSocket.on('disconnect', (reason) => {
-            console.log('[Socket] Disconnected from server:', reason);
-        });
-    }
-    return sharedSocket;
+    sharedSocket.on("connect", () => {
+      console.log("[Socket] Connected to server:", sharedSocket!.id);
+    });
+    sharedSocket.on("connect_error", (error) => {
+      console.error("[Socket] Connection error:", error);
+    });
+    sharedSocket.on("disconnect", (reason) => {
+      console.log("[Socket] Disconnected from server:", reason);
+      // The server drops sockets whose session ended (password change,
+      // revoke, sign-out). socket.io won't retry those on its own; try
+      // once with whatever session cookie this tab now has.
+      if (reason === "io server disconnect") {
+        setTimeout(() => sharedSocket?.connect(), 1000);
+      }
+    });
+  }
+  return sharedSocket;
 }
 
 export const useSocket = () => {
-    const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-    useEffect(() => {
-        const socket = getSharedSocket();
-        socketRef.current = socket;
-        refCount++;
+  useEffect(() => {
+    const socket = getSharedSocket();
+    socketRef.current = socket;
+    refCount++;
 
-        return () => {
-            refCount--;
-            if (refCount <= 0 && sharedSocket) {
-                sharedSocket.disconnect();
-                sharedSocket = null;
-                refCount = 0;
-            }
-        };
-    }, []);
+    return () => {
+      refCount--;
+      if (refCount <= 0 && sharedSocket) {
+        sharedSocket.disconnect();
+        sharedSocket = null;
+        refCount = 0;
+      }
+    };
+  }, []);
 
-    return socketRef;
+  return socketRef;
 };

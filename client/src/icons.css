@@ -304,6 +304,9 @@
 .fa-tag {
   --fa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z'/%3E%3Ccircle cx='7.5' cy='7.5' r='.5' fill='currentColor'/%3E%3C/svg%3E");
 }
+.fa-smog {
+  --fa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242'/%3E%3Cpath d='M16 17H7'/%3E%3Cpath d='M17 21H9'/%3E%3C/svg%3E");
+}
 .fa-google {
   --fa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M21.35 11.1H12v3.8h5.35c-.5 2.5-2.6 3.9-5.35 3.9a5.8 5.8 0 0 1 0-11.6c1.45 0 2.75.5 3.75 1.4l2.8-2.8A9.7 9.7 0 0 0 12 3a9 9 0 1 0 0 18c5.2 0 8.9-3.65 8.9-8.8 0-.4 0-.75-.55-1.1z'/%3E%3C/svg%3E");
 }
