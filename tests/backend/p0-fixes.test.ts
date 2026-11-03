@@ -104,7 +104,7 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
   });
 
   describe("public trip share does not leak voter identity via userVotes either", () => {
-    it("strips userVotes from every itinerary activity in the public response, keeps the numeric vote total", async () => {
+    it("strips userVotes from every itinerary activity in the public response", async () => {
       // Caught by a security-review pass on the getPublicTrip fix itself
       // (finding #1's projection correctly dropped userId/collaborators/
       // expenses/budget/notes, but kept `itinerary` wholesale -- a
@@ -147,8 +147,10 @@ describe("P0 fixes — five-expert review, 2026-09-03", () => {
         publicActivity.userVotes,
         "userVotes (keyed by voter user id / email) must not be in the public response",
       ).toBeUndefined();
-      // The non-identifying numeric total is fine to keep.
-      expect(publicActivity.votes).toBe(1);
+      // Public activities carry only what the share page shows (2026-11-03).
+      expect(Object.keys(publicActivity).sort()).toEqual(
+        ["id", "placeName", "time", "title", "type"].filter((k) => publicActivity[k] !== undefined),
+      );
     });
   });
 
