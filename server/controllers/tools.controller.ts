@@ -184,6 +184,23 @@ async function fallbackImageUrl(destination: string): Promise<string | null> {
     : null;
 }
 
+// The landing page shows the same ~10 images to every visitor. Keeping the
+// bytes here means a reload doesn't re-download them (Google Photos is billed)
+// or count against the per-visitor image limit (see the route).
+const DEST_IMAGE_TTL_MS = 24 * 60 * 60 * 1000;
+const destinationImageBytes = new Map<string, { body: Buffer; type: string; at: number }>();
+
+export function serveCachedDestinationImage(req: Request, res: Response, next: NextFunction) {
+  const key = String(req.query.d || "")
+    .trim()
+    .toLowerCase();
+  const hit = destinationImageBytes.get(key);
+  if (!hit || Date.now() - hit.at > DEST_IMAGE_TTL_MS) return next();
+  res.setHeader("Content-Type", hit.type);
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(hit.body);
+}
+
 export const getDestinationImage = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const destination = String(req.query.d || "")
@@ -263,12 +280,18 @@ export const getDestinationImage = asyncHandler(
     if (!response) throw new BadRequestError("Failed to fetch image");
     const contentType = response.headers.get("content-type")!;
 
-    const buffer = await response.arrayBuffer();
+    const buffer = Buffer.from(await response.arrayBuffer());
+    // ponytail: in-memory, per instance, capped at 50 images (~few MB); fine at
+    // this scale, move to a shared store if there are ever several instances.
+    if (destinationImageBytes.size >= 50) {
+      destinationImageBytes.delete(destinationImageBytes.keys().next().value!);
+    }
+    destinationImageBytes.set(destination, { body: buffer, type: contentType, at: Date.now() });
     res.setHeader("Content-Type", contentType);
     // Public + long-lived: this is the same handful of images served
     // identically to every visitor, not per-user content.
     res.setHeader("Cache-Control", "public, max-age=86400");
-    res.send(Buffer.from(buffer));
+    res.send(buffer);
   },
 );
 

@@ -79,7 +79,13 @@ router.get("/public/top-destinations", toolsController.getTopDestinations);
 // per request (same expensive shape /places/photo already got a dedicated
 // limiter for) but had no dedicated ceiling — an attacker could loop it
 // unauthenticated for real, unbounded billing. Same limiter as that route.
-router.get("/public/destination-image", placesPhotoLimiter, toolsController.getDestinationImage);
+// Cached images are served before the limiter: only real upstream fetches count.
+router.get(
+  "/public/destination-image",
+  toolsController.serveCachedDestinationImage,
+  placesPhotoLimiter,
+  toolsController.getDestinationImage,
+);
 
 /**
  * @swagger
