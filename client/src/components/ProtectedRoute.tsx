@@ -12,7 +12,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      setLocation("/signin");
+      // Come back here after signing in instead of always landing on Home.
+      const here = window.location.pathname + window.location.search;
+      setLocation(`/signin?returnTo=${encodeURIComponent(here)}`);
     }
   }, [isLoading, isAuthenticated, setLocation]);
 

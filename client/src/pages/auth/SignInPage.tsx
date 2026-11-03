@@ -37,6 +37,13 @@ export default function SignInPage() {
     },
   });
 
+  // Where to go after sign-in: the protected page that sent the user here, or
+  // Home. Only same-site /app paths, so the parameter can't redirect off-site.
+  const afterSignIn = (() => {
+    const to = new URLSearchParams(window.location.search).get("returnTo") || "";
+    return to.startsWith("/app/") ? to : "/app/home";
+  })();
+
   // Google OAuth redirects to /app/home with cookie set — no URL token param needed
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -52,9 +59,9 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/app/home");
+      navigate(afterSignIn);
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, afterSignIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +75,7 @@ export default function SignInPage() {
         return;
       }
       await signIn(email, password);
-      setTimeout(() => navigate("/app/home"), 100);
+      setTimeout(() => navigate(afterSignIn), 100);
     } catch (err: any) {
       console.error("Sign in error:", err);
       const msg = err instanceof Error ? err.message : "Invalid credentials";
@@ -86,7 +93,7 @@ export default function SignInPage() {
     setGuestError("");
     try {
       await guestSignIn();
-      setTimeout(() => navigate("/app/home"), 100);
+      setTimeout(() => navigate(afterSignIn), 100);
     } catch (err: any) {
       setGuestError(err.message || "Failed to continue as guest");
       setIsLoading(false);
