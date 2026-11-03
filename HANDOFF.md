@@ -3,7 +3,8 @@
 ## Done and verified
 
 - 2026-10-21/22: all 7 audit P0s plus follow-ups, live-verified on production.
-- 2026-11-02: audit P1/P2 batch pushed and live-checked with zero AI calls (details in CONTEXT.md). Gate: typecheck clean, build clean, 232/232 tests.
+- 2026-11-02: audit P1/P2 batch pushed and live-checked with zero AI calls (details in CONTEXT.md).
+- 2026-11-03: independent review of that batch done, all 7 fixable findings fixed; light/dark contrast sweep clean. Gate: typecheck clean, build clean, 234/234 tests.
 
 ## In progress
 
@@ -19,3 +20,4 @@ None queued. With the owner's approval of the estimate, run a short live Atlas c
 - Atlas summary + iteration cap are unit-tested only; a live check spends AI credit.
 - Backups, error tracking and an uptime monitor need owner accounts; set Render's health check path to `/api/v1/health`.
 - Remaining npm advisories need major version bumps.
+- Should contact-form messages skip the hourly feedback triage? Owner decision.
