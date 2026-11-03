@@ -870,10 +870,7 @@ export default function Landing() {
               <h3 className="text-[hsl(var(--foreground))] font-semibold text-sm mb-4">Support</h3>
               <ul className="space-y-2.5 text-sm text-[hsl(var(--muted-foreground))]">
                 <li>
-                  <a
-                    href="/app/feedback"
-                    className="hover:text-[hsl(var(--foreground))] transition-colors"
-                  >
+                  <a href="/help" className="hover:text-[hsl(var(--foreground))] transition-colors">
                     Help Center
                   </a>
                 </li>
@@ -895,7 +892,7 @@ export default function Landing() {
                 </li>
                 <li>
                   <a
-                    href="/app/feedback"
+                    href="/contact"
                     className="hover:text-[hsl(var(--foreground))] transition-colors"
                   >
                     Contact Us
