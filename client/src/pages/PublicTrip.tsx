@@ -76,7 +76,7 @@ export default function PublicTripPage() {
             </p>
             <button
               onClick={() => refetch()}
-              className="text-[var(--ink-blue-bright)] font-semibold hover:underline"
+              className="text-[var(--ink-blue-text)] font-semibold hover:underline"
             >
               Try again
             </button>
@@ -89,7 +89,7 @@ export default function PublicTripPage() {
             <p className="text-[hsl(var(--muted-foreground))] mb-6">
               This link is invalid, or the trip is no longer shared publicly.
             </p>
-            <Link href="/" className="text-[var(--ink-blue-bright)] font-semibold hover:underline">
+            <Link href="/" className="text-[var(--ink-blue-text)] font-semibold hover:underline">
               Go to TripMate
             </Link>
           </div>

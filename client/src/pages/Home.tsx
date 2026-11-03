@@ -310,7 +310,7 @@ export default function Home() {
       ? "text-[var(--transit-green-text)]"
       : phase?.kind === "past"
         ? "text-[hsl(var(--muted-foreground))]"
-        : "text-[var(--ink-blue-bright)]";
+        : "text-[var(--ink-blue-text)]";
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 pb-4 min-w-0 overflow-x-clip">
@@ -370,7 +370,7 @@ export default function Home() {
               <div className="p-5 md:p-6 flex flex-col gap-5 bg-[rgb(var(--ink-blue-rgb)/4%)]">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <span className="font-mono-data text-[11px] uppercase tracking-[0.14em] text-[var(--ink-blue-bright)] font-semibold">
+                    <span className="font-mono-data text-[11px] uppercase tracking-[0.14em] text-[var(--ink-blue-text)] font-semibold">
                       {currentTrip.status === "active"
                         ? "Current trip"
                         : currentTrip.status === "completed"
@@ -422,7 +422,7 @@ export default function Home() {
                     ) : (
                       <Link
                         href={`/app/trips/${currentTrip.id}?edit=1`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--ink-blue-bright)] font-sans-clean hover:gap-1.5 transition-all rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--ink-blue-text)] font-sans-clean hover:gap-1.5 transition-all rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
                       >
                         <CalendarPlus className="w-3.5 h-3.5" aria-hidden="true" />
                         Set dates
@@ -524,7 +524,7 @@ export default function Home() {
                   </div>
                   <Link
                     href={`/app/trips/${currentTrip.id}`}
-                    className="inline-flex items-center gap-1 text-[var(--ink-blue-bright)] text-xs font-semibold font-sans-clean hover:gap-2 transition-all rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--card))]"
+                    className="inline-flex items-center gap-1 text-[var(--ink-blue-text)] text-xs font-semibold font-sans-clean hover:gap-2 transition-all rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--card))]"
                   >
                     Open trip <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                   </Link>
@@ -559,7 +559,7 @@ export default function Home() {
               </div>
               <Link
                 href={`/app/trips/${currentTrip.id}?tab=itinerary`}
-                className="text-[var(--ink-blue-bright)] text-xs font-semibold font-sans-clean hover:opacity-70 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
+                className="text-[var(--ink-blue-text)] text-xs font-semibold font-sans-clean hover:opacity-70 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
               >
                 Full itinerary →
               </Link>
@@ -571,7 +571,7 @@ export default function Home() {
                   <li key={a.id} className="pl-5 relative min-w-0">
                     <span className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-[var(--amber)] border-2 border-[hsl(var(--card))]" />
                     <div className="flex items-baseline gap-2 min-w-0">
-                      <span className="font-mono-data text-xs text-[var(--ink-blue-bright)] flex-shrink-0">
+                      <span className="font-mono-data text-xs text-[var(--ink-blue-text)] flex-shrink-0">
                         {a.time || "—"}
                       </span>
                       <span className="text-sm font-medium text-[hsl(var(--foreground))] font-sans-clean truncate">
@@ -610,7 +610,7 @@ export default function Home() {
                   <Link
                     key={q.href}
                     href={q.href}
-                    className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2.5 text-xs font-medium text-[hsl(var(--foreground))] font-sans-clean hover:border-[var(--ink-blue-bright)] hover:text-[var(--ink-blue-bright)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
+                    className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2.5 text-xs font-medium text-[hsl(var(--foreground))] font-sans-clean hover:border-[var(--ink-blue-bright)] hover:text-[var(--ink-blue-text)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
                   >
                     <q.icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                     {q.title}
@@ -627,7 +627,7 @@ export default function Home() {
                       `anything time-sensitive, and how my budget and packing are looking.`,
                   );
                 }}
-                className="mt-2 w-full flex items-center gap-2 rounded-lg bg-[rgb(var(--ink-blue-rgb)/8%)] border border-[rgb(var(--ink-blue-bright-rgb)/30%)] px-3 py-2.5 text-xs font-semibold text-[var(--ink-blue-bright)] font-sans-clean hover:bg-[rgb(var(--ink-blue-rgb)/14%)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
+                className="mt-2 w-full flex items-center gap-2 rounded-lg bg-[rgb(var(--ink-blue-rgb)/8%)] border border-[rgb(var(--ink-blue-bright-rgb)/30%)] px-3 py-2.5 text-xs font-semibold text-[var(--ink-blue-text)] font-sans-clean hover:bg-[rgb(var(--ink-blue-rgb)/14%)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
               >
                 <Bot className="w-4 h-4" aria-hidden="true" />
                 Ask Atlas about this trip
@@ -646,7 +646,7 @@ export default function Home() {
             </h3>
             <Link
               href="/app/trips"
-              className="text-[var(--ink-blue-bright)] text-xs font-semibold font-sans-clean hover:opacity-70 py-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
+              className="text-[var(--ink-blue-text)] text-xs font-semibold font-sans-clean hover:opacity-70 py-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-blue-bright)]"
             >
               See all →
             </Link>
@@ -720,7 +720,7 @@ export default function Home() {
       {/* ── Empty ────────────────────────────────────── */}
       {!tripsLoading && (!trips || trips.length === 0) && (
         <section className="animate-fade-up rounded-2xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card))] px-8 py-16 flex flex-col items-center text-center">
-          <div className="w-12 h-12 rounded-xl bg-[rgb(var(--ink-blue-rgb)/10%)] flex items-center justify-center mb-4 text-[var(--ink-blue-bright)]">
+          <div className="w-12 h-12 rounded-xl bg-[rgb(var(--ink-blue-rgb)/10%)] flex items-center justify-center mb-4 text-[var(--ink-blue-text)]">
             <Plus className="w-6 h-6" aria-hidden="true" />
           </div>
           <h2 className="font-display text-2xl font-semibold text-[hsl(var(--foreground))] mb-1.5">

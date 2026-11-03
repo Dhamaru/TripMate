@@ -54,6 +54,8 @@
      as text on light paper, but only 1.6-3.3:1 as text on the dark theme. Use
      these for text and the plain inks for fills. */
   --ink-blue-text: #6fa0e0;
+  /* For panels that stay dark in both themes (the auth screens). */
+  --ink-blue-on-dark: #6fa0e0;
   --stamp-red-text: #f2837b;
   --transit-green-text: #5cc08d;
   --ink-sightseeing-text: #8ab4f0;
@@ -220,7 +222,7 @@
   --accent: 40 25% 88%;
   --accent-foreground: 211 40% 14%;
 
-  --destructive: 0 84% 60%;
+  --destructive: 0 72% 42%; /* white text on it was 3.8:1 at 60% */
   --destructive-foreground: 210 40% 98%;
 
   --border: 40 20% 78%;

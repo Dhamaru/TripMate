@@ -37,7 +37,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
                   contrast, effectively unreadable (design-audit P0,
                   live-confirmed screenshot). --ink-blue-bright reads
                   clearly against the dark scrim while staying in-family. */}
-              <span className="text-[var(--ink-blue-bright)]">Travel Companion</span>
+              <span className="text-[var(--ink-blue-on-dark)]">Travel Companion</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -51,7 +51,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
             <div className="pt-8 grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[#1D4E89]/30 flex items-center justify-center text-[var(--ink-blue-bright)]">
+                <div className="w-10 h-10 rounded-full bg-[#1D4E89]/30 flex items-center justify-center text-[var(--ink-blue-on-dark)]">
                   <i className="fa-solid fa-wand-magic-sparkles" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-wider text-white/50">
@@ -60,7 +60,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
                 <p className="text-sm text-white/80">Smart suggestions tailored to you.</p>
               </div>
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-full bg-[#163F73]/30 flex items-center justify-center text-[var(--ink-blue-bright)]">
+                <div className="w-10 h-10 rounded-full bg-[#163F73]/30 flex items-center justify-center text-[var(--ink-blue-on-dark)]">
                   <i className="fa-solid fa-map-location-dot" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-wider text-white/50">Seamless</p>

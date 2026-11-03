@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
             className="text-center py-6 space-y-6"
           >
             <div className="mx-auto w-16 h-16 bg-[#163F73]/20 rounded-2xl flex items-center justify-center">
-              <Mail className="w-8 h-8 text-[var(--ink-blue-bright)]" />
+              <Mail className="w-8 h-8 text-[var(--ink-blue-on-dark)]" />
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-white">Check your email</h3>

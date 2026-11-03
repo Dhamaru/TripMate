@@ -1626,7 +1626,7 @@ export default function TripPlanner() {
                                   <div className="text-xs text-muted-foreground">{stay.area}</div>
                                 )}
                                 {stay.priceRange && (
-                                  <div className="text-xs text-[var(--emerald-horizon)] mt-1">
+                                  <div className="text-xs text-[var(--transit-green-text)] mt-1">
                                     ~{getCurrencySymbol(planTripMutation.data.currency)}
                                     {stay.priceRange}/night
                                   </div>

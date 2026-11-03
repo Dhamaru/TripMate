@@ -534,7 +534,7 @@ export default function Journal() {
                     <ul className="text-xs text-muted-foreground space-y-0.5">
                       {Array.from(photos).map((file, i) => (
                         <li key={i} className="flex items-center gap-2">
-                          <span className="text-[var(--emerald-horizon)]">✓</span>
+                          <span className="text-[var(--transit-green-text)]">✓</span>
                           <span className="truncate">{file.name}</span>
                           <span className="text-muted-foreground">
                             ({(file.size / 1024).toFixed(1)} KB)

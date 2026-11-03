@@ -368,7 +368,7 @@ export function NotificationBell() {
             {unreadCount > 0 && !selectMode && (
               <button
                 onClick={markAllRead}
-                className="text-[11px] text-[var(--ink-blue-bright)] hover:underline"
+                className="text-[11px] text-[var(--ink-blue-text)] hover:underline"
               >
                 Mark all read
               </button>
@@ -479,7 +479,7 @@ export function NotificationBell() {
                       {selectMode && (
                         <span className="mt-0.5 flex-shrink-0 text-[hsl(var(--muted-foreground))]">
                           {isSelected ? (
-                            <CheckSquare className="h-4 w-4 text-[var(--ink-blue-bright)]" />
+                            <CheckSquare className="h-4 w-4 text-[var(--ink-blue-text)]" />
                           ) : (
                             <Square className="h-4 w-4" />
                           )}
@@ -518,7 +518,7 @@ export function NotificationBell() {
                             ) : (
                               <button
                                 onClick={(e) => handleOpen(e, notif.link!)}
-                                className="text-[11px] font-medium text-[var(--ink-blue-bright)] hover:underline"
+                                className="text-[11px] font-medium text-[var(--ink-blue-text)] hover:underline"
                               >
                                 Open &rarr;
                               </button>
@@ -545,7 +545,7 @@ export function NotificationBell() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="w-full py-2.5 text-[12px] text-[var(--ink-blue-bright)] hover:underline disabled:opacity-50"
+                  className="w-full py-2.5 text-[12px] text-[var(--ink-blue-text)] hover:underline disabled:opacity-50"
                 >
                   {loadingMore ? "Loading…" : "Load more"}
                 </button>

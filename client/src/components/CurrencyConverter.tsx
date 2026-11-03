@@ -271,7 +271,7 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
               {conversion && budget && (
                 <div className="p-3 bg-muted rounded-lg border">
                   <div className="text-sm text-muted-foreground">Equivalent in {toCurrency}</div>
-                  <div className="text-xl font-bold text-[var(--emerald-horizon)] font-mono-data">
+                  <div className="text-xl font-bold text-[var(--transit-green-text)] font-mono-data">
                     {Math.round(parseFloat(budget) * conversion.rate).toLocaleString()}{" "}
                     {CURRENCIES.find((c) => c.code === toCurrency)?.symbol}
                   </div>

@@ -125,7 +125,7 @@ export default function SignInPage() {
               </Label>
               <Link
                 href="/forgot-password"
-                className="text-xs font-semibold text-[var(--ink-blue-bright)] hover:text-white smooth-transition"
+                className="text-xs font-semibold text-[var(--ink-blue-on-dark)] hover:text-white smooth-transition"
               >
                 Forgot Password?
               </Link>

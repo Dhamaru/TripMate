@@ -45,7 +45,7 @@ function ActivityRow({ act }: { act: any }) {
       </div>
       <div className="shrink-0 pt-0.5">
         {isMeal ? (
-          <Utensils className="w-4 h-4 text-[var(--emerald-horizon)]" />
+          <Utensils className="w-4 h-4 text-[var(--transit-green-text)]" />
         ) : isTimeSensitive ? (
           <Clock className="w-4 h-4 text-[var(--ink-blue-text)]" />
         ) : (
@@ -222,7 +222,7 @@ export function ImportPlanPreview({
         <Card className="bg-card border elev-1">
           <CardContent className="p-4">
             <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
-              <Backpack className="w-4 h-4 text-[var(--emerald-horizon)]" /> Packing notes
+              <Backpack className="w-4 h-4 text-[var(--transit-green-text)]" /> Packing notes
             </h3>
             <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
               {plan.packingNotes.map((p: string, i: number) => (

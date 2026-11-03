@@ -215,7 +215,7 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
                   </span>
                 )}
             </div>
-            <p className="text-[var(--emerald-horizon)] mt-1 text-lg">
+            <p className="text-[var(--transit-green-text)] mt-1 text-lg">
               {translation.translatedText}
             </p>
             {translation.pronunciation && (
@@ -254,7 +254,7 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
           ) : replyTranslation?.translatedText ? (
             <div className="p-3 border rounded bg-muted">
               <strong className="text-[var(--ink-blue-text)]">What they meant:</strong>
-              <p className="text-[var(--emerald-horizon)] mt-1 text-lg">
+              <p className="text-[var(--transit-green-text)] mt-1 text-lg">
                 {replyTranslation.translatedText}
               </p>
             </div>

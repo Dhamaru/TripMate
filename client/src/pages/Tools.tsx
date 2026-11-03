@@ -71,7 +71,10 @@ export default function Tools() {
           <Link key={tool.title} href={tool.href}>
             <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] px-5 py-4 flex items-center gap-5 card-hover-glow cursor-pointer group transition-all">
               {/* Number */}
-              <span className="stat-display text-2xl text-[hsl(var(--muted-foreground))]/30 group-hover:text-[rgb(var(--amber-rgb)/50%)] transition-colors w-8 flex-shrink-0 leading-none select-none">
+              <span
+                aria-hidden="true"
+                className="stat-display text-2xl text-[hsl(var(--muted-foreground))]/30 group-hover:text-[var(--ink-blue-text)] transition-colors w-8 flex-shrink-0 leading-none select-none"
+              >
                 {tool.num}
               </span>
 

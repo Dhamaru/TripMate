@@ -34,7 +34,7 @@ const PresenceBubbles: React.FC<PresenceBubblesProps> = ({ tripId }) => {
                     <div className="relative group cursor-pointer">
                       <Avatar className="w-8 h-8 border-2 border-background ring-2 ring-primary/10 transition-all group-hover:ring-primary/40">
                         <AvatarImage src={member.avatar} alt={member.userName} />
-                        <AvatarFallback className="bg-primary/5 text-[11px] font-medium text-primary">
+                        <AvatarFallback className="bg-primary/5 text-[11px] font-medium text-[var(--ink-blue-text)]">
                           {member.userName.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>

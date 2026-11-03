@@ -238,7 +238,7 @@ function SortableActivity({
               live-reported as itinerary details feeling less complete after
               confirming the trip. */}
           {(activity.cost || activity.entryFee) && (
-            <span className="text-[11px] font-mono-data text-[var(--emerald-horizon)] shrink-0">
+            <span className="text-[11px] font-mono-data text-[var(--transit-green-text)] shrink-0">
               ~{getCurrencySymbol(currency)}
               {activity.cost || activity.entryFee}
             </span>

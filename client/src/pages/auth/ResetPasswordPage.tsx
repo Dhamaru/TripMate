@@ -118,7 +118,7 @@ export default function ResetPasswordPage() {
       <CardContent className="p-8">
         <div className="flex flex-col items-center text-center mt-2 mb-8">
           <div className="w-16 h-16 bg-[#163F73]/20 rounded-2xl flex items-center justify-center mb-6">
-            <Lock className="w-8 h-8 text-[var(--ink-blue-bright)]" />
+            <Lock className="w-8 h-8 text-[var(--ink-blue-on-dark)]" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
           <p className="text-white/60 font-medium">Create a strong new password for your account</p>

@@ -216,7 +216,7 @@ export default function Feedback() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-[rgba(61,148,103,0.12)] flex items-center justify-center">
-                          <Heart className="w-4 h-4 text-[var(--emerald-horizon)]" />
+                          <Heart className="w-4 h-4 text-[var(--transit-green-text)]" />
                         </div>
                         Share a Trip Experience
                       </div>
@@ -512,7 +512,7 @@ export default function Feedback() {
           <Card className="bg-card border">
             <CardContent className="p-4">
               <div className="flex items-start space-x-3">
-                <i className="fas fa-shield-alt text-[var(--emerald-horizon)] text-xl mt-1"></i>
+                <i className="fas fa-shield-alt text-[var(--transit-green-text)] text-xl mt-1"></i>
                 <div>
                   <h3 className="text-foreground font-semibold mb-1">Privacy</h3>
                   <p className="text-muted-foreground text-sm">

@@ -307,7 +307,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <button
               onClick={promptInstall}
               className={cn(
-                "w-full flex items-center gap-2.5 rounded-lg h-9 text-[var(--ink-blue-bright)] hover:bg-[hsl(var(--muted))] transition-all",
+                "w-full flex items-center gap-2.5 rounded-lg h-9 text-[var(--ink-blue-text)] hover:bg-[hsl(var(--muted))] transition-all",
                 collapsed ? "px-0 justify-center" : "px-3",
               )}
               title="Install TripMate"

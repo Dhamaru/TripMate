@@ -520,7 +520,7 @@ export default function JournalDetail() {
                   variants={itemVariants}
                   className="flex items-center bg-card px-3 py-1.5 rounded-full border border"
                 >
-                  <Clock className="w-4 h-4 mr-2 text-[var(--emerald-horizon)]" />
+                  <Clock className="w-4 h-4 mr-2 text-[var(--transit-green-text)]" />
                   <span className="text-sm font-medium text-foreground">
                     {new Date(entry.createdAt).toLocaleTimeString([], {
                       hour: "2-digit",

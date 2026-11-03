@@ -682,7 +682,7 @@ export default function Profile() {
                 <i className="fab fa-google text-foreground text-lg"></i>
               </div>
               <div>
-                <h4 className="font-medium text-white">Google</h4>
+                <h4 className="font-medium text-foreground">Google</h4>
                 <p className="text-xs text-muted-foreground">
                   {(userData as any)?.googleConnected ? "Connected" : "Sign in with Google"}
                 </p>
@@ -835,7 +835,7 @@ export default function Profile() {
             </div>
           )}
           <div className="mt-8 pt-6 border-t border-red-500/20">
-            <h3 className="font-medium text-red-500 mb-2">Danger Zone</h3>
+            <h3 className="font-medium text-[var(--stamp-red-text)] mb-2">Danger Zone</h3>
             <p className="text-sm text-muted-foreground mb-4">
               Permanently delete your account and all associated data. This action cannot be undone.
             </p>
