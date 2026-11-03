@@ -32,11 +32,11 @@ export default function EmergencyPage() {
   // Biases toward wherever locateMe() already resolved (or the last
   // searched location) — nearest-first suggestions while typing a
   // replacement, not just an exact-match-on-Enter search bar.
-  const { suggestions, isLoading: suggestionsLoading } = usePlaceSuggestions(
-    showSuggestions ? searchLocation : "",
-    coords,
-    "area",
-  );
+  const {
+    suggestions,
+    isLoading: suggestionsLoading,
+    takeSessionToken,
+  } = usePlaceSuggestions(showSuggestions ? searchLocation : "", coords, "area");
 
   useEffect(() => {
     locateMe();
@@ -192,13 +192,15 @@ export default function EmergencyPage() {
     setSearchLocation(name);
     setMessage("");
     let location = place.location;
+    const token = takeSessionToken();
     if (!location && place.id) {
       // Area suggestions carry no coordinates. Resolve by place_id —
       // re-geocoding the text put "R.R.Peta, Eluru" on a river in
       // Telangana (live-reported).
       const res = await apiRequest(
         "GET",
-        `/api/v1/places/location?placeId=${encodeURIComponent(place.id)}`,
+        `/api/v1/places/location?placeId=${encodeURIComponent(place.id)}` +
+          (token ? `&sessiontoken=${encodeURIComponent(token)}` : ""),
       ).catch(() => null);
       if (res?.ok) location = await res.json();
     }

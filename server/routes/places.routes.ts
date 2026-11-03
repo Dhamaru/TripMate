@@ -2,8 +2,15 @@ import { Router } from "express";
 import { optionalAuth, requireAuth } from "../middleware/auth.middleware";
 import { apiProxyLimiter, placesPhotoLimiter } from "../middleware/rateLimit.middleware";
 import { config } from "../config";
+import { googleFetch } from "../services/billedQuota";
 
 const router = Router();
+
+// Photo bytes by ref+width: trip heroes and result cards are re-requested on
+// every view, and each miss is a billed Google Photo call.
+// ponytail: per-process, 150 entries, 24h; enough for one Render instance.
+const photoCache = new Map<string, { at: number; type: string; body: Buffer }>();
+const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;
 
 router.use(apiProxyLimiter);
 router.use(optionalAuth);
@@ -37,18 +44,29 @@ router.get("/photo", placesPhotoLimiter, async (req, res) => {
     // (Places-tab cards, destination-image landing thumbnails).
     const w = Math.min(1600, Math.max(1, parseInt(String(req.query.w || "400"), 10) || 400));
 
-    const upstream = await fetch(
+    const cacheKey = `${w}:${ref}`;
+    const hit = photoCache.get(cacheKey);
+    if (hit && Date.now() - hit.at < PHOTO_TTL_MS) {
+      res.setHeader("Content-Type", hit.type);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.send(hit.body);
+    }
+
+    const upstream = await googleFetch(
       `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${w}&photo_reference=${encodeURIComponent(ref)}&key=${key}`,
+      req.user as any,
       { redirect: "follow" },
     );
-    if (!upstream.ok) return res.status(404).end();
+    if (!upstream?.ok) return res.status(404).end();
     const contentType = upstream.headers.get("content-type") || "";
     if (!contentType.startsWith("image/")) return res.status(404).end();
 
-    const buffer = await upstream.arrayBuffer();
+    const body = Buffer.from(await upstream.arrayBuffer());
+    if (photoCache.size >= 150) photoCache.delete(photoCache.keys().next().value!);
+    photoCache.set(cacheKey, { at: Date.now(), type: contentType, body });
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=86400");
-    res.send(Buffer.from(buffer));
+    res.send(body);
   } catch (err) {
     console.error("Places photo proxy error:", err);
     res.status(500).end();
@@ -99,9 +117,16 @@ router.get("/search", requireAuth, async (req, res) => {
     if (type === "city" || type === "area") {
       const types = type === "city" ? "(cities)" : "geocode";
       const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=${types}${biasParam}&key=${key}`,
+      // One session token per search (sent by the client) bills the keystrokes
+      // and the final /location lookup as a single session.
+      const session = /^[\w-]{8,64}$/.test(String(req.query.sessiontoken || ""))
+        ? `&sessiontoken=${req.query.sessiontoken}`
+        : "";
+      const response = await googleFetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=${types}${biasParam}${session}&key=${key}`,
+        req.user as any,
       );
+      if (!response) return res.json({ items: [] });
       // Autocomplete has its own, tighter per-key quota than Text Search
       // and a CDN layer in front of it — an error response here (429/503)
       // can come back as plain text/HTML, not JSON. .json() on that
@@ -134,9 +159,11 @@ router.get("/search", requireAuth, async (req, res) => {
     // bias city-scale rather than pinpoint-scale.
     const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
 
-    const response = await fetch(
+    const response = await googleFetch(
       `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}${biasParam}&key=${key}`,
+      req.user as any,
     );
+    if (!response) return res.json({ items: [] });
     const data = await response.json();
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
@@ -201,9 +228,17 @@ router.get("/location", requireAuth, async (req, res) => {
   const key = config.GOOGLE_API_KEY;
   if (!key) return res.status(503).json({ error: "Places not configured" });
   try {
-    const r = await fetch(
-      `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=geometry,formatted_address&key=${key}`,
+    const session = /^[\w-]{8,64}$/.test(String(req.query.sessiontoken || ""))
+      ? `&sessiontoken=${req.query.sessiontoken}`
+      : "";
+    const r = await googleFetch(
+      `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=geometry,formatted_address${session}&key=${key}`,
+      req.user as any,
     );
+    if (!r)
+      return res
+        .status(429)
+        .json({ error: "Place lookups are paused for today. Try again tomorrow." });
     const data = await r.json().catch(() => ({}));
     const loc = data?.result?.geometry?.location;
     if (!loc) return res.status(404).json({ error: "Location not found" });
@@ -244,9 +279,11 @@ router.get("/tourist-attractions", requireAuth, async (req, res) => {
     const key = config.GOOGLE_API_KEY;
     if (!key) return res.json({ results: [] });
 
-    const response = await fetch(
+    const response = await googleFetch(
       `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent("tourist attractions in " + String(location))}&key=${key}`,
+      req.user as any,
     );
+    if (!response) return res.json({ items: [] });
     const data = await response.json();
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {

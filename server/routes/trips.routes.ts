@@ -10,6 +10,7 @@ import {
   generationLimiter,
   aiLimiter,
   importPlanLimiter,
+  placesPhotoLimiter,
 } from "../middleware/rateLimit.middleware";
 import { createTripSchema, updateTripSchema, parseScheduleSchema } from "../schemas/trip.schemas";
 import {
@@ -101,6 +102,6 @@ router.get("/:id/quiet-places", aiLimiter, tripsController.getQuietPlaces);
 router.get("/:id/budget-forecast", aiLimiter, tripsController.getBudgetForecast);
 router.post("/:id/discover", aiLimiter, tripsController.discoverPlaces);
 router.post("/:id/ai-recommendations", aiLimiter, tripsController.getAiRecommendations);
-router.post("/:id/image", tripsController.forceUpdateImage);
+router.post("/:id/image", placesPhotoLimiter, tripsController.forceUpdateImage);
 
 export default router;

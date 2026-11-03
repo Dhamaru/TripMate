@@ -29,12 +29,27 @@ export function usePlaceSuggestions(
   const [isLoading, setIsLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
+  // Google bills autocomplete keystrokes that share a session token as one
+  // session (and the follow-up /location lookup with it). A session ends
+  // when the box is cleared, when a place is picked, or after ~3 minutes.
+  const sessionRef = useRef<{ token: string; at: number } | null>(null);
+  const sessionToken = () => {
+    if (!sessionRef.current || Date.now() - sessionRef.current.at > 170_000) {
+      const token =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionRef.current = { token, at: Date.now() };
+    }
+    return sessionRef.current.token;
+  };
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     const trimmed = query.trim();
     if (trimmed.length < 3) {
+      sessionRef.current = null;
       setSuggestions([]);
       setIsLoading(false);
       return;
@@ -53,7 +68,10 @@ export function usePlaceSuggestions(
           params.set("lat", String(biasCoords.lat));
           params.set("lon", String(biasCoords.lon));
         }
-        if (placeType) params.set("type", placeType);
+        if (placeType) {
+          params.set("type", placeType);
+          params.set("sessiontoken", sessionToken());
+        }
         const res = await fetch(`/api/v1/places/search?${params.toString()}`);
         // A rate-limited/failed response otherwise fell through to the
         // `.catch` fallback below and degraded silently to "no suggestions"
@@ -81,5 +99,12 @@ export function usePlaceSuggestions(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, biasCoords?.lat, biasCoords?.lon, placeType]);
 
-  return { suggestions, isLoading };
+  /** Token for the /places/location lookup of a picked suggestion; ends the session. */
+  const takeSessionToken = () => {
+    const token = sessionRef.current?.token;
+    sessionRef.current = null;
+    return token;
+  };
+
+  return { suggestions, isLoading, takeSessionToken };
 }

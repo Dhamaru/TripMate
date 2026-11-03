@@ -63,6 +63,10 @@ const envSchema = z.object({
   CSRF_ENABLED: z.coerce.boolean().optional(),
   ACCOUNT_LOCK_MAX_ATTEMPTS: z.coerce.number().default(5),
   ACCOUNT_LOCK_DURATION_MS: z.coerce.number().default(15 * 60 * 1000),
+  // Daily ceilings on billed Google (Places/Translate) calls; see server/services/billedQuota.ts.
+  GOOGLE_DAILY_USER_MAX: z.coerce.number().default(300),
+  GOOGLE_DAILY_GUEST_MAX: z.coerce.number().default(40),
+  GOOGLE_DAILY_GLOBAL_MAX: z.coerce.number().default(5000),
 });
 
 const processEnv = {

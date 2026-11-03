@@ -1,4 +1,5 @@
 import { config } from "./config";
+import { googleFetch } from "./services/billedQuota";
 import OpenAI from "openai";
 import { z } from "zod";
 import { MultiAgentOrchestrator } from "./services/MultiAgentOrchestrator";
@@ -327,8 +328,9 @@ export class AiUtilitiesService {
       try {
         const googleKey = config.GOOGLE_API_KEY;
         if (!googleKey) throw new Error("google_translate_disabled");
-        const res = await fetch(
+        const res = await googleFetch(
           `https://translation.googleapis.com/language/translate/v2?key=${googleKey}`,
+          undefined,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -340,7 +342,7 @@ export class AiUtilitiesService {
             }),
           },
         );
-        if (res.ok) {
+        if (res?.ok) {
           const json = await res.json();
           const translated = String(json?.data?.translations?.[0]?.translatedText || "");
           if (translated) {
@@ -1076,8 +1078,10 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
         const key2 = config.GOOGLE_API_KEY;
         if (key2) {
           try {
+            // Emergency lookups never wait on the daily quota, only a timeout.
             const geoRes = await fetch(
               `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(loc)}&key=${key2}`,
+              { signal: AbortSignal.timeout(10_000) },
             );
             const geoJson = await geoRes.json();
             const loc2 = geoJson?.results?.[0]?.geometry?.location;
@@ -1102,6 +1106,7 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
                   : `type=${t}&radius=${radius}`;
               const r = await fetch(
                 `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&${params}&key=${key2}`,
+                { signal: AbortSignal.timeout(10_000) },
               );
               if (!r.ok) continue;
               const json = await r.json();
@@ -1777,7 +1782,9 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
       const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
 
       // Wrap fetch in timeout
-      const fetchPromise = fetch(url).then((res) => res.json());
+      const fetchPromise = googleFetch(url).then((res) =>
+        res ? res.json() : { status: "OVER_QUERY_LIMIT", results: [] },
+      );
       const data = await this.withTimeout(
         fetchPromise,
         timeoutMs,
@@ -2108,7 +2115,8 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
             : `top tourist attractions in ${destination}`;
 
         const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${placesKey}`;
-        const res = await fetch(url);
+        const res = await googleFetch(url);
+        if (!res) throw new Error("daily Google quota reached");
         const data = await res.json();
 
         if (data.status === "OK" && data.results && data.results.length > 0) {

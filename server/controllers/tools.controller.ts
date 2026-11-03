@@ -6,6 +6,7 @@ import { BadRequestError, NotFoundError } from "../errors";
 import mongoose from "mongoose";
 import { AiUtilitiesService } from "../AiUtilitiesService";
 import { TripModel, UserModel } from "@shared/schema";
+import { googleFetch, takeGoogleQuota } from "../services/billedQuota";
 
 const startTime = Date.now();
 
@@ -168,11 +169,10 @@ async function fallbackImageUrl(destination: string): Promise<string | null> {
   if (page?.thumbnail?.source) return page.thumbnail.source;
   // Disambiguation pages ("Manali", "Ise") have no image — ask Places.
   if (!config.GOOGLE_API_KEY) return null;
-  const g = await fetch(
+  const g = await googleFetch(
     `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(title)}&key=${config.GOOGLE_API_KEY}`,
-    { signal: AbortSignal.timeout(8_000) },
   )
-    .then((r) => r.json())
+    .then((r) => (r ? r.json() : null))
     .catch(() => null);
   // Places only — a bare "ise" otherwise matched a Bengaluru classroom.
   const PLACE_TYPES = ["political", "natural_feature", "tourist_attraction", "colloquial_area"];
@@ -265,10 +265,13 @@ export const getDestinationImage = asyncHandler(
     // for an open proxy taking an arbitrary client-supplied URL.
     // Timeout: a hung upstream held the landing page's image request open
     // for minutes (live: the second of 8 cards never answered).
-    const fetchImage = (url: string) =>
-      fetch(url, { redirect: "follow", signal: AbortSignal.timeout(10_000) })
+    const fetchImage = async (url: string) =>
+      (new URL(url).hostname === "maps.googleapis.com" && !(await takeGoogleQuota(req.user as any))
+        ? Promise.resolve(null)
+        : fetch(url, { redirect: "follow", signal: AbortSignal.timeout(10_000) })
+      )
         .then((r) =>
-          r.ok && (r.headers.get("content-type") || "").startsWith("image/") ? r : null,
+          r?.ok && (r.headers.get("content-type") || "").startsWith("image/") ? r : null,
         )
         .catch(() => null);
     // A stored cover can go stale (expired Google photo ref, retired
@@ -457,7 +460,8 @@ export const geocode = asyncHandler(async (req: Request, res: Response, next: Ne
     // returns geometry.location for any query too — use that instead
     // of requiring a second API to be turned on.
     const gUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
-    const gRes = await fetch(gUrl);
+    const gRes = await googleFetch(gUrl, req.user as any);
+    if (!gRes) return res.json([]);
     const gData = await gRes.json();
 
     if (gData.status !== "OK" || !Array.isArray(gData.results) || gData.results.length === 0) {
@@ -761,7 +765,8 @@ export const reverseGeocode = asyncHandler(
       // this GCP project. Nearby Search (Places API, enabled) works for
       // a rough reverse-geocode too — take the closest place's vicinity.
       const gUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=500&key=${key}`;
-      const gRes = await fetch(gUrl);
+      const gRes = await googleFetch(gUrl, req.user as any);
+      if (!gRes) return res.json({ display_name: "", lat, lon });
       const gData = await gRes.json();
 
       if (gData.status !== "OK" || !Array.isArray(gData.results) || gData.results.length === 0) {

@@ -17,6 +17,7 @@ import { notifyTripParticipants } from "../notifications";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../errors";
 import { socketService } from "../services/SocketService";
 import { nominatimSearch, refreshTransitEstimate } from "../services/transitEstimate";
+import { googleFetch, type QuotaUser } from "../services/billedQuota";
 import { config } from "../config";
 import { insertTripSchema } from "@shared/schema";
 import { nanoid } from "nanoid";
@@ -76,7 +77,9 @@ export const createTrip = asyncHandler(async (req: Request, res: Response, next:
   const savedTrip = await TripModel.create(tripData);
 
   // Background Image Fetch
-  setImmediate(() => fetchImageForTrip(savedTrip.id, savedTrip.destination));
+  setImmediate(() =>
+    fetchImageForTrip(savedTrip.id, savedTrip.destination, 0, false, req.user as any),
+  );
   // Background coordinate backfill for AI-generated/imported activities
   // that never got geocoded — see backfillActivityCoords for why.
   setImmediate(() => backfillActivityCoords(savedTrip.id, savedTrip.destination));
@@ -524,6 +527,7 @@ export const forceUpdateImage = asyncHandler(
       trip.destination,
       randomOffset,
       /* skipWikipedia */ !!previousImageUrl,
+      req.user as any,
     );
 
     const updated = await TripModel.findById(trip.id);
@@ -531,6 +535,19 @@ export const forceUpdateImage = asyncHandler(
     res.json({ ...updated?.toJSON(), imageChanged });
   },
 );
+
+// Google Text Search results for trip-image queries, by query text.
+// ponytail: per-process, 300 entries, 7 days; refresh-heavy users hit this.
+const imageSearchCache = new Map<string, { at: number; results: any[] }>();
+const IMAGE_SEARCH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+function cachedImageSearch(q: string) {
+  const hit = imageSearchCache.get(q.toLowerCase());
+  return hit && Date.now() - hit.at < IMAGE_SEARCH_TTL_MS ? hit.results : null;
+}
+function cacheImageSearch(q: string, results: any[]) {
+  if (imageSearchCache.size >= 300) imageSearchCache.delete(imageSearchCache.keys().next().value!);
+  imageSearchCache.set(q.toLowerCase(), { at: Date.now(), results });
+}
 
 /**
  * Helper to fetch image from Google Places API
@@ -540,6 +557,7 @@ async function fetchImageForTrip(
   destination: string,
   skipCount: number = 0,
   skipWikipedia: boolean = false,
+  user?: QuotaUser,
 ) {
   try {
     if (!tripId) return;
@@ -612,11 +630,18 @@ async function fetchImageForTrip(
       ];
 
       outer: for (const q of queries) {
-        const res = await fetch(
-          `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&type=tourist_attraction&key=${key}`,
-        );
-        const data = await res.json();
-        const results: any[] = data.results || [];
+        // Refreshes pick a different photo from the cached results instead
+        // of paying for the same search again.
+        let results = cachedImageSearch(q);
+        if (!results) {
+          const res = await googleFetch(
+            `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&type=tourist_attraction&key=${key}`,
+            user,
+          );
+          if (!res) break; // daily quota reached
+          results = ((await res.json()).results || []) as any[];
+          cacheImageSearch(q, results);
+        }
         // Try skipCount offset first, then all others
         const indices = [...Array(results.length).keys()].sort((a, b) => {
           if (a === skipCount) return -1;
@@ -778,10 +803,12 @@ function mapGooglePlace(p: any, _key: string, category?: string) {
   };
 }
 
-async function searchGooglePlaces(query: string, key: string) {
-  const res = await fetch(
+async function searchGooglePlaces(query: string, key: string, user?: QuotaUser) {
+  const res = await googleFetch(
     `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`,
+    user,
   );
+  if (!res) return [];
   const data = await res.json();
   return Array.isArray(data.results) ? data.results : [];
 }
@@ -805,7 +832,7 @@ export const discoverPlaces = asyncHandler(
     const searchQuery = query
       ? `${query} in ${trip.destination}`
       : `${term} in ${trip.destination}`;
-    const results = await searchGooglePlaces(searchQuery, key);
+    const results = await searchGooglePlaces(searchQuery, key, req.user as any);
 
     res.json({ places: results.slice(0, 20).map((p: any) => mapGooglePlace(p, key, category)) });
   },
@@ -828,7 +855,7 @@ export const getAiRecommendations = asyncHandler(
 
     const term = CATEGORY_QUERY_TERMS[category || ""] || "places to visit";
     const searchQuery = `best ${term} in ${trip.destination} for a ${trip.travelStyle || "standard"} trip`;
-    const results = await searchGooglePlaces(searchQuery, key);
+    const results = await searchGooglePlaces(searchQuery, key, req.user as any);
 
     res.json({
       recommendations: results.slice(0, 10).map((p: any) => mapGooglePlace(p, key, category)),
