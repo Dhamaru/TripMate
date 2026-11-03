@@ -153,7 +153,9 @@ export default function Journal() {
       return res.json();
     },
     staleTime: 10_000,
-    refetchOnWindowFocus: false,
+    // Collaborators' new entries arrive via trip rooms this page isn't in;
+    // refreshing when the tab regains focus keeps the list current.
+    refetchOnWindowFocus: true,
   });
 
   const handleUnauthorized = () => {
@@ -754,6 +756,11 @@ export default function Journal() {
                           <div>
                             <div className="flex justify-between items-start mb-1 gap-2">
                               <h4 className="font-bold text-foreground text-sm sm:text-base truncate">
+                                {entry.isRecap && (
+                                  <span className="stamp text-[11px] mr-2 align-middle border-[var(--ink-blue-text)] text-[var(--ink-blue-text)]">
+                                    Recap
+                                  </span>
+                                )}
                                 {entry.title}
                               </h4>
                               {entry.location && (

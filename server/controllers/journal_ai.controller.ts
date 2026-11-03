@@ -179,7 +179,7 @@ export const confirmEnhancement = async (req: Request, res: Response, next: Next
 
     const updated = await JournalEntryModel.findOneAndUpdate(
       { _id: req.params.id },
-      { content: text, enhanced: true },
+      { content: text },
       { new: true },
     );
 

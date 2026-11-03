@@ -74,6 +74,12 @@ export default function JournalDetail() {
     }
   }, [entry]);
 
+  // A new or shorter photo list must not leave the carousel pointing past
+  // its end (blank image after a photo was removed).
+  useEffect(() => {
+    setActivePhotoIndex(0);
+  }, [entry?.photos?.length]);
+
   // Auto-advance photo carousel
   useEffect(() => {
     const photos = entry?.photos;
