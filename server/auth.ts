@@ -29,7 +29,10 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false,
+      // HTTPS-only in production (trust proxy is set, so Render's TLS counts).
+      // lax still allows the top-level redirect back from Google sign-in.
+      secure: config.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: sessionTtl,
     },
   });
