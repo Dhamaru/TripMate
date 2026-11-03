@@ -99,7 +99,12 @@ router.get("/", requireAdminSecret, async (req, res, next) => {
     // absent, not `false`), which meant the triage routine's first
     // "successful" run found nothing even with real unreviewed feedback
     // sitting there. $ne: true catches both false and missing.
-    if (req.query.unreviewed === "true") filter.agentReviewed = { $ne: true };
+    if (req.query.unreviewed === "true") {
+      filter.agentReviewed = { $ne: true };
+      // Contact-page messages (sales, partnerships, questions) go to the
+      // owner's inbox only; the automated fix-plan triage is for app feedback.
+      filter.category = { $ne: "contact" };
+    }
     if (req.query.type) filter.type = req.query.type;
 
     const feedback = await FeedbackModel.find(filter).sort({ createdAt: -1 }).limit(100);
