@@ -124,16 +124,19 @@ app.use("/api", generalLimiter);
 // another user's journal photos with zero authentication. Avatars are
 // base64-in-Mongo, never written to disk, so nothing else needs this mount.
 
-// Swagger UI — available at /api/docs
-app.use(
-  "/api/docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: "TripMate API Docs",
-    swaggerOptions: { persistAuthorization: true },
-  }),
-);
-app.get("/api/docs.json", (_req, res) => res.json(swaggerSpec));
+// Swagger UI at /api/docs: development only. In production it just mapped
+// the API for anyone (owner decision 2026-11-03).
+if (config.NODE_ENV !== "production") {
+  app.use(
+    "/api/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customSiteTitle: "TripMate API Docs",
+      swaggerOptions: { persistAuthorization: true },
+    }),
+  );
+  app.get("/api/docs.json", (_req, res) => res.json(swaggerSpec));
+}
 
 // 2. Auth Setup (Non-blocking call)
 setupAuth(app).catch((err) => console.error("[Server] Auth Setup Error:", err));
