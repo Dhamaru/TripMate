@@ -178,6 +178,11 @@ app.use("/api/auth", authRoutes);
 // Explicit Apple Callback mapping if needed (some integrations require specific non-v1 paths)
 app.post("/api/auth/apple/callback", authRoutes);
 
+// Unknown API paths: a JSON 404, not the SPA's index.html or a misleading 401.
+app.use("/api", (req, res) => {
+  res.status(404).json({ success: false, error: "Not found", code: "NOT_FOUND" });
+});
+
 // Error Handling (Must be last)
 app.use(errorHandler);
 

@@ -28,7 +28,9 @@ const upload = multer({
   fileFilter: imageFileFilter,
 });
 
-router.use(requireAuth);
+// Scoped to its own paths: this router is mounted at the bare /api/v1
+// prefix, so a router-wide guard answered 401 for every unknown API path.
+router.use("/journal", requireAuth);
 
 router.post("/journal", upload.array("photos", 10), createEntry);
 router.get("/journal", getEntries);

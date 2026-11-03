@@ -14,7 +14,9 @@ import { aiLimiter, generationLimiter } from "../middleware/rateLimit.middleware
 const router = Router();
 
 // Secure all shared routes (Packing/Journal)
-router.use(requireAuth);
+// Scoped to its own paths (mounted at the bare /api/v1 prefix; a router-wide
+// guard answered 401 for every unknown API path).
+router.use(["/journal", "/packing", "/packing-lists"], requireAuth);
 
 // Packing templates — must be registered before the /packing-lists/:id
 // routes below, or Express would match "templates" as the :id param.
