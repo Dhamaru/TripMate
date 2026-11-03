@@ -83,6 +83,34 @@ describe("getting-there estimate", () => {
     expect(res.body.transitEstimate).toBeUndefined();
   });
 
+  it("falls back to Photon when Nominatim refuses the server", async () => {
+    server.use(
+      http.get(
+        "https://nominatim.openstreetmap.org/search",
+        () => new HttpResponse(null, { status: 403 }),
+      ),
+      http.get("https://photon.komoot.io/api/", ({ request }) => {
+        const q = new URL(request.url).searchParams.get("q") || "";
+        const at = q.startsWith("Shimla") ? [77.1734, 31.1048] : [76.7794, 30.7333]; // Chandigarh
+        return HttpResponse.json({ features: [{ geometry: { coordinates: at } }] });
+      }),
+    );
+    const t = await TripModel.create({
+      ...createTrip("u-photon"),
+      userId: "u-photon",
+      origin: "Shimla, Himachal Pradesh",
+      destination: "Chandigarh",
+      transportMode: "bus",
+      groupSize: 1,
+      currency: "INR",
+    });
+    await refreshTransitEstimate(t.id);
+    // ~50 km by bus, round trip: (100 + 1.5*km) * 2 ≈ 350
+    const saved = (await TripModel.findById(t.id).lean())!.transitEstimate!;
+    expect(saved).toBeGreaterThan(300);
+    expect(saved).toBeLessThan(450);
+  });
+
   it("rejects a negative estimate", async () => {
     expect((await put({ transitEstimate: -5 })).status).toBe(400);
   });

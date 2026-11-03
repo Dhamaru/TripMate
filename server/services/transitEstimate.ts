@@ -4,6 +4,7 @@
 
 import { TripModel } from "@shared/schema";
 import { socketService } from "./SocketService";
+import { CITIES_COORD_MAP } from "../AiUtilitiesService";
 
 // INR per person, one way: [base, per km]. Rough Indian fares (3AC train,
 // AC sleeper bus, economy flight). Car is per vehicle (fuel + tolls), 4 seats.
@@ -61,11 +62,33 @@ export function nominatimSearch(q: string): Promise<Response> {
   return run;
 }
 
-async function geocode(q: string): Promise<{ lat: number; lon: number } | null> {
-  const res = await nominatimSearch(q);
-  if (!res.ok) throw new Error(`nominatim ${res.status}`);
-  const [hit] = (await res.json()) as any[];
-  return hit ? { lat: Number(hit.lat), lon: Number(hit.lon) } : null;
+type Coords = { lat: number; lon: number };
+
+// Fallback when Nominatim refuses Render's shared IP (seen live 2026-11-03)
+// or finds nothing: Photon is another free OSM geocoder on a separate host.
+async function photon(q: string): Promise<Coords | null> {
+  const res = await fetch(`https://photon.komoot.io/api/?limit=1&q=${encodeURIComponent(q)}`, {
+    headers: { "User-Agent": "TripMate/2.0.0" },
+  });
+  if (!res.ok) throw new Error(`photon ${res.status}`);
+  const [lon, lat] = (await res.json())?.features?.[0]?.geometry?.coordinates ?? [];
+  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+}
+
+/** Known city table, then Nominatim, then Photon. Throws only if both services fail. */
+async function geocode(q: string): Promise<Coords | null> {
+  const known = CITIES_COORD_MAP[q.split(",")[0].trim().toLowerCase()];
+  if (known) return known;
+  try {
+    const res = await nominatimSearch(q);
+    if (res.ok) {
+      const [hit] = (await res.json()) as any[];
+      if (hit) return { lat: Number(hit.lat), lon: Number(hit.lon) };
+    }
+  } catch {
+    // fall through to Photon
+  }
+  return photon(q);
 }
 
 async function inrTo(currency: string): Promise<number> {

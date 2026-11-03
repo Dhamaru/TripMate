@@ -41,6 +41,31 @@ const LANGUAGE_NAMES: Record<string, string> = {
   es: "Spanish",
 };
 
+// Coordinates for major cities, so lookups work without any geocoding call.
+export const CITIES_COORD_MAP: Record<string, { lat: number; lon: number }> = {
+  delhi: { lat: 28.6139, lon: 77.209 },
+  "new delhi": { lat: 28.6139, lon: 77.209 },
+  mumbai: { lat: 19.076, lon: 72.8777 },
+  bangalore: { lat: 12.9716, lon: 77.5946 },
+  hyderabad: { lat: 17.385, lon: 78.4867 },
+  chennai: { lat: 13.0827, lon: 80.2707 },
+  kolkata: { lat: 22.5726, lon: 88.3639 },
+  jaipur: { lat: 26.9124, lon: 75.7873 },
+  lucknow: { lat: 26.8467, lon: 80.9462 },
+  agra: { lat: 27.1767, lon: 78.0081 },
+  goa: { lat: 15.2993, lon: 74.124 },
+  pune: { lat: 18.5204, lon: 73.8567 },
+  bengaluru: { lat: 12.9716, lon: 77.5946 },
+  ahmedabad: { lat: 23.0225, lon: 72.5714 },
+  london: { lat: 51.5074, lon: -0.1278 },
+  "new york": { lat: 40.7128, lon: -74.006 },
+  paris: { lat: 48.8566, lon: 2.3522 },
+  tokyo: { lat: 35.6762, lon: 139.6503 },
+  singapore: { lat: 1.3521, lon: 103.8198 },
+  dubai: { lat: 25.2048, lon: 55.2708 },
+  bangkok: { lat: 13.7563, lon: 100.5018 },
+};
+
 export class AiUtilitiesService {
   private openai: OpenAI | null;
   // Static: controllers create a new AiUtilitiesService per request, so a
@@ -71,30 +96,8 @@ export class AiUtilitiesService {
       : null;
   }
 
-  // Fallback map for major cities to ensure transit calculation never fails
-  private readonly CITIES_COORD_MAP: Record<string, { lat: number; lon: number }> = {
-    delhi: { lat: 28.6139, lon: 77.209 },
-    "new delhi": { lat: 28.6139, lon: 77.209 },
-    mumbai: { lat: 19.076, lon: 72.8777 },
-    bangalore: { lat: 12.9716, lon: 77.5946 },
-    hyderabad: { lat: 17.385, lon: 78.4867 },
-    chennai: { lat: 13.0827, lon: 80.2707 },
-    kolkata: { lat: 22.5726, lon: 88.3639 },
-    jaipur: { lat: 26.9124, lon: 75.7873 },
-    lucknow: { lat: 26.8467, lon: 80.9462 },
-    agra: { lat: 27.1767, lon: 78.0081 },
-    goa: { lat: 15.2993, lon: 74.124 },
-    pune: { lat: 18.5204, lon: 73.8567 },
-    bengaluru: { lat: 12.9716, lon: 77.5946 },
-    ahmedabad: { lat: 23.0225, lon: 72.5714 },
-    london: { lat: 51.5074, lon: -0.1278 },
-    "new york": { lat: 40.7128, lon: -74.006 },
-    paris: { lat: 48.8566, lon: 2.3522 },
-    tokyo: { lat: 35.6762, lon: 139.6503 },
-    singapore: { lat: 1.3521, lon: 103.8198 },
-    dubai: { lat: 25.2048, lon: 55.2708 },
-    bangkok: { lat: 13.7563, lon: 100.5018 },
-  };
+  // Fallback map for major cities (module-level, shared with transitEstimate).
+  private readonly CITIES_COORD_MAP = CITIES_COORD_MAP;
 
   private async generateWithGemini(prompt: string, systemPrompt?: string): Promise<string> {
     const geminiKey = config.GEMINI_API_KEY;
