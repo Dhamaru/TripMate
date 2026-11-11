@@ -12,7 +12,7 @@
 
 - 2026-11-03 (night): Budget tab now includes a getting-there-and-back estimate (`1a49211`). Gate: 270/270.
 
-- 2026-11-04..11: full-audit fixes (everything except Atlas) in 9 commits `f2fcab5`..`a6f94ce`, gate 297/297, typecheck/build clean, Node 22 Docker deploy confirmed healthy. Independent code review and a zero-AI live re-check on production were started after `a6f94ce`; results go in CONTEXT.md.
+- 2026-11-04..11: full-audit fixes (everything except Atlas) in 9 commits `f2fcab5`..`a6f94ce`, gate 297/297, typecheck/build clean, Node 22 Docker deploy confirmed healthy. Independent review and a zero-AI live re-check on production done; their findings fixed in `b9c7f16` and `ba2544c` and re-verified live (expense rows at 390, duration-0, status stamp border, invalid feedback 400). Gate 303/303.
 
 ## In progress
 
@@ -20,7 +20,7 @@
 
 ## Exact next command
 
-Act on the review + live re-check findings for the audit fixes (see CONTEXT.md). Atlas audit items are deliberately untouched until the owner says otherwise.
+None queued. Atlas audit items are deliberately untouched until the owner says otherwise; owner-only items are listed in CONTEXT.md.
 
 ## Blocked on / decisions
 
