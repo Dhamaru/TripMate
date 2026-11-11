@@ -87,8 +87,9 @@ const OWN_IMAGE_RE = /^(\/api\/v1\/places\/photo\?|https:\/\/upload\.wikimedia\.
 const brokenDestinationImages = new Set<string>();
 
 // "MANALI" -> "Manali"; mixed-case names are left as the traveler typed them.
+// ("dwaraka" -> "Dwaraka" too: all-lowercase is as untidy as all-caps.)
 const displayName = (name: string) =>
-  name === name.toUpperCase()
+  name === name.toUpperCase() || name === name.toLowerCase()
     ? name.toLowerCase().replace(/(^|[\s\-(])(\p{L})/gu, (_, sep, c) => sep + c.toUpperCase())
     : name;
 

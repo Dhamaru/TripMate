@@ -626,7 +626,9 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
               ) : (
                 <div
                   key={expense.id}
-                  className="flex items-center justify-between gap-2 p-3 bg-secondary rounded-lg"
+                  // Stacked on phones: amount + buttons beside the text left the
+                  // description no room at 390px.
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-secondary rounded-lg"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[var(--ink-blue-text)]">
@@ -638,12 +640,12 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                       <div className="font-medium text-foreground truncate">
                         {expense.description}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground truncate">
                         {expense.category} • {new Date(expense.date).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
                     <div className="font-bold text-foreground mr-1 whitespace-nowrap font-mono-data tabular-nums">
                       {expense.currency} {Number(expense.amount).toLocaleString()}
                     </div>

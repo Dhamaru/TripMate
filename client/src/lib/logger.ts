@@ -8,18 +8,24 @@ function getCsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+// After a 429 the server is telling us to back off; stop sending logs for a
+// minute instead of filling the console with failed requests.
+let pausedUntil = 0;
+
 async function send(url: string, body: any) {
+  if (Date.now() < pausedUntil) return;
   try {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     const csrfToken = getCsrfToken();
     if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
-    await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
       credentials: "include",
       keepalive: true,
     });
+    if (res.status === 429) pausedUntil = Date.now() + 60_000;
   } catch {}
 }
 
@@ -32,4 +38,3 @@ export function logError(event: string, payload?: LogPayload) {
   if (import.meta.env.DEV) console.error(`[error] ${event}`, payload || {});
   send("/api/v1/logs/error", { event, payload, ts: Date.now() });
 }
-

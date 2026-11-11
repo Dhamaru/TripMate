@@ -257,7 +257,9 @@ export function EmergencyServices({
             </div>
           )}
           {!isLoading && !isError && fetchStatus === "idle" && !data && (
-            <div className="text-center py-6 text-muted-foreground">Waiting for your location…</div>
+            <div className="text-center py-6 text-muted-foreground">
+              Share your location or search for a place to see nearby hospitals and police.
+            </div>
           )}
           {!isLoading && !isError && data && servicesWithDistance.length === 0 && (
             <div className="text-center py-6 text-muted-foreground">No services found nearby.</div>

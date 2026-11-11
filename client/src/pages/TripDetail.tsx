@@ -1695,7 +1695,7 @@ export default function TripDetail() {
             <TabsTrigger
               value="overview"
               data-testid="tab-overview"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-compass max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Overview
@@ -1703,7 +1703,7 @@ export default function TripDetail() {
             <TabsTrigger
               value="itinerary"
               data-testid="tab-itinerary"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-route max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Itinerary
@@ -1711,7 +1711,7 @@ export default function TripDetail() {
             <TabsTrigger
               value="map"
               data-testid="tab-map"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-map-marked-alt max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Map
@@ -1719,7 +1719,7 @@ export default function TripDetail() {
             <TabsTrigger
               value="budget"
               data-testid="tab-budget"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-wallet max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Budget
@@ -1727,7 +1727,7 @@ export default function TripDetail() {
             <TabsTrigger
               value="places"
               data-testid="tab-places"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
               <i className="fas fa-search-location max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Places

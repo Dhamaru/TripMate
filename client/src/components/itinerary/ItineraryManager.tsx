@@ -232,7 +232,7 @@ function SortableActivity({
               Booking Req.
             </span>
           )}
-          {activity.duration_minutes && (
+          {Number(activity.duration_minutes) > 0 && (
             <span className="text-[11px] font-mono-data text-[hsl(var(--muted-foreground))] shrink-0">
               <Clock className="inline w-2.5 h-2.5 mr-0.5" />
               {activity.duration_minutes}m

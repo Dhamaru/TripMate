@@ -110,7 +110,9 @@ export default function PublicTripPage() {
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-4 left-5 right-5">
-                <span className="stamp text-[11px] mb-2 inline-block">Shared itinerary</span>
+                <span className="stamp text-[11px] mb-2 inline-block bg-[hsl(var(--card))] text-foreground">
+                  Shared itinerary
+                </span>
                 <h1 className="font-display text-3xl font-bold text-white leading-tight">
                   {trip.destination}
                 </h1>

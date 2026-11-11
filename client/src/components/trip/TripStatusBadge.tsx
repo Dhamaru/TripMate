@@ -1,5 +1,13 @@
 import { cn } from "@/lib/utils";
 
+// Written out in full so Tailwind keeps these classes: a built name like
+// `status-${key}` is invisible to its scan, which dropped the stamp border.
+const CLASSES: Record<string, string> = {
+  planning: "status-planning",
+  active: "status-active",
+  completed: "status-completed",
+};
+
 const LABELS: Record<string, string> = {
   planning: "Planning",
   active: "Active",
@@ -25,7 +33,7 @@ export function TripStatusBadge({
     <span
       className={cn(
         "status-badge",
-        `status-${key}`,
+        CLASSES[key],
         onPhoto && "!bg-[hsl(var(--card))] shadow-sm",
         className,
       )}
