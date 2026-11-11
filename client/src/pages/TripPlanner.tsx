@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { guessHomeCurrency } from "@/lib/homeCurrency";
 import { useMutation } from "@tanstack/react-query";
 import { safeParsePlan, isValidPlanLike } from "@/lib/planParser";
 import { Button } from "@/components/ui/button";
@@ -62,29 +63,7 @@ const travelStyles = [
   },
 ];
 
-// Guess a sensible default currency from the browser's locale rather than
-// hardcoding INR for every user regardless of where they actually are.
-function guessDefaultCurrency(): string {
-  try {
-    const region = navigator.language.split("-")[1]?.toUpperCase();
-    const regionCurrency: Record<string, string> = {
-      IN: "INR",
-      US: "USD",
-      GB: "GBP",
-      AU: "AUD",
-      CA: "CAD",
-      JP: "JPY",
-      CN: "CNY",
-      DE: "EUR",
-      FR: "EUR",
-      ES: "EUR",
-      IT: "EUR",
-    };
-    return (region && regionCurrency[region]) || "USD";
-  } catch {
-    return "USD";
-  }
-}
+const guessDefaultCurrency = guessHomeCurrency;
 
 // The browser-locale guess above is wrong once a destination is picked; Nominatim's display_name ends in the real country, so read that instead of an extra geocode call.
 const COUNTRY_NAME_CURRENCY: Record<string, string> = {
@@ -976,7 +955,7 @@ export default function TripPlanner() {
                     htmlFor="import-schedule"
                     className="block text-sm font-semibold text-foreground mb-2"
                   >
-                    Your Schedule <span className="text-red-500">*</span>
+                    Your Schedule <span className="text-[var(--stamp-red-text)]">*</span>
                   </label>
                   <Textarea
                     id="import-schedule"
@@ -1031,7 +1010,7 @@ export default function TripPlanner() {
                       htmlFor="import-group-size"
                       className="block text-sm font-semibold text-foreground mb-2"
                     >
-                      Group Size <span className="text-red-500">*</span>
+                      Group Size <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <Select
                       value={importForm.groupSize}
@@ -1153,13 +1132,15 @@ export default function TripPlanner() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6" data-testid="trip-planning-form">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Two columns only from lg: beside the sidebar at 768px each column was
+                  ~230px and the budget amount box shrank to "Amo". */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
                     <label
                       htmlFor="plan-origin"
                       className="block text-sm font-semibold text-foreground mb-2"
                     >
-                      Starting Location <span className="text-red-500">*</span>
+                      Starting Location <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <div className="relative">
                       <Input
@@ -1196,7 +1177,7 @@ export default function TripPlanner() {
                       htmlFor="plan-destination"
                       className="block text-sm font-semibold text-foreground mb-2"
                     >
-                      Destination <span className="text-red-500">*</span>
+                      Destination <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <div className="relative">
                       <Input
@@ -1290,7 +1271,7 @@ export default function TripPlanner() {
                       htmlFor="plan-duration"
                       className="block text-sm font-semibold text-foreground mb-2"
                     >
-                      Trip Duration <span className="text-red-500">*</span>
+                      Trip Duration <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <Input
                       id="plan-duration"
@@ -1341,7 +1322,7 @@ export default function TripPlanner() {
                       htmlFor="plan-group-size"
                       className="block text-sm font-semibold text-foreground mb-2"
                     >
-                      Group Size <span className="text-red-500">*</span>
+                      Group Size <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <Select
                       value={tripForm.groupSize}
@@ -1386,7 +1367,7 @@ export default function TripPlanner() {
 
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Travel Style <span className="text-red-500">*</span>
+                    Travel Style <span className="text-[var(--stamp-red-text)]">*</span>
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">
                     Pick as many as fit — planning both a cultural and a culinary trip? Select both.
@@ -1475,14 +1456,14 @@ export default function TripPlanner() {
                   )}
                 </Button>
                 {(!tripForm.budget || !tripForm.groupSize) && (
-                  <div className="text-xs text-orange-500 mt-2 text-center">
-                    Please provide{" "}
+                  <div className="text-xs text-muted-foreground mt-2 text-center">
+                    Tip: add your{" "}
                     {!tripForm.budget && !tripForm.groupSize
-                      ? "Budget and People"
+                      ? "budget and group size"
                       : !tripForm.budget
-                        ? "Budget"
-                        : "People"}{" "}
-                    for better results.
+                        ? "budget"
+                        : "group size"}{" "}
+                    for a better plan.
                   </div>
                 )}
               </form>
@@ -1702,7 +1683,7 @@ export default function TripPlanner() {
                                         </a>
                                       )}
                                     </div>
-                                    <div className="text-sm text-green-500">
+                                    <div className="text-sm text-[var(--transit-green-text)]">
                                       {typeof a.entryFeeINR === "number" && a.entryFeeINR > 0
                                         ? formatMoney(a.entryFeeINR, planTripMutation.data.currency)
                                         : ""}
@@ -1925,7 +1906,7 @@ export default function TripPlanner() {
         {planTripMutation.data && planTripMutation.data.error && (
           <Card className="bg-card border elev-1 mt-8">
             <CardContent className="p-6">
-              <div className="text-red-500 font-semibold mb-2">
+              <div className="text-[var(--stamp-red-text)] font-semibold mb-2">
                 We couldn’t parse the plan — try regenerating.
               </div>
               <Button
@@ -1958,21 +1939,21 @@ export default function TripPlanner() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
               <div>
                 <p className="mb-2">
-                  <i className="fas fa-check text-green-500 mr-2"></i>
+                  <i className="fas fa-check text-[var(--transit-green-text)] mr-2"></i>
                   The more details you provide, the better your personalized itinerary will be.
                 </p>
                 <p className="mb-2">
-                  <i className="fas fa-check text-green-500 mr-2"></i>
+                  <i className="fas fa-check text-[var(--transit-green-text)] mr-2"></i>
                   Budget helps us suggest appropriate accommodations and activities.
                 </p>
               </div>
               <div>
                 <p className="mb-2">
-                  <i className="fas fa-check text-green-500 mr-2"></i>
+                  <i className="fas fa-check text-[var(--transit-green-text)] mr-2"></i>
                   Travel style influences the types of experiences we recommend.
                 </p>
                 <p className="mb-2">
-                  <i className="fas fa-check text-green-500 mr-2"></i>
+                  <i className="fas fa-check text-[var(--transit-green-text)] mr-2"></i>
                   You can always edit and customize your itinerary after it's generated.
                 </p>
               </div>

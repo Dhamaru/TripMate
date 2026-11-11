@@ -426,7 +426,7 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
             <Card className="bg-[#1D4E89]/5 border-[#1D4E89]/20">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Lightbulb className="w-4 h-4 text-[var(--ink-blue-text)] dark:text-blue-400" />
+                  <Lightbulb className="w-4 h-4 text-[var(--ink-blue-text)]" />
                   AI Smart Pivots
                 </CardTitle>
               </CardHeader>
@@ -437,9 +437,7 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                       key={i}
                       className="flex gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border/50"
                     >
-                      <div className="text-[var(--ink-blue-text)] dark:text-blue-400 font-bold">
-                        #{i + 1}
-                      </div>
+                      <div className="text-[var(--ink-blue-text)] font-bold">#{i + 1}</div>
                       <div>{pivot}</div>
                     </div>
                   ))}
@@ -452,7 +450,7 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                       {trip.currency || "INR"} {forecast?.estimatedFinalCost?.toLocaleString()}
                     </span>
                   </div>
-                  <div className="text-[var(--ink-blue-text)] dark:text-blue-400 flex items-center gap-1">
+                  <div className="text-[var(--ink-blue-text)] flex items-center gap-1">
                     <i className="fas fa-robot"></i> AI Forecast
                   </div>
                 </div>
@@ -481,8 +479,14 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
           {canEdit && isAdding && (
             <div className="mb-4 p-4 bg-secondary rounded-lg grid gap-4 md:grid-cols-4 items-end">
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Description</label>
+                <label
+                  htmlFor="expense-description"
+                  className="text-xs text-muted-foreground mb-1 block"
+                >
+                  Description
+                </label>
                 <Input
+                  id="expense-description"
                   value={newExpense.description}
                   onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
                   placeholder="Lunch, Taxi, etc."
@@ -490,8 +494,14 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Amount</label>
+                <label
+                  htmlFor="expense-amount"
+                  className="text-xs text-muted-foreground mb-1 block"
+                >
+                  Amount
+                </label>
                 <Input
+                  id="expense-amount"
                   type="number"
                   value={newExpense.amount}
                   onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
@@ -499,12 +509,20 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+                <label
+                  htmlFor="expense-category"
+                  className="text-xs text-muted-foreground mb-1 block"
+                >
+                  Category
+                </label>
                 <Select
                   value={newExpense.category}
                   onValueChange={(val: any) => setNewExpense({ ...newExpense, category: val })}
                 >
-                  <SelectTrigger className="bg-background border-border text-foreground">
+                  <SelectTrigger
+                    id="expense-category"
+                    className="bg-background border-border text-foreground"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -533,8 +551,14 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                   className="p-4 bg-secondary rounded-lg grid gap-4 md:grid-cols-4 items-end"
                 >
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Description</label>
+                    <label
+                      htmlFor="expense-description-2"
+                      className="text-xs text-muted-foreground mb-1 block"
+                    >
+                      Description
+                    </label>
                     <Input
+                      id="expense-description-2"
                       value={editExpense.description}
                       onChange={(e) =>
                         setEditExpense({ ...editExpense, description: e.target.value })
@@ -543,8 +567,14 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Amount</label>
+                    <label
+                      htmlFor="expense-amount-2"
+                      className="text-xs text-muted-foreground mb-1 block"
+                    >
+                      Amount
+                    </label>
                     <Input
+                      id="expense-amount-2"
                       type="number"
                       value={editExpense.amount}
                       onChange={(e) =>
@@ -554,14 +584,22 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+                    <label
+                      htmlFor="expense-category-2"
+                      className="text-xs text-muted-foreground mb-1 block"
+                    >
+                      Category
+                    </label>
                     <Select
                       value={editExpense.category}
                       onValueChange={(val: any) =>
                         setEditExpense({ ...editExpense, category: val })
                       }
                     >
-                      <SelectTrigger className="bg-background border-border text-foreground">
+                      <SelectTrigger
+                        id="expense-category-2"
+                        className="bg-background border-border text-foreground"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -591,7 +629,7 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                   className="flex items-center justify-between gap-2 p-3 bg-secondary rounded-lg"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[var(--ink-blue-text)] dark:text-blue-400">
+                    <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[var(--ink-blue-text)]">
                       <i
                         className={`fas fa-${expense.category === "Food" ? "utensils" : expense.category === "Transport" ? "car" : "tag"}`}
                       ></i>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Check, Pencil, X } from "lucide-react";
 import { appendCompressed } from "@/lib/compressImage";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -456,10 +457,14 @@ export default function Journal() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4" data-testid="journal-entry-form">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
+                <label
+                  htmlFor="journal-title"
+                  className="block text-sm font-medium text-foreground mb-1.5"
+                >
                   Title <span className="text-destructive">*</span>
                 </label>
                 <Input
+                  id="journal-title"
                   type="text"
                   value={entryForm.title}
                   onChange={(e) => setEntryForm((prev) => ({ ...prev, title: e.target.value }))}
@@ -471,8 +476,14 @@ export default function Journal() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Location</label>
+                <label
+                  htmlFor="journal-location"
+                  className="block text-sm font-medium text-foreground mb-1.5"
+                >
+                  Location
+                </label>
                 <Input
+                  id="journal-location"
                   type="text"
                   value={entryForm.location}
                   onChange={(e) => setEntryForm((prev) => ({ ...prev, location: e.target.value }))}
@@ -484,7 +495,10 @@ export default function Journal() {
 
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-sm font-medium text-foreground">
+                  <label
+                    htmlFor="journal-content"
+                    className="block text-sm font-medium text-foreground"
+                  >
                     Content <span className="text-destructive">*</span>
                   </label>
                   <div className="flex gap-2">
@@ -512,6 +526,7 @@ export default function Journal() {
                   </div>
                 </div>
                 <Textarea
+                  id="journal-content"
                   value={entryForm.content}
                   onChange={(e) => setEntryForm((prev) => ({ ...prev, content: e.target.value }))}
                   placeholder={
@@ -530,8 +545,14 @@ export default function Journal() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Photos</label>
+                <label
+                  htmlFor="journal-photos"
+                  className="block text-sm font-medium text-foreground mb-1.5"
+                >
+                  Photos
+                </label>
                 <Input
+                  id="journal-photos"
                   ref={(el) => {
                     if (el) fileInputRef.current = el;
                   }}
@@ -549,7 +570,10 @@ export default function Journal() {
                     <ul className="text-xs text-muted-foreground space-y-0.5">
                       {Array.from(photos).map((file, i) => (
                         <li key={i} className="flex items-center gap-2">
-                          <span className="text-[var(--transit-green-text)]">✓</span>
+                          <Check
+                            className="w-3.5 h-3.5 text-[var(--transit-green-text)] shrink-0"
+                            aria-hidden="true"
+                          />
                           <span className="truncate">{file.name}</span>
                           <span className="text-muted-foreground">
                             ({(file.size / 1024).toFixed(1)} KB)
@@ -702,9 +726,9 @@ export default function Journal() {
                                   size="sm"
                                   variant="ghost"
                                   aria-label="Edit entry"
-                                  className="h-8 w-8 bg-black/40 text-white hover:bg-black/60 rounded-full p-0 text-xs"
+                                  className="h-10 w-10 bg-black/40 text-white hover:bg-black/60 rounded-full p-0 text-xs"
                                 >
-                                  ✎
+                                  <Pencil className="w-4 h-4" aria-hidden="true" />
                                 </Button>
                                 <Button
                                   onClick={(e) => {
@@ -714,9 +738,9 @@ export default function Journal() {
                                   size="sm"
                                   variant="ghost"
                                   aria-label="Delete entry"
-                                  className="h-8 w-8 bg-[rgb(var(--stamp-red-rgb)/50%)] text-white hover:bg-[rgb(var(--stamp-red-rgb)/70%)] rounded-full p-0 text-xs"
+                                  className="h-10 w-10 bg-[rgb(var(--stamp-red-rgb)/50%)] text-white hover:bg-[rgb(var(--stamp-red-rgb)/70%)] rounded-full p-0 text-xs"
                                 >
-                                  ✕
+                                  <X className="w-4 h-4" aria-hidden="true" />
                                 </Button>
                               </div>
                             </JournalImageCarousel>
@@ -734,7 +758,7 @@ export default function Journal() {
                                   aria-label="Edit entry"
                                   className="h-10 w-10 p-0 text-muted-foreground hover:bg-[hsl(var(--muted))]/50 text-xs"
                                 >
-                                  ✎
+                                  <Pencil className="w-4 h-4" aria-hidden="true" />
                                 </Button>
                                 <Button
                                   onClick={(e) => {
@@ -746,7 +770,7 @@ export default function Journal() {
                                   aria-label="Delete entry"
                                   className="h-10 w-10 p-0 text-[var(--stamp-red-text)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] text-xs"
                                 >
-                                  ✕
+                                  <X className="w-4 h-4" aria-hidden="true" />
                                 </Button>
                               </div>
                             </div>
@@ -815,7 +839,9 @@ export default function Journal() {
               resetForm();
               setIsCreateDialogOpen(true);
             }}
-            className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white rounded-xl gap-2"
+            // Secondary: "New Entry" in the header is the page's one primary action.
+            variant="outline"
+            className="rounded-xl gap-2"
             data-testid="button-create-first-entry"
           >
             <Plus className="h-4 w-4" /> Create Your First Entry

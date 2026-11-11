@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Lightbulb, Sparkles, CloudSun } from "lucide-react";
 import {
   ChevronDown,
   Clock,
@@ -68,7 +69,10 @@ function ActivityRow({ act }: { act: any }) {
           </p>
         )}
         {act.localTip && (
-          <p className="text-xs text-muted-foreground/80 italic mt-1">💡 {act.localTip}</p>
+          <p className="text-xs text-muted-foreground/80 italic mt-1">
+            <Lightbulb className="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true" />
+            {act.localTip}
+          </p>
         )}
       </div>
     </div>
@@ -111,7 +115,8 @@ function DayCard({ day, defaultOpen }: { day: any; defaultOpen: boolean }) {
           <CardContent className="pt-0 px-4 pb-4">
             {day.headlineExperience && (
               <p className="text-sm text-[var(--ink-blue-text)] font-medium mb-2">
-                ✨ {day.headlineExperience}
+                <Sparkles className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />
+                {day.headlineExperience}
               </p>
             )}
             <div className="divide-y divide-[hsl(var(--border))]">
@@ -138,7 +143,10 @@ function DayCard({ day, defaultOpen }: { day: any; defaultOpen: boolean }) {
               </div>
             )}
             {day.weatherNote && (
-              <p className="text-xs text-muted-foreground mt-2">🌤️ {day.weatherNote}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                <CloudSun className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true" />
+                {day.weatherNote}
+              </p>
             )}
           </CardContent>
         </CollapsibleContent>

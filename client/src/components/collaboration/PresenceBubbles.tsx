@@ -38,7 +38,11 @@ const PresenceBubbles: React.FC<PresenceBubblesProps> = ({ members }) => {
                           {member.userName.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-background rounded-full" />
+                      <div
+                        className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[var(--transit-green)] border-2 border-background rounded-full"
+                        aria-hidden="true"
+                      />
+                      <span className="sr-only">{member.userName} is online</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs">

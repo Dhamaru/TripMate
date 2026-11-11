@@ -136,8 +136,14 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="block text-sm text-foreground mb-1">Text to Translate</label>
+          <label
+            htmlFor="translate-text-to-translate"
+            className="block text-sm text-foreground mb-1"
+          >
+            Text to Translate
+          </label>
           <Textarea
+            id="translate-text-to-translate"
             autoFocus
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -153,9 +159,11 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
         </div>
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-sm text-foreground mb-1">From</label>
+            <label htmlFor="translate-from" className="block text-sm text-foreground mb-1">
+              From
+            </label>
             <Select value={fromLanguage} onValueChange={setFromLanguage}>
-              <SelectTrigger className="bg-muted border text-foreground">
+              <SelectTrigger id="translate-from" className="bg-muted border text-foreground">
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent className="bg-card border">
@@ -172,13 +180,16 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
             type="button"
             onClick={swapLanguages}
             variant="outline"
+            aria-label="Swap languages"
           >
             ⇄
           </Button>
           <div className="flex-1">
-            <label className="block text-sm text-foreground mb-1">To</label>
+            <label htmlFor="translate-to" className="block text-sm text-foreground mb-1">
+              To
+            </label>
             <Select value={toLanguage} onValueChange={setToLanguage}>
-              <SelectTrigger className="bg-muted border text-foreground">
+              <SelectTrigger id="translate-to" className="bg-muted border text-foreground">
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent className="bg-card border">
@@ -227,10 +238,11 @@ export function LanguageTranslator({ className = "" }: { className?: string }) {
         ) : null}
 
         <div className="border-t pt-4 space-y-2">
-          <label className="block text-sm text-foreground mb-1">
+          <label htmlFor="translate-reply" className="block text-sm text-foreground mb-1">
             Their Reply (paste what they said back, in their language — we'll translate it to yours)
           </label>
           <Textarea
+            id="translate-reply"
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             onKeyDown={(e) => {

@@ -476,6 +476,7 @@ export default function Landing() {
               <div className="flex items-center bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-full px-4 sm:px-6 py-3 sm:py-4 gap-2 sm:gap-4 focus-within:border-[var(--amber)] transition-colors">
                 <MapPin className="w-5 h-5 text-[var(--ink-blue-text)] flex-shrink-0" />
                 <input
+                  aria-label="Where do you want to go?"
                   type="text"
                   placeholder="Where do you want to go?"
                   value={destination}
@@ -955,7 +956,7 @@ export default function Landing() {
 
           <div className="border-t border-[hsl(var(--border))] pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[hsl(var(--muted-foreground))]">
             <p>© {new Date().getFullYear()} TripMate. All rights reserved.</p>
-            <p>Made with ❤️ for travelers worldwide.</p>
+            <p>Made for travelers worldwide.</p>
           </div>
         </div>
       </footer>

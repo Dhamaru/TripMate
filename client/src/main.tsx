@@ -32,11 +32,12 @@ const updateSW = registerSW({
     bar.style.cssText =
       "position:fixed;left:12px;right:12px;bottom:88px;z-index:9999;display:flex;" +
       "align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;" +
-      "border-radius:14px;background:#c2410c;color:#fff;font:600 13px/1.3 'Work Sans',system-ui,sans-serif;" +
+      // Ink blue + IBM Plex Sans (was an off-system orange in Work Sans).
+      "border-radius:14px;background:#1d4e89;color:#fff;font:600 13px/1.3 'IBM Plex Sans',system-ui,sans-serif;" +
       "box-shadow:0 8px 32px rgba(0,0,0,.4)";
     bar.innerHTML =
       "<span>A new version of TripMate is ready.</span>" +
-      "<button id='tm-update-btn' style=\"flex-shrink:0;background:#fff;color:#c2410c;border:0;" +
+      "<button id='tm-update-btn' style=\"flex-shrink:0;background:#fff;color:#1d4e89;border:0;" +
       'border-radius:8px;padding:7px 14px;font:700 13px system-ui;cursor:pointer">Update</button>';
     document.body.appendChild(bar);
     document.getElementById("tm-update-btn")?.addEventListener("click", () => {

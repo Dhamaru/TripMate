@@ -248,7 +248,7 @@ export function WeatherWidget({ location, coords = null, className = "" }: Weath
 
   return (
     <Card
-      className={`border-none shadow-lg overflow-hidden transition-all duration-500 ${bgClass} ${className}`}
+      className={`border border-border overflow-hidden transition-all duration-500 ${bgClass} ${className}`}
       data-testid="weather-widget"
     >
       <CardHeader className="pb-2">
@@ -260,7 +260,7 @@ export function WeatherWidget({ location, coords = null, className = "" }: Weath
           <div className="flex items-center gap-2">
             {(weather.source === "ai" || weather.source === "fallback") && (
               <span
-                className="px-2 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-100 text-xs"
+                className="px-2 py-0.5 rounded-[3px] border border-white/60 bg-black/20 text-white text-[11px] font-mono-data uppercase tracking-[0.08em]"
                 title="No live weather provider configured — this forecast is an estimate from typical seasonal patterns, not real data for this location"
                 data-testid="weather-estimated-badge"
               >

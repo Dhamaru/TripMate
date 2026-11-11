@@ -343,8 +343,11 @@ export default function JournalDetail() {
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Title</label>
+                    <label htmlFor="entry-title" className="text-sm font-medium text-foreground">
+                      Title
+                    </label>
                     <input
+                      id="entry-title"
                       type="text"
                       value={entryForm.title}
                       onChange={(e) => setEntryForm((prev) => ({ ...prev, title: e.target.value }))}
@@ -354,8 +357,11 @@ export default function JournalDetail() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Location</label>
+                    <label htmlFor="entry-location" className="text-sm font-medium text-foreground">
+                      Location
+                    </label>
                     <input
+                      id="entry-location"
                       type="text"
                       value={entryForm.location}
                       onChange={(e) =>
@@ -365,8 +371,11 @@ export default function JournalDetail() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Content</label>
+                    <label htmlFor="entry-content" className="text-sm font-medium text-foreground">
+                      Content
+                    </label>
                     <textarea
+                      id="entry-content"
                       value={entryForm.content}
                       onChange={(e) =>
                         setEntryForm((prev) => ({ ...prev, content: e.target.value }))
@@ -376,8 +385,14 @@ export default function JournalDetail() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Add Photos</label>
+                    <label
+                      htmlFor="entry-add-photos"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Add Photos
+                    </label>
                     <input
+                      id="entry-add-photos"
                       type="file"
                       multiple
                       accept="image/*"
@@ -442,51 +457,50 @@ export default function JournalDetail() {
         ) : (
           <motion.div variants={containerVariants} initial="hidden" animate="visible">
             {/* Hero Section - Photos */}
-            {entry.photos && entry.photos.filter((p) => !failedPhotos.has(p)).length > 0 ? (
-              <motion.div
-                variants={itemVariants}
-                className="relative h-64 md:h-96 rounded-3xl overflow-hidden mb-8 border border-[hsl(var(--border))]"
-              >
-                {failedPhotos.has(entry.photos[activePhotoIndex]) ? (
-                  <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
-                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                ) : (
-                  <motion.img
-                    key={activePhotoIndex}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1 }}
-                    src={entry.photos[activePhotoIndex]}
-                    alt={entry.title}
-                    className="w-full h-full object-cover"
-                    onError={() =>
-                      setFailedPhotos((prev) => new Set(prev).add(entry.photos![activePhotoIndex]))
-                    }
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+            {
+              entry.photos && entry.photos.filter((p) => !failedPhotos.has(p)).length > 0 ? (
+                <motion.div
+                  variants={itemVariants}
+                  className="relative h-64 md:h-96 rounded-3xl overflow-hidden mb-8 border border-[hsl(var(--border))]"
+                >
+                  {failedPhotos.has(entry.photos[activePhotoIndex]) ? (
+                    <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
+                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <motion.img
+                      key={activePhotoIndex}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 1 }}
+                      src={entry.photos[activePhotoIndex]}
+                      alt={entry.title}
+                      className="w-full h-full object-cover"
+                      onError={() =>
+                        setFailedPhotos((prev) =>
+                          new Set(prev).add(entry.photos![activePhotoIndex]),
+                        )
+                      }
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
 
-                {entry.photos.length > 1 && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    {entry.photos.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setActivePhotoIndex(i)}
-                        className={`w-2 h-2 rounded-full transition-all ${i === activePhotoIndex ? "bg-card w-4" : "bg-card/40"}`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.div
-                variants={itemVariants}
-                className="h-48 md:h-64 rounded-3xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] perforated-edge flex items-center justify-center mb-8"
-              >
-                <MapPin className="w-16 h-16 icon-tint-blue" />
-              </motion.div>
-            )}
+                  {entry.photos.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {entry.photos.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setActivePhotoIndex(i)}
+                          aria-label={`Show photo ${i + 1} of ${entry.photos!.length}`}
+                          aria-current={i === activePhotoIndex}
+                          className={`w-2 h-2 rounded-full transition-all ${i === activePhotoIndex ? "bg-card w-4" : "bg-card/40"}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              ) : null /* No photo: no empty hero (it looked like a broken image). */
+            }
 
             {/* Header Info */}
             <div className="mb-8">

@@ -404,11 +404,15 @@ export default function WeatherPage() {
         </div>
       </div>
 
-      <WeatherWidget
-        location={coords ? undefined : location}
-        coords={coords}
-        className="max-w-2xl"
-      />
+      {/* Nothing to show until there's a place: with location blocked the
+          widget sat on its loading skeleton forever. */}
+      {(coords || location) && (
+        <WeatherWidget
+          location={coords ? undefined : location}
+          coords={coords}
+          className="max-w-2xl"
+        />
+      )}
     </div>
   );
 }

@@ -65,7 +65,7 @@ const travelStyles = [
   { id: "adventure", icon: Mountain, name: "Adventure", color: "text-[var(--ink-blue-text)]" },
   { id: "relaxed", icon: Armchair, name: "Relaxed", color: "text-amber-500" },
   { id: "cultural", icon: Landmark, name: "Cultural", color: "text-[var(--ink-blue-text)]" },
-  { id: "culinary", icon: Utensils, name: "Culinary", color: "text-emerald-500" },
+  { id: "culinary", icon: Utensils, name: "Culinary", color: "text-[var(--transit-green-text)]" },
 ];
 
 // Throws on a failed search (rate-limited, upstream error) so the empty-state can tell "search failed" from a genuine zero-result search.
@@ -393,22 +393,29 @@ export default function TripDetail() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: hacks } = useQuery<any>({
+  // Both throw on a failed request, so the cards can say so: a failure
+  // used to leave "Fetching smart tips..." forever, or claim there were no
+  // quiet spots. No retries: each attempt is a billed AI call.
+  const {
+    data: hacks,
+    isLoading: hacksLoading,
+    isError: hacksFailed,
+  } = useQuery<any>({
     queryKey: ["trip_hacks", id],
     enabled: !!id && isAuthenticated,
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/v1/trips/${id}/hacks`);
-      return res.json();
-    },
+    retry: false,
+    queryFn: () => apiRequestJson("GET", `/api/v1/trips/${id}/hacks`),
   });
 
-  const { data: quietPlaces, isLoading: quietLoading } = useQuery<any>({
+  const {
+    data: quietPlaces,
+    isLoading: quietLoading,
+    isError: quietFailed,
+  } = useQuery<any>({
     queryKey: ["trip_quiet_places", id],
     enabled: !!id && isAuthenticated,
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/v1/trips/${id}/quiet-places`);
-      return res.json();
-    },
+    retry: false,
+    queryFn: () => apiRequestJson("GET", `/api/v1/trips/${id}/quiet-places`),
   });
 
   useEffect(() => {
@@ -1375,10 +1382,14 @@ export default function TripDetail() {
               <form className="space-y-6" data-testid="trip-edit-form">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="trip-starting-location"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Starting Location
                     </label>
                     <Input
+                      id="trip-starting-location"
                       type="text"
                       value={tripForm.origin}
                       onChange={(e) => setTripForm((prev) => ({ ...prev, origin: e.target.value }))}
@@ -1387,10 +1398,14 @@ export default function TripDetail() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="trip-destination"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Destination <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <Input
+                      id="trip-destination"
                       type="text"
                       value={tripForm.destination}
                       onChange={(e) =>
@@ -1401,10 +1416,14 @@ export default function TripDetail() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="trip-budget-inr"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Budget (INR)
                     </label>
                     <Input
+                      id="trip-budget-inr"
                       type="number"
                       value={tripForm.budget}
                       onChange={(e) => setTripForm((prev) => ({ ...prev, budget: e.target.value }))}
@@ -1452,11 +1471,15 @@ export default function TripDetail() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="trip-days"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Trip Duration <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     <div className="relative">
                       <Input
+                        id="trip-days"
                         type="number"
                         min="1"
                         value={tripForm.days}
@@ -1480,7 +1503,10 @@ export default function TripDetail() {
                       )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="trip-status"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Status
                     </label>
                     <Select
@@ -1490,6 +1516,7 @@ export default function TripDetail() {
                       }
                     >
                       <SelectTrigger
+                        id="trip-status"
                         className="bg-muted/50 border text-foreground"
                         data-testid="select-edit-status"
                       >
@@ -1509,7 +1536,10 @@ export default function TripDetail() {
                     </Select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
+                    <label
+                      htmlFor="trip-group-size"
+                      className="block text-sm font-semibold text-foreground mb-2"
+                    >
                       Group Size <span className="text-[var(--stamp-red-text)]">*</span>
                     </label>
                     {/* Live-reported: this field was required by handleSave's
@@ -1525,6 +1555,7 @@ export default function TripDetail() {
                       }
                     >
                       <SelectTrigger
+                        id="trip-group-size"
                         className="bg-muted/50 border text-foreground"
                         data-testid="select-edit-group-size"
                       >
@@ -1555,9 +1586,9 @@ export default function TripDetail() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">
+                  <p className="block text-sm font-semibold text-foreground mb-2">
                     Travel Style <span className="text-[var(--stamp-red-text)]">*</span>
-                  </label>
+                  </p>
                   {/* Live-reported (friend's feedback): "the Travel Style
                       section shows only one option" — that was true twice
                       over. First, this form had no picker at all (fixed
@@ -1599,8 +1630,14 @@ export default function TripDetail() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">Notes</label>
+                  <label
+                    htmlFor="trip-notes"
+                    className="block text-sm font-semibold text-foreground mb-2"
+                  >
+                    Notes
+                  </label>
                   <Textarea
+                    id="trip-notes"
                     value={tripForm.notes}
                     onChange={(e) => setTripForm((prev) => ({ ...prev, notes: e.target.value }))}
                     placeholder="Add any notes about your trip..."
@@ -1651,47 +1688,48 @@ export default function TripDetail() {
             // triggers overflow this strip at ~375px, centering pushes the first
             // tab past the left edge where scrolling can never reach it
             // (scrollLeft is already 0) — live-measured as the active tab
-            // rendering as "iew".
+            // rendering as "iew". Icons are hidden below sm so all five tabs fit
+            // at 390px instead of cutting off "Budget" behind a scroll.
             className="flex w-full justify-start bg-muted/50 rounded-xl mb-6 p-1 h-auto gap-0.5 overflow-x-auto"
           >
             <TabsTrigger
               value="overview"
               data-testid="tab-overview"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
-              <i className="fas fa-compass mr-1 sm:mr-1.5" />
+              <i className="fas fa-compass max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="itinerary"
               data-testid="tab-itinerary"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
-              <i className="fas fa-route mr-1 sm:mr-1.5" />
+              <i className="fas fa-route max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Itinerary
             </TabsTrigger>
             <TabsTrigger
               value="map"
               data-testid="tab-map"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
-              <i className="fas fa-map-marked-alt mr-1 sm:mr-1.5" />
+              <i className="fas fa-map-marked-alt max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Map
             </TabsTrigger>
             <TabsTrigger
               value="budget"
               data-testid="tab-budget"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
-              <i className="fas fa-wallet mr-1 sm:mr-1.5" />
+              <i className="fas fa-wallet max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Budget
             </TabsTrigger>
             <TabsTrigger
               value="places"
               data-testid="tab-places"
-              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-3 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
+              className="flex-shrink-0 sm:flex-1 whitespace-nowrap rounded-lg text-xs font-semibold px-2.5 sm:px-1 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm py-2"
             >
-              <i className="fas fa-search-location mr-1 sm:mr-1.5" />
+              <i className="fas fa-search-location max-sm:!hidden sm:mr-1.5" aria-hidden="true" />
               Places
             </TabsTrigger>
           </TabsList>
@@ -1897,8 +1935,14 @@ export default function TripDetail() {
                         <div>{hack}</div>
                       </div>
                     ))}
-                    {(!hacks || hacks.hacks?.length === 0) && (
-                      <p className="text-muted-foreground italic text-sm">Fetching smart tips...</p>
+                    {(!hacks || !hacks.hacks?.length) && (
+                      <p className="text-muted-foreground italic text-sm">
+                        {hacksLoading
+                          ? "Fetching smart tips..."
+                          : hacksFailed
+                            ? "Tips aren't available right now. Try again later."
+                            : "No tips for this trip yet."}
+                      </p>
                     )}
                   </div>
                   {hacks?.economicalAlternatives?.length > 0 && (
@@ -1974,7 +2018,9 @@ export default function TripDetail() {
                       <p className="text-muted-foreground italic text-sm">
                         {quietLoading
                           ? "Discovery in progress..."
-                          : "No quiet spots found for this area."}
+                          : quietFailed
+                            ? "Couldn't look for quiet spots right now. Try again later."
+                            : "No quiet spots found for this area."}
                       </p>
                     )}
                   </div>
@@ -2192,7 +2238,8 @@ export default function TripDetail() {
                           {showRestaurants && (
                             <div>
                               <div className="flex items-center gap-2 mb-3 text-foreground font-semibold border-b border pb-2">
-                                <i className="fas fa-utensils text-emerald-500"></i> Restaurants
+                                <i className="fas fa-utensils text-[var(--transit-green-text)]"></i>{" "}
+                                Restaurants
                               </div>
                               {placesTarget?.category === "food" && (
                                 <div

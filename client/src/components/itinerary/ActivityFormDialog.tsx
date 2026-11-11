@@ -283,7 +283,7 @@ export function ActivityFormDialog({
                 value={formData.type}
                 onValueChange={(value) => setFormData({ ...formData, type: value })}
               >
-                <SelectTrigger className="bg-muted border-border text-foreground h-11">
+                <SelectTrigger id="type" className="bg-muted border-border text-foreground h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border shadow-2xl">
@@ -316,8 +316,11 @@ export function ActivityFormDialog({
             {formData.type === "travel" && (
               <div className="grid grid-cols-2 gap-4 p-3 bg-[rgb(var(--explorer-blue-rgb)/5%)] border border-[rgb(var(--explorer-blue-rgb)/20%)] rounded-lg">
                 <div>
-                  <Label className="text-foreground font-medium mb-1.5 block">From</Label>
+                  <Label htmlFor="travelFrom" className="text-foreground font-medium mb-1.5 block">
+                    From
+                  </Label>
                   <Input
+                    id="travelFrom"
                     value={formData.from}
                     onChange={(e) => setFormData({ ...formData, from: e.target.value })}
                     placeholder="e.g. Hyderabad"
@@ -325,8 +328,11 @@ export function ActivityFormDialog({
                   />
                 </div>
                 <div>
-                  <Label className="text-foreground font-medium mb-1.5 block">To</Label>
+                  <Label htmlFor="travelTo" className="text-foreground font-medium mb-1.5 block">
+                    To
+                  </Label>
                   <Input
+                    id="travelTo"
                     value={formData.to}
                     onChange={(e) => setFormData({ ...formData, to: e.target.value })}
                     placeholder="e.g. Delhi"
@@ -338,8 +344,11 @@ export function ActivityFormDialog({
 
             {/* Notes */}
             <div>
-              <Label className="text-foreground font-medium mb-1.5 block">Notes</Label>
+              <Label htmlFor="notes" className="text-foreground font-medium mb-1.5 block">
+                Notes
+              </Label>
               <Textarea
+                id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Any additional details..."
@@ -378,23 +387,24 @@ export function ActivityFormDialog({
                 />
               </div>
             </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => onOpenChange(false)}
-                className="flex-1 bg-transparent hover:bg-destructive/10 border border-destructive/50 text-destructive h-12"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 bg-[var(--explorer-blue)] hover:bg-[var(--explorer-blue-deep)] h-12 font-bold border border-[var(--explorer-blue)]"
-              >
-                {activity ? "Update" : "Add"} Activity
-              </Button>
-            </div>
+          </div>
+          {/* Outside the scrolling body so Cancel/Add stay visible on short
+              phone screens (they used to scroll below the fold). */}
+          <div className="flex gap-3 pt-4 mt-2 shrink-0 border-t border-border">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => onOpenChange(false)}
+              className="flex-1 bg-transparent hover:bg-destructive/10 border border-destructive/50 text-destructive h-12"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1 bg-[var(--explorer-blue)] hover:bg-[var(--explorer-blue-deep)] h-12 font-bold border border-[var(--explorer-blue)]"
+            >
+              {activity ? "Update" : "Add"} Activity
+            </Button>
           </div>
         </form>
       </DialogContent>

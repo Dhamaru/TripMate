@@ -138,7 +138,12 @@ export default function PublicTripPage() {
                       Day {day.day ?? (day.dayIndex != null ? day.dayIndex + 1 : i + 1)}
                     </h2>
                     <div className="space-y-2">
-                      {day.activities.map((activity, j) => (
+                      {!day.activities?.length && (
+                        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                          Free day, nothing planned yet.
+                        </p>
+                      )}
+                      {(day.activities || []).map((activity, j) => (
                         <div
                           key={activity.id ?? j}
                           className="flex items-center gap-3 py-1.5 border-b border-[hsl(var(--border))] last:border-0"

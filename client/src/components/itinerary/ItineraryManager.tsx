@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useIsMutating } from "@tanstack/react-query";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import type { Trip } from "@/types/api.types";
 import { type IItineraryDay, type IItineraryActivity } from "@shared/schema";
@@ -438,31 +439,26 @@ export function ItineraryManager({
   };
   const { toast } = useToast();
 
-  // Sync state with props ONLY when trip ID changes or local state is empty
-  // This prevents refetches from overwriting active UI transitions/mutations
+  // Follow the server's itinerary whenever it changes, except while one of
+  // our own saves is in flight (an optimistic local change mustn't be
+  // flashed back). It used to ignore an incoming itinerary with no
+  // activities, so when a collaborator deleted the last activity this
+  // screen kept showing it until a reload.
+  const mutating = useIsMutating();
   useEffect(() => {
-    const hasLocalActivities = itinerary.some((d) => d.activities?.length > 0);
-    const hasIncomingActivities =
-      trip.itinerary &&
-      trip.itinerary.length > 0 &&
-      trip.itinerary.some((d) => d.activities?.length > 0);
-
+    if (mutating > 0) return;
     if (!trip.itinerary || trip.itinerary.length === 0) {
-      // Only initialize empty if we don't have local data either
-      if (!hasLocalActivities) {
-        console.log("[ItineraryManager] DEBUG: Initializing empty itinerary");
-        const emptyItinerary: IItineraryDay[] = [];
-        for (let i = 0; i < trip.days; i++) {
-          emptyItinerary.push({ dayIndex: i, day: i + 1, activities: [] });
-        }
-        setItinerary(emptyItinerary);
-      }
-    } else if (hasIncomingActivities || !hasLocalActivities) {
-      // Only overwrite if incoming has data OR local is empty
-      // This allows optimistic updates from mutations to persist while refetching
+      setItinerary(
+        Array.from({ length: trip.days || 0 }, (_, i) => ({
+          dayIndex: i,
+          day: i + 1,
+          activities: [],
+        })),
+      );
+    } else {
       setItinerary(trip.itinerary as any);
     }
-  }, [trip.itinerary, trip.days, trip.id]);
+  }, [trip.itinerary, trip.days, trip.id, mutating]);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -745,23 +741,28 @@ export function ItineraryManager({
             key={dayIdx}
             className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] mb-4 overflow-hidden"
           >
-            <div className="flex items-center justify-between px-4 py-3 bg-[hsl(var(--muted))]/50 perforated-edge">
-              <div className="flex items-center gap-2">
-                <h3 className="font-display font-bold text-foreground tracking-tight">
+            {/* Each piece stays on one line and the header wraps between them;
+                at 390px "Day / 1" and the date stamp were splitting mid-word. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-[hsl(var(--muted))]/50 perforated-edge">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <h3 className="font-display font-bold text-foreground tracking-tight whitespace-nowrap">
                   Day {day.day || dayIdx + 1}
                 </h3>
                 {dateLabel && (
-                  <span className="stamp text-[11px] text-[var(--ink-blue-text)]">{dateLabel}</span>
+                  <span className="stamp text-[11px] text-[var(--ink-blue-text)] whitespace-nowrap">
+                    {dateLabel}
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono-data text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-2 py-1 rounded-full">
-                  {day.activities.length} Activities
+                <span className="text-xs font-mono-data text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-2 py-1 rounded-full whitespace-nowrap">
+                  {day.activities.length} {day.activities.length === 1 ? "activity" : "activities"}
                 </span>
                 {canEdit && (
                   <Button
                     onClick={() => handleAddActivity(dayIdx)}
                     data-testid={`button-add-activity-${dayIdx}`}
+                    aria-label={`Add activity to day ${day.day || dayIdx + 1}`}
                     size="sm"
                     className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white flex items-center gap-1 rounded-lg text-xs font-medium"
                   >

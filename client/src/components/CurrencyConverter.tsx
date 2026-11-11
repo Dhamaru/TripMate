@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { guessHomeCurrency } from "@/lib/homeCurrency";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,8 +36,11 @@ interface ConversionResult {
 
 export function CurrencyConverter({ className = "" }: { className?: string }) {
   const [amount, setAmount] = useState("100");
-  const [fromCurrency, setFromCurrency] = useState("USD");
-  const [toCurrency, setToCurrency] = useState("EUR");
+  // Foreign money into the traveler's home currency (was always USD -> EUR).
+  const [fromCurrency, setFromCurrency] = useState(() =>
+    guessHomeCurrency() === "USD" ? "EUR" : "USD",
+  );
+  const [toCurrency, setToCurrency] = useState(guessHomeCurrency);
   const [budget, setBudget] = useState("");
   const [activeTab, setActiveTab] = useState<"convert" | "budget">("convert");
 
@@ -168,9 +172,15 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">From</label>
+              <label
+                htmlFor="currency-from"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                From
+              </label>
               <Select value={fromCurrency} onValueChange={setFromCurrency}>
                 <SelectTrigger
+                  id="currency-from"
                   className="bg-muted border text-foreground"
                   data-testid="select-from-currency"
                 >
@@ -196,9 +206,15 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">To</label>
+              <label
+                htmlFor="currency-to"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                To
+              </label>
               <Select value={toCurrency} onValueChange={setToCurrency}>
                 <SelectTrigger
+                  id="currency-to"
                   className="bg-muted border text-foreground"
                   data-testid="select-to-currency"
                 >
@@ -234,8 +250,14 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
           {activeTab === "convert" ? (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Amount</label>
+                <label
+                  htmlFor="currency-amount"
+                  className="block text-sm font-medium text-foreground mb-1"
+                >
+                  Amount
+                </label>
                 <Input
+                  id="currency-amount"
                   type="number"
                   min="0"
                   value={amount}
@@ -257,10 +279,14 @@ export function CurrencyConverter({ className = "" }: { className?: string }) {
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
+                <label
+                  htmlFor="currency-budget"
+                  className="block text-sm font-medium text-foreground mb-1"
+                >
                   Trip Budget ({fromCurrency})
                 </label>
                 <Input
+                  id="currency-budget"
                   type="number"
                   value={budget}
                   onChange={(e) => setBudget(e.target.value)}

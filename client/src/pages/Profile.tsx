@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -362,8 +363,8 @@ export default function Profile() {
         </div>
         <Card className="bg-card border-border">
           <CardContent className="flex flex-col items-center gap-6 py-16 text-center">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-4xl">
-              👤
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <UserRound className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-bold text-foreground">Guest Account</h2>
@@ -532,25 +533,37 @@ export default function Profile() {
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label
+                  htmlFor="profile-first-name"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
                   First Name
                 </label>
-                <Input name="firstName" defaultValue={firstName} />
+                <Input id="profile-first-name" name="firstName" defaultValue={firstName} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label
+                  htmlFor="profile-last-name"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
                   Last Name
                 </label>
-                <Input name="lastName" defaultValue={lastName} />
+                <Input id="profile-last-name" name="lastName" defaultValue={lastName} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label
+                  htmlFor="profile-email"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
                   Email
                 </label>
-                <Input name="email" defaultValue={email} disabled />
+                <Input id="profile-email" name="email" defaultValue={email} disabled />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label
+                  htmlFor="profile-phone"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
                   Phone Number
                 </label>
                 <div className="flex gap-2">
@@ -570,6 +583,7 @@ export default function Profile() {
                   </div>
                   <div className="flex-1">
                     <Input
+                      id="profile-phone"
                       aria-label="Phone number"
                       value={phoneLocal}
                       onChange={(e) => setPhoneLocal(e.target.value)}
@@ -579,7 +593,7 @@ export default function Profile() {
                     {phoneError && (
                       <p
                         id="phone-error"
-                        className="text-xs text-red-400 mt-1"
+                        className="text-xs text-[var(--stamp-red-text)] mt-1"
                         aria-live="assertive"
                       >
                         {phoneError}
@@ -591,9 +605,9 @@ export default function Profile() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <p className="block text-sm font-medium text-muted-foreground mb-2">
                 Dietary preferences
-              </label>
+              </p>
               <div className="flex flex-wrap gap-2">
                 {DIETARY_OPTIONS.map((opt) => (
                   <button
@@ -613,9 +627,9 @@ export default function Profile() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <p className="block text-sm font-medium text-muted-foreground mb-2">
                 Cuisines you enjoy
-              </label>
+              </p>
               <p className="text-xs text-muted-foreground mb-2">
                 Used to suggest real, named restaurants when planning a trip.
               </p>
@@ -670,13 +684,19 @@ export default function Profile() {
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label
+                htmlFor="currentPassword"
+                className="block text-sm font-medium text-muted-foreground mb-2"
+              >
                 Current Password
               </label>
               <Input type="password" id="currentPassword" name="currentPassword" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label
+                htmlFor="newPassword"
+                className="block text-sm font-medium text-muted-foreground mb-2"
+              >
                 New Password
               </label>
               <Input type="password" id="newPassword" name="newPassword" required />
@@ -891,11 +911,15 @@ export default function Profile() {
                   className="flex items-end gap-4"
                 >
                   <div className="flex-1">
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    <label
+                      htmlFor="profile-delete-confirm"
+                      className="block text-xs font-medium text-muted-foreground mb-1"
+                    >
                       {hasPassword ? "Confirm Password" : 'Type "DELETE" to confirm'}
                     </label>
                     {hasPassword ? (
                       <Input
+                        id="profile-delete-confirm"
                         type="password"
                         name="deletePassword"
                         placeholder="Enter password to confirm"
@@ -903,6 +927,7 @@ export default function Profile() {
                       />
                     ) : (
                       <Input
+                        id="profile-delete-confirm"
                         type="text"
                         name="deleteConfirm"
                         placeholder="DELETE"

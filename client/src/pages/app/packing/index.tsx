@@ -1156,6 +1156,7 @@ export default function PackingChecklist() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
+              aria-label="Search items"
               placeholder="Search items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -1265,6 +1266,7 @@ export default function PackingChecklist() {
 
         <div className="flex gap-3 mb-12">
           <Input
+            aria-label="Add a custom item"
             placeholder="Add custom item..."
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}

@@ -92,6 +92,12 @@ export function TripMap({
   const [geocodeError, setGeocodeError] = useState(false);
   const [loading, setLoading] = useState(false);
   const { theme: mapTheme } = useTheme();
+  // Popup buttons call the latest handlers (the marker effect only re-runs
+  // when the map data changes, so it kept stale callbacks before).
+  const onDeleteRef = useRef(onDeleteActivity);
+  onDeleteRef.current = onDeleteActivity;
+  const onViewRef = useRef(onViewInItinerary);
+  onViewRef.current = onViewInItinerary;
   const [addSpotDialogOpen, setAddSpotDialogOpen] = useState(false);
   const [pendingAddSpot, setPendingAddSpot] = useState<{
     lat: number;
@@ -174,7 +180,6 @@ export function TripMap({
 
   // Reset coords when destination changes
   useEffect(() => {
-    console.log("[TripMap] Destination changed to:", destination);
     setCoords(null);
     setGeocodeError(false);
   }, [destination]);
@@ -182,13 +187,11 @@ export function TripMap({
   // Fetch destination coordinates
   useEffect(() => {
     if (!destination) {
-      console.log("[TripMap] No destination provided, skipping geocode");
       return;
     }
 
     const fetchCoords = async () => {
       setLoading(true);
-      console.log(`[TripMap] Attempting geocode for: "${destination}"`);
       try {
         const res = await fetch(`/api/v1/geocode?q=${encodeURIComponent(destination)}`);
         if (!res.ok) {
@@ -348,7 +351,6 @@ export function TripMap({
   // Initialize or Update Map
   useEffect(() => {
     if (!coords || !mapContainerRef.current) return;
-    console.log("[TripMap] Updating map with coords:", coords);
 
     if (!mapInstanceRef.current) {
       // Fix marker icons
@@ -438,13 +440,15 @@ export function TripMap({
           const type = (firstAct.type || "sightseeing").toLowerCase();
 
           const typeConfig: Record<string, { color: string; icon: string }> = {
-            sightseeing: { color: "#3b82f6", icon: "fa-camera" },
-            restaurant: { color: "#ef4444", icon: "fa-utensils" },
-            cafe: { color: "#f97316", icon: "fa-coffee" },
-            market: { color: "#10b981", icon: "fa-shopping-basket" },
-            museum: { color: "#8b5cf6", icon: "fa-landmark" },
-            temple: { color: "#d946ef", icon: "fa-gopuram" },
-            park: { color: "#22c55e", icon: "fa-tree" },
+            // Category inks from index.css (mid-tone, as in the budget chart),
+            // so pins match the itinerary's colours.
+            sightseeing: { color: "#4f82c4", icon: "fa-camera" },
+            restaurant: { color: "#c2410c", icon: "fa-utensils" },
+            cafe: { color: "#c2410c", icon: "fa-coffee" },
+            market: { color: "#0f766e", icon: "fa-shopping-basket" },
+            museum: { color: "#854d0e", icon: "fa-landmark" },
+            temple: { color: "#854d0e", icon: "fa-gopuram" },
+            park: { color: "#2f6f4e", icon: "fa-tree" },
             default: { color: "#64748b", icon: "fa-map-marker-alt" },
           };
 
@@ -498,7 +502,7 @@ export function TripMap({
               editBtn.innerHTML = '<i class="fas fa-pen mr-1"></i> Edit';
               editBtn.style.cssText =
                 "color: #1d4e89; font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
-              editBtn.onclick = () => onViewInItinerary(act.id);
+              editBtn.onclick = () => onViewRef.current?.(act.id);
               actionsRow.appendChild(editBtn);
             }
             if (onDeleteActivity) {
@@ -508,7 +512,7 @@ export function TripMap({
                 "color: var(--ios-red); font-size: 0.75em; background: none; border: none; padding: 4px 0; cursor: pointer;";
               delBtn.onclick = () => {
                 if (window.confirm(`Remove "${act.placeName || act.title}" from your itinerary?`))
-                  onDeleteActivity(act.dayIndex, act.actIndex);
+                  onDeleteRef.current?.(act.dayIndex, act.actIndex);
               };
               actionsRow.appendChild(delBtn);
             }
@@ -546,7 +550,8 @@ export function TripMap({
         adhocMarkerRef.current = null;
       }
     }
-  }, [coords, itinerary]);
+    // Re-run when edit rights change (handlers appear/disappear).
+  }, [coords, itinerary, !!onDeleteActivity, !!onViewInItinerary]);
 
   // "View on Map" from the itinerary — fly to and open that activity's
   // marker. Keyed by the same rounded lat/lon the marker-building effect
@@ -630,7 +635,7 @@ export function TripMap({
     pathLayerRef.current.clearLayers();
     if (!showPaths || !itinerary) return;
 
-    const dayColors = ["#3b82f6", "#8b5cf6", "#ef4444", "#f97316", "#10b981", "#d946ef", "#64748b"];
+    const dayColors = ["#4f82c4", "#c2410c", "#2f6f4e", "#854d0e", "#0f766e", "#b3261e", "#64748b"];
     let cancelled = false;
 
     itinerary.forEach((day: any, dayIndex: number) => {
@@ -722,7 +727,7 @@ export function TripMap({
         radius: 7,
         color: "#ffffff",
         weight: 2,
-        fillColor: "#2563eb",
+        fillColor: "#1d4e89",
         fillOpacity: 1,
       })
         .bindTooltip("You are here", { direction: "top" })
@@ -768,7 +773,7 @@ export function TripMap({
             r.geometry?.coordinates?.map(([lng, lat]: [number, number]) => [lat, lng]) ?? [];
           if (!line.length) return;
           const poly = L.polyline(line, {
-            color: i === 0 ? "#2563eb" : "#94a3b8",
+            color: i === 0 ? "#1d4e89" : "#94a3b8",
             weight: i === 0 ? 5 : 3,
             opacity: i === 0 ? 0.85 : 0.5,
             dashArray: i === 0 ? undefined : "4, 6",
@@ -817,6 +822,7 @@ export function TripMap({
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <div className="relative w-44 md:w-56">
                 <Input
+                  aria-label="Search for a place to pin"
                   placeholder="Search to pin..."
                   className="h-8 text-xs pr-7 bg-muted border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[rgb(var(--amber-rgb)/50%)] focus-visible:border-[rgb(var(--amber-rgb)/50%)] rounded-lg"
                   onKeyDown={async (e) => {
@@ -1012,7 +1018,7 @@ export function TripMap({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-3 text-xs font-medium rounded-lg gap-1.5 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
+                    className="h-8 px-3 text-xs font-medium rounded-lg gap-1.5 text-muted-foreground hover:text-[var(--transit-green-text)] hover:bg-emerald-500/10 transition-all"
                   >
                     <i className="fas fa-bullhorn text-[11px]"></i>
                     Report

@@ -82,7 +82,7 @@ export default function ContactUs() {
             {submitted ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-check text-green-500 text-2xl"></i>
+                  <i className="fas fa-check text-[var(--transit-green-text)] text-2xl"></i>
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-2">Message Sent!</h3>
                 <p className="text-muted-foreground">

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { motion } from "framer-motion";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1278,33 +1279,34 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
         <div className="flex space-x-1 bg-muted p-1 rounded-xl">
           <button
             onClick={() => setActiveTab("explore")}
-            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "explore" ? "bg-[#163F73] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "explore" ? "bg-[rgb(var(--ink-blue-rgb))] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
           >
             Explore
           </button>
           <button
             onClick={() => setActiveTab("navigation")}
-            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "navigation" ? "bg-[#163F73] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "navigation" ? "bg-[rgb(var(--ink-blue-rgb))] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
           >
             Navigation
           </button>
           <button
             onClick={() => setActiveTab("saved")}
-            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "saved" ? "bg-[#163F73] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "saved" ? "bg-[rgb(var(--ink-blue-rgb))] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
           >
             <span className="whitespace-nowrap">Saved Pins</span>
           </button>
         </div>
         {offlineModeRegion ? (
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[#3D9467] bg-[#3D9467]/10 text-[#3D9467] rotate-[-2deg] truncate max-w-[140px] sm:max-w-none">
+            <span className="text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[var(--transit-green-text)] bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] rotate-[-2deg] truncate max-w-[140px] sm:max-w-none">
               Offline: {offlineModeRegion.name}
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={exitOfflineMap}
-              className="h-6 w-6 p-0 rounded-full bg-[#B3261E]/10 hover:bg-[#B3261E]/20 text-[var(--stamp-red-text)] border border-[#B3261E]/50 flex items-center justify-center flex-shrink-0"
+              aria-label="Exit offline map"
+              className="h-9 w-9 p-0 rounded-full bg-[rgb(var(--stamp-red-rgb)/10%)] hover:bg-[rgb(var(--stamp-red-rgb)/20%)] text-[var(--stamp-red-text)] border border-[rgb(var(--stamp-red-rgb)/50%)] flex items-center justify-center flex-shrink-0"
             >
               <i className="fas fa-times text-xs"></i>
             </Button>
@@ -1360,7 +1362,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 <h4 className="text-foreground font-serif font-bold text-sm">Live Navigation</h4>
                 <div className="flex items-center gap-2">
                   {isNavigating && (
-                    <span className="text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[#3D9467] bg-[#3D9467]/10 text-[#3D9467] rotate-[-2deg] animate-pulse">
+                    <span className="text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[var(--transit-green-text)] bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] rotate-[-2deg] animate-pulse">
                       Live
                     </span>
                   )}
@@ -1384,7 +1386,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     role="switch"
                     aria-checked={isNavigating}
                     aria-label="Live tracking"
-                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? "bg-[#3D9467]" : "bg-muted"}`}
+                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? "bg-[rgb(var(--transit-green-rgb))]" : "bg-muted"}`}
                     onClick={() => setIsNavigating(!isNavigating)}
                   >
                     <div
@@ -1397,6 +1399,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                   <h4 className="text-foreground font-serif font-bold text-sm mb-2">Route</h4>
                   <div className="space-y-2 relative">
                     <input
+                      aria-label="Navigation destination"
                       type="text"
                       autoFocus
                       placeholder="Destination (city or place)"
@@ -1467,7 +1470,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 text-xs border-[#163F73] text-[var(--ink-blue-text)] hover:bg-[#163F73] hover:text-white"
+                        className="flex-1 text-xs border-[var(--ink-blue-text)] text-[var(--ink-blue-text)] hover:bg-[rgb(var(--ink-blue-rgb))] hover:text-white"
                         onClick={handleCalculateRoute}
                       >
                         Get Route
@@ -1475,7 +1478,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 text-xs border-[#B3261E]/50 text-[var(--stamp-red-text)] hover:bg-[#B3261E]/10"
+                        className="flex-1 text-xs border-[rgb(var(--stamp-red-rgb)/50%)] text-[var(--stamp-red-text)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)]"
                         onClick={() => {
                           if (routePolylineRef.current) {
                             routePolylineRef.current.remove();
@@ -1508,7 +1511,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 {routeSteps.length > 0 && (
                   <div className="border-t border-border pt-3 space-y-2">
                     {routeArrived ? (
-                      <p className="text-sm font-semibold text-[#3D9467]">
+                      <p className="text-sm font-semibold text-[var(--transit-green-text)]">
                         <i className="fas fa-flag-checkered mr-1.5"></i>
                         You've arrived
                       </p>
@@ -1578,7 +1581,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                     setPinDialogOpen(true);
                   }
                 }}
-                className="bg-[#163F73] hover:bg-[#0F2C52] text-white rounded-xl text-xs sm:text-sm"
+                className="bg-[rgb(var(--ink-blue-rgb))] hover:bg-[#0F2C52] text-white rounded-xl text-xs sm:text-sm"
               >
                 <i className="fas fa-plus mr-1 sm:mr-2"></i>
                 <span className="hidden xs:inline">Add Pin</span>
@@ -1647,7 +1650,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
               md:bottom-0 because the desktop sidebar layout has no bottom nav
               to clear. */}
         <motion.div
-          className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-30 bg-card border-t border-[#163F73]/40 rounded-t-2xl flex flex-col overflow-hidden"
+          className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-30 bg-card border-t border-[rgb(var(--ink-blue-rgb)/40%)] rounded-t-2xl flex flex-col overflow-hidden"
           animate={{ height: sheetExpanded ? "65%" : 56 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           style={{ maxHeight: "80%" }}
@@ -1703,6 +1706,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                   <CardContent className="space-y-4">
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Input
+                        aria-label="Search for a city"
                         placeholder="Search city..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -1717,7 +1721,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                       <Button
                         onClick={() => fetchPlaces(searchQuery)}
                         disabled={placesLoading}
-                        className="bg-[#163F73] hover:bg-[#0F2C52] rounded-xl w-full sm:w-auto"
+                        className="bg-[rgb(var(--ink-blue-rgb))] hover:bg-[#0F2C52] rounded-xl w-full sm:w-auto"
                       >
                         {placesLoading ? "Searching..." : "Search"}
                       </Button>
@@ -1785,7 +1789,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                               </div>
                               {p.category && (
                                 <div className="mt-1">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-[3px] border border-[#1D4E89] rotate-[-2deg] text-[11px] font-mono uppercase tracking-[0.05em] bg-[#1D4E89]/10 text-[var(--ink-blue-text)]">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-[3px] border border-[var(--ink-blue-text)] rotate-[-2deg] text-[11px] font-mono uppercase tracking-[0.05em] bg-[rgb(var(--ink-blue-rgb)/10%)] text-[var(--ink-blue-text)]">
                                     {p.category.replace(/_/g, " ")}
                                   </span>
                                 </div>
@@ -1834,7 +1838,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                 <CardContent>
                   <Progress
                     value={(totalSize / (2 * 1024 * 1024 * 1024)) * 100}
-                    className="h-2 bg-muted [&>div]:bg-[#163F73]"
+                    className="h-2 bg-muted [&>div]:bg-[rgb(var(--ink-blue-rgb))]"
                   />
                   <p className="text-[11px] text-muted-foreground mt-2 text-right">
                     Offline maps auto-expire 30 days after download
@@ -1871,7 +1875,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                               <p className="text-xs text-white/60">{r.country}</p>
                             </div>
                             {r.downloaded && (
-                              <div className="absolute top-2 right-2 text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[#3D9467] bg-[#3D9467]/10 text-[#3D9467] rotate-[-2deg]">
+                              <div className="absolute top-2 right-2 text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[var(--transit-green-text)] bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] rotate-[-2deg]">
                                 Saved
                               </div>
                             )}
@@ -1884,14 +1888,11 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                                   ? formatBytes(r.bytes)
                                   : `~${formatBytes(estimateRegionBytes())}`}
                               </span>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-[var(--stamp-red-text)] hover:text-[var(--stamp-red-text)] hover:bg-[#B3261E]/10"
-                                onClick={() => deleteMap(r.id)}
-                              >
-                                <i className="fas fa-trash text-xs"></i>
-                              </Button>
+                              <ConfirmDeleteButton
+                                onConfirm={() => deleteMap(r.id)}
+                                label={`Delete downloaded map ${r.name}`}
+                                testId={`button-delete-map-${r.id}`}
+                              />
                             </div>
 
                             {r.downloaded ? (
@@ -1900,7 +1901,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                                   size="sm"
                                   variant="secondary"
                                   onClick={() => openOfflineMap(r)}
-                                  className="flex-1 rounded-xl bg-[#3D9467]/10 text-[#3D9467] hover:bg-[#3D9467]/20 border border-[#3D9467]/60 transition-all font-semibold"
+                                  className="flex-1 rounded-xl bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] hover:bg-[rgb(var(--transit-green-rgb)/20%)] border border-[rgb(var(--transit-green-rgb)/60%)] transition-all font-semibold"
                                 >
                                   <i className="fas fa-map-marked-alt mr-2"></i> Open Map
                                 </Button>
@@ -1910,7 +1911,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                                   disabled={exportingId === r.id}
                                   onClick={() => exportRegion(r.id)}
                                   title="Save as one image file to your device's Downloads folder"
-                                  className="flex-1 rounded-xl border-[#1D4E89] text-[var(--ink-blue-text)] hover:bg-[#1D4E89] hover:text-white transition-colors"
+                                  className="flex-1 rounded-xl border-[var(--ink-blue-text)] text-[var(--ink-blue-text)] hover:bg-[rgb(var(--ink-blue-rgb))] hover:text-white transition-colors"
                                 >
                                   <i
                                     className={`fas ${exportingId === r.id ? "fa-spinner fa-spin" : "fa-file-download"} mr-2`}
@@ -1932,7 +1933,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="w-full rounded-xl border-[#1D4E89] text-[var(--ink-blue-text)] hover:bg-[#1D4E89] hover:text-white transition-colors"
+                                className="w-full rounded-xl border-[var(--ink-blue-text)] text-[var(--ink-blue-text)] hover:bg-[rgb(var(--ink-blue-rgb))] hover:text-white transition-colors"
                                 onClick={() => downloadMap(r.id)}
                               >
                                 <i className="fas fa-download mr-1"></i> Download
@@ -1995,7 +1996,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-[var(--stamp-red-text)] hover:text-[var(--stamp-red-text)] hover:bg-[#B3261E]/10 flex-shrink-0"
+                            className="h-8 w-8 text-[var(--stamp-red-text)] hover:text-[var(--stamp-red-text)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] flex-shrink-0"
                             onClick={() => handleDeletePin(pin.id)}
                             aria-label={`Delete pin ${pin.name}`}
                           >

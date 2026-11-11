@@ -200,14 +200,17 @@ export default function Feedback() {
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
               {/* Type Selection */}
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
+                <label
+                  htmlFor="feedback-type"
+                  className="block text-sm font-semibold text-foreground mb-2"
+                >
                   Type <span className="text-destructive">*</span>
                 </label>
                 <Select
                   value={form.type}
                   onValueChange={(value) => setForm({ ...form, type: value })}
                 >
-                  <SelectTrigger className="bg-muted/50 border text-foreground">
+                  <SelectTrigger id="feedback-type" className="bg-muted/50 border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border">
@@ -272,7 +275,10 @@ export default function Feedback() {
 
               {/* Category */}
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
+                <label
+                  htmlFor="feedback-category"
+                  className="block text-sm font-semibold text-foreground mb-2"
+                >
                   Category <span className="text-destructive">*</span>
                 </label>
                 <Select
@@ -288,6 +294,7 @@ export default function Feedback() {
                   }}
                 >
                   <SelectTrigger
+                    id="feedback-category"
                     className={`bg-muted/50 border text-foreground ${submitErrors.has("category") ? "border-destructive ring-1 ring-destructive" : ""}`}
                   >
                     <SelectValue placeholder="Select category" />
@@ -335,10 +342,14 @@ export default function Feedback() {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
+                <label
+                  htmlFor="feedback-email"
+                  className="block text-sm font-semibold text-foreground mb-2"
+                >
                   Email <span className="text-destructive">*</span>
                 </label>
                 <Input
+                  id="feedback-email"
                   type="email"
                   placeholder="your.email@example.com"
                   value={form.email}
@@ -361,10 +372,14 @@ export default function Feedback() {
 
               {/* Subject */}
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
+                <label
+                  htmlFor="feedback-subject"
+                  className="block text-sm font-semibold text-foreground mb-2"
+                >
                   Subject <span className="text-destructive">*</span>
                 </label>
                 <Input
+                  id="feedback-subject"
                   type="text"
                   placeholder="Brief summary of your feedback or issue"
                   value={form.subject}
@@ -387,10 +402,14 @@ export default function Feedback() {
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
+                <label
+                  htmlFor="feedback-description"
+                  className="block text-sm font-semibold text-foreground mb-2"
+                >
                   Description <span className="text-destructive">*</span>
                 </label>
                 <Textarea
+                  id="feedback-description"
                   placeholder={
                     form.type === "bug"
                       ? "Please describe the issue:\n\n1. What were you trying to do?\n2. What happened instead?\n3. Steps to reproduce (if applicable)"
@@ -418,13 +437,17 @@ export default function Feedback() {
 
               {/* Attachments */}
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
+                <label
+                  htmlFor="feedback-screenshots"
+                  className="block text-sm font-semibold text-foreground mb-2"
+                >
                   Screenshots{" "}
                   <span className="text-muted-foreground font-normal">
                     (optional, up to {MAX_ATTACHMENTS})
                   </span>
                 </label>
                 <input
+                  id="feedback-screenshots"
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"

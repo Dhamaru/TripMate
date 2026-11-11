@@ -58,7 +58,7 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
 
       if (newValue !== 0) {
         toast({
-          title: newValue > 0 ? "Vibe boosted! 🚀" : "Vibe check recorded 📉",
+          title: newValue > 0 ? "Vote recorded: more of this" : "Vote recorded: less of this",
           description:
             newValue > 0
               ? "Atlas will prioritize similar activities."
@@ -82,18 +82,22 @@ export function VibeVoting({ tripId, dayIndex, activityId, initialVotes = 0 }: P
       <Button
         variant="ghost"
         size="icon"
-        className={`h-7 w-7 transition-colors ${userVote === 1 ? "text-green-400 bg-green-500/10" : "text-[hsl(var(--muted-foreground))]/50 hover:text-green-400 hover:bg-green-500/10"}`}
+        className={`h-10 w-10 transition-colors ${userVote === 1 ? "text-[var(--transit-green-text)] bg-[rgb(var(--transit-green-rgb)/12%)]" : "text-muted-foreground hover:text-[var(--transit-green-text)] hover:bg-[rgb(var(--transit-green-rgb)/12%)]"}`}
         onClick={() => void handleVote(1)}
         title="Boost this vibe"
+        aria-label="Vote up"
+        aria-pressed={userVote === 1}
       >
         <ThumbsUp className="h-3 w-3" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className={`h-7 w-7 transition-colors ${userVote === -1 ? "text-orange-400 bg-orange-500/10" : "text-[hsl(var(--muted-foreground))]/50 hover:text-orange-400 hover:bg-orange-500/10"}`}
+        className={`h-10 w-10 transition-colors ${userVote === -1 ? "text-[var(--stamp-red-text)] bg-[rgb(var(--stamp-red-rgb)/12%)]" : "text-muted-foreground hover:text-[var(--stamp-red-text)] hover:bg-[rgb(var(--stamp-red-rgb)/12%)]"}`}
         onClick={() => void handleVote(-1)}
         title="Vibe check"
+        aria-label="Vote down"
+        aria-pressed={userVote === -1}
       >
         <ThumbsDown className="h-3 w-3" />
       </Button>

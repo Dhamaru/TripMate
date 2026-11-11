@@ -136,7 +136,8 @@ export function SortablePackingItem({
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-red-500 transition-colors rounded-full h-8 w-8 p-0"
+          className="text-muted-foreground hover:text-[var(--stamp-red-text)] transition-colors rounded-full h-10 w-10 p-0"
+          aria-label="Remove item"
           onClick={(e) => {
             e.stopPropagation();
             handleDelete();
