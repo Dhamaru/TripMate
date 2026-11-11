@@ -10,7 +10,8 @@
 // to multiple instances, move this to a dedicated worker.
 
 import cron from "node-cron";
-import { TripModel, JournalEntryModel, PackingListModel } from "@shared/schema";
+import { TripModel, JournalEntryModel, PackingListModel, UserModel } from "@shared/schema";
+import { deleteUserData } from "./services/deleteUserData";
 import { notifyTripParticipants } from "./notifications";
 import { weatherHandler } from "./agent/tools/handlers/weatherHandler";
 
@@ -257,6 +258,20 @@ export async function runReminderSweep(): Promise<void> {
   if (sent > 0) console.log(`[scheduler] reminder sweep sent ${sent} notification(s)`);
 }
 
+// Guest accounts are one-tap and anonymous; nothing ever removed them, so
+// they and their trips piled up on the 512MB free database.
+const GUEST_MAX_AGE_DAYS = 30;
+export async function purgeOldGuests(): Promise<number> {
+  const cutoff = new Date(Date.now() - GUEST_MAX_AGE_DAYS * 86400000);
+  const guests = await UserModel.find({ isGuest: true, createdAt: { $lt: cutoff } })
+    .select("_id")
+    .limit(200)
+    .lean();
+  for (const g of guests) await deleteUserData(String(g._id));
+  if (guests.length) console.log(`[scheduler] removed ${guests.length} old guest account(s)`);
+  return guests.length;
+}
+
 export function startScheduler(): void {
   const sweep = () =>
     runReminderSweep().catch((e) => console.error("[scheduler] reminder sweep failed:", e));
@@ -267,5 +282,8 @@ export function startScheduler(): void {
   // atomically, so repeats are no-ops. (.github/workflows/wake.yml wakes it
   // each morning.)
   cron.schedule("15 * * * *", sweep);
+  cron.schedule("45 3 * * *", () =>
+    purgeOldGuests().catch((e) => console.error("[scheduler] guest purge failed:", e)),
+  );
   setTimeout(sweep, 60_000).unref?.();
 }

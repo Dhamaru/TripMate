@@ -18,19 +18,17 @@ function getSharedSocket(): Socket {
       transports: ["websocket"],
       withCredentials: true,
       autoConnect: true,
+      // Keep trying (with backoff up to 30s): a cap of 5 tries gave up for
+      // good after ~20s of outage, e.g. a deploy or a sleeping phone.
       reconnection: true,
-      reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 30_000,
     });
 
-    sharedSocket.on("connect", () => {
-      console.log("[Socket] Connected to server:", sharedSocket!.id);
-    });
     sharedSocket.on("connect_error", (error) => {
-      console.error("[Socket] Connection error:", error);
+      console.warn("[Socket] Connection error:", error.message);
     });
     sharedSocket.on("disconnect", (reason) => {
-      console.log("[Socket] Disconnected from server:", reason);
       // The server drops sockets whose session ended (password change,
       // revoke, sign-out). socket.io won't retry those on its own; try
       // once with whatever session cookie this tab now has.

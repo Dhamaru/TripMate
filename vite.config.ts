@@ -49,7 +49,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/api\//, /^\/download\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/download(\/|$)/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.openweathermap\.org\/.*/i,

@@ -1,13 +1,22 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { Mountain, Armchair, Landmark, Utensils } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { TripMap } from "@/components/TripMap";
-import { BudgetTracker } from "@/components/budget/BudgetTracker";
+// Map (Leaflet) and budget (recharts) load only when their tab is opened.
+const TripMap = lazy(() => import("@/components/TripMap").then((m) => ({ default: m.TripMap })));
+const BudgetTracker = lazy(() =>
+  import("@/components/budget/BudgetTracker").then((m) => ({ default: m.BudgetTracker })),
+);
+const TabLoading = () => (
+  <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
+    Loading…
+  </div>
+);
 import { ItineraryManager } from "@/components/itinerary/ItineraryManager";
 import { CollaboratorManager } from "@/components/collaboration/CollaboratorManager";
 import { RecapPanel } from "@/components/journal/RecapPanel";
 import PresenceBubbles from "@/components/collaboration/PresenceBubbles";
+import { usePresence } from "@/hooks/usePresence";
 import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +106,11 @@ export default function TripDetail() {
   // For the socket handler below without re-subscribing on every render.
   const navigateRef = useRef(setLocation);
   navigateRef.current = setLocation;
+  // Stay in the trip's live room for the whole visit; after a reconnect,
+  // refetch whatever changed while the connection was down.
+  const { members: presenceMembers } = usePresence(id || "", () => {
+    if (id) useTripStore.getState().fetchTrip(id);
+  });
   const { user, isLoading: authLoading, isAuthenticated } = useAuthStore();
   const {
     currentTrip: trip,
@@ -1221,7 +1235,7 @@ export default function TripDetail() {
                 <div className="flex flex-wrap items-center gap-2">
                   {id && trip && (
                     <div className="flex items-center space-x-4">
-                      <PresenceBubbles tripId={id} />
+                      <PresenceBubbles members={presenceMembers} />
                       <CollaboratorManager tripId={id} ownerId={trip.userId} />
                     </div>
                   )}
@@ -2002,21 +2016,25 @@ export default function TripDetail() {
 
           {/* ── Map tab ─────────────────────────────────── */}
           <TabsContent value="map" className="mt-0">
-            <TripMap
-              destination={trip.destination}
-              itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []}
-              origin={trip.origin}
-              onAddActivity={canEditTrip ? handleMapAddActivity : undefined}
-              onDeleteActivity={canEditTrip ? handleMapDeleteActivity : undefined}
-              onViewInItinerary={handleViewInItinerary}
-              focusTarget={mapFocusTarget}
-              tripStatus={trip.status}
-            />
+            <Suspense fallback={<TabLoading />}>
+              <TripMap
+                destination={trip.destination}
+                itinerary={Array.isArray(trip.itinerary) ? trip.itinerary : []}
+                origin={trip.origin}
+                onAddActivity={canEditTrip ? handleMapAddActivity : undefined}
+                onDeleteActivity={canEditTrip ? handleMapDeleteActivity : undefined}
+                onViewInItinerary={handleViewInItinerary}
+                focusTarget={mapFocusTarget}
+                tripStatus={trip.status}
+              />
+            </Suspense>
           </TabsContent>
 
           {/* ── Budget tab ─────────────────────────────────── */}
           <TabsContent value="budget" className="mt-0">
-            <BudgetTracker trip={trip} canEdit={canEditTrip} />
+            <Suspense fallback={<TabLoading />}>
+              <BudgetTracker trip={trip} canEdit={canEditTrip} />
+            </Suspense>
           </TabsContent>
 
           {/* ── Places tab ─────────────────────────────────── */}

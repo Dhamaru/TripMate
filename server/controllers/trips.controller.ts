@@ -103,12 +103,19 @@ const MAX_TRIPS_RETURNED = 200;
 
 export const getTrips = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?._id || req.user?.id;
-  const trips = await TripModel.find({
+  const query = TripModel.find({
     $or: [{ userId }, { "collaborators.userId": userId }],
   })
     .sort({ createdAt: -1 })
     .limit(MAX_TRIPS_RETURNED);
-  res.json(trips);
+  // ?light=true (pickers, packing page): summary fields only, not every
+  // trip's itinerary, expenses and AI plan text.
+  if (req.query.light === "true") {
+    query.select(
+      "userId origin destination imageUrl imageCaption currency budget days groupSize travelStyle status startDate endDate collaborators createdAt updatedAt",
+    );
+  }
+  res.json(await query);
 });
 
 export const getTrip = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {

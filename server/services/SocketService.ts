@@ -217,6 +217,12 @@ export class SocketService {
     this.io?.in(`user:${userId}`).disconnectSockets(true);
   }
 
+  /** Disconnect every client (graceful shutdown). */
+  public close() {
+    this.io?.close();
+    this.io = null;
+  }
+
   public broadcastMutation(
     tripId: string,
     mutation: { type: string; data?: any; actorId?: string },

@@ -15,6 +15,7 @@ import {
   deleteTiles,
   formatBytes,
   TILE_CACHE_NAME,
+  matchTile,
   exportRegionToImage,
   saveBlobToDevice,
 } from "@/lib/offlineTiles";
@@ -186,9 +187,7 @@ export function OfflineMaps({ className = "" }: OfflineMapsProps) {
     // "downloaded" region doesn't silently show blank squares offline with
     // no explanation.
     if (region.downloaded && region.tileUrls?.[0] && !navigator.onLine) {
-      caches
-        .open(TILE_CACHE_NAME)
-        .then((cache) => cache.match(region.tileUrls[0]))
+      matchTile(region.tileUrls[0])
         .then((hit) => {
           if (!hit) {
             toast({

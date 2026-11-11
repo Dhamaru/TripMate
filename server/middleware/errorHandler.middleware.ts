@@ -9,7 +9,9 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
 
   logger.error("ERROR", {
     message: err.message,
-    stack: config.NODE_ENV !== "production" && !isAuthError ? err.stack : undefined,
+    // Server logs only (never sent to the client): production 500s were
+    // logged with no stack, leaving nothing to debug from.
+    stack: statusCode >= 500 ? err.stack : undefined,
     requestId: req.requestId,
     path: req.path,
   });

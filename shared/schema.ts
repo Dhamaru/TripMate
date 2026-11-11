@@ -353,6 +353,9 @@ const tripSchema = new Schema<ITrip>(
 
 tripSchema.index({ userId: 1, createdAt: -1 });
 tripSchema.index({ userId: 1, status: 1 });
+// Most trip queries are $or [owner, collaborator]; without this the
+// collaborator branch scanned the whole collection.
+tripSchema.index({ "collaborators.userId": 1 });
 tripSchema.index({ destination: 1 }, { sparse: true });
 
 export const TripModel: Model<ITrip> = mongoose.model<ITrip>("Trip", tripSchema);
@@ -885,18 +888,7 @@ export type Feedback = IFeedback;
 
 // Single source of truth for notification types — imported by the server
 // trigger sites AND the client's mute-settings UI so the two can't drift.
-export const NOTIFICATION_TYPES = [
-  { value: "collaborator-invite", label: "Added to a trip" },
-  { value: "collaborator-removed", label: "Removed from a trip" },
-  { value: "itinerary-updated", label: "Itinerary changes" },
-  { value: "expense-updated", label: "Expense changes" },
-  { value: "packing-updated", label: "Packing list changes" },
-  { value: "journal-updated", label: "Journal entries" },
-  { value: "recap-generated", label: "Trip recaps" },
-  { value: "trip-updated", label: "Trip detail changes" },
-  { value: "trip-reminder", label: "Trip reminders" },
-] as const;
-export type NotificationType = (typeof NOTIFICATION_TYPES)[number]["value"];
+export { NOTIFICATION_TYPES, type NotificationType } from "./constants";
 
 export interface INotification extends Document {
   userId: string;

@@ -1,9 +1,19 @@
-// Real offline map tile caching via the Cache Storage API. Must use the same
-// cache name as the "map-tiles-cache" runtimeCaching rule in sw.ts
-// so tiles fetched here are served by the CacheFirst strategy when offline,
-// and tiles the service worker opportunistically caches while browsing are
-// visible here too.
-export const TILE_CACHE_NAME = "map-tiles-cache";
+// Real offline map tile caching via the Cache Storage API.
+// Tiles the traveler downloads go in their own cache with no expiry; the
+// browsing cache (RUNTIME_TILE_CACHE, see sw.ts) evicts by age and count,
+// which used to quietly drop "downloaded" regions. sw.ts checks this cache
+// first. Regions downloaded before the split live in the runtime cache, so
+// lookups and deletes cover both.
+export const TILE_CACHE_NAME = "map-tiles-offline";
+export const RUNTIME_TILE_CACHE = "map-tiles-cache";
+
+/** A downloaded tile from either cache. */
+export async function matchTile(url: string): Promise<Response | undefined> {
+  return (
+    (await caches.match(url, { cacheName: TILE_CACHE_NAME })) ??
+    (await caches.match(url, { cacheName: RUNTIME_TILE_CACHE }))
+  );
+}
 
 // Rough average size of a raster tile used as fallback when the
 // content-length header is absent.
@@ -111,8 +121,10 @@ export async function downloadTiles(
 
 export async function deleteTiles(urls: string[]): Promise<void> {
   if (!("caches" in window)) return;
-  const cache = await caches.open(TILE_CACHE_NAME);
-  await Promise.all(urls.map((u) => cache.delete(u)));
+  for (const name of [TILE_CACHE_NAME, RUNTIME_TILE_CACHE]) {
+    const cache = await caches.open(name);
+    await Promise.all(urls.map((u) => cache.delete(u)));
+  }
 }
 
 const TILE_PX = 256;
@@ -150,7 +162,7 @@ export async function exportRegionToImage(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas rendering is unavailable in this browser");
 
-  const cache = "caches" in window ? await caches.open(TILE_CACHE_NAME) : null;
+  const hasCaches = "caches" in window;
   const total = cols * rows;
   let done = 0;
 
@@ -158,7 +170,7 @@ export async function exportRegionToImage(
     for (let y = minY; y <= maxY; y++) {
       const url = tileUrl(darkMode, zoom, x, y);
       try {
-        let response = cache ? await cache.match(url) : undefined;
+        let response = hasCaches ? await matchTile(url) : undefined;
         if (!response && navigator.onLine) response = await fetch(url, { mode: "cors" });
         if (response && (response.ok || response.type === "opaque")) {
           const blob = await response.blob();

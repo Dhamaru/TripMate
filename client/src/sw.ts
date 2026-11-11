@@ -35,15 +35,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 // a SPA route.
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL("index.html"), {
-    denylist: [/^\/api\//, /^\/download\//],
-  }),
-);
-
-registerRoute(
-  ({ url }) => url.origin === "https://api.openweathermap.org",
-  new CacheFirst({
-    cacheName: "weather-cache",
-    plugins: [new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 })],
+    // /download without a trailing slash showed the SPA's 404 to returning visitors.
+    denylist: [/^\/api\//, /^\/download(\/|$)/],
   }),
 );
 
@@ -51,6 +44,9 @@ registerRoute(
   ({ url }) => /\/api\/v1\/trips.*/i.test(url.pathname),
   new NetworkFirst({
     cacheName: "trips-api-cache",
+    // On a weak connection, show the saved copy after 5s instead of waiting
+    // for the full network timeout.
+    networkTimeoutSeconds: 5,
     plugins: [
       new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 }),
       new CacheableResponsePlugin({ statuses: [0, 200] }),
@@ -64,19 +60,24 @@ registerRoute(
 // provider (see offlineTiles.ts); old OSM/MapTiler/CARTO hostnames kept
 // here too so tiles cached under previous providers still serve from
 // cache instead of silently falling through to network.
+const tileBrowsingCache = new CacheFirst({
+  cacheName: "map-tiles-cache",
+  plugins: [
+    new ExpirationPlugin({ maxEntries: 6000, maxAgeSeconds: 60 * 60 * 24 * 60 }),
+    new CacheableResponsePlugin({ statuses: [200] }),
+  ],
+});
 registerRoute(
   ({ url }) =>
     url.hostname.endsWith("tile.opentopomap.org") ||
     url.hostname.endsWith("basemaps.cartocdn.com") ||
     url.hostname === "api.maptiler.com" ||
     url.hostname === "tile.openstreetmap.org",
-  new CacheFirst({
-    cacheName: "map-tiles-cache",
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 6000, maxAgeSeconds: 60 * 60 * 24 * 60 }),
-      new CacheableResponsePlugin({ statuses: [200] }),
-    ],
-  }),
+  async (options) =>
+    // Tiles the traveler downloaded for offline use (never expire), then the
+    // browsing cache. Name must match TILE_CACHE_NAME in lib/offlineTiles.ts.
+    (await caches.match(options.request, { cacheName: "map-tiles-offline" })) ??
+    tileBrowsingCache.handle(options),
 );
 
 // ── Web push ─────────────────────────────────────────────────────────

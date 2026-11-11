@@ -1,3 +1,4 @@
+import "./fetchTimeout";
 import { clientIpMiddleware } from "./middleware/clientIp.middleware";
 import { config } from "./config";
 import express from "express";
@@ -233,6 +234,9 @@ async function startServer() {
   const shutdown = (signal: string) => {
     log(`received ${signal}, starting graceful shutdown`);
     app.locals.ready = false;
+    // Open websockets otherwise keep the server from closing until the
+    // forced exit below, so Mongo never got closed cleanly.
+    socketService.close();
     server.close(() => {
       mongoose.connection.close(false).finally(() => {
         log("server closed, exiting");

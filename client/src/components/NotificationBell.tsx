@@ -10,7 +10,7 @@ import { showDesktopNotification } from "@/lib/push";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
-import { NOTIFICATION_TYPES } from "@shared/schema";
+import { NOTIFICATION_TYPES } from "@shared/constants";
 
 interface NotificationItem {
   id: string;

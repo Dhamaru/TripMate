@@ -2,15 +2,15 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { usePresence, PresenceMember } from "@/hooks/usePresence";
+import type { PresenceMember } from "@/hooks/usePresence";
 
 interface PresenceBubblesProps {
-  tripId: string;
+  // The page owns usePresence: unmounting this (e.g. while editing) used to
+  // leave the trip's live room.
+  members: PresenceMember[];
 }
 
-const PresenceBubbles: React.FC<PresenceBubblesProps> = ({ tripId }) => {
-  const { members } = usePresence(tripId);
-
+const PresenceBubbles: React.FC<PresenceBubblesProps> = ({ members }) => {
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2">

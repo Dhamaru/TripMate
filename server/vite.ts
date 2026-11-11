@@ -93,6 +93,13 @@ export function serveStatic(app: Express) {
     express.static(distPath, {
       maxAge: "1y",
       immutable: true,
+      // Only content-hashed build output (/assets/*) may be cached forever.
+      // Installers, latest.json (the desktop updater manifest), the web
+      // manifest, icons and robots.txt keep their names across releases and
+      // were being cached as immutable for a year.
+      setHeaders: (res, filePath) => {
+        if (!/[\\/]assets[\\/]/.test(filePath)) res.setHeader("Cache-Control", "no-cache");
+      },
       // express.static's default `index: true` auto-serves index.html itself
       // whenever a request resolves to it (including "/") — WITH the same 1y
       // immutable cache meant for hashed asset filenames. Since that header is
