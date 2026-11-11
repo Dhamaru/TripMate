@@ -12,13 +12,15 @@
 
 - 2026-11-03 (night): Budget tab now includes a getting-there-and-back estimate (`1a49211`). Gate: 270/270.
 
+- 2026-11-04..11: full-audit fixes (everything except Atlas) in 9 commits `f2fcab5`..`a6f94ce`, gate 297/297, typecheck/build clean, Node 22 Docker deploy confirmed healthy. Independent code review and a zero-AI live re-check on production were started after `a6f94ce`; results go in CONTEXT.md.
+
 ## In progress
 
 - Persona swarm (`feat/persona-swarm`) stays local, unmerged, not to be pushed.
 
 ## Exact next command
 
-None queued. With the owner's approval of the estimate, run a short live Atlas check (long conversation, off-topic question, raw-JSON case).
+Act on the review + live re-check findings for the audit fixes (see CONTEXT.md). Atlas audit items are deliberately untouched until the owner says otherwise.
 
 ## Blocked on / decisions
 
