@@ -37,8 +37,12 @@ describe("daily quota on billed Google calls", () => {
     expect(await takeGoogleQuota(user)).toBe(true);
     expect(await takeGoogleQuota(user)).toBe(true);
     expect(await takeGoogleQuota(user)).toBe(false); // user max 3
-    // 6 global calls used above; the site-wide cap now stops everyone
-    expect(await takeGoogleQuota({ _id: "u2" })).toBe(false);
+    // Refused calls don't use the site budget: 4 allowed so far, cap is 6.
+    for (let i = 0; i < 5; i++) expect(await takeGoogleQuota(user)).toBe(false);
+    expect(await takeGoogleQuota({ _id: "u2" })).toBe(true); // 5
+    expect(await takeGoogleQuota(undefined)).toBe(true); // 6
+    // Site-wide cap reached: everyone stops.
+    expect(await takeGoogleQuota({ _id: "u3" })).toBe(false);
     expect(await takeGoogleQuota(undefined)).toBe(false);
   });
 

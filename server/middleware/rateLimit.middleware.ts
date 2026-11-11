@@ -89,6 +89,9 @@ export const signinLimiter = authLimit(15, 5, {
       .toLowerCase()
       .trim()}`,
 });
+// Failures per IP across all emails: the per-email limiter above alone let
+// one IP try passwords against any number of accounts.
+export const signinIpLimiter = authLimit(15, 30, { skipSuccessfulRequests: true });
 export const signupLimiter = authLimit(60, 10);
 export const guestLimiter = authLimit(60, 10);
 export const passwordResetLimiter = authLimit(15, 5);
@@ -175,4 +178,18 @@ export const inviteLimiter = rateLimit({
       ...rateLimitResponse(60 * 60),
       error: "You've sent a lot of invites. Please try again in an hour.",
     }),
+});
+
+// Trip hero "refresh image": its own budget per user, separate from the
+// photo proxy (sharing one counter let browsing photos block a refresh).
+export const tripImageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: testMultiplier(6),
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?._id || ipKeyGenerator(req.ip || "unknown"),
+  handler: (req, res) =>
+    res
+      .status(429)
+      .json({ ...rateLimitResponse(60), error: "Please wait a minute before refreshing again." }),
 });

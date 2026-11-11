@@ -14,6 +14,7 @@ import { feedbackLimiter } from "../middleware/rateLimit.middleware";
 import { NotFoundError, BadRequestError } from "../errors";
 import { imageFileFilter } from "../middleware/imageUpload";
 import { FeedbackAttachmentModel } from "../models/FeedbackAttachment";
+import { bump } from "../services/billedQuota";
 import { isValidObjectId } from "mongoose";
 
 const router = Router();
@@ -23,7 +24,9 @@ const uploadDir = path.join(process.cwd(), "server", "uploads", "feedback");
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 3 }, // 5MB each, up to 3 screenshots
+  // Screenshots are compressed in the browser first; they're stored in the
+  // (512MB) database, and anyone can submit feedback.
+  limits: { fileSize: 1.5 * 1024 * 1024, files: 3 },
   fileFilter: imageFileFilter,
 });
 
@@ -35,17 +38,26 @@ router.post("/", feedbackLimiter, upload.array("attachments", 3), async (req, re
     // reads these back — they exist only for the triage routine/admin
     // review — so gating behind requireAdminSecret (the same auth the
     // routine already uses) rather than requireAuth is correct here.
+    // Validate first, so a rejected submission leaves no attachments behind.
+    const feedbackData = insertFeedbackSchema.parse({ ...req.body });
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const bytes = files.reduce((n, f) => n + f.size, 0);
+    // Site-wide daily cap on screenshot storage.
+    if (bytes && (await bump("feedback-attachment-bytes", bytes)) > 50 * 1024 * 1024) {
+      throw new BadRequestError(
+        "We can't accept more screenshots today. Please send your feedback without them.",
+      );
+    }
     const saved = await Promise.all(
       files.map((f) => FeedbackAttachmentModel.create({ contentType: f.mimetype, data: f.buffer })),
     );
     const attachments = saved.length
       ? saved.map((a) => `/api/v1/feedback/attachment/${a._id}`)
       : undefined;
-    const feedbackData = insertFeedbackSchema.parse({ ...req.body, attachments });
 
     const feedback = await storage.createFeedback({
       ...feedbackData,
+      ...(attachments ? { attachments } : {}),
       userId,
     });
 

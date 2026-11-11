@@ -14,16 +14,26 @@ import type { FileFilterCallback } from "multer";
 // extensions can ever land on disk.
 const ALLOWED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 
+// The declared type is stored and served back as-is, so it must be a safe
+// raster type too: "evil.png" declared as image/svg+xml used to pass.
+export const SAFE_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg", // non-standard, sent by some phones
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+
 export function isAllowedImageUpload(file: { mimetype: string; originalname: string }): boolean {
-    if (!file.mimetype.startsWith("image/")) return false;
-    const ext = path.extname(file.originalname).toLowerCase();
-    return ALLOWED_IMAGE_EXTENSIONS.has(ext);
+  if (!SAFE_IMAGE_TYPES.has(file.mimetype.toLowerCase())) return false;
+  const ext = path.extname(file.originalname).toLowerCase();
+  return ALLOWED_IMAGE_EXTENSIONS.has(ext);
 }
 
 export function imageFileFilter(_req: Request, file: Express.Multer.File, cb: FileFilterCallback) {
-    if (isAllowedImageUpload(file)) {
-        cb(null, true);
-    } else {
-        cb(null, false);
-    }
+  if (isAllowedImageUpload(file)) {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
 }

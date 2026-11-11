@@ -102,7 +102,9 @@ export const reorderItinerarySchema = z.object({
     // Each activity's time as the client loaded it, by activity id. If a
     // stored time differs, someone changed it meanwhile: 409 instead of
     // silently putting the old time back.
-    baseTimes: z.record(z.string(), z.string().max(40).nullable()).optional(),
+    // Any stored value: times have no length limit, and a strict schema here
+    // would make every reorder on such a trip fail validation.
+    baseTimes: z.record(z.string(), z.unknown()).optional(),
   }),
 });
 

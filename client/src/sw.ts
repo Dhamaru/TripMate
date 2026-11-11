@@ -44,9 +44,9 @@ registerRoute(
   ({ url }) => /\/api\/v1\/trips.*/i.test(url.pathname),
   new NetworkFirst({
     cacheName: "trips-api-cache",
-    // On a weak connection, show the saved copy after 5s instead of waiting
-    // for the full network timeout.
-    networkTimeoutSeconds: 5,
+    // On a weak connection, show the saved copy after 15s instead of the full
+    // network timeout. (5s served stale copies of slow-but-working requests.)
+    networkTimeoutSeconds: 15,
     plugins: [
       new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 }),
       new CacheableResponsePlugin({ statuses: [0, 200] }),

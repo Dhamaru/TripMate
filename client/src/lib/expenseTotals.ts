@@ -1,3 +1,5 @@
+import { normalizeCurrency } from "@shared/currency";
+
 type Money = { amount?: number | string; currency?: string };
 
 /**
@@ -6,12 +8,12 @@ type Money = { amount?: number | string; currency?: string };
  * other currencies are kept out of the total and listed separately instead.
  */
 export function splitByCurrency(expenses: Money[] | undefined, tripCurrency = "INR") {
-  const home = tripCurrency.toUpperCase();
+  const home = normalizeCurrency(tripCurrency);
   let inTripCurrency = 0;
   const other: Record<string, number> = {};
   for (const e of expenses ?? []) {
     const amount = Number(e.amount) || 0;
-    const cur = (e.currency || home).toUpperCase();
+    const cur = normalizeCurrency(e.currency, home);
     if (cur === home) inTripCurrency += amount;
     else other[cur] = (other[cur] || 0) + amount;
   }

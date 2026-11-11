@@ -313,7 +313,7 @@ export const reorderItinerary = asyncHandler(
       const byId = new Map<string, Record<string, unknown>>(
         stored.flatMap((d) => (d?.activities || []).map((a: any) => [a.id, a] as [string, any])),
       );
-      const baseTimes = req.body.baseTimes as Record<string, string | null> | undefined;
+      const baseTimes = req.body.baseTimes as Record<string, unknown> | undefined;
       if (
         comparable &&
         baseTimes &&

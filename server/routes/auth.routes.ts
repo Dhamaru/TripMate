@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/auth.middleware";
 import { getCsrfToken } from "../middleware/csrf.middleware";
 import {
   signinLimiter,
+  signinIpLimiter,
   signupLimiter,
   guestLimiter,
   passwordResetLimiter,
@@ -44,7 +45,13 @@ const upload = multer({
 // Public routes
 router.get("/csrf", getCsrfToken);
 router.post("/signup", signupLimiter, validate(signUpSchema), authController.signup);
-router.post("/signin", signinLimiter, validate(signInSchema), authController.signin);
+router.post(
+  "/signin",
+  signinIpLimiter,
+  signinLimiter,
+  validate(signInSchema),
+  authController.signin,
+);
 router.post("/guest", guestLimiter, authController.guestSignin);
 router.post("/signout", authController.signout);
 router.post(

@@ -320,15 +320,29 @@ export const getDestinationImage = asyncHandler(
     // for an open proxy taking an arbitrary client-supplied URL.
     // Timeout: a hung upstream held the landing page's image request open
     // for minutes (live: the second of 8 cards never answered).
-    const fetchImage = async (url: string) =>
-      (new URL(url).hostname === "maps.googleapis.com" && !(await takeGoogleQuota(req.user as any))
-        ? Promise.resolve(null)
-        : fetch(url, { redirect: "follow", signal: AbortSignal.timeout(10_000) })
-      )
-        .then((r) =>
-          r?.ok && (r.headers.get("content-type") || "").startsWith("image/") ? r : null,
-        )
-        .catch(() => null);
+    // Only a definite "this image is gone" (a 4xx other than 429) may hide
+    // a destination; timeouts, quota refusals and network errors may clear.
+    let definiteMiss = false;
+    let softMiss = false;
+    const fetchImage = async (url: string): Promise<globalThis.Response | null> => {
+      if (
+        new URL(url).hostname === "maps.googleapis.com" &&
+        !(await takeGoogleQuota(req.user as any))
+      ) {
+        softMiss = true;
+        return null;
+      }
+      try {
+        const r = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(10_000) });
+        if (r.ok && (r.headers.get("content-type") || "").startsWith("image/")) return r;
+        if (r.status >= 400 && r.status < 500 && r.status !== 429) definiteMiss = true;
+        else softMiss = true;
+        return null;
+      } catch {
+        softMiss = true;
+        return null;
+      }
+    };
     // A stored cover can go stale (expired Google photo ref, retired
     // Wikimedia size) — fall back to the destination's current Wikipedia
     // image rather than a broken landing card.
@@ -336,8 +350,10 @@ export const getDestinationImage = asyncHandler(
       (await fetchImage(target.toString())) ??
       (await fallbackImageUrl(destination).then((u) => (u ? fetchImage(u) : null)));
     if (!response) {
-      brokenDestinationImages.add(destination.trim().toLowerCase());
-      topDestinationsCache = null;
+      if (definiteMiss && !softMiss) {
+        brokenDestinationImages.add(destination.trim().toLowerCase());
+        topDestinationsCache = null;
+      }
       throw new BadRequestError("Failed to fetch image");
     }
     const contentType = response.headers.get("content-type")!;

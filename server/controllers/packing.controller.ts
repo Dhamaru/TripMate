@@ -375,7 +375,12 @@ export const togglePackingItem = asyncHandler(
 
     // Flip only if the value is still what we read (atomic, by item id).
     const updated = await PackingListModel.findOneAndUpdate(
-      { _id: listId, items: { $elemMatch: { _id: itemId, packed: !!item.packed } } },
+      // Older items may have no `packed` field at all (the default is only
+      // applied in memory), so "unpacked" means "not true".
+      {
+        _id: listId,
+        items: { $elemMatch: { _id: itemId, packed: item.packed ? true : { $ne: true } } },
+      },
       { $set: { "items.$.packed": !item.packed } },
       { new: true },
     );

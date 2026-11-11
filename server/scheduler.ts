@@ -10,8 +10,15 @@
 // to multiple instances, move this to a dedicated worker.
 
 import cron from "node-cron";
-import { TripModel, JournalEntryModel, PackingListModel, UserModel } from "@shared/schema";
+import {
+  TripModel,
+  JournalEntryModel,
+  PackingListModel,
+  UserModel,
+  SessionModel,
+} from "@shared/schema";
 import { deleteUserData } from "./services/deleteUserData";
+import { normalizeCurrency } from "@shared/currency";
 import { notifyTripParticipants } from "./notifications";
 import { weatherHandler } from "./agent/tools/handlers/weatherHandler";
 
@@ -125,9 +132,9 @@ function firstActivityLine(trip: TripDoc, dayIndex: number): string | null {
 // Only expenses in the trip's currency: a "$20" expense on an INR trip is
 // not ₹20, and there's no exchange rate here to convert it.
 function totalSpent(trip: TripDoc): number {
-  const home = (trip.currency || "INR").toUpperCase();
+  const home = normalizeCurrency(trip.currency);
   return (trip.expenses || [])
-    .filter((e: any) => !e.currency || String(e.currency).toUpperCase() === home)
+    .filter((e: any) => normalizeCurrency(e.currency, home) === home)
     .reduce((sum, e) => sum + (e.amount || 0), 0);
 }
 
@@ -259,11 +266,22 @@ export async function runReminderSweep(): Promise<void> {
 }
 
 // Guest accounts are one-tap and anonymous; nothing ever removed them, so
-// they and their trips piled up on the 512MB free database.
+// they and their trips piled up on the 512MB free database. A guest with a
+// live session is still using the app and is kept; once every session has
+// expired the guest can't sign back in, so the data is unreachable anyway.
 const GUEST_MAX_AGE_DAYS = 30;
 export async function purgeOldGuests(): Promise<number> {
   const cutoff = new Date(Date.now() - GUEST_MAX_AGE_DAYS * 86400000);
-  const guests = await UserModel.find({ isGuest: true, createdAt: { $lt: cutoff } })
+  const active = await SessionModel.find({
+    userId: { $regex: /^guest_/ },
+    revoked: { $ne: true },
+    expiresAt: { $gt: new Date() },
+  }).distinct("userId");
+  const guests = await UserModel.find({
+    isGuest: true,
+    createdAt: { $lt: cutoff },
+    _id: { $nin: active },
+  })
     .select("_id")
     .limit(200)
     .lean();
@@ -273,8 +291,13 @@ export async function purgeOldGuests(): Promise<number> {
 }
 
 export function startScheduler(): void {
-  const sweep = () =>
+  const sweep = () => {
+    // Daytime in India only (08:30-21:30 IST): a boot at 3am mustn't send
+    // reminders and pushes then.
+    const h = new Date().getUTCHours();
+    if (h < 3 || h >= 16) return;
     runReminderSweep().catch((e) => console.error("[scheduler] reminder sweep failed:", e));
+  };
   // Milestones match an exact day, and on Render's free tier the server
   // sleeps when idle: a once-a-day 09:00 run was skipped whenever the
   // instance was asleep at that minute. Hourly plus once shortly after boot

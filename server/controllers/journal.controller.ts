@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from "express";
+import { SAFE_IMAGE_TYPES } from "../middleware/imageUpload";
+import { Types } from "mongoose";
 import { asyncHandler } from "../middleware/asyncHandler";
 import path from "path";
 import { JournalEntryModel, TripModel } from "@shared/schema";
@@ -134,7 +136,13 @@ export const getEntries = asyncHandler(async (req: Request, res: Response, next:
     // of them (multi-MB responses). Send a URL per photo instead; the
     // browser fetches and caches each one from getEntryPhoto.
     const rows = await JournalEntryModel.aggregate([
-      { $match: query },
+      // aggregate() doesn't cast like find(): tripId is an ObjectId.
+      {
+        $match:
+          query.tripId && Types.ObjectId.isValid(String(query.tripId))
+            ? { ...query, tripId: new Types.ObjectId(String(query.tripId)) }
+            : query,
+      },
       { $sort: { createdAt: -1 } },
       { $limit: MAX_JOURNAL_ENTRIES_RETURNED },
       {
@@ -196,7 +204,14 @@ export const getEntryPhoto = asyncHandler(async (req: Request, res: Response) =>
   if (!photo) throw new NotFoundError("Photo not found");
   const m = /^data:(image\/[\w.+-]+);base64,(.*)$/s.exec(photo);
   if (!m) return res.redirect(photo); // legacy /api/v1/journal/photo/<file> or remote URL
-  res.setHeader("Content-Type", m[1]);
+  // Only render raster types inline; anything else (e.g. SVG stored before
+  // uploads were restricted) downloads instead of running on our origin.
+  if (SAFE_IMAGE_TYPES.has(m[1].toLowerCase())) {
+    res.setHeader("Content-Type", m[1]);
+  } else {
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", "attachment");
+  }
   res.setHeader("Cache-Control", "private, max-age=604800");
   res.send(Buffer.from(m[2], "base64"));
 });

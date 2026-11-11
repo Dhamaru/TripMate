@@ -218,6 +218,8 @@ export default function PackingChecklist() {
 
   const [localDocItems, setLocalDocItems] = useState<PackingItem[]>([]);
   const [isDirtyDocs, setIsDirtyDocs] = useState(false);
+  // updatedAt of each list when its draft was last synced from the server.
+  const loadedVersionRef = useRef<Record<string, string | Date | undefined>>({});
   const [localGearItems, setLocalGearItems] = useState<PackingItem[]>([]);
   const [isDirtyGear, setIsDirtyGear] = useState(false);
 
@@ -285,6 +287,7 @@ export default function PackingChecklist() {
   useEffect(() => {
     if (isDirtyGear) return;
     if (currentList) {
+      loadedVersionRef.current[getId(currentList)] = (currentList as any).updatedAt;
       setLocalGearItems(currentList.items.filter((i: any) => !i.is_mandatory));
     } else if (!isLoading) {
       setLocalGearItems(
@@ -303,6 +306,7 @@ export default function PackingChecklist() {
   useEffect(() => {
     if (isDirtyDocs) return;
     if (documentsList) {
+      loadedVersionRef.current[getId(documentsList)] = (documentsList as any).updatedAt;
       setLocalDocItems(documentsList.items);
     } else if (!isLoading) {
       // First time this account gets a Documents list: carry forward
@@ -415,12 +419,14 @@ export default function PackingChecklist() {
   // Whole-list save with the version this page loaded: if a collaborator
   // saved in between, the server answers 409 instead of erasing their change.
   const saveListItems = async (id: string, newItems: IPackingListItem[]) => {
-    const loaded = queryClient
-      .getQueryData<PackingList[]>(["/api/v1/packing-lists"])
-      ?.find((l) => getId(l) === id) as { updatedAt?: string | Date } | undefined;
+    // The version the draft was started from (recorded when the page last
+    // synced from the server), not whatever the cache holds now: a
+    // collaborator's save refetches the cache, and saving against that
+    // would overwrite their change without a conflict.
+    const base = loadedVersionRef.current[id];
     const res = await apiRequest("PUT", `/api/v1/packing-lists/${id}`, {
       items: newItems,
-      ...(loaded?.updatedAt ? { baseUpdatedAt: new Date(loaded.updatedAt).toISOString() } : {}),
+      ...(base ? { baseUpdatedAt: new Date(base).toISOString() } : {}),
     });
     if (res.status === 409) {
       const body = await res.json().catch(() => ({}));
@@ -429,7 +435,10 @@ export default function PackingChecklist() {
       );
     }
     await throwIfResNotOk(res);
-    return res.json();
+    const saved = await res.json();
+    // A quick second save builds on this one, not the version before it.
+    if (saved?.updatedAt) loadedVersionRef.current[id] = saved.updatedAt;
+    return saved;
   };
 
   const updateListMutation = useMutation({

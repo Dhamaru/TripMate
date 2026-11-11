@@ -49,8 +49,9 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
     });
   }
 
-  // Mongoose ValidationError
-  if (err.name === "ValidationError") {
+  // Mongoose ValidationError, or a zod .parse() inside a handler (e.g. the
+  // feedback form): both are bad input, not a server fault (they were 500s).
+  if (err.name === "ValidationError" || err.name === "ZodError") {
     return res.status(400).json({
       success: false,
       error: "Validation failed",

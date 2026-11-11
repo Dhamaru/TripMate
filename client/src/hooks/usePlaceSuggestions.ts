@@ -68,10 +68,11 @@ export function usePlaceSuggestions(
           params.set("lat", String(biasCoords.lat));
           params.set("lon", String(biasCoords.lon));
         }
-        if (placeType) {
-          params.set("type", placeType);
-          params.set("sessiontoken", sessionToken());
-        }
+        if (placeType) params.set("type", placeType);
+        // Only the area picker follows a pick with a /places/location lookup.
+        // A session that never reaches Place Details is billed per session,
+        // which costs more than plain per-request autocomplete.
+        if (placeType === "area") params.set("sessiontoken", sessionToken());
         const res = await fetch(`/api/v1/places/search?${params.toString()}`);
         // A rate-limited/failed response otherwise fell through to the
         // `.catch` fallback below and degraded silently to "no suggestions"
