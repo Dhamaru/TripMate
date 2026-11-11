@@ -532,21 +532,19 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.1'/%3E%3C/svg%3E");
   }
 
-  .icon-tint-amber {
-    background: rgba(22, 63, 115, 0.12);
-    color: #163f73;
-  }
+  /* Theme-aware ink: fixed colours here were ~1.6:1 on the dark card. */
+  .icon-tint-amber,
   .icon-tint-blue {
-    background: rgba(29, 78, 137, 0.12);
-    color: #4f82c4;
+    background: rgb(var(--ink-blue-rgb) / 0.14);
+    color: var(--ink-blue-text);
   }
   .icon-tint-green {
-    background: rgba(61, 148, 103, 0.12);
-    color: #3d9467;
+    background: rgb(var(--transit-green-rgb) / 0.14);
+    color: var(--transit-green-text);
   }
   .icon-tint-red {
-    background: rgba(179, 38, 30, 0.1);
-    color: #d8453b;
+    background: rgb(var(--stamp-red-rgb) / 0.12);
+    color: var(--stamp-red-text);
   }
 
   /* Status badge — an ink stamp, not a SaaS pill */
@@ -563,19 +561,19 @@
     transform: rotate(-2deg);
   }
   .status-planning {
-    background: rgba(29, 78, 137, 0.1);
-    color: #4f82c4;
-    border: 2px solid rgba(29, 78, 137, 0.55);
+    background: rgb(var(--ink-blue-rgb) / 0.12);
+    color: var(--ink-blue-text);
+    border: 2px solid var(--ink-blue-text);
   }
   .status-active {
-    background: rgba(61, 148, 103, 0.1);
-    color: #3d9467;
-    border: 2px solid rgba(61, 148, 103, 0.55);
+    background: rgb(var(--transit-green-rgb) / 0.12);
+    color: var(--transit-green-text);
+    border: 2px solid var(--transit-green-text);
   }
   .status-completed {
-    background: rgba(179, 38, 30, 0.1);
-    color: #b3261e;
-    border: 2px solid rgba(179, 38, 30, 0.55);
+    background: rgb(var(--stamp-red-rgb) / 0.12);
+    color: var(--stamp-red-text);
+    border: 2px solid var(--stamp-red-text);
   }
 
   /* Atlas typing indicator — three pulsing dots shown while waiting on the

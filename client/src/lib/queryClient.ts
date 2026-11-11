@@ -1,6 +1,29 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { logError } from "@/lib/logger";
 
+/**
+ * What to show a person for a failed request. Server errors carry a short
+ * user-facing `error` message for 4xx (validation, conflicts, limits); 5xx,
+ * empty or HTML bodies get a plain sentence instead of the raw
+ * "500: {...}" text that used to reach toasts.
+ */
+export function friendlyMessage(status: number, body: string): string {
+  let msg = "";
+  try {
+    const parsed = JSON.parse(body);
+    msg = String(parsed?.error || parsed?.message || "");
+  } catch {}
+  const usable = msg && msg.length <= 200 && !/[{<]/.test(msg);
+  if (status >= 500 || status === 0) return "Something went wrong on our side. Please try again.";
+  if (status === 401) return usable ? msg : "Your session has expired. Please sign in again.";
+  if (status === 429)
+    return usable ? msg : "Too many requests. Please wait a moment and try again.";
+  if (usable) return msg;
+  if (status === 403) return "You don't have permission to do that.";
+  if (status === 404) return "That couldn't be found. It may have been deleted.";
+  return "That didn't work. Please try again.";
+}
+
 export async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -13,7 +36,7 @@ export async function throwIfResNotOk(res: Response) {
         logError("api_error", { url: res.url, status: res.status, body: text });
       } catch {}
     }
-    throw new Error(`${res.status}: ${text}`);
+    throw new ApiRequestError(res.status, friendlyMessage(res.status, text));
   }
 }
 
@@ -85,6 +108,15 @@ export async function apiRequest(
     });
     noteUnauthorized(res);
     return res;
+  } catch (e: any) {
+    // "signal is aborted without reason" / "Failed to fetch" reached toasts.
+    const err = new Error(
+      e?.name === "AbortError"
+        ? "This is taking too long. Check your connection and try again."
+        : "Can't reach TripMate. Check your connection and try again.",
+    );
+    err.name = e?.name || "Error";
+    throw err;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -110,12 +142,7 @@ export async function apiRequestJson<T = any>(
   const res = await apiRequest(method, url, data);
   if (!res.ok) {
     const text = (await res.text().catch(() => "")) || res.statusText;
-    let message = text;
-    try {
-      const parsed = JSON.parse(text);
-      message = parsed.error || parsed.message || text;
-    } catch {}
-    throw new ApiRequestError(res.status, message);
+    throw new ApiRequestError(res.status, friendlyMessage(res.status, text));
   }
   if (res.status === 204) return undefined as T;
   return res.json();

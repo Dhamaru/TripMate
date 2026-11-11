@@ -205,7 +205,7 @@ export default function Journal() {
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) return void handleUnauthorized();
-      const status = Number(error.message.split(":")[0]);
+      const status = (error as any)?.status;
       toast({
         title: status === 409 ? "Photos changed" : "Error",
         description:

@@ -17,6 +17,7 @@ import { CollaboratorManager } from "@/components/collaboration/CollaboratorMana
 import { RecapPanel } from "@/components/journal/RecapPanel";
 import PresenceBubbles from "@/components/collaboration/PresenceBubbles";
 import { usePresence } from "@/hooks/usePresence";
+import { TripStatusBadge } from "@/components/trip/TripStatusBadge";
 import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,18 +67,6 @@ const travelStyles = [
   { id: "cultural", icon: Landmark, name: "Cultural", color: "text-[var(--ink-blue-text)]" },
   { id: "culinary", icon: Utensils, name: "Culinary", color: "text-emerald-500" },
 ];
-
-// Tinted pills, not solid fills — matches the app-wide status treatment
-// (TripStatusBadge, .stamp). Solid navy + white text read as off-system
-// against the light paper ground.
-const statusColors = {
-  planning:
-    "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--ink-blue-text)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
-  active:
-    "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green-text)] border border-[rgb(var(--transit-green-rgb)/40%)]",
-  completed:
-    "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red-text)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
-};
 
 // Throws on a failed search (rate-limited, upstream error) so the empty-state can tell "search failed" from a genuine zero-result search.
 async function fetchPlaces(q: string) {
@@ -1162,16 +1151,7 @@ export default function TripDetail() {
                 >
                   {trip.destination}
                 </h1>
-                <Badge
-                  className={
-                    statusColors[trip?.status as keyof typeof statusColors] ||
-                    "bg-muted text-muted-foreground"
-                  }
-                >
-                  {trip?.status
-                    ? trip.status.charAt(0).toUpperCase() + trip.status.slice(1)
-                    : "Planning"}
-                </Badge>
+                <TripStatusBadge status={trip?.status} />
               </div>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground mt-1.5 font-sans-clean">
                 {trip.origin && (

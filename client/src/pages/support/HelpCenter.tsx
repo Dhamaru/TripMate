@@ -1,12 +1,95 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TripMateLogo } from "@/components/TripMateLogo";
 import { Link } from "wouter";
-import { Layout, FileText, Globe } from "lucide-react";
+import { Layout, Globe, Users, Search } from "lucide-react";
+
+type Topic = "start" | "offline" | "sharing";
+
+const TOPICS: { id: Topic; title: string; blurb: string; icon: typeof Layout }[] = [
+  {
+    id: "start",
+    title: "Getting started",
+    blurb: "Accounts, planning a trip and finding your way around.",
+    icon: Layout,
+  },
+  {
+    id: "offline",
+    title: "Offline maps",
+    blurb: "Downloading regions and using TripMate without a connection.",
+    icon: Globe,
+  },
+  {
+    id: "sharing",
+    title: "Trips & sharing",
+    blurb: "Inviting people, share links, budgets and packing lists.",
+    icon: Users,
+  },
+];
+
+const FAQS: { topic: Topic; q: string; a: string }[] = [
+  {
+    topic: "start",
+    q: "How do I create a new trip?",
+    a: "On Home, tap “Plan a trip” (or “New trip”). Enter where you're starting from, where you're going, your dates and budget, and TripMate drafts a day-by-day plan you can edit.",
+  },
+  {
+    topic: "start",
+    q: "Can I try TripMate without an account?",
+    a: "Yes, continue as a guest. Guest trips are removed after 30 days, so create a free account to keep them.",
+  },
+  {
+    topic: "start",
+    q: "How do I change or reorder activities?",
+    a: "Open the trip's Itinerary tab. Drag activities to reorder them, or use the edit and delete buttons on each one.",
+  },
+  {
+    topic: "offline",
+    q: "Can I use TripMate offline?",
+    a: "Yes. In Offline Maps, download the area you need before you lose signal. Trips you've opened recently also stay readable offline.",
+  },
+  {
+    topic: "offline",
+    q: "My downloaded map is blank offline. What happened?",
+    a: "The download may not have finished, or your browser cleared its storage. Reconnect, open Offline Maps and download the region again.",
+  },
+  {
+    topic: "sharing",
+    q: "How do I plan a trip with friends?",
+    a: "Open the trip and tap Trip Team. Invite people by the email they signed up with, as an editor (can change things) or a viewer (can only look).",
+  },
+  {
+    topic: "sharing",
+    q: "How does a share link work?",
+    a: "Share creates a read-only link to the plan without your budget, notes or expenses. Turning sharing off stops the old link working straight away.",
+  },
+  {
+    topic: "sharing",
+    q: "Why isn't an expense in my budget total?",
+    a: "Totals add up expenses in the trip's own currency. Expenses in other currencies are listed separately under the total.",
+  },
+  {
+    topic: "start",
+    q: "Is my data private?",
+    a: "Your trips are only visible to you and the people you invite, unless you turn on a share link. Everything is sent over a secure (HTTPS) connection.",
+  },
+];
 
 export default function HelpCenter() {
+  const [query, setQuery] = useState("");
+  const [topic, setTopic] = useState<Topic | null>(null);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return FAQS.filter(
+      (f) =>
+        (!topic || f.topic === topic) &&
+        (!q || f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q)),
+    );
+  }, [query, topic]);
+
   return (
     <div className="min-h-screen bg-muted text-foreground">
       {/* Header */}
@@ -33,86 +116,80 @@ export default function HelpCenter() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">How can we help you?</h1>
           <div className="max-w-lg mx-auto relative">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <i className="fas fa-search text-gray-400"></i>
-            </div>
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"
+              aria-hidden="true"
+            />
             <Input
+              type="search"
+              aria-label="Search help"
               placeholder="Search for answers..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  // Placeholder for search logic if added later
-                }
-              }}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               className="pl-10 bg-card border-border text-foreground h-12 rounded-xl"
+              data-testid="input-help-search"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <Card className="bg-card border-border hover:border-[#1D4E89] transition-colors cursor-pointer group">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-[#1D4E89]/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#1D4E89]/20 transition-colors">
-                <Layout className="text-[var(--ink-blue-text)] dark:text-blue-400 w-6 h-6" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2 text-foreground">Getting Started</h3>
-              <p className="text-muted-foreground text-sm">
-                Account setup, trip planning basics, and navigating the app.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border hover:border-emerald-600 transition-colors cursor-pointer group">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-emerald-600/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-600/20 transition-colors">
-                <Globe className="text-emerald-600 dark:text-emerald-400 w-6 h-6" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2 text-foreground">Offline Maps</h3>
-              <p className="text-muted-foreground text-sm">
-                Downloading maps, saving regions, and navigation help.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border hover:border-[#163F73] transition-colors cursor-pointer group">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-[#163F73]/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#163F73]/20 transition-colors">
-                <FileText className="text-[var(--ink-blue-text)] w-6 h-6" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2 text-foreground">Billing & Plans</h3>
-              <p className="text-muted-foreground text-sm">
-                Subscription management, payment methods, and refunds.
-              </p>
-            </CardContent>
-          </Card>
+          {TOPICS.map((t) => {
+            const Icon = t.icon;
+            const active = topic === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTopic(active ? null : t.id)}
+                aria-pressed={active}
+                className="text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+                data-testid={`help-topic-${t.id}`}
+              >
+                <Card
+                  className={`h-full bg-card transition-colors ${active ? "border-2 border-[var(--ink-blue-text)]" : "border-border hover:border-[var(--ink-blue-text)]"}`}
+                >
+                  <CardContent className="p-6 text-center">
+                    <div className="w-12 h-12 icon-tint-blue rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Icon className="w-6 h-6" aria-hidden="true" />
+                    </div>
+                    <h2 className="font-semibold text-lg mb-2 text-foreground">{t.title}</h2>
+                    <p className="text-muted-foreground text-sm">{t.blurb}</p>
+                  </CardContent>
+                </Card>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold mb-6">Frequently Asked Questions</h2>
-
-          {[
-            {
-              q: "How do I create a new trip?",
-              a: "Go to the Dashboard and click 'Plan New Trip'. Enter your destination and preferences, and our AI will generate an itinerary for you.",
-            },
-            {
-              q: "Can I use TripMate offline?",
-              a: "Yes! You can download maps, itineraries, and saved places for offline access. Make sure to download them before you disconnect.",
-            },
-            {
-              q: "Is my data secure?",
-              a: "We take security seriously. All your personal data and travel plans are encrypted and stored securely.",
-            },
-          ].map((faq, i) => (
-            <Card key={i} className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-lg text-foreground">{faq.q}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">{faq.a}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold mb-2">
+            {topic ? TOPICS.find((t) => t.id === topic)!.title : "Frequently asked questions"}
+          </h2>
+          {shown.length === 0 ? (
+            <p className="text-muted-foreground" data-testid="help-no-results">
+              Nothing matches “{query}”.{" "}
+              <Link href="/contact" className="text-[var(--ink-blue-text)] hover:underline">
+                Ask us directly
+              </Link>
+              .
+            </p>
+          ) : (
+            shown.map((faq) => (
+              <Card key={faq.q} className="bg-card border-border">
+                <CardContent className="p-6 space-y-2">
+                  <h3 className="text-lg font-semibold text-foreground">{faq.q}</h3>
+                  <p className="text-muted-foreground">{faq.a}</p>
+                </CardContent>
+              </Card>
+            ))
+          )}
+          <p className="text-sm text-muted-foreground pt-4">
+            Still stuck?{" "}
+            <Link href="/contact" className="text-[var(--ink-blue-text)] hover:underline">
+              Contact us
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </div>

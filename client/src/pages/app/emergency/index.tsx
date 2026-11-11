@@ -261,9 +261,12 @@ export default function EmergencyPage() {
       </div>
 
       <div className="bg-card rounded-2xl border border p-4 max-w-2xl">
-        <div className="flex gap-2 relative">
-          <div className="relative flex-1">
+        {/* Full-width input on phones, buttons on the next row: side by side
+            the box shrank to "Search loc" at 375px. */}
+        <div className="flex flex-wrap gap-2 relative">
+          <div className="relative basis-full sm:basis-0 sm:flex-1 min-w-0">
             <Input
+              aria-label="Location to search"
               type="text"
               value={searchLocation}
               onChange={(e) => {
@@ -292,7 +295,7 @@ export default function EmergencyPage() {
           </div>
           <Button
             onClick={() => handleSearch()}
-            className="bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
+            className="flex-1 sm:flex-none bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
             data-testid="button-emergency-search"
             disabled={loading}
           >
@@ -310,6 +313,7 @@ export default function EmergencyPage() {
             variant="outline"
             className="border text-foreground hover:bg-muted"
             title="Use my location"
+            aria-label="Use my location"
             disabled={loading}
           >
             <i className="fas fa-location-arrow text-[var(--ink-blue-text)]" />
@@ -326,6 +330,8 @@ export default function EmergencyPage() {
                 : "border text-foreground hover:bg-muted"
             }
             title="Keep this list updated as you travel"
+            aria-label="Keep this list updated as you travel"
+            aria-pressed={liveTracking}
             disabled={loading}
           >
             <i

@@ -166,7 +166,7 @@ export default function JournalDetail() {
       }
       // Someone else changed this entry's photos meanwhile; keep the
       // form as typed so nothing is lost.
-      if (/^409:/.test(error.message)) {
+      if ((error as any)?.status === 409) {
         toast({
           title: "Photos changed",
           description:
@@ -226,7 +226,7 @@ export default function JournalDetail() {
 
   // Only a 403/404 means the entry is gone; anything else (5xx, timeout,
   // offline) is retryable and shouldn't tell the user it was removed.
-  if (error && !/^(403|404):/.test(error.message)) {
+  if (error && ![403, 404].includes((error as any)?.status)) {
     return (
       <div className=" flex items-center justify-center p-4">
         <Card className="bg-card border max-w-md w-full">
@@ -540,7 +540,7 @@ export default function JournalDetail() {
             <motion.div variants={itemVariants}>
               <Card className="bg-card border rounded-3xl overflow-hidden backdrop-blur-sm bg-opacity-80">
                 <CardContent className="p-6 md:p-10">
-                  <div className="prose prose-invert max-w-none text-lg leading-relaxed text-foreground whitespace-pre-wrap">
+                  <div className="prose dark:prose-invert max-w-none text-lg leading-relaxed text-foreground whitespace-pre-wrap">
                     {entry.content}
                   </div>
                 </CardContent>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -59,10 +59,21 @@ export default function Sessions() {
 
   return (
     <div className="min-h-screen bg-muted text-foreground">
-      <main className="py-8 px-4 max-w-3xl mx-auto">
+      <main className="py-8 px-4 max-w-3xl mx-auto space-y-4">
+        <button
+          type="button"
+          onClick={() => navigate("/app/profile")}
+          className="text-sm text-[var(--ink-blue-text)] hover:underline"
+          data-testid="link-back-profile"
+        >
+          ← Back to profile
+        </button>
         <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-foreground">Active Sessions</CardTitle>
+            <h1 className="text-xl font-semibold text-foreground">Signed-in devices</h1>
+            <p className="text-sm text-muted-foreground">
+              Revoke any device you don't recognise; it will be signed out.
+            </p>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -84,16 +95,31 @@ export default function Sessions() {
                 {sessions.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between p-3 rounded-md border border-border"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-md border border-border"
                   >
-                    <div className="text-sm">
-                      <div>{s.device || "web"}</div>
+                    <div className="text-sm min-w-0">
+                      <div className="font-medium">{s.device || "Web browser"}</div>
                       <div className="text-muted-foreground">
-                        {s.ip} · {(s.expiresAt || "").replace("T", " ").slice(0, 19)}
+                        {s.ip}
+                        {s.expiresAt &&
+                          ` · Signed in until ${new Date(s.expiresAt).toLocaleDateString(
+                            undefined,
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}`}
                       </div>
-                      <div className="text-muted-foreground truncate max-w-xl">{s.userAgent}</div>
+                      <div className="text-muted-foreground text-xs break-words">{s.userAgent}</div>
                     </div>
-                    <Button variant="destructive" size="sm" onClick={() => revokeSession(s.id)}>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="self-start sm:self-auto shrink-0"
+                      onClick={() => revokeSession(s.id)}
+                      data-testid={`button-revoke-${s.id}`}
+                    >
                       Revoke
                     </Button>
                   </div>

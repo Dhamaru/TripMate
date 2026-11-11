@@ -68,7 +68,7 @@ export default function PublicTripPage() {
           </div>
         )}
 
-        {!isLoading && error && !/^404:/.test(error.message) && (
+        {!isLoading && error && (error as any)?.status !== 404 && (
           <div className="text-center py-24">
             <h1 className="font-display text-2xl font-bold mb-2">Couldn't load this trip</h1>
             <p className="text-[hsl(var(--muted-foreground))] mb-6">
@@ -83,7 +83,7 @@ export default function PublicTripPage() {
           </div>
         )}
 
-        {!isLoading && (error ? /^404:/.test(error.message) : !trip) && (
+        {!isLoading && (error ? (error as any)?.status === 404 : !trip) && (
           <div className="text-center py-24">
             <h1 className="font-display text-2xl font-bold mb-2">Trip not found</h1>
             <p className="text-[hsl(var(--muted-foreground))] mb-6">

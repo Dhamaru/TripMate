@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import type { Trip } from "@/types/api.types";
 import { type IItineraryDay, type IItineraryActivity } from "@shared/schema";
 import {
@@ -241,7 +242,8 @@ function SortableActivity({
               showed either; the pre-save preview did (ImportPlanPreview.tsx),
               live-reported as itinerary details feeling less complete after
               confirming the trip. */}
-          {(activity.cost || activity.entryFee) && (
+          {/* Number > 0: a 0 cost from the add form rendered a stray "0". */}
+          {(Number(activity.cost) > 0 || Number(activity.entryFee) > 0) && (
             <span className="text-[11px] font-mono-data text-[var(--transit-green-text)] shrink-0">
               ~{getCurrencySymbol(currency)}
               {activity.cost || activity.entryFee}
@@ -289,7 +291,7 @@ function SortableActivity({
           type === "restaurant" || type === "cafe" || type === "accommodation" || type === "hotel";
         if (isFoodOrStay && onViewInPlaces) {
           return (
-            <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center shrink-0 [@media(hover:hover)]:opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -301,7 +303,7 @@ function SortableActivity({
                 variant="ghost"
                 size="icon"
                 data-testid="button-view-in-places"
-                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--ink-blue-text)]"
+                className="h-10 w-10 text-[hsl(var(--muted-foreground))] hover:text-[var(--ink-blue-text)]"
                 title={
                   type === "accommodation"
                     ? "View in Places (Hotels)"
@@ -315,7 +317,7 @@ function SortableActivity({
         }
         if (!isFoodOrStay && onViewOnMap && viewLat != null && viewLon != null) {
           return (
-            <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center shrink-0 [@media(hover:hover)]:opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -324,7 +326,7 @@ function SortableActivity({
                 variant="ghost"
                 size="icon"
                 data-testid="button-view-on-map"
-                className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-[var(--ink-blue-text)]"
+                className="h-10 w-10 text-[hsl(var(--muted-foreground))] hover:text-[var(--ink-blue-text)]"
                 title="View on map"
               >
                 <Navigation className="w-3.5 h-3.5" />
@@ -339,7 +341,7 @@ function SortableActivity({
                 itinerary (enforced server-side too), so don't show controls
                 that would just fail. */}
       {canEdit && (
-        <div className="flex items-center shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center shrink-0 [@media(hover:hover)]:opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           <Button
             onClick={(e) => {
               e.stopPropagation();
@@ -347,27 +349,18 @@ function SortableActivity({
             }}
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-foreground"
+            className="h-10 w-10 text-[hsl(var(--muted-foreground))] hover:text-foreground"
             title="Edit"
             aria-label={`Edit ${activity.title || "activity"}`}
             data-testid={`button-edit-activity-${activity.id}`}
           >
             <Edit2 className="w-3.5 h-3.5" />
           </Button>
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-[hsl(var(--muted-foreground))] hover:text-red-400"
-            title="Delete"
-            aria-label={`Delete ${activity.title || "activity"}`}
-            data-testid={`button-delete-activity-${activity.id}`}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+          <ConfirmDeleteButton
+            onConfirm={onDelete}
+            label={`Delete ${activity.title || "activity"}`}
+            testId={`button-delete-activity-${activity.id}`}
+          />
         </div>
       )}
     </div>

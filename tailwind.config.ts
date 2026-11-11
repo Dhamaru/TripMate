@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
+import typography from "@tailwindcss/typography";
 
 export default {
   darkMode: ["class"],
@@ -9,20 +11,19 @@ export default {
       borderRadius: {
         none: "0px",
         xs: "4px",
-        sm: "8px",    
-        md: "14px",   
-        lg: "20px",   
-        xl: "12px",   // buttons
+        sm: "8px",
+        md: "14px",
+        lg: "20px",
+        xl: "12px", // buttons
         "3xl": "24px", // cards
         full: "9999px",
         DEFAULT: "var(--radius)",
       },
 
       colors: {
-        // TripMate / Stitch brand tokens
-        "solar-amber": "#F59E0B",
-        "explorer-blue": "#1E3A8A",
-        "emerald-horizon": "#10B981",
+        // TripMate / Stitch brand tokens. (Unused solar-amber, explorer-blue
+        // and emerald-horizon removed: explorer-blue here didn't even match
+        // --explorer-blue in index.css.)
         "ink-gray": "#111827",
         "alabaster-white": "#FFFFFF",
 
@@ -88,10 +89,13 @@ export default {
 
       // ─── Typography ───────────────────────────────────────────────
       fontFamily: {
-        sans: ["DM Sans", "var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "system-ui", "Helvetica Neue", "sans-serif"],
-        display: ["Playfair Display", "Georgia", "serif"],
-        serif: ["Playfair Display", "Georgia", "serif"],
-        mono: ["var(--font-mono)"],
+        // DESIGN.md type roles. These pointed at DM Sans / Playfair (never
+        // loaded) and an undefined --font-mono, so font-sans/serif/mono
+        // classes fell back to system fonts.
+        sans: ["IBM Plex Sans", "system-ui", "-apple-system", "Helvetica Neue", "sans-serif"],
+        display: ["IBM Plex Serif", "Georgia", "serif"],
+        serif: ["IBM Plex Serif", "Georgia", "serif"],
+        mono: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
 
       // ─── Spacing (Airbnb 4px base) ────────────────────────────────
@@ -104,9 +108,10 @@ export default {
       // ─── Shadows (Airbnb elevation system) ────────────────────────
       boxShadow: {
         "card-resting": "0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05)",
-        "card-hover": "rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px 0, rgba(0,0,0,0.1) 0 4px 8px 0",
+        "card-hover":
+          "rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px 0, rgba(0,0,0,0.1) 0 4px 8px 0",
         "search-bar": "0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05)",
-        "modal": "0 8px 32px rgba(0,0,0,0.12)",
+        modal: "0 8px 32px rgba(0,0,0,0.12)",
       },
 
       // ─── Keyframes ────────────────────────────────────────────────
@@ -123,7 +128,7 @@ export default {
           "0%, 100%": { opacity: "0.3", transform: "scale(1)" },
           "50%": { opacity: "0.6", transform: "scale(1.1)" },
         },
-        "float": {
+        float: {
           "0%, 100%": { transform: "translateY(0) rotate(0deg)" },
           "50%": { transform: "translateY(-20px) rotate(2deg)" },
         },
@@ -140,7 +145,7 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-slow": "pulse-slow 8s ease-in-out infinite",
-        "float": "float 6s ease-in-out infinite",
+        float: "float 6s ease-in-out infinite",
         "fade-in": "fade-in 0.2s ease-out",
         "scale-in": "scale-in 0.15s ease-out",
       },
@@ -150,5 +155,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [animate, typography],
 } satisfies Config;

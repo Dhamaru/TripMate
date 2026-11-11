@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { splitByCurrency, formatOther } from "@/lib/expenseTotals";
 import type { Trip } from "@/types/api.types";
 import { type IExpense } from "@shared/schema";
@@ -587,9 +588,9 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
               ) : (
                 <div
                   key={expense.id}
-                  className="flex items-center justify-between p-3 bg-secondary rounded-lg"
+                  className="flex items-center justify-between gap-2 p-3 bg-secondary rounded-lg"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[var(--ink-blue-text)] dark:text-blue-400">
                       <i
                         className={`fas fa-${expense.category === "Food" ? "utensils" : expense.category === "Transport" ? "car" : "tag"}`}
@@ -604,9 +605,9 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="font-bold text-foreground mr-2">
-                      {expense.currency} {expense.amount}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="font-bold text-foreground mr-1 whitespace-nowrap font-mono-data tabular-nums">
+                      {expense.currency} {Number(expense.amount).toLocaleString()}
                     </div>
                     {canEdit && (
                       <>
@@ -614,18 +615,16 @@ export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
                           variant="ghost"
                           size="icon"
                           onClick={() => startEdit(expense)}
-                          className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
+                          aria-label={`Edit ${expense.description}`}
+                          className="text-muted-foreground hover:text-foreground hover:bg-muted h-10 w-10"
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(expense.id)}
-                          className="text-[var(--stamp-red-text)] hover:text-[rgb(var(--stamp-red-rgb)/80%)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] h-8 w-8"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <ConfirmDeleteButton
+                          onConfirm={() => handleDelete(expense.id)}
+                          label={`Delete ${expense.description}`}
+                          testId={`button-delete-expense-${expense.id}`}
+                        />
                       </>
                     )}
                   </div>

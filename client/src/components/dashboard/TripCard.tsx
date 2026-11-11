@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TripStatusBadge } from "@/components/trip/TripStatusBadge";
 import { useLocation } from "wouter";
 import { useTripStore } from "../../store";
 import { OptimizedImage } from "../ui/OptimizedImage";
@@ -31,25 +32,6 @@ const MEDIUM_ICONS: Record<string, typeof Plane> = {
   Flight: Plane,
   Train: TrainFront,
   RoadTrip: Car,
-};
-
-// Tinted pill keyed on the trip's own `status` field.
-const STATUS_STAMP: Record<string, { label: string; className: string }> = {
-  planning: {
-    label: "Planning",
-    className:
-      "bg-[rgb(var(--customs-blue-rgb)/14%)] text-[var(--ink-blue-text)] border border-[rgb(var(--customs-blue-rgb)/40%)]",
-  },
-  active: {
-    label: "Active",
-    className:
-      "bg-[rgb(var(--transit-green-rgb)/14%)] text-[var(--transit-green-text)] border border-[rgb(var(--transit-green-rgb)/40%)]",
-  },
-  completed: {
-    label: "Completed",
-    className:
-      "bg-[rgb(var(--stamp-red-rgb)/14%)] text-[var(--stamp-red-text)] border border-[rgb(var(--stamp-red-rgb)/40%)]",
-  },
 };
 
 function formatDateRangeSafe(startDate?: Date | string, endDate?: Date | string): string {
@@ -94,7 +76,6 @@ export function TripCard({
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const tripId = trip.id ?? (trip._id != null ? String(trip._id) : undefined);
-  const stamp = STATUS_STAMP[trip.status ?? "planning"] ?? STATUS_STAMP.planning;
   const duration = durationDaysSafe(trip.startDate, trip.endDate, trip.days);
   const StyleIcon = trip.travelStyle ? (STYLE_ICONS[trip.travelStyle] ?? Sparkles) : null;
   const MediumIcon = trip.transportMode ? (MEDIUM_ICONS[trip.transportMode] ?? Car) : null;
@@ -149,12 +130,7 @@ export function TripCard({
           </div>
         )}
 
-        <span
-          className={`absolute top-2.5 right-2.5 text-[11px] font-mono-data uppercase tracking-[0.08em] px-2 py-0.5 rounded-full backdrop-blur-sm ${stamp.className}`}
-          aria-label={`Trip status: ${stamp.label}`}
-        >
-          {stamp.label}
-        </span>
+        <TripStatusBadge status={trip.status} onPhoto className="absolute top-2.5 right-2.5" />
 
         <button
           className={`absolute top-2.5 left-2.5 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 ${

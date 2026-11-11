@@ -68,13 +68,16 @@ export function EmergencyServices({
   // and search around the wrong town. Rounded to 3 decimals (~110m) so live
   // tracking reuses the server's cache instead of 4 Places calls per move.
   const query = coords ? `${coords.lat.toFixed(3)},${coords.lon.toFixed(3)}` : locString;
-  const { data, isLoading, error } = useQuery<EmergencyResponse>({
+  const { data, isLoading, isError, refetch, fetchStatus } = useQuery<EmergencyResponse>({
     queryKey: ["/api/v1/emergency", query],
     // "Current Location" is a placeholder, not a place -- searching it
     // literally returned nothing; wait for the parent to resolve coords.
     enabled: !!coords || (!!locString && !/^current location$/i.test(locString)),
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/v1/emergency/${encodeURIComponent(query)}`);
+      // A failed request used to fall through to "No services found nearby",
+      // which on an emergency page reads as "there's no hospital here".
+      if (!res.ok) throw new Error(`emergency lookup failed: ${res.status}`);
       const json = await res.json();
       if (Array.isArray(json)) {
         return {
@@ -202,7 +205,7 @@ export function EmergencyServices({
               Emergency Services
             </span>
             <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
-              {countryCode === "Unknown" ? "Searching..." : countryCode} Mode
+              {countryCode === "Unknown" ? "Finding your area…" : `${countryCode} numbers`}
             </span>
           </CardTitle>
           <Button
@@ -243,7 +246,20 @@ export function EmergencyServices({
               Loading emergency data...
             </div>
           )}
-          {!isLoading && servicesWithDistance.length === 0 && (
+          {!isLoading && isError && (
+            <div className="text-center py-6 space-y-2" role="alert">
+              <p className="text-foreground">
+                Couldn't load nearby hospitals and police. The SOS button above still works.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Try again
+              </Button>
+            </div>
+          )}
+          {!isLoading && !isError && fetchStatus === "idle" && !data && (
+            <div className="text-center py-6 text-muted-foreground">Waiting for your location…</div>
+          )}
+          {!isLoading && !isError && data && servicesWithDistance.length === 0 && (
             <div className="text-center py-6 text-muted-foreground">No services found nearby.</div>
           )}
           {!isLoading &&
@@ -304,7 +320,7 @@ export function EmergencyServices({
                     disabled={service.latitude == null || service.longitude == null}
                     size="sm"
                     variant="secondary"
-                    className="flex-1 bg-muted hover:bg-muted/30 text-white h-8"
+                    className="flex-1 h-8"
                   >
                     <i className="fas fa-location-arrow mr-2 text-xs"></i> Route
                   </Button>
