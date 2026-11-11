@@ -148,6 +148,8 @@ export async function refreshTransitEstimate(tripId: string): Promise<void> {
     if (updated) socketService.broadcastMutation(tripId, { type: "trip-refreshed", data: updated });
     lastFailure.delete(tripId);
   } catch (err) {
+    // ponytail: pruned when it grows past 1000 trips; fine at this scale.
+    if (lastFailure.size > 1000) lastFailure.clear();
     lastFailure.set(tripId, Date.now());
     console.warn(`[transitEstimate] Failed for trip ${tripId}:`, (err as Error).message);
   } finally {

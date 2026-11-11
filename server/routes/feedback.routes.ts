@@ -13,23 +13,16 @@ import { requireAdminSecret } from "../middleware/adminAuth.middleware";
 import { feedbackLimiter } from "../middleware/rateLimit.middleware";
 import { NotFoundError, BadRequestError } from "../errors";
 import { imageFileFilter } from "../middleware/imageUpload";
+import { FeedbackAttachmentModel } from "../models/FeedbackAttachment";
+import { isValidObjectId } from "mongoose";
 
 const router = Router();
 
+// Legacy attachments written to disk before they moved to Mongo.
 const uploadDir = path.join(process.cwd(), "server", "uploads", "feedback");
-const diskStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `feedback-${unique}${path.extname(file.originalname)}`);
-  },
-});
 
 const upload = multer({
-  storage: diskStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 3 }, // 5MB each, up to 3 screenshots
   fileFilter: imageFileFilter,
 });
@@ -42,9 +35,13 @@ router.post("/", feedbackLimiter, upload.array("attachments", 3), async (req, re
     // reads these back — they exist only for the triage routine/admin
     // review — so gating behind requireAdminSecret (the same auth the
     // routine already uses) rather than requireAuth is correct here.
-    const attachments = (req.files as Express.Multer.File[] | undefined)?.map(
-      (f) => `/api/v1/feedback/attachment/${f.filename}`,
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const saved = await Promise.all(
+      files.map((f) => FeedbackAttachmentModel.create({ contentType: f.mimetype, data: f.buffer })),
     );
+    const attachments = saved.length
+      ? saved.map((a) => `/api/v1/feedback/attachment/${a._id}`)
+      : undefined;
     const feedbackData = insertFeedbackSchema.parse({ ...req.body, attachments });
 
     const feedback = await storage.createFeedback({
@@ -52,7 +49,8 @@ router.post("/", feedbackLimiter, upload.array("attachments", 3), async (req, re
       userId,
     });
 
-    console.log(`[Feedback] New ${feedback.type} submitted by ${feedback.email}`);
+    // No email address in logs.
+    console.log(`[Feedback] New ${feedback.type} submitted (${feedback.id})`);
     res.status(201).json(feedback);
 
     // Fire-and-forget — don't make the submitter wait on email delivery.
@@ -77,8 +75,16 @@ router.post("/", feedbackLimiter, upload.array("attachments", 3), async (req, re
 // record what it found. Deliberately read/annotate only: the routine drafts
 // a fix plan here, it never touches application code directly.
 
-router.get("/attachment/:filename", requireAdminSecret, (req, res, next) => {
+router.get("/attachment/:filename", requireAdminSecret, async (req, res, next) => {
   const filename = req.params.filename;
+  if (isValidObjectId(filename)) {
+    const a = await FeedbackAttachmentModel.findById(filename)
+      .lean()
+      .catch(() => null);
+    if (!a) return next(new NotFoundError("Attachment not found"));
+    res.setHeader("Content-Type", a.contentType);
+    return res.send(Buffer.from(a.data as any));
+  }
   if (!filename || /[\\/]|\.\./.test(filename)) {
     return next(new NotFoundError("Attachment not found"));
   }

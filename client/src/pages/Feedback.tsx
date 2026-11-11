@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { appendCompressed } from "@/lib/compressImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -145,7 +146,7 @@ export default function Feedback() {
       if (attachments.length > 0) {
         const fd = new FormData();
         Object.entries(payload).forEach(([key, value]) => value && fd.append(key, value));
-        attachments.forEach((file) => fd.append("attachments", file));
+        await appendCompressed(fd, "attachments", attachments);
         response = await apiRequest("POST", "/api/v1/feedback", fd);
       } else {
         response = await apiRequest("POST", "/api/v1/feedback", payload);

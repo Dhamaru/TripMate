@@ -7,7 +7,7 @@ name: Database Backup
 # Restore steps: docs/BACKUP.md.
 #
 # Needs two repository secrets: MONGODB_URI and BACKUP_PASSPHRASE. Without
-# them the job exits early instead of failing every night.
+# them the job fails: a green run with no backup looked like a working backup.
 
 on:
   schedule:
@@ -28,8 +28,8 @@ jobs:
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           if [ -z "$MONGODB_URI" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
-            echo "::warning::MONGODB_URI or BACKUP_PASSPHRASE secret missing; skipping backup."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::error::MONGODB_URI or BACKUP_PASSPHRASE secret missing; no backup was taken."
+            exit 1
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "concurrently \"cross-env NODE_ENV=development NO_VITE=1 tsx watch server/index.ts\" \"npm run dev:client\"",
     "dev:standalone": "concurrently \"npm run dev:server\" \"npm run dev:client\"",

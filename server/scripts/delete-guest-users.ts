@@ -24,6 +24,7 @@ import {
 import { AgentJob } from "../models/AgentJob";
 import { TripSuggestion } from "../models/TripSuggestion";
 import { UserMemoryModel } from "../services/UserMemoryService";
+import { deleteUserData } from "../services/deleteUserData";
 
 const APPLY = process.argv.includes("--apply");
 
@@ -77,26 +78,9 @@ async function main() {
   }
 
   console.log("\nApplying…");
-  await Promise.all([
-    TripModel.deleteMany({ userId: { $in: ids } }),
-    JournalEntryModel.deleteMany({ userId: { $in: ids } }),
-    PackingListModel.deleteMany({ userId: { $in: ids } }),
-    PackingListTemplateModel.deleteMany({ userId: { $in: ids } }),
-    AtlasConversationModel.deleteMany({ userId: { $in: ids } }),
-    NotificationModel.deleteMany({ userId: { $in: ids } }),
-    FeedbackModel.deleteMany({ userId: { $in: ids } }),
-    SessionModel.deleteMany({ userId: { $in: ids } }),
-    MapPinModel.deleteMany({ userId: { $in: ids } }),
-    (AgentJob as any).deleteMany({ userId: { $in: ids } }),
-    (TripSuggestion as any).deleteMany({ userId: { $in: ids } }),
-    UserMemoryModel.deleteMany({ userId: { $in: ids } }),
-    TripModel.updateMany(
-      { "collaborators.userId": { $in: ids } },
-      { $pull: { collaborators: { userId: { $in: ids } } } },
-    ),
-  ]);
-  const del = await UserModel.deleteMany({ _id: { $in: ids }, isGuest: true });
-  console.log(`Deleted ${del.deletedCount} guest account(s) and their data.`);
+  // Same cascade as account deletion and the daily guest purge.
+  for (const id of ids) await deleteUserData(id);
+  console.log(`Deleted ${ids.length} guest account(s) and their data.`);
 
   await mongoose.disconnect();
 }
