@@ -151,6 +151,11 @@ describe("Import My Plan — parse-schedule endpoint", () => {
     it("FIX VERIFIED: different startDate does not collide with a differently-dated cache entry", async () => {
       const { token } = await signup();
       const bracket = new AiUtilitiesService().getBudgetBracket(undefined, 1, 1, "INR");
+      // Keep this in the future so the API's past-startDate validation does
+      // not reject the request as the calendar advances.
+      const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
 
       // Seed a cache entry keyed to startDate=2026-10-01 with Oct dates
       const octHash = hashFor(VALID_SCHEDULE, 1, bracket, "INR", "2026-10-01");
@@ -162,25 +167,25 @@ describe("Import My Plan — parse-schedule endpoint", () => {
         },
       });
 
-      // Seed the entry that SHOULD be hit for startDate=2026-11-15, with
+      // Seed the entry that SHOULD be hit for the future startDate, with
       // its own distinct dates, so this test stays fast (no real AI call)
       // while still proving the two dates don't collide.
-      const novHash = hashFor(VALID_SCHEDULE, 1, bracket, "INR", "2026-11-15");
+      const futureHash = hashFor(VALID_SCHEDULE, 1, bracket, "INR", futureStart);
       await ImportPlanCacheModel.create({
-        hash: novHash,
+        hash: futureHash,
         structuredJson: {
           ...CANNED_PARSED,
-          itinerary: [{ ...CANNED_PARSED.itinerary[0], date: "2026-11-15" }],
+          itinerary: [{ ...CANNED_PARSED.itinerary[0], date: futureStart }],
         },
       });
 
       const res = await request(app)
         .post("/api/v1/trips/parse-schedule")
         .set("Authorization", `Bearer ${token}`)
-        .send({ scheduleText: VALID_SCHEDULE, groupSize: "1", startDate: "2026-11-15" });
+        .send({ scheduleText: VALID_SCHEDULE, groupSize: "1", startDate: futureStart });
 
       expect(res.status).toBe(200);
-      expect(res.body.itinerary[0].date).toBe("2026-11-15");
+      expect(res.body.itinerary[0].date).toBe(futureStart);
       expect(res.body.itinerary[0].date).not.toBe("2026-10-01");
     });
 
