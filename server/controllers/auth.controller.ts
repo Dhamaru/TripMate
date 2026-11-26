@@ -1,0 +1,472 @@
+import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
+import {
+  UserModel,
+  SessionModel,
+  TripModel,
+  JournalEntryModel,
+  PackingListModel,
+  PackingListTemplateModel,
+  AtlasConversationModel,
+  NotificationModel,
+  MapPinModel,
+  FeedbackModel,
+  PushSubscriptionModel,
+  ImportPlanRequestLogModel,
+} from "@shared/schema";
+import { AgentJob } from "../models/AgentJob";
+import { TripSuggestion } from "../models/TripSuggestion";
+import { UserMemoryModel } from "../services/UserMemoryService";
+import { BadRequestError, UnauthorizedError, NotFoundError, TooManyRequestsError } from "../errors";
+import { hashPassword, comparePasswords } from "../auth";
+import { sendWelcomeNotification } from "../welcome";
+import { nanoid } from "nanoid";
+import { config } from "../config";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import { getFrontendBaseUrl } from "../urls";
+import { storage } from "../storage";
+import { socketService } from "../services/SocketService";
+import { deleteUserData } from "../services/deleteUserData";
+
+// The session lives in the httpOnly cookie. Returning the JWT in the body
+// handed it to any script or proxy that could read the response; only the
+// test suite (which authenticates with a Bearer header) still gets it.
+const bodyToken = (token: string) => (config.NODE_ENV === "test" ? { token } : {});
+
+const JWT_EXPIRY = "7d";
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+const ALLOWED_PROFILE_FIELDS = new Set([
+  "firstName",
+  "lastName",
+  "phoneNumber",
+  "homeCity",
+  "dietaryPreferences",
+  "cuisinePreferences",
+  "interests",
+  "preferredTransport",
+  "travelStyle",
+  "mutedNotificationTypes",
+]);
+
+function setAuthCookie(req: Request, res: Response, token: string) {
+  const isLocalhost = req.hostname === "localhost" || req.hostname === "127.0.0.1";
+  const isSecure = config.NODE_ENV === "production" && !isLocalhost;
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: "lax",
+    maxAge: COOKIE_MAX_AGE,
+    path: "/",
+  });
+}
+
+function clearAuthCookie(res: Response) {
+  res.clearCookie("token", { path: "/" });
+}
+
+function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function signToken(userId: string, sessionId: string, extra: Record<string, unknown> = {}) {
+  return jwt.sign({ sub: userId, sid: sessionId, ...extra }, config.JWT_SECRET, {
+    expiresIn: JWT_EXPIRY,
+  });
+}
+
+/** Issues a token AND its backing SessionModel row in one call — every
+ * signin/signup/reset path needs both, and previously only the stateless
+ * JWT existed, which meant "log out this other device" was structurally
+ * impossible (nothing tracked which tokens were live). */
+async function issueSession(req: Request, userId: string, extra: Record<string, unknown> = {}) {
+  const sessionId = nanoid();
+  const token = signToken(userId, sessionId, extra);
+  const expiresAt = new Date(Date.now() + COOKIE_MAX_AGE);
+  await SessionModel.create({
+    userId,
+    sessionId,
+    tokenHash: crypto.createHash("sha256").update(token).digest("hex"),
+    ip: req.ip,
+    userAgent: req.headers["user-agent"],
+    expiresAt,
+    revoked: false,
+  });
+  return token;
+}
+
+export const signup = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { email, password, firstName, lastName } = req.body;
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const existingUser = await UserModel.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    if (existingUser.password) throw new BadRequestError("User already exists");
+    // Google-authed user with no password yet — this is an unauthenticated
+    // public endpoint, so we can't just set whatever password the caller
+    // supplied (that was a full account-takeover: anyone who knew a
+    // Google user's email could set their password here with no proof of
+    // ownership). Route through the same email-token flow forgotPassword
+    // already uses instead — it proves the caller controls the inbox
+    // before any password is set.
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    // The raw token only ever needs to exist in the emailed URL — storing
+    // it verbatim in Mongo means any DB read (backup, snapshot, breach)
+    // hands over a working account-takeover token for every pending
+    // reset. Store its hash instead, same pattern SessionModel.tokenHash
+    // already uses.
+    existingUser.resetPasswordToken = hashResetToken(resetToken);
+    existingUser.resetPasswordExpires = new Date(Date.now() + 3_600_000);
+    await existingUser.save();
+    const { sendPasswordResetEmail } = await import("../email");
+    await sendPasswordResetEmail(existingUser.email!, resetToken);
+    return res.status(200).json({
+      message: "This email already has an account. We've sent a link to set a password for it.",
+    });
+  }
+
+  let user;
+  try {
+    user = await UserModel.create({
+      _id: nanoid(),
+      email: normalizedEmail,
+      password: await hashPassword(password),
+      firstName,
+      lastName,
+    });
+  } catch (err: any) {
+    // The findOne check above and this create() aren't atomic — two
+    // concurrent signups with the same email can both pass the check.
+    // The unique index on email (shared/schema.ts) is what actually
+    // closes that race; translate its E11000 into the same user-facing
+    // error the findOne branch above already gives, instead of a raw 500.
+    if (err?.code === 11000) throw new BadRequestError("User already exists");
+    throw err;
+  }
+
+  const token = await issueSession(req, user.id);
+  setAuthCookie(req, res, token);
+  void sendWelcomeNotification(user.id, user.firstName);
+  res.status(201).json({ user, ...bodyToken(token) });
+});
+
+export const guestSignin = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const guestId = `guest_${nanoid()}`;
+  const user = await UserModel.create({
+    _id: guestId,
+    email: `${guestId}@tripmate.guest`,
+    firstName: "Guest",
+    lastName: "Traveler",
+    isGuest: true,
+  });
+
+  const token = await issueSession(req, user.id, { isGuest: true });
+  setAuthCookie(req, res, token);
+  res.json({ user, ...bodyToken(token) });
+});
+
+export const signin = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { email, password } = req.body;
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await UserModel.findOne({ email: normalizedEmail });
+
+  // Return same error for both "not found" and "wrong password" — prevents user enumeration
+  const invalidCreds = () => {
+    throw new UnauthorizedError("Invalid credentials");
+  };
+
+  if (!user || !user.password) return invalidCreds();
+
+  if (user.lockUntil && user.lockUntil.getTime() > Date.now()) {
+    throw new TooManyRequestsError("Account temporarily locked. Please try again later.");
+  }
+
+  const isMatch = await comparePasswords(password, user.password);
+  if (!isMatch) {
+    // Atomic: a read-increment-save let parallel guesses all write "1" and
+    // never reach the lock. The per-IP+account limiter on the route stops a
+    // single guesser early; this account-wide lock (higher threshold) stops a
+    // spread-out attack without letting a stranger lock someone out quickly.
+    const updated = await UserModel.findOneAndUpdate(
+      { _id: user._id },
+      { $inc: { failedLoginAttempts: 1 } },
+      { new: true, projection: { failedLoginAttempts: 1 } },
+    ).lean();
+    if ((updated?.failedLoginAttempts ?? 0) >= config.ACCOUNT_LOCK_MAX_ATTEMPTS) {
+      await UserModel.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            failedLoginAttempts: 0,
+            lockUntil: new Date(Date.now() + config.ACCOUNT_LOCK_DURATION_MS),
+          },
+        },
+      );
+    }
+    return invalidCreds();
+  }
+
+  if ((user.failedLoginAttempts ?? 0) > 0 || user.lockUntil) {
+    await UserModel.updateOne(
+      { _id: user._id },
+      { $set: { failedLoginAttempts: 0 }, $unset: { lockUntil: 1 } },
+    );
+  }
+
+  const token = await issueSession(req, user.id);
+  setAuthCookie(req, res, token);
+  res.json({ user, ...bodyToken(token) });
+});
+
+export const signout = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = req.cookies?.token;
+    if (token) {
+      // jwt.decode() doesn't check the signature — a forged/tampered cookie
+      // with an arbitrary sid would still get its target session revoked.
+      // jwt.verify() only proceeds for a token this server actually signed.
+      const decoded = jwt.verify(token, config.JWT_SECRET) as { sid?: string };
+      if (decoded?.sid) {
+        await SessionModel.updateOne({ sessionId: decoded.sid }, { revoked: true });
+        socketService.disconnectSession(decoded.sid);
+      }
+    }
+  } catch {
+    // Non-fatal — logging out should still succeed even if the cookie is
+    // missing, expired, or fails verification
+  }
+  clearAuthCookie(res);
+  // Old express-session cookies ("connect.sid"/"sid") from before it was removed.
+  res.clearCookie("connect.sid");
+  res.clearCookie("sid");
+  res.json({ message: "Signed out successfully" });
+};
+
+export const googleCallback = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const frontendBaseUrl = getFrontendBaseUrl(req);
+    const user = req.user as any;
+    if (!user) return res.redirect(`${frontendBaseUrl}/signin?error=auth_failed`);
+
+    const userId = user._id || user.id;
+    if (!userId) return res.redirect(`${frontendBaseUrl}/signin?error=auth_failed`);
+
+    const token = await issueSession(req, userId);
+    setAuthCookie(req, res, token);
+    res.redirect(`${frontendBaseUrl}/app/home`);
+  },
+);
+
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { email } = req.body;
+    // Always return the same response — prevents email enumeration
+    const genericResponse = {
+      message: "If this email is registered, a password reset link has been sent.",
+    };
+
+    const user = await UserModel.findOne({ email: email.toLowerCase().trim() });
+    if (!user) return res.json(genericResponse);
+
+    const token = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = hashResetToken(token);
+    user.resetPasswordExpires = new Date(Date.now() + 3_600_000); // 1 hour
+    await user.save();
+
+    const { sendPasswordResetEmail } = await import("../email");
+    await sendPasswordResetEmail(user.email!, token);
+
+    res.json(genericResponse);
+  },
+);
+
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { token, password } = req.body;
+    const user = await UserModel.findOne({
+      resetPasswordToken: hashResetToken(token),
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) throw new BadRequestError("Invalid or expired reset token");
+
+    user.password = await hashPassword(password);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    // changePassword already revokes the old session on rotation — a
+    // forgot-password reset is the same kind of credential rotation and
+    // needs the same treatment, or a session an attacker already holds
+    // stays valid for up to 7 more days after the "legitimate" reset.
+    await SessionModel.updateMany({ userId: user.id }, { revoked: true });
+    socketService.disconnectUser(String(user.id));
+
+    res.json({ message: "Password has been reset. You can now sign in." });
+  },
+);
+
+export const getProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = (req.user as any)?._id || (req.user as any)?.id || (req.user as any)?.sub;
+  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  const user = await storage.getUser(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json(user);
+});
+
+export const updateProfile = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    // Only allow safe profile fields — prevent privilege escalation
+    const updates = Object.fromEntries(
+      Object.entries(req.body).filter(([key]) => ALLOWED_PROFILE_FIELDS.has(key)),
+    );
+
+    if (Object.keys(updates).length === 0) {
+      throw new BadRequestError("No valid fields to update");
+    }
+
+    const user = await UserModel.findByIdAndUpdate(
+      req.user!._id,
+      { $set: updates },
+      { new: true, runValidators: true },
+    );
+    res.json(user);
+  },
+);
+
+export const changePassword = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { currentPassword, newPassword } = req.body;
+    const user = await UserModel.findById(req.user!._id);
+    if (!user || !user.password) throw new UnauthorizedError("Invalid user or credentials");
+    const isMatch = await comparePasswords(currentPassword, user.password);
+    if (!isMatch) throw new UnauthorizedError("Incorrect current password");
+    user.password = await hashPassword(newPassword);
+    await user.save();
+    // Sign out everywhere, same as a reset: someone holding a stolen session
+    // on another device must not keep access after the user changes their
+    // password. This tab gets a fresh session below, and its socket
+    // reconnects on it (useSocket.ts).
+    await SessionModel.updateMany({ userId: user.id, revoked: { $ne: true } }, { revoked: true });
+    socketService.disconnectUser(String(user.id));
+    const token = await issueSession(req, user.id);
+    setAuthCookie(req, res, token);
+    res.json({ message: "Password changed successfully" });
+  },
+);
+
+export const uploadAvatar = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    // req.file only — a JSON-body `avatar` string fallback used to be
+    // accepted here too, but it bypassed multer's imageFileFilter
+    // (MIME/extension check) and 5MB size limit entirely, and neither real
+    // client caller (CropImage.tsx, Profile.tsx) ever sends the field that
+    // way — both always upload real multipart FormData. Removed the dead,
+    // unsafe fallback rather than leave an unused hole in the validation.
+    if (!req.file) throw new BadRequestError("No avatar provided");
+    // Stored as a data URI directly in the User document — see the multer
+    // memoryStorage comment in auth.routes.ts for why this isn't written
+    // to disk. <img src> renders a data: URI exactly like a normal URL, no
+    // client changes needed.
+    const avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+
+    // Two fields have historically tracked the user's picture: `avatar`
+    // (set by this upload flow) and `profileImageUrl` (set at signup, e.g.
+    // from Google OAuth). The sidebar/topbar/bottom-nav (Layout.tsx) read
+    // only `profileImageUrl`, so a crop upload that wrote just `avatar`
+    // silently diverged from what those surfaces show. Write both so every
+    // avatar-reading surface reflects the new picture.
+    const user = await UserModel.findByIdAndUpdate(
+      req.user!._id,
+      { avatar: avatarUrl, profileImageUrl: avatarUrl },
+      { new: true },
+    );
+    res.json(user);
+  },
+);
+
+export const exportUserData = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user!._id;
+
+    const [
+      user,
+      trips,
+      journalEntries,
+      packingLists,
+      packingListTemplates,
+      atlasConversations,
+      notifications,
+      feedback,
+      mapPins,
+      agentJobs,
+      tripSuggestions,
+      memory,
+    ] = await Promise.all([
+      UserModel.findById(userId)
+        .select("-password -resetPasswordToken -resetPasswordExpires")
+        .lean(),
+      TripModel.find({ userId }).lean(),
+      JournalEntryModel.find({ userId }).lean(),
+      PackingListModel.find({ userId }).lean(),
+      PackingListTemplateModel.find({ userId }).lean(),
+      AtlasConversationModel.find({ userId }).lean(),
+      NotificationModel.find({ userId }).lean(),
+      FeedbackModel.find({ userId }).lean(),
+      MapPinModel.find({ userId }).lean(),
+      AgentJob.find({ userId }).lean(),
+      TripSuggestion.find({ userId }).lean(),
+      UserMemoryModel.findOne({ userId }).lean(),
+    ]);
+
+    if (!user) throw new NotFoundError("User not found");
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      profile: user,
+      trips,
+      journalEntries,
+      packingLists,
+      packingListTemplates,
+      atlasConversations,
+      notifications,
+      feedback,
+      mapPins,
+      agentJobs,
+      tripSuggestions,
+      memory,
+    };
+
+    const filename = `tripmate-export-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(exportData, null, 2));
+  },
+);
+
+export const deleteAccount = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { password, confirm } = req.body;
+    const user = await UserModel.findById(req.user!._id);
+    if (!user) throw new NotFoundError("User not found");
+
+    if (user.password) {
+      // Password-based account: require current password
+      if (!password) throw new BadRequestError("Password required to delete account");
+      const isMatch = await comparePasswords(password, user.password);
+      if (!isMatch) throw new UnauthorizedError("Incorrect password");
+    } else {
+      // OAuth account (no password): require explicit confirmation string
+      if (confirm !== "DELETE") {
+        throw new BadRequestError('Send confirm: "DELETE" to confirm account deletion');
+      }
+    }
+
+    const deletedUserId = req.user!._id;
+    await deleteUserData(String(deletedUserId));
+    clearAuthCookie(res);
+    socketService.disconnectUser(String(deletedUserId));
+    res.json({ message: "Account deleted successfully" });
+  },
+);

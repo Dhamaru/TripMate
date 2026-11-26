@@ -1,0 +1,3296 @@
+import { config } from "./config";
+import { googleFetch } from "./services/billedQuota";
+import OpenAI from "openai";
+import { z } from "zod";
+import { MultiAgentOrchestrator } from "./services/MultiAgentOrchestrator";
+import { FeasibilityModeler } from "./services/FeasibilityModeler";
+import { PlanValidator } from "./services/PlanValidator";
+import { AiFallbackEventModel } from "@shared/schema";
+
+type CacheEntry<T> = { data: T; expiresAt: number };
+
+// MyMemory's anonymous quota is 100 requests/day; a registered `de` email
+// param raises that to 10,000 words/day at no cost. Only used as the last
+// fallback (Gemini and Google Translate are tried first) but real usage
+// was hitting the anonymous ceiling under light load.
+const MYMEMORY_CONTACT_EMAIL = "kasivasi2005@gmail.com";
+
+function sanitize(input: string, max = 2000): string {
+  const trimmed = (input || "").toString().trim();
+  const safe = trimmed.replace(/[\u0000-\u001F\u007F]/g, "");
+  return safe.slice(0, max);
+}
+
+// Mirrors the language list in client/src/components/LanguageTranslator.tsx —
+// small instruct models translate far more reliably from a spelled-out
+// language name than a bare ISO code.
+const LANGUAGE_NAMES: Record<string, string> = {
+  auto: "the detected language",
+  en: "English",
+  hi: "Hindi",
+  ta: "Tamil",
+  te: "Telugu",
+  kn: "Kannada",
+  ml: "Malayalam",
+  gu: "Gujarati",
+  mr: "Marathi",
+  pa: "Punjabi",
+  bn: "Bengali",
+  ur: "Urdu",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+};
+
+// Coordinates for major cities, so lookups work without any geocoding call.
+export const CITIES_COORD_MAP: Record<string, { lat: number; lon: number }> = {
+  delhi: { lat: 28.6139, lon: 77.209 },
+  "new delhi": { lat: 28.6139, lon: 77.209 },
+  mumbai: { lat: 19.076, lon: 72.8777 },
+  bangalore: { lat: 12.9716, lon: 77.5946 },
+  hyderabad: { lat: 17.385, lon: 78.4867 },
+  chennai: { lat: 13.0827, lon: 80.2707 },
+  kolkata: { lat: 22.5726, lon: 88.3639 },
+  jaipur: { lat: 26.9124, lon: 75.7873 },
+  lucknow: { lat: 26.8467, lon: 80.9462 },
+  agra: { lat: 27.1767, lon: 78.0081 },
+  goa: { lat: 15.2993, lon: 74.124 },
+  pune: { lat: 18.5204, lon: 73.8567 },
+  bengaluru: { lat: 12.9716, lon: 77.5946 },
+  ahmedabad: { lat: 23.0225, lon: 72.5714 },
+  london: { lat: 51.5074, lon: -0.1278 },
+  "new york": { lat: 40.7128, lon: -74.006 },
+  paris: { lat: 48.8566, lon: 2.3522 },
+  tokyo: { lat: 35.6762, lon: 139.6503 },
+  singapore: { lat: 1.3521, lon: 103.8198 },
+  dubai: { lat: 25.2048, lon: 55.2708 },
+  bangkok: { lat: 13.7563, lon: 100.5018 },
+};
+
+export class AiUtilitiesService {
+  private openai: OpenAI | null;
+  // Static: controllers create a new AiUtilitiesService per request, so a
+  // per-instance cache never hit and every trip-page view re-billed the
+  // same hacks/quiet-places AI calls.
+  private static cache = new Map<string, CacheEntry<any>>();
+  private ttlMs = 5 * 60 * 1000;
+  private static inflight = new Map<string, Promise<any>>();
+  private get cache() {
+    return AiUtilitiesService.cache;
+  }
+  private get inflight() {
+    return AiUtilitiesService.inflight;
+  }
+
+  constructor(apiKey?: string) {
+    // Gemini's OpenAI-compatible endpoint, like the rest of the agent stack.
+    const key = apiKey || config.GEMINI_API_KEY;
+    this.openai = key
+      ? new OpenAI({
+          apiKey: key,
+          baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+          // No hidden SDK retries (default 2) or 10-min hangs: retries are explicit, and
+          // quota/credit errors must fail fast instead of multiplying billed calls.
+          maxRetries: 0,
+          timeout: 60_000,
+        })
+      : null;
+  }
+
+  // Fallback map for major cities (module-level, shared with transitEstimate).
+  private readonly CITIES_COORD_MAP = CITIES_COORD_MAP;
+
+  private async generateWithGemini(prompt: string, systemPrompt?: string): Promise<string> {
+    const geminiKey = config.GEMINI_API_KEY;
+    if (!geminiKey) throw new Error("gemini_disabled");
+
+    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: fullPrompt }] }],
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Gemini status ${response.status}: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      if (json.error) throw new Error(`Gemini API Error: ${json.error.message}`);
+
+      let text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      // Clean markdown if present
+      if (text.startsWith("```")) {
+        text = text
+          .replace(/```json?\n?/g, "")
+          .replace(/```/g, "")
+          .trim();
+      }
+      return text;
+    } catch (error) {
+      console.error("[AiUtilities] Gemini Error:", error);
+      throw error;
+    }
+  }
+
+  private getCached<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (entry && entry.expiresAt > Date.now()) return entry.data as T;
+    if (entry) this.cache.delete(key);
+    return null;
+  }
+
+  private setCached<T>(key: string, data: T, ttlMs = this.ttlMs): T {
+    // ponytail: oldest-first eviction at 1000 entries; an LRU only if hit rates show it matters.
+    if (this.cache.size >= 1000) this.cache.delete(this.cache.keys().next().value!);
+    this.cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+    return data;
+  }
+
+  /**
+   * Calculates the Haversine distance between two points in kilometers.
+   */
+  private calculateHaversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  /**
+   * Enforces deterministic constraints on a trip plan (distances, transit times, buffers).
+   */
+  private async enforceTransitConstraints(plan: any): Promise<any> {
+    const destination = plan.destination;
+    const avgSpeedKph = 30; // Average city traffic speed
+    const minBufferMinutes = 30;
+
+    for (const day of plan.itinerary) {
+      if (!day.activities || day.activities.length === 0) continue;
+
+      // Track major attractions for fatigue check
+      let majorAttractionCount = 0;
+
+      for (let i = 0; i < day.activities.length; i++) {
+        const activity = day.activities[i];
+
+        // Fatigue check: Flag major attractions
+        if (["sightseeing", "museum", "temple"].includes(activity.type)) {
+          majorAttractionCount++;
+        }
+
+        // Resolve coordinates if missing (some grounded places might not have them)
+        if (activity.lat === undefined || activity.lon === undefined) {
+          const coords = await this.resolveCoordinates(
+            activity.placeName || activity.title,
+            destination,
+          );
+          if (coords) {
+            activity.lat = coords.lat;
+            activity.lon = coords.lon;
+          }
+        }
+
+        // Calculate route from previous
+        if (i > 0) {
+          const prev = day.activities[i - 1];
+          if (
+            prev.lat !== undefined &&
+            prev.lon !== undefined &&
+            activity.lat !== undefined &&
+            activity.lon !== undefined
+          ) {
+            const distance = this.calculateHaversineDistance(
+              prev.lat,
+              prev.lon,
+              activity.lat,
+              activity.lon,
+            );
+            const travelTime = Math.round((distance / avgSpeedKph) * 60) + 15; // +15 min overhead
+
+            activity.routeFromPrevious = {
+              mode: distance < 0.8 ? "walk" : "taxi",
+              distance_km: parseFloat(distance.toFixed(2)),
+              travel_time_minutes: travelTime,
+              from: prev.title || prev.placeName,
+              to: activity.title || activity.placeName,
+            };
+
+            // Explainability note
+            if (travelTime > 60) {
+              plan.notes =
+                (plan.notes || "") + ` | Long travel alert on Day ${day.day} to ${activity.title}`;
+            }
+          }
+        } else {
+          // First activity of the day (start from hotel/center)
+          activity.routeFromPrevious = activity.routeFromPrevious || {
+            mode: "taxi",
+            distance_km: 5,
+            travel_time_minutes: 20,
+            from: "Hotel",
+            to: activity.title || activity.placeName,
+          };
+        }
+
+        // Add mandatory buffer to duration for realistic planning
+        activity.duration_minutes = (activity.duration_minutes || 60) + minBufferMinutes;
+      }
+
+      // Add fatigue warning if too many major spots
+      if (majorAttractionCount > 3) {
+        plan.notes =
+          (plan.notes || "") +
+          ` | Fatigue alert: Day ${day.day} is very busy. Consider local transport for recovery.`;
+      }
+    }
+
+    return plan;
+  }
+
+  async translate(
+    text: string,
+    sourceLang: string,
+    targetLang: string,
+  ): Promise<{
+    translatedText: string;
+    pronunciation?: string;
+    source?: "google" | "gemini" | "mymemory";
+  }> {
+    const t = sanitize(text);
+    const from = sanitize(sourceLang, 32);
+    const to = sanitize(targetLang, 32);
+    const key = `translate:${from}:${to}:${t}`;
+    const cached = this.getCached<{
+      translatedText: string;
+      pronunciation?: string;
+      source?: "google" | "gemini" | "mymemory";
+    }>(key);
+    if (cached) return cached;
+
+    try {
+      if (!this.openai) throw new Error("ai_disabled");
+      const client = this.openai!;
+      // Pin the exact JSON shape explicitly (key name, no prose) and force
+      // response_format: json_object — without both, the model sometimes
+      // returns the translation under a different key ("translation",
+      // "text") or wrapped in prose, which silently produced an empty
+      // translatedText below.
+      const prompt = `Translate the following text from ${LANGUAGE_NAMES[from] || from} to ${LANGUAGE_NAMES[to] || to}. Write the translation in the native script of ${LANGUAGE_NAMES[to] || to} (not a Romanized transliteration). Respond with ONLY a JSON object of the exact shape {"translatedText": string, "pronunciation": string | null} — no other keys, no prose.`;
+      const completion = await client.chat.completions.create({
+        model: "gemini-3.6-flash",
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: prompt },
+          { role: "user", content: t },
+        ],
+      });
+      const content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+      const json = this.parseJson(content);
+      // Accept a few key-name variants defensively, in case the model still
+      // deviates from the requested shape despite response_format.
+      const translatedText = String(json.translatedText || json.translation || json.text || "");
+      // An empty/malformed result must throw, or the Google/MyMemory fallbacks below never run.
+      if (!translatedText) throw new Error("empty_translation");
+      const result = {
+        translatedText,
+        pronunciation: json.pronunciation ? String(json.pronunciation) : undefined,
+        source: "gemini" as const,
+      };
+      return this.setCached(key, result);
+    } catch {
+      // Fallback 1: Google Cloud Translation — a dedicated NMT engine, not
+      // an improvising LLM, so it doesn't have the small-instruct-model
+      // failure mode below (confusing "who"/"what", swapping "I"/"you").
+      // Reuses the same GOOGLE_API_KEY already provisioned for Places —
+      // Cloud Translation just needs to be enabled + allowlisted in that
+      // key's API restrictions on the same GCP project.
+      try {
+        const googleKey = config.GOOGLE_API_KEY;
+        if (!googleKey) throw new Error("google_translate_disabled");
+        const res = await googleFetch(
+          `https://translation.googleapis.com/language/translate/v2?key=${googleKey}`,
+          undefined,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              q: t,
+              source: from === "auto" ? undefined : from,
+              target: to,
+              format: "text",
+            }),
+          },
+        );
+        if (res?.ok) {
+          const json = await res.json();
+          const translated = String(json?.data?.translations?.[0]?.translatedText || "");
+          if (translated) {
+            const result = {
+              translatedText: translated,
+              pronunciation: undefined,
+              source: "google" as const,
+            };
+            return this.setCached(key, result);
+          }
+        }
+      } catch {
+        /* fall through to Gemini */
+      }
+
+      // Fallback 2: Gemini. MyMemory can return confidently wrong results for common phrases (e.g. "Thank you" -> a sentence about reciting a poem).
+      try {
+        // Small instruct models are unreliable with bare ISO codes (observed:
+        // asking for "te" produced Hindi written in Roman transliteration,
+        // not Telugu script at all) — spell out the language name and
+        // explicitly require native script to stop it from transliterating.
+        const langName = (code: string) => LANGUAGE_NAMES[code] || code;
+        // A small generic instruct model's single most common failure mode
+        // on real user reports was swapping the grammatical subject —
+        // "who are you?" translated to mean "who am I?", "what is your
+        // name?" to mean "what are you?". Forcing the model to name the
+        // subject BEFORE translating (and parsing only the line after it)
+        // makes it externalize that reasoning step instead of silently
+        // pattern-matching straight to an answer — a known mitigation for
+        // this exact error class in small LLMs. temperature 0 (not the
+        // 0.3 default used elsewhere in this file) for deterministic,
+        // literal output rather than creative variance.
+        const prompt = `You are a precise translator. Follow these steps internally, then output in exactly this two-line format:
+SUBJECT: <who or what the sentence is about — the speaker ("I"/"we"), the person addressed ("you"), or a third thing ("this"/"it"/"he"/"she")>
+TRANSLATION: <the translation only>
+
+Never swap "I" and "you" or "this" and "you" between the SUBJECT line and the TRANSLATION.
+
+Examples:
+Source (English): "Who are you?"
+SUBJECT: you (the person being addressed)
+TRANSLATION: आप कौन हैं?
+
+Source (English): "What is your name?"
+SUBJECT: you (the person being addressed)
+TRANSLATION: आपका नाम क्या है?
+
+Source (English): "This is my bag."
+SUBJECT: this (a third thing)
+TRANSLATION: यह मेरा बैग है।
+
+Now translate the following text from ${langName(from)} to ${langName(to)}, in the native script of ${langName(to)} (not a Romanized transliteration).`;
+        // Tried mistralai/mistral-large-2-instruct here as a stronger
+        // model — it's not available on this NIM API key's catalog, so
+        // every call hard-failed and silently fell through to MyMemory,
+        // which is worse (confirmed live: "Thank you" -> a phrase meaning
+        // "I am a Tamil girl", the exact failure mode already documented
+        // below). Reverted to the known-working default model; the
+        // subject-identification prompt and temperature 0 above are kept
+        // since they're still real improvements even though they don't
+        // fully fix the WH-word confusion on this smaller model.
+        const geminiRaw = await this.generateWithGemini(t, prompt);
+        const translationLine = geminiRaw.split("\n").find((l) => /^TRANSLATION:/i.test(l.trim()));
+        const geminiText = translationLine
+          ? translationLine.replace(/^TRANSLATION:/i, "").trim()
+          : geminiRaw.trim();
+        if (geminiText) {
+          const result = {
+            translatedText: geminiText,
+            pronunciation: undefined,
+            source: "gemini" as const,
+          };
+          return this.setCached(key, result);
+        }
+      } catch {
+        /* fall through to MyMemory */
+      }
+
+      // Fallback 3: MyMemory free translation API (no key required). The
+      // `de` param registers requests against a real email, raising the
+      // rate ceiling from 100 req/day (anonymous) to 10,000 words/day —
+      // without it, real usage burns through the anonymous quota quickly
+      // and MyMemory starts returning its error text as if it were a
+      // translation.
+      try {
+        const langPair = `${from === "auto" ? "en" : from}|${to}`;
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=${encodeURIComponent(langPair)}&de=${encodeURIComponent(MYMEMORY_CONTACT_EMAIL)}`;
+        const r = await fetch(url, { headers: { "User-Agent": "TripMate/2.0.0" } });
+        if (r.ok) {
+          const json = await r.json();
+          // Previously fell back to `t` (the original input) when MyMemory
+          // returned an empty translatedText — that made a blank/quota
+          // response look like a real, successful translation of the input
+          // back to itself, indistinguishable from success. Fall through to
+          // the last-resort error instead.
+          const translated = String(json?.responseData?.translatedText || "");
+          if (translated) {
+            const result = {
+              translatedText: translated,
+              pronunciation: undefined,
+              source: "mymemory" as const,
+            };
+            return this.setCached(key, result);
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+      // All backends failed — throw rather than echo the user's input back as a translation.
+      throw new Error("Translation unavailable — all providers failed");
+    }
+  }
+
+  async weather(city: string): Promise<{
+    current: any;
+    forecast: any[];
+    recommendations: any[];
+    source?: "openweather" | "ai" | "fallback-route" | "fallback";
+  }> {
+    const c = sanitize(city, 128);
+    const key = `weather:${c}`;
+    const cached = this.getCached<{ current: any; forecast: any[]; recommendations: any[] }>(key);
+    if (cached) return cached;
+
+    // Check if input is already lat,lon coords
+    const coordMatch = c.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+
+    try {
+      const owKey = config.OPENWEATHER_API_KEY;
+      if (owKey) {
+        let coord: { lat: number; lon: number } | null = coordMatch
+          ? { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[2]) }
+          : null;
+        let currentJson: any;
+        const currentRes = coordMatch
+          ? await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?lat=${coordMatch[1]}&lon=${coordMatch[2]}&units=metric&appid=${owKey}`,
+            )
+          : await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c)}&units=metric&appid=${owKey}`,
+            );
+        currentJson = await currentRes.json();
+        if (!currentRes.ok) {
+          const geoRes = await fetch(
+            `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(c)}&limit=1&appid=${owKey}`,
+          );
+          const geoJson = await geoRes.json();
+          if (Array.isArray(geoJson) && geoJson.length > 0) {
+            coord = { lat: geoJson[0].lat, lon: geoJson[0].lon };
+            const currentByCoordRes = await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`,
+            );
+            currentJson = await currentByCoordRes.json();
+            if (!currentByCoordRes.ok)
+              throw new Error(String(currentJson?.message || "Weather fetch failed"));
+          } else {
+            throw new Error(String(currentJson?.message || "Weather fetch failed"));
+          }
+        } else {
+          coord = currentJson?.coord
+            ? { lat: currentJson.coord.lat, lon: currentJson.coord.lon }
+            : null;
+        }
+
+        let forecastJson: any = { list: [] };
+        let uvIndex: number | null = null;
+        if (coord) {
+          const [forecastRes, uvRes] = await Promise.all([
+            fetch(
+              `https://api.openweathermap.org/data/2.5/forecast?lat=${coord.lat}&lon=${coord.lon}&units=metric&appid=${owKey}`,
+            ),
+            fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${coord.lat}&longitude=${coord.lon}&current=uv_index&timezone=auto`,
+            ),
+          ]);
+          forecastJson = await forecastRes.json();
+          if (uvRes.ok) {
+            const uvJson = await uvRes.json();
+            uvIndex = uvJson.current?.uv_index ?? null;
+          }
+        }
+        const iconMap: Record<string, string> = {
+          Clear: "fas fa-sun",
+          Clouds: "fas fa-cloud",
+          Rain: "fas fa-cloud-rain",
+          Drizzle: "fas fa-cloud-rain",
+          Thunderstorm: "fas fa-bolt",
+          Snow: "fas fa-snowflake",
+          Mist: "fas fa-smog",
+          Fog: "fas fa-smog",
+          Wind: "fas fa-wind",
+        };
+        const cond = currentJson.weather?.[0]?.main || "Clear";
+        const fmtTime = (unix: number | undefined) => {
+          if (!unix) return "";
+          return new Date(unix * 1000).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          });
+        };
+        // OpenWeather's own icon code carries a day/night suffix ("01d" vs
+        // "01n") based on the queried location's actual local sunrise/sunset
+        // — not the browser's clock or dark-mode setting — so it's the
+        // correct signal for "is it night at this destination right now."
+        // Previously ignored entirely: a sunny-at-night result always showed
+        // the sun icon and the bright daytime gradient.
+        const isDay = !String(currentJson.weather?.[0]?.icon || "").endsWith("n");
+        const current = {
+          temperature: Math.round(currentJson.main?.temp ?? 22),
+          condition: cond,
+          humidity: Math.round(currentJson.main?.humidity ?? 60),
+          windSpeed: Math.round(currentJson.wind?.speed ?? 10),
+          wind_kph: Math.round((currentJson.wind?.speed ?? 0) * 3.6),
+          icon: cond === "Clear" && !isDay ? "fas fa-moon" : iconMap[cond] || "fas fa-cloud",
+          isDay,
+          visibility:
+            currentJson.visibility != null ? Math.round(currentJson.visibility / 100) / 10 : null,
+          sunrise: fmtTime(currentJson.sys?.sunrise),
+          sunset: fmtTime(currentJson.sys?.sunset),
+          uv_index: uvIndex,
+        };
+        const byDate: Record<string, { high: number; low: number; main: string }> = {};
+        const list = Array.isArray(forecastJson.list) ? forecastJson.list : [];
+        for (const item of list) {
+          const d = item.dt_txt?.slice(0, 10) || "";
+          const tMax = item.main?.temp_max;
+          const tMin = item.main?.temp_min;
+          const main = item.weather?.[0]?.main || "Clear";
+          if (!byDate[d]) {
+            byDate[d] = { high: tMax, low: tMin, main } as any;
+          } else {
+            byDate[d].high = Math.max(byDate[d].high, tMax);
+            byDate[d].low = Math.min(byDate[d].low, tMin);
+          }
+        }
+        const now = new Date();
+        const forecast: Array<{
+          day: string;
+          high: number;
+          low: number;
+          condition: string;
+          icon?: string;
+        }> = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
+            .toISOString()
+            .slice(0, 10);
+          const label = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate() + i,
+          ).toLocaleDateString("en-US", { weekday: "short" });
+          const entry = byDate[d];
+          if (entry) {
+            forecast.push({
+              day: label,
+              high: Math.round(entry.high),
+              low: Math.round(entry.low),
+              condition: entry.main,
+              icon: iconMap[entry.main] || "fas fa-cloud",
+            });
+          } else {
+            forecast.push({
+              day: label,
+              high: current.temperature,
+              low: Math.max(0, current.temperature - 5),
+              condition: current.condition,
+              icon: current.icon,
+            });
+          }
+        }
+        const recommendations: string[] = [];
+        if (current.temperature >= 30) recommendations.push("Stay hydrated");
+        if (current.condition.includes("Rain")) recommendations.push("Carry a raincoat");
+        recommendations.push("Use sunscreen during midday");
+        const result: {
+          current: any;
+          forecast: any[];
+          recommendations: any[];
+          source?: "openweather" | "ai" | "fallback-route" | "fallback";
+        } = { current, forecast, recommendations, source: "openweather" };
+        return this.setCached(key, result);
+      }
+      const prompt = `Provide the current weather and 7-day forecast for ${c}. If exact realtime data is unavailable, provide best predictive estimation based on known climate patterns, season, geography, altitude, and historical averages. Return JSON EXACTLY matching this shape and these field names (temperatures in Celsius, plain numbers, no units in the value): { "current": { "temperature": number, "condition": string, "humidity": number, "windSpeed": number }, "forecast": [ { "day": string, "high": number, "low": number, "condition": string } ] (7 items), "recommendations": string[] }.`;
+      let content: string;
+      // Falls over to Gemini on any OpenAI failure (e.g. quota exhausted), not just a missing key.
+      if (this.openai) {
+        try {
+          const completion = await this.openai.chat.completions.create({
+            model: "gemini-3.6-flash",
+            temperature: 0,
+            messages: [
+              { role: "system", content: prompt },
+              { role: "user", content: c },
+            ],
+          });
+          content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+        } catch (openaiErr) {
+          console.warn(
+            `[Weather] OpenAI call failed for "${c}", falling back to Gemini:`,
+            openaiErr instanceof Error ? openaiErr.message : openaiErr,
+          );
+          content = await this.generateWithGemini(c, prompt);
+        }
+      } else {
+        content = await this.generateWithGemini(c, prompt);
+      }
+      const json = this.parseJson(content);
+      // Live-caught: the model doesn't reliably use the field names every
+      // other branch of this method produces (temperature/humidity/
+      // windSpeed/condition) — a real response came back as
+      // temperature_c/humidity_percent/wind_kph instead, which the
+      // frontend's WeatherWidget doesn't read, rendering as "NaN°" and
+      // blank stats. Accept either naming rather than trust the prompt
+      // alone to hold across every model call.
+      const rawCurrent = json.current || {};
+      const current = {
+        ...rawCurrent,
+        temperature: rawCurrent.temperature ?? rawCurrent.temperature_c ?? rawCurrent.temp,
+        humidity: rawCurrent.humidity ?? rawCurrent.humidity_percent,
+        windSpeed: rawCurrent.windSpeed ?? rawCurrent.wind_kph ?? rawCurrent.wind_kmh,
+        condition: rawCurrent.condition,
+      };
+      const forecast = (Array.isArray(json.forecast) ? json.forecast.slice(0, 7) : []).map(
+        (day: any) => ({
+          ...day,
+          high: day.high ?? day.high_c ?? day.temp_high_c,
+          low: day.low ?? day.low_c ?? day.temp_low_c,
+        }),
+      );
+      const recommendations = Array.isArray(json.recommendations) ? json.recommendations : [];
+      const result: {
+        current: any;
+        forecast: any[];
+        recommendations: any[];
+        source?: "openweather" | "ai" | "fallback-route" | "fallback";
+      } = { current, forecast, recommendations, source: "ai" };
+      return this.setCached(key, result);
+    } catch (primaryErr) {
+      // Log which layer broke; otherwise a fully-failed fallback chain is undiagnosable.
+      const primaryErrMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+      console.warn(
+        `[Weather] Primary (OWM/AI) path failed for "${c}", trying Open-Meteo fallback:`,
+        primaryErrMsg,
+      );
+      let fallbackErrMsg = "";
+      // Try Open-Meteo (free, no API key) via Nominatim geocoding
+      try {
+        let lat: string, lon: string;
+        if (coordMatch) {
+          lat = coordMatch[1];
+          lon = coordMatch[2];
+        } else {
+          const geoRes = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(c)}&limit=1`,
+            // Nominatim's usage policy requires a User-Agent that actually
+            // identifies the application (a bare product string doesn't
+            // qualify) — this diverged from the working /geocode route's
+            // header, which spells out contact info and doesn't hit this
+            // problem.
+            { headers: { "User-Agent": "TripMate/2.0.0 (kasivasl2005@gmail.com)" } },
+          );
+          if (!geoRes.ok) throw new Error(`geo_fail: nominatim ${geoRes.status}`);
+          const geoJson = await geoRes.json();
+          if (!Array.isArray(geoJson) || geoJson.length === 0) throw new Error("geo_no_results");
+          lat = geoJson[0].lat;
+          lon = geoJson[0].lon;
+        }
+        {
+          const meteoRes = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&forecast_days=7&timezone=auto`,
+          );
+          // Throw on non-ok so the failure is logged instead of silently falling through to the generic estimate.
+          if (!meteoRes.ok) throw new Error(`open-meteo ${meteoRes.status}`);
+          {
+            const meteo = await meteoRes.json();
+            const wc = meteo.current_weather?.weathercode ?? 0;
+            const condMap = (code: number) => {
+              if (code === 0) return "Clear";
+              if (code <= 3) return "Clouds";
+              if (code <= 49) return "Mist";
+              if (code <= 69) return "Rain";
+              if (code <= 79) return "Snow";
+              if (code <= 99) return "Thunderstorm";
+              return "Clouds";
+            };
+            const iconMap: Record<string, string> = {
+              Clear: "fas fa-sun",
+              Clouds: "fas fa-cloud",
+              Rain: "fas fa-cloud-rain",
+              Snow: "fas fa-snowflake",
+              Thunderstorm: "fas fa-bolt",
+              Mist: "fas fa-smog",
+            };
+            const cond = condMap(wc);
+            const temp = Math.round(meteo.current_weather?.temperature ?? 20);
+            // Open-Meteo's current_weather already reports is_day (0/1) at
+            // no extra cost — same day/night fix as the primary OWM path.
+            const isDay = meteo.current_weather?.is_day !== 0;
+            const current = {
+              temperature: temp,
+              condition: cond,
+              humidity: 60,
+              windSpeed: Math.round(meteo.current_weather?.windspeed ?? 10),
+              icon: cond === "Clear" && !isDay ? "fas fa-moon" : iconMap[cond] || "fas fa-cloud",
+              isDay,
+            };
+            const daily = meteo.daily || {};
+            const forecast = Array.from({ length: 7 }, (_, i) => {
+              const hi = Math.round(daily.temperature_2m_max?.[i] ?? temp);
+              const lo = Math.round(daily.temperature_2m_min?.[i] ?? temp - 5);
+              const dc = condMap(daily.weathercode?.[i] ?? 0);
+              const now2 = new Date();
+              const dayLabel = new Date(
+                now2.getFullYear(),
+                now2.getMonth(),
+                now2.getDate() + i,
+              ).toLocaleDateString("en-US", { weekday: "short" });
+              return {
+                day: dayLabel,
+                high: hi,
+                low: lo,
+                condition: dc,
+                icon: iconMap[dc] || "fas fa-cloud",
+              };
+            });
+            const recommendations: string[] =
+              temp < 10
+                ? ["Dress warmly — cold temperatures expected", "Check road conditions"]
+                : temp >= 30
+                  ? ["Stay hydrated", "Use sunscreen"]
+                  : ["Comfortable weather — light layers recommended"];
+            const result = {
+              current,
+              forecast,
+              recommendations,
+              source: "fallback-route" as const,
+            };
+            return this.setCached(key, result);
+          }
+        }
+      } catch (fallbackErr) {
+        fallbackErrMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        console.warn(
+          `[Weather] Open-Meteo/Nominatim fallback also failed for "${c}", using generic estimate:`,
+          fallbackErrMsg,
+        );
+      }
+
+      // Last resort: generic month-based estimate (clearly labelled)
+      const now = new Date();
+      const month = now.getMonth();
+      const baseTemp = [20, 22, 26, 30, 32, 33, 32, 31, 30, 28, 24, 21][month] || 28;
+      const current = {
+        temperature: Math.round(baseTemp),
+        humidity: 60,
+        windSpeed: 10,
+        condition: baseTemp >= 30 ? "Sunny" : baseTemp >= 25 ? "Partly Cloudy" : "Cloudy",
+      };
+      const fallbackNow = new Date();
+      const forecast = Array.from({ length: 7 }, (_, i) => ({
+        day: new Date(
+          fallbackNow.getFullYear(),
+          fallbackNow.getMonth(),
+          fallbackNow.getDate() + i,
+        ).toLocaleDateString("en-US", { weekday: "short" }),
+        high: Math.round(baseTemp + (i % 3) - 1),
+        low: Math.round(baseTemp - 5 + (i % 2)),
+        condition:
+          i % 4 === 0 ? "Sunny" : i % 4 === 1 ? "Partly Cloudy" : i % 4 === 2 ? "Cloudy" : "Rain",
+      }));
+      // primaryErrMsg/fallbackErrMsg stay in the console.warn calls above, not echoed into the API response.
+      const result = {
+        current,
+        forecast,
+        recommendations: ["Weather data unavailable — shown estimate only"],
+        source: "fallback" as const,
+      };
+      return this.setCached(key, result);
+    }
+  }
+
+  async currency(
+    amount: number,
+    fromCurrency: string,
+    toCurrency: string,
+    todayIso: string,
+  ): Promise<{ rate: number; convertedAmount: number; currencyName: string; disclaimer: string }> {
+    const amt = Number.isFinite(amount) ? amount : 0;
+    const from = sanitize(fromCurrency, 8).toUpperCase();
+    const to = sanitize(toCurrency, 8).toUpperCase();
+    const today = sanitize(todayIso, 64);
+    const key = `currency:${from}:${to}:${amt}:${today}`;
+    const cached = this.getCached<{
+      rate: number;
+      convertedAmount: number;
+      currencyName: string;
+      disclaimer: string;
+    }>(key);
+    if (cached) return cached;
+
+    try {
+      if (!this.openai) throw new Error("ai_disabled");
+      const client = this.openai!;
+      const prompt = `Convert ${amt} from ${from} to ${to} using approximate real market exchange rates as of ${today}. Return JSON: { rate, convertedAmount, currencyName, disclaimer }.`;
+      const completion = await client.chat.completions.create({
+        model: "gemini-3.6-flash",
+        temperature: 0,
+        messages: [
+          { role: "system", content: prompt },
+          { role: "user", content: `${amt} ${from} -> ${to}` },
+        ],
+      });
+      const content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+      const json = this.parseJson(content);
+      const rate = Number(json.rate || 0);
+      const convertedAmount = Number(json.convertedAmount || amt * rate);
+      const currencyName = String(json.currencyName || to);
+      const disclaimer = String(json.disclaimer || "Estimated based on historical patterns.");
+      const result = { rate, convertedAmount, currencyName, disclaimer };
+      return this.setCached(key, result);
+    } catch {
+      // Fallback: Use free API (Frankfurter)
+      try {
+        if (from === to) {
+          return this.setCached(key, {
+            rate: 1,
+            convertedAmount: amt,
+            currencyName: to,
+            disclaimer: "1:1 Conversion",
+          });
+        }
+        // Frankfurter doesn't support all currencies, but supports major ones.
+        // It uses EUR as base.
+        const r = await fetch(
+          `https://api.frankfurter.app/latest?amount=${amt}&from=${from}&to=${to}`,
+        );
+        if (r.ok) {
+          const j = await r.json();
+          const rate = j.rates[to];
+          return this.setCached(key, {
+            rate: rate / amt,
+            convertedAmount: rate,
+            currencyName: to,
+            disclaimer: "Real-time rate from Frankfurter API",
+          });
+        }
+      } catch (e) {
+        console.warn("Currency API fallback failed", e);
+      }
+
+      // Final Fallback mock rates
+      const exchangeRates: Record<string, Record<string, number>> = {
+        USD: { EUR: 0.95, GBP: 0.79, JPY: 150, INR: 84, CAD: 1.4, AUD: 1.54, CHF: 0.88, CNY: 7.25 },
+        EUR: {
+          USD: 1.05,
+          GBP: 0.83,
+          JPY: 158,
+          INR: 89,
+          CAD: 1.48,
+          AUD: 1.62,
+          CHF: 0.93,
+          CNY: 7.63,
+        },
+        GBP: {
+          USD: 1.26,
+          EUR: 1.2,
+          JPY: 190,
+          INR: 106,
+          CAD: 1.77,
+          AUD: 1.94,
+          CHF: 1.11,
+          CNY: 9.16,
+        },
+        INR: {
+          USD: 0.012,
+          EUR: 0.011,
+          GBP: 0.009,
+          JPY: 1.78,
+          CAD: 0.017,
+          AUD: 0.018,
+          CHF: 0.01,
+          CNY: 0.086,
+        },
+      };
+      const rate = exchangeRates[from]?.[to] || 1;
+      const convertedAmount = amt * rate;
+      const currencyName = to;
+      const disclaimer = "Mock exchange rate (Fallback) - DEBUG CHECK";
+      const result = { rate, convertedAmount, currencyName, disclaimer };
+      return this.setCached(key, result);
+    }
+  }
+
+  // National emergency dial codes rarely change and are the same nationwide,
+  // so a static table is more reliable here than an AI guess or a Places
+  // lookup (Places only returns physical hospital/police-station addresses,
+  // never the number you'd actually dial). Matched by substring against the
+  // country name — "Rome, Italy" and "Italy" both resolve to "italy".
+  private static readonly NATIONAL_EMERGENCY_NUMBERS: Record<
+    string,
+    { police: string; ambulance: string; fire: string; general?: string }
+  > = {
+    italy: { police: "113", ambulance: "118", fire: "115", general: "112 (EU-wide)" },
+    "united kingdom": { police: "999", ambulance: "999", fire: "999", general: "112" },
+    uk: { police: "999", ambulance: "999", fire: "999", general: "112" },
+    england: { police: "999", ambulance: "999", fire: "999", general: "112" },
+    france: { police: "17", ambulance: "15", fire: "18", general: "112" },
+    germany: { police: "110", ambulance: "112", fire: "112", general: "112" },
+    spain: { police: "091", ambulance: "112", fire: "112", general: "112" },
+    portugal: { police: "112", ambulance: "112", fire: "112", general: "112" },
+    "united states": { police: "911", ambulance: "911", fire: "911" },
+    usa: { police: "911", ambulance: "911", fire: "911" },
+    canada: { police: "911", ambulance: "911", fire: "911" },
+    mexico: { police: "911", ambulance: "911", fire: "911" },
+    japan: { police: "110", ambulance: "119", fire: "119" },
+    china: { police: "110", ambulance: "120", fire: "119" },
+    "south korea": { police: "112", ambulance: "119", fire: "119" },
+    india: { police: "100", ambulance: "102", fire: "101", general: "112" },
+    thailand: { police: "191", ambulance: "1669", fire: "199" },
+    vietnam: { police: "113", ambulance: "115", fire: "114" },
+    indonesia: { police: "110", ambulance: "118", fire: "113" },
+    bali: { police: "110", ambulance: "118", fire: "113" },
+    singapore: { police: "999", ambulance: "995", fire: "995" },
+    malaysia: { police: "999", ambulance: "999", fire: "994" },
+    philippines: { police: "911", ambulance: "911", fire: "911" },
+    australia: { police: "000", ambulance: "000", fire: "000" },
+    "new zealand": { police: "111", ambulance: "111", fire: "111" },
+    "united arab emirates": { police: "999", ambulance: "998", fire: "997" },
+    uae: { police: "999", ambulance: "998", fire: "997" },
+    dubai: { police: "999", ambulance: "998", fire: "997" },
+    turkey: { police: "155", ambulance: "112", fire: "110" },
+    greece: { police: "100", ambulance: "166", fire: "199", general: "112" },
+    netherlands: { police: "112", ambulance: "112", fire: "112" },
+    switzerland: { police: "117", ambulance: "144", fire: "118", general: "112" },
+    austria: { police: "133", ambulance: "144", fire: "122", general: "112" },
+    ireland: { police: "999", ambulance: "999", fire: "999", general: "112" },
+    iceland: { police: "112", ambulance: "112", fire: "112" },
+    norway: { police: "112", ambulance: "113", fire: "110" },
+    sweden: { police: "112", ambulance: "112", fire: "112" },
+    denmark: { police: "112", ambulance: "112", fire: "112" },
+    finland: { police: "112", ambulance: "112", fire: "112" },
+    egypt: { police: "122", ambulance: "123", fire: "180" },
+    "south africa": { police: "10111", ambulance: "10177", fire: "10177" },
+    brazil: { police: "190", ambulance: "192", fire: "193" },
+    argentina: { police: "911", ambulance: "911", fire: "911" },
+    peru: { police: "105", ambulance: "106", fire: "116" },
+    russia: { police: "102", ambulance: "103", fire: "101", general: "112" },
+    morocco: { police: "19", ambulance: "15", fire: "15" },
+  };
+
+  private getNationalEmergencyNumber(location: string): {
+    name: string;
+    type: string;
+    phone: string;
+    safetyNotes: string;
+  } | null {
+    const normalized = location.toLowerCase();
+    for (const [country, numbers] of Object.entries(
+      AiUtilitiesService.NATIONAL_EMERGENCY_NUMBERS,
+    )) {
+      if (normalized.includes(country)) {
+        const parts = [
+          `Police: ${numbers.police}`,
+          `Ambulance: ${numbers.ambulance}`,
+          `Fire: ${numbers.fire}`,
+        ];
+        if (numbers.general) parts.push(`General/EU-wide: ${numbers.general}`);
+        return {
+          name: "National Emergency Numbers",
+          type: "general",
+          phone: numbers.general || numbers.police,
+          safetyNotes: parts.join(" · "),
+        };
+      }
+    }
+    return null;
+  }
+
+  async emergency(location: string): Promise<
+    Array<{
+      name: string;
+      type: string;
+      phone?: string;
+      address?: string;
+      coordinates?: { lat: number; lon: number };
+      safetyNotes?: string;
+    }>
+  > {
+    const loc = sanitize(location, 128);
+    const key = `emergency:${loc}`;
+    const cached = this.getCached<
+      Array<{
+        name: string;
+        type: string;
+        phone?: string;
+        address?: string;
+        coordinates?: { lat: number; lon: number };
+        safetyNotes?: string;
+      }>
+    >(key);
+    if (cached) return cached;
+
+    const nationalEntry = this.getNationalEmergencyNumber(loc);
+
+    // Real places only (Google Places): invented hospitals/numbers/coordinates are worse than none on an SOS screen.
+    {
+      const types = ["hospital", "police", "embassy", "pharmacy"];
+      const results: Array<{
+        name: string;
+        type: string;
+        phone?: string;
+        address?: string;
+        coordinates?: { lat: number; lon: number };
+        safetyNotes?: string;
+      }> = [];
+
+      // Geocode the location first, then search by proximity. Uses Google
+      // Places (Text Search + Nearby Search) rather than Nominatim/Overpass —
+      // those free OSM services are rate-limited per-IP and this app's own
+      // testing volume has been enough to trip that limit (confirmed: 429
+      // from Nominatim, connection failures from Overpass), while Places is
+      // the same reliable, already-enabled API used elsewhere in this file.
+      let center: { lat: number; lon: number } | null = null;
+
+      // "Near your location" sends raw "lat,lon" as the location string —
+      // that's already coordinates, no geocoding needed.
+      const coordMatch = loc.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/);
+      if (coordMatch) {
+        center = { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[2]) };
+      } else {
+        const key2 = config.GOOGLE_API_KEY;
+        if (key2) {
+          try {
+            // Emergency lookups never wait on the daily quota, only a timeout.
+            const geoRes = await fetch(
+              `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(loc)}&key=${key2}`,
+              { signal: AbortSignal.timeout(10_000) },
+            );
+            const geoJson = await geoRes.json();
+            const loc2 = geoJson?.results?.[0]?.geometry?.location;
+            if (loc2) center = { lat: loc2.lat, lon: loc2.lng };
+          } catch (e) {
+            console.warn(`Emergency: geocoding failed for ${loc}`, e);
+          }
+        }
+      }
+
+      if (center) {
+        const key2 = config.GOOGLE_API_KEY;
+        if (key2) {
+          const { lat, lon } = center;
+          const radius = 5000; // meters
+          for (const t of types) {
+            try {
+              // No formal `type=embassy`, so this keyword match also hits names like "Hotel Embassy"; lodging-typed results are filtered below.
+              const params =
+                t === "embassy"
+                  ? `keyword=embassy consulate&radius=${radius}`
+                  : `type=${t}&radius=${radius}`;
+              const r = await fetch(
+                `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&${params}&key=${key2}`,
+                { signal: AbortSignal.timeout(10_000) },
+              );
+              if (!r.ok) continue;
+              const json = await r.json();
+              const rawItems = Array.isArray(json?.results) ? json.results : [];
+              const items = (
+                t === "embassy"
+                  ? // Visa/forex/education agencies tag themselves "embassy"
+                    // too (live: "Oaks Overseas", "Exxeella Education Group"
+                    // near Vijayawada) — only real diplomatic missions here.
+                    rawItems.filter(
+                      (p: any) =>
+                        /embassy|consulate|high commission|ambassade|embajada|embaixada|botschaft|konsul|consola|consulado|legation/i.test(
+                          p.name || "",
+                        ) &&
+                        !(p.types || []).some((t: string) =>
+                          ["lodging", "travel_agency"].includes(t),
+                        ),
+                    )
+                  : t === "hospital"
+                    ? // Google tags health universities "hospital" too (live:
+                      // "Dr.NTR University of Health Sciences", an admin body).
+                      // Medical colleges/AIIMS-style institutes stay: those
+                      // usually run real emergency departments.
+                      rawItems.filter(
+                        (p: any) =>
+                          !/university/i.test(p.name || "") || /hospital/i.test(p.name || ""),
+                      )
+                    : rawItems
+              )
+                // Google treats `radius` as a soft preference for keyword
+                // searches (live: US consulates 264km/391km away returned
+                // for Vijayawada) — enforce it with Google's own coordinates.
+                .filter((p: any) => {
+                  const g = p.geometry?.location;
+                  return (
+                    g && this.calculateHaversineDistance(lat, lon, g.lat, g.lng) <= radius / 1000
+                  );
+                })
+                .slice(0, 3);
+              for (const p of items) {
+                results.push({
+                  name: String(p.name || t.charAt(0).toUpperCase() + t.slice(1)),
+                  type: t,
+                  phone: undefined,
+                  address: p.vicinity || undefined,
+                  coordinates: p.geometry?.location
+                    ? { lat: p.geometry.location.lat, lon: p.geometry.location.lng }
+                    : undefined,
+                  safetyNotes: undefined,
+                });
+              }
+            } catch (e) {
+              console.warn(`Places nearby search failed for ${t} near ${loc}`, e);
+            }
+          }
+        }
+      }
+
+      const all = nationalEntry ? [nationalEntry, ...results] : results;
+      // Don't pin a transient Places/geocode failure in the cache.
+      return results.length > 0 ? this.setCached(key, all) : all;
+    }
+  }
+
+  /**
+   * Generates a budget forecast for a trip based on current spending and remaining itinerary.
+   */
+  async getBudgetForecast(trip: any): Promise<{
+    burnRate: number;
+    estimatedFinalCost: number;
+    isOverBudget: boolean;
+    remainingBudget: number;
+    daysRemaining: number;
+    alerts: string[];
+    pivots: string[];
+  }> {
+    const budget = trip.budget || 0;
+    const totalDays = trip.days || 1;
+    const expenses = trip.expenses || [];
+    const itinerary = trip.itinerary || [];
+
+    // 1. Calculate Manual Spent
+    const manualSpent = expenses.reduce(
+      (acc: number, curr: any) => acc + (Number(curr.amount) || 0),
+      0,
+    );
+
+    // 2. Calculate Planned Itinerary Cost (Activities)
+    let itineraryCost = 0;
+    if (Array.isArray(itinerary)) {
+      itinerary.forEach((day: any) => {
+        if (Array.isArray(day.activities)) {
+          day.activities.forEach((act: any) => {
+            itineraryCost += Number(act.cost || act.entryFee || 0);
+          });
+        }
+      });
+    }
+
+    // 3. Estimate Fixed Costs (Accommodation/Transit if not in expenses)
+    const breakdown = trip.costBreakdown || {};
+    const estimatedAccommodation = Number(
+      breakdown.accommodation || breakdown.accommodationINR || 0,
+    );
+    const estimatedTransit = Number(breakdown.transport || breakdown.transportINR || 0);
+
+    const totalSpent = manualSpent + itineraryCost;
+    const estimatedFinalCost = totalSpent + estimatedAccommodation + estimatedTransit;
+    // No budget set (0, the field's default) isn't "already over budget" --
+    // it's "nothing to compare against yet". Treating 0 as a real target
+    // made every fresh trip with any planned cost immediately read as over
+    // budget, and fed a near-zero denominator into the burn-rate calc below.
+    const hasBudget = budget > 0;
+    const isOverBudget = hasBudget && estimatedFinalCost > budget;
+    const remainingBudget = Math.max(0, budget - totalSpent);
+
+    // 4. Calculate Burn Rate (Proportional)
+    // If we have a startDate, calculate actual days passed. Otherwise, assume progress based on logged expenses.
+    let currentDay = 1;
+    if (trip.startDate) {
+      const start = new Date(trip.startDate);
+      const now = new Date();
+      currentDay = Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      currentDay = Math.min(totalDays, Math.max(1, currentDay));
+    }
+
+    const daysRemaining = Math.max(0, totalDays - currentDay);
+    const expectedDailyBudget = budget / totalDays;
+    const actualDailySpent = totalSpent / currentDay;
+    // With no budget set, there's no target to compare spending against --
+    // burnRate stays 0 (not Infinity-via-the-old-"|| 1"-fallback) so none of
+    // the alerts below fire on a trip that was never given a budget.
+    const burnRate = hasBudget ? actualDailySpent / expectedDailyBudget : 0;
+
+    // 5. Generate Intelligent Alerts & Pivots
+    const alerts: string[] = [];
+    const pivots: string[] = [];
+
+    if (burnRate > 1.2) {
+      alerts.push(
+        `Critical Burn Rate: You are spending ${Math.round((burnRate - 1) * 100)}% faster than planned.`,
+      );
+      pivots.push("Switch to public transport (Metro/Buses) for the next 48 hours.");
+      pivots.push("Prioritize free sightseeing spots or city parks for the next two days.");
+    } else if (burnRate > 1.05) {
+      alerts.push("Moderate Overspending: Careful, you might exceed the budget by the trip's end.");
+      pivots.push(
+        "Limit dining to local 'Hidden Gems' or street food hubs instead of fine dining.",
+      );
+    }
+
+    if (hasBudget && manualSpent > budget * 0.7 && currentDay < totalDays / 2) {
+      alerts.push(
+        "Resource Exhaustion: You've used 70% of your budget in less than half the trip.",
+      );
+    }
+
+    if (!isOverBudget && remainingBudget < expectedDailyBudget * 0.5 && daysRemaining > 1) {
+      alerts.push(
+        "Low Liquidity: Remaining funds are insufficient for your current daily spending habits.",
+      );
+    }
+
+    // Generic helpful advice if doing well -- meaningless without a budget
+    // to actually be "within", same reasoning as the alerts above.
+    if (hasBudget && burnRate < 0.8 && totalSpent > 0) {
+      alerts.push("Excellent Budget Management: You are well within your financial limits!");
+      pivots.push(
+        "Consider upgrading to a premium experience or a unique local activity on your final day.",
+      );
+    }
+
+    return {
+      burnRate: parseFloat(burnRate.toFixed(2)),
+      estimatedFinalCost,
+      isOverBudget,
+      remainingBudget,
+      daysRemaining,
+      alerts,
+      pivots,
+    };
+  }
+
+  async planTrip(input: {
+    origin?: string;
+    destination: string;
+    days: number;
+    persons: number;
+    budget?: number;
+    currency?: string;
+    typeOfTrip: string;
+    travelMedium: string;
+    existingItinerary?: any[];
+    preferences?: string;
+    cuisinePreferences?: string[];
+    dietaryPreferences?: string[];
+  }): Promise<
+    | {
+        destination: string;
+        days: number;
+        persons: number;
+        totalEstimatedCost: number;
+        currency: string;
+        costBreakdown: {
+          accommodationINR: number;
+          foodINR: number;
+          transportINR: number;
+          activitiesINR: number;
+          miscINR: number;
+          totalINR: number;
+        };
+        itinerary: Array<{
+          day: number;
+          activities: Array<{
+            time: string;
+            title: string;
+            placeName?: string;
+            address: string;
+            type: "sightseeing" | "restaurant" | "cafe" | "market" | "museum" | "temple" | "park";
+            entryFeeINR: number;
+            duration_minutes: number;
+            localFoodRecommendations: string[];
+            routeFromPrevious: {
+              mode: string;
+              distance_km: number;
+              travel_time_minutes: number;
+              from: string;
+              to: string;
+            };
+          }>;
+        }>;
+        packingList: string[];
+        safetyTips: string[];
+        notes: string;
+      }
+    | { error: "invalid_model_output" | "providers_unavailable"; message: string }
+  > {
+    const {
+      origin: rawOrigin,
+      destination: rawDestination,
+      days: rawDays,
+      persons: rawPersons,
+      budget: rawBudget,
+      currency: rawCurrency,
+      typeOfTrip: rawTypeOfTrip,
+      travelMedium: rawTravelMedium,
+      existingItinerary,
+      preferences,
+      cuisinePreferences,
+      dietaryPreferences,
+    } = input;
+
+    const origin = rawOrigin ? sanitize(rawOrigin, 128) : undefined;
+    const destination = sanitize(rawDestination, 128);
+    const days = Number.isFinite(rawDays) ? Math.max(1, Math.floor(rawDays)) : 1;
+    const persons = Number.isFinite(rawPersons) ? Math.max(1, Math.floor(rawPersons)) : 1;
+    const budget =
+      typeof rawBudget === "number" && Number.isFinite(rawBudget)
+        ? Math.max(0, rawBudget)
+        : undefined;
+    const currency = sanitize(rawCurrency || "INR", 3).toUpperCase();
+    const typeOfTrip = sanitize(rawTypeOfTrip, 64);
+    const travelMedium = sanitize(rawTravelMedium, 64);
+    const key = `planTrip:${origin ?? "x"}:${destination}:${days}:${persons}:${budget ?? "x"}:${currency}:${typeOfTrip}:${travelMedium}:${existingItinerary ? "opt" : "fresh"}`;
+    const cached = this.getCached<any>(key);
+    if (cached) return cached;
+    if (this.inflight.has(key)) {
+      return await this.inflight.get(key)!;
+    }
+
+    const task = (async () => {
+      // Validate destination
+      if (!this.validateDestination(destination)) {
+        console.warn(`[planTrip] Invalid destination: "${destination}", using fallback generator`);
+        return await this.generateFallbackTrip({
+          origin,
+          destination,
+          days,
+          persons,
+          budget,
+          currency,
+          typeOfTrip,
+          travelMedium,
+        });
+      }
+
+      // Initialize Agentic Services
+      const modeler = new FeasibilityModeler();
+      const validator = new PlanValidator(modeler);
+
+      // Initialize the new highly-resilient Multi-Agent architecture
+      const orchestrator = new MultiAgentOrchestrator({
+        openai: this.openai,
+        geminiHelper: this.generateWithGemini.bind(this),
+        places: { getPointsOfInterest: this.getPointsOfInterest.bind(this) },
+        weather: { getWeatherForLocation: this.getWeatherForLocation.bind(this) },
+      });
+
+      const zTripPlan = z.object({
+        destination: z.string(),
+        days: z.number(),
+        persons: z.number(),
+        totalEstimatedCost: z.number(),
+        currency: z.string(),
+        // Zod strips undeclared keys, so travelStyle must be declared here or it vanishes from the API response.
+        travelStyle: z.string().optional(),
+        // Mirrors FormattingAgent.ts's zTripPlan; this local copy is what gates the live generation path.
+        travelLogistics: z
+          .object({
+            toDestination: z.string().optional(),
+            gettingAround: z.string().optional(),
+          })
+          .optional(),
+        accommodationSuggestions: z
+          .array(
+            z.object({
+              name: z.string(),
+              area: z.string().optional(),
+              priceRange: z.string().optional(),
+              note: z.string().optional(),
+            }),
+          )
+          .optional(),
+        costBreakdown: z.object({
+          accommodation: z.number().int().optional().or(z.number()),
+          food: z.number().int().optional().or(z.number()),
+          transport: z.number().int().optional().or(z.number()),
+          activities: z.number().int().optional().or(z.number()),
+          misc: z.number().int().optional().or(z.number()),
+          total: z.number().int().optional().or(z.number()),
+        }),
+        itinerary: z.array(
+          z.object({
+            day: z.number(),
+            activities: z
+              .array(
+                z.object({
+                  time: z.string(),
+                  title: z.string(),
+                  placeName: z.string().optional(),
+                  address: z.string(),
+                  type: z.enum([
+                    "sightseeing",
+                    "restaurant",
+                    "cafe",
+                    "market",
+                    "museum",
+                    "temple",
+                    "park",
+                  ]),
+                  entryFee: z.number(),
+                  cost: z.number().optional(),
+                  duration_minutes: z.number(),
+                  localFoodRecommendations: z.array(z.string()).default([]),
+                  // Optional: a day's first activity has no previous stop; post-processing fills a from-hotel default.
+                  routeFromPrevious: z
+                    .object({
+                      mode: z.string(),
+                      distance_km: z.number(),
+                      travel_time_minutes: z.number(),
+                      from: z.string(),
+                      to: z.string(),
+                    })
+                    .optional(),
+                }),
+              )
+              // .min(1) to match FormattingAgent's zTripPlan: light or fatigue-trimmed days legitimately have <3 activities.
+              .min(1),
+            reasoning: z.string().optional(),
+            confidenceScore: z.enum(["high", "medium", "low"]).optional(),
+          }),
+        ),
+        packingList: z.array(z.string()).min(1),
+        safetyTips: z.array(z.string()).min(1),
+        notes: z.string(),
+        explainability: z
+          .object({
+            reasoning: z.string().optional(),
+            confidenceScore: z.number().optional(),
+            degradedConstraints: z.array(z.string()).optional(),
+            telemetry: z
+              .object({
+                latencySeconds: z.number(),
+                iterations: z.number(),
+                models: z.array(z.string()),
+              })
+              .optional(),
+          })
+          .optional(),
+      });
+      try {
+        // Orchestrated Cognitive Reasoning Loop replacing single-shot text generation.
+        // Unlike the grounding step and quiet-spots calls below, this had no
+        // timeout -- the OpenAI SDK's default per-call timeout (~10min) times
+        // up to 3 loop iterations left a real request able to hang well past
+        // any reasonable wait, with the client-side fetch having no timeout
+        // either. Races against a rejecting timeout so a stall falls into
+        // the existing genError catch below, straight to generateFallbackTrip
+        // -- the same tested fallback path a real generation failure already uses.
+        const reasoningTimeoutMs = 90000;
+        // Abort, not just race: the losing loop used to keep calling the AI
+        // after the user had already been given the fallback plan.
+        const reasoningAbort = new AbortController();
+        const rawPlan = await Promise.race([
+          orchestrator.executeReasoningLoop({
+            goal: `Plan a ${days}-day, ${typeOfTrip} trip to ${destination} for ${persons} person(s). It is CRITICAL that you generate EXACTLY ${days} days of itineraries.`,
+            constraints: {
+              origin,
+              budget,
+              days,
+              persons,
+              travelStyle: typeOfTrip,
+              travelMedium,
+              currency,
+              destination,
+              existingItinerary,
+              preferences,
+              cuisinePreferences,
+              dietaryPreferences,
+            },
+            maxIterations: 3,
+            signal: reasoningAbort.signal,
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => {
+              reasoningAbort.abort();
+              reject(new Error(`Timeout: Reasoning loop for ${destination}`));
+            }, reasoningTimeoutMs),
+          ),
+        ]);
+
+        // Zod still checks here for the router response shape
+        const parsed = zTripPlan.safeParse(rawPlan);
+
+        if (!parsed.success) {
+          console.error(
+            "[AiUtilities] Zod Validation Failed:",
+            JSON.stringify(parsed.error.format(), null, 2),
+          );
+          throw new Error("Schema Validation Failed after reasoning loop");
+        }
+
+        let finalPlan = parsed.data;
+
+        try {
+          // GROUNDING STEP: Verify results against Google Places with timeout
+          const groundingPromise = this.groundItineraryWithRealPlaces(
+            finalPlan,
+            currency || "INR",
+            cuisinePreferences,
+            dietaryPreferences,
+          );
+          finalPlan = await this.withTimeout(
+            groundingPromise,
+            20000,
+            finalPlan, // Fallback to raw AI plan if grounding takes too long
+            `Grounding: ${destination}`,
+          );
+
+          // DETERMINISTIC CONSTRAINT ENGINE (Stage 5 Architecture)
+          finalPlan = await this.enforceTransitConstraints(finalPlan);
+        } catch (postProcessingError: any) {
+          console.error(
+            `[AiUtilities] Grounding or Constraint enforcement failed for ${destination}, falling back to pristine AI plan:`,
+            postProcessingError.message,
+          );
+          // If grounding fails, we intentionally swallow the error and use the pristine AI plan.
+        }
+
+        // Runs no matter what happened above (grounding succeeded, timed
+        // out, or threw) — see finalizeAttractionDedup's own comment.
+        finalPlan = this.finalizeAttractionDedup(finalPlan);
+
+        // Final explainability tag
+        finalPlan.notes =
+          (finalPlan.notes || "") +
+          " | Cognitive Validator applied: Multi-Agent architecture active.";
+
+        // Reject (and never cache) a plan with any empty day — Zod's shape
+        // check on zTripPlan allows `activities: []`, so a bad LLM response
+        // or a grounding step that stripped everything could otherwise get
+        // cached under this destination/days/style/etc key and be served,
+        // silently empty, to every user with the same parameters until the
+        // TTL expires (live-confirmed in production: a 7-day Tokyo request
+        // returned "0 Activities" for all 7 days from a stale cache hit).
+        const hasEmptyDay =
+          !finalPlan.itinerary?.length ||
+          finalPlan.itinerary.some((day: any) => !day.activities?.length);
+        if (hasEmptyDay) {
+          throw new Error("Generated plan has one or more days with zero activities");
+        }
+
+        return this.setCached(key, finalPlan);
+      } catch (genError: any) {
+        console.error(
+          `[AiUtilities] planTrip failed for ${destination}, using fallback:`,
+          genError.message,
+        );
+        // Fire-and-forget: record fallback frequency without blocking the response the user is waiting on.
+        AiFallbackEventModel.create({
+          destination,
+          reason: genError.message || "unknown",
+        }).catch((e) => console.error("[AiUtilities] Failed to record fallback event:", e));
+        const fallback = await this.generateFallbackTrip({
+          origin,
+          destination,
+          days,
+          persons,
+          budget,
+          currency,
+          typeOfTrip,
+          travelMedium,
+        });
+        // Same empty-day guard as the primary path above (line ~1591) --
+        // there's no further fallback beneath the fallback, so an empty day
+        // here still has to be returned to the waiting user, but it must
+        // never be CACHED: a degenerate result cached under this
+        // destination/days/style key would otherwise be served to every
+        // other request for the same params until the TTL expires.
+        const fallbackHasEmptyDay =
+          !fallback.itinerary?.length ||
+          fallback.itinerary.some((day: any) => !day.activities?.length);
+        return fallbackHasEmptyDay ? fallback : this.setCached(key, fallback);
+      }
+    })();
+
+    this.inflight.set(key, task);
+    try {
+      return await task;
+    } finally {
+      this.inflight.delete(key);
+    }
+  }
+
+  /**
+   * PROACTIVE TRAVEL OPTIMIZER (Stage 5 Architecture)
+   * Cross-references weather forecasts with itinerary to suggest proactive adjustments.
+   */
+  async getProactiveInsights(
+    destination: string,
+    itinerary: any[],
+  ): Promise<{ insights: string[]; suggestedPackingItems: string[] }> {
+    try {
+      const weatherData = await this.weather(destination);
+      const insights: string[] = [];
+      const suggestedPackingItems: string[] = [];
+
+      const current = weatherData.current;
+      const condition = String(current?.condition || "").toLowerCase();
+      const temperature = current?.temperature;
+
+      // Weather-Aware Packing
+      if (condition.includes("rain") || condition.includes("drizzle")) {
+        insights.push(
+          `🌧️ Rain expected in ${destination}. Consider moving outdoor sightseeing workshops to afternoon.`,
+        );
+        suggestedPackingItems.push("Umbrella", "Raincoat", "Waterproof Shoes");
+      }
+      if (temperature > 30) {
+        insights.push(
+          `🔥 High heat alert (${temperature}°C). Schedule heavy walking before 11:00 AM or after 4:00 PM.`,
+        );
+        suggestedPackingItems.push("Sunscreen", "Large Water Bottle", "Breathable Cotton Wear");
+      }
+      if (temperature < 10) {
+        insights.push(
+          `❄️ Chilly weather expected (${temperature}°C). Layer up for the evening activities.`,
+        );
+        suggestedPackingItems.push("Warm Jacket", "Gloves", "Scarf");
+      }
+
+      // Logic check: If rain + sightseeing, suggest specific movement
+      for (const day of itinerary) {
+        const hasOutdoor = (day.activities || []).some((a: any) =>
+          ["sightseeing", "market", "park"].includes(a.type),
+        );
+        if (hasOutdoor && condition.includes("rain")) {
+          insights.push(
+            `💡 Day ${day.day}: Rain might impact outdoor spots. Check for indoor museum alternatives.`,
+          );
+        }
+      }
+
+      return { insights, suggestedPackingItems };
+    } catch (e) {
+      console.error("[ProactiveInsights] Error:", e);
+      return { insights: [], suggestedPackingItems: [] };
+    }
+  }
+
+  private parseJson(raw: string): any {
+    let s = raw.trim();
+
+    // Deeper cleanup for markdown if it exists anywhere
+    if (s.includes("```")) {
+      const match = s.match(/```(?:json)?([\s\S]*?)```/);
+      if (match) s = match[1].trim();
+    }
+
+    const firstBrace = s.indexOf("{");
+    const lastBrace = s.lastIndexOf("}");
+    const firstBracket = s.indexOf("[");
+    const lastBracket = s.lastIndexOf("]");
+
+    // Find the outer-most structure (brace or bracket)
+    if (
+      firstBrace !== -1 &&
+      lastBrace !== -1 &&
+      (firstBracket === -1 || firstBrace < firstBracket)
+    ) {
+      s = s.slice(firstBrace, lastBrace + 1);
+    } else if (firstBracket !== -1 && lastBracket !== -1) {
+      s = s.slice(firstBracket, lastBracket + 1);
+    }
+
+    try {
+      return JSON.parse(s);
+    } catch (e: any) {
+      console.error("[AiUtilities] JSON fallback triggered:", e?.message || e);
+      return {};
+    }
+  }
+
+  /**
+   * Wraps a promise with a timeout to prevent hanging on slow API calls
+   */
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    fallback: T,
+    label: string,
+  ): Promise<T> {
+    const timeoutPromise = new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout: ${label}`)), timeoutMs),
+    );
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } catch (e: any) {
+      console.warn(`[${label}] ${e.message || "Failed"}, using fallback`);
+      return fallback;
+    }
+  }
+
+  /**
+   * Validates if a destination string appears to be legitimate
+   */
+  private validateDestination(destination: string): boolean {
+    if (!destination || destination.length < 2) return false;
+
+    // \p{L}/\p{M} accept diacritics and non-Latin scripts (München, Côte d'Ivoire) while rejecting symbols/digits/emoji.
+    const validPattern = /^[\p{L}\p{M}\s,.\-']+$/u;
+    if (!validPattern.test(destination)) return false;
+
+    // Reject obvious gibberish (repeated characters)
+    const repeatedPattern = /(.)\1{5,}/;
+    if (repeatedPattern.test(destination)) return false;
+
+    // Reject too many consecutive special chars
+    if (/[,.\-']{3,}/.test(destination)) return false;
+
+    return true;
+  }
+
+  private async searchPlaces(query: string, timeoutMs = 10000): Promise<any[]> {
+    try {
+      if (!config.GOOGLE_API_KEY) {
+        console.warn("[searchPlaces] No Google API key configured");
+        return [];
+      }
+
+      const key = config.GOOGLE_API_KEY;
+      const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${key}`;
+
+      // Wrap fetch in timeout
+      const fetchPromise = googleFetch(url).then((res) =>
+        res ? res.json() : { status: "OVER_QUERY_LIMIT", results: [] },
+      );
+      const data = await this.withTimeout(
+        fetchPromise,
+        timeoutMs,
+        { status: "TIMEOUT", results: [] },
+        `Google Places API: "${query}"`,
+      );
+
+      if (data.status === "TIMEOUT") {
+        console.warn(`[searchPlaces] Timeout for query "${query}"`);
+        return [];
+      }
+
+      if (data.status === "ZERO_RESULTS") {
+        return [];
+      }
+
+      if (data.status === "OVER_QUERY_LIMIT") {
+        console.error("[searchPlaces] Google Places quota exceeded");
+        return [];
+      }
+
+      if (data.status === "OK" && Array.isArray(data.results)) {
+        return data.results.map((p: any) => ({
+          name: p.name,
+          formatted_address: p.formatted_address,
+          types: p.types || [],
+          rating: p.rating,
+          user_ratings_total: p.user_ratings_total,
+          price_level: p.price_level,
+          geometry: p.geometry, // Include location data (lat/lng)
+        }));
+      }
+
+      console.warn(`[searchPlaces] Unexpected status: ${data.status}`);
+      return [];
+    } catch (error: any) {
+      console.error(`[searchPlaces] Error for query "${query}":`, error.message);
+      return [];
+    }
+  }
+
+  private async generateFallbackTrip(input: {
+    origin?: string;
+    destination: string;
+    days: number;
+    persons: number;
+    budget?: number;
+    currency?: string;
+    typeOfTrip: string;
+    travelMedium: string;
+  }): Promise<any> {
+    const { origin, destination, days, persons, budget, currency, typeOfTrip, travelMedium } =
+      input;
+    const safeCurrency = currency || "INR";
+
+    const realPlaces = await this.searchPlaces(`${destination} tourist places`);
+    // Specific search for restaurants to avoid generic results
+    const restaurantPlaces = await this.searchPlaces(`best restaurants in ${destination}`);
+    // Real Google Places hotel search, same pattern as the calls above (no extra LLM cost).
+    const hotelPlaces = await this.searchPlaces(`hotels in ${destination}`);
+    const accommodationSuggestions = hotelPlaces.slice(0, 3).map((p: any) => ({
+      name: p.name,
+      area: p.formatted_address,
+      priceRange: p.price_level
+        ? `${p.price_level === 1 ? "budget" : p.price_level >= 3 ? "premium" : "mid-range"}`
+        : undefined,
+      note: p.rating ? `Rated ${p.rating}/5 on Google` : undefined,
+    }));
+
+    // Helper to estimate cost based on price_level (0-4)
+    const estimateCost = (place: any, type: string) => {
+      const baseRates: Record<string, number> = {
+        INR: 500,
+        USD: 20,
+        EUR: 18,
+        GBP: 15,
+        AUD: 25,
+        CAD: 25,
+        JPY: 2000,
+        CNY: 100,
+      };
+      const base = baseRates[safeCurrency] || 20; // Default to 20 units
+
+      if (type === "restaurant") {
+        const multiplier = place.price_level || 2; // Default to Medium $$
+        return Math.round(base * (0.5 + multiplier * 0.5));
+      }
+      return 0; // Sightseeing default free unless known
+    };
+
+    const safeBudget =
+      budget || (safeCurrency === "USD" ? 100 * days * persons : 5000 * days * persons);
+
+    // Basic cost distribution
+    const accommodation = Math.round(safeBudget * 0.4);
+    const transport = Math.round(safeBudget * 0.15);
+    // Dynamic calculation for food and activities based on items
+    const activitiesCost = 0;
+    let foodCost = 0;
+
+    const itinerary: any[] = [];
+    const backupActivities = [
+      { type: "sightseeing", name: "Historic City Center", suffix: "" },
+      { type: "museum", name: "City Museum", suffix: "" },
+      { type: "park", name: "Central Park", suffix: "" },
+      { type: "market", name: "Local Market", suffix: "" },
+      { type: "temple", name: "Grand Temple", suffix: "" },
+      { type: "sightseeing", name: "Scenic Viewpoint", suffix: "" },
+    ];
+
+    for (let i = 1; i <= days; i++) {
+      const dailyActivities: any[] = [];
+      const p1Index = (i - 1) * 2;
+      const p1 = realPlaces[p1Index] || backupActivities[p1Index % backupActivities.length];
+
+      dailyActivities.push({
+        time: "09:00 AM",
+        title: p1.name || "Historic Site",
+        placeName: p1.name || "Historic Site",
+        address: p1.formatted_address || `${destination} Center`,
+        type: "sightseeing",
+        entryFee: 0,
+        duration_minutes: 120,
+        lat: p1.geometry?.location?.lat,
+        lon: p1.geometry?.location?.lng,
+        localFoodRecommendations: ["Local Breakfast"],
+        routeFromPrevious: {
+          mode: travelMedium,
+          distance_km: 5,
+          travel_time_minutes: 15,
+          from: "Hotel",
+          to: p1.name || "Site",
+        },
+      });
+
+      // Activity 2: Lunch (Restaurant)
+      // Pick a restaurant from the specific search results, cycle through them
+      const pFood =
+        restaurantPlaces.length > 0
+          ? restaurantPlaces[(i - 1) % restaurantPlaces.length]
+          : realPlaces.find((p) => p.types.includes("restaurant") || p.types.includes("food")) || {
+              name: "Local Restaurant",
+              formatted_address: `${destination} Downtown`,
+              price_level: 2,
+            };
+
+      const lunchCost = estimateCost(pFood, "restaurant");
+      foodCost += lunchCost * persons;
+
+      dailyActivities.push({
+        time: "01:00 PM",
+        title: pFood.name || "Local Restaurant",
+        placeName: pFood.name || "Local Restaurant",
+        address: pFood.formatted_address || `${destination} Downtown`,
+        type: "restaurant",
+        entryFee: 0,
+        cost: lunchCost,
+        duration_minutes: 60,
+        lat: pFood.geometry?.location?.lat,
+        lon: pFood.geometry?.location?.lng,
+        localFoodRecommendations: ["Local Dish"],
+        routeFromPrevious: {
+          mode: "walk",
+          distance_km: 1,
+          travel_time_minutes: 10,
+          from: p1.name || "Site",
+          to: "Restaurant",
+        },
+      });
+
+      const p2Index = (i - 1) * 2 + 1;
+      const p2 = realPlaces[p2Index] || backupActivities[p2Index % backupActivities.length];
+
+      dailyActivities.push({
+        time: "03:00 PM",
+        title: p2.name || "City Park",
+        placeName: p2.name || "City Park",
+        address: p2.formatted_address || `${destination} Area`,
+        type: "sightseeing",
+        entryFee: 0,
+        duration_minutes: 120,
+        lat: p2.geometry?.location?.lat,
+        lon: p2.geometry?.location?.lng,
+        localFoodRecommendations: ["Street Food"],
+        routeFromPrevious: {
+          mode: "taxi",
+          distance_km: 3,
+          travel_time_minutes: 15,
+          from: "Restaurant",
+          to: p2.name || "Park",
+        },
+      });
+
+      itinerary.push({ day: i, activities: dailyActivities });
+    }
+
+    const misc = Math.max(0, safeBudget - (accommodation + foodCost + transport + activitiesCost));
+
+    const costBreakdown = {
+      accommodation: accommodation,
+      food: foodCost,
+      transport: transport,
+      activities: activitiesCost,
+      misc: misc,
+      total: accommodation + foodCost + transport + activitiesCost + misc,
+    };
+
+    // Real root cause of the reported repeated-landmark bug: this is the
+    // path that actually ran (confirmed live via the response's `notes`
+    // field) — the multi-agent path's strict Zod schema evidently fails
+    // for an obscure destination like Ameenpur and falls through to here,
+    // so the earlier DraftingAgent prompt fix and the grounding-pass
+    // dedup never had a chance to run at all. This function has its own,
+    // separate duplication source: it indexes sequentially into one
+    // `searchPlaces` result array per day (p1Index/p2Index) with no
+    // dedup, and Google Places itself returns multiple distinct Place
+    // IDs for facets of the same landmark (the lake, "Lake View Point",
+    // "Lake Walking Track" — three separate real Google entries, one
+    // physical place) — for a small destination with few real results,
+    // consecutive days end up pointing at the same feature. Same fix as
+    // the multi-agent path: run it through finalizeAttractionDedup
+    // before returning.
+    return this.finalizeAttractionDedup({
+      destination,
+      days,
+      persons,
+      totalEstimatedCost: costBreakdown.total,
+      currency: safeCurrency,
+      costBreakdown,
+      travelLogistics: {
+        toDestination: origin
+          ? `Check ${travelMedium || "flight/train"} options from ${origin} to ${destination} — book ahead for the best fares.`
+          : undefined,
+        gettingAround: `Local taxis, auto-rickshaws, or ride-hailing apps are the easiest way to get around ${destination} day-to-day.`,
+      },
+      ...(accommodationSuggestions.length > 0 ? { accommodationSuggestions } : {}),
+      itinerary,
+      packingList: ["Clothes", "Toiletries", "Charger", "ID Proof"],
+      safetyTips: ["Stay hydrated", "Keep emergency numbers handy"],
+      notes: "Generated by Smart Fallback (Real Places + Estimated Costs)",
+    });
+  }
+
+  // Use Gemini to get real place names, with fallback to Google Places API
+  private async getRealPlacesFromGemini(
+    destination: string,
+    type: "restaurants" | "attractions",
+    cuisinePreferences?: string[],
+    dietaryPreferences?: string[],
+  ): Promise<Array<{ name: string; address?: string; cuisine?: string }>> {
+    const geminiKey = config.GEMINI_API_KEY;
+    const placesKey = config.GOOGLE_API_KEY;
+    // Only meaningful for restaurants — an attraction has no cuisine to match.
+    const cuisineClause =
+      type === "restaurants" && cuisinePreferences?.length
+        ? ` specializing in ${cuisinePreferences.join("/")} cuisine`
+        : "";
+    const dietClause =
+      type === "restaurants" && dietaryPreferences?.length
+        ? `, all ${dietaryPreferences.join("/")}-friendly`
+        : "";
+
+    // Try Gemini first
+    if (geminiKey) {
+      const prompt =
+        type === "restaurants"
+          ? `List exactly 15 real, popular, and highly-rated restaurants in ${destination}${cuisineClause}${dietClause}. ${cuisineClause ? "" : "Include a mix of local cuisine, cafes, and fine dining. "}Return ONLY a valid JSON array with objects containing "name" (exact restaurant name), "address" (approximate location/area), and "cuisine" (type of food). No explanations, just the JSON array.`
+          : `List exactly 15 real, popular tourist attractions and landmarks in ${destination}. Include temples, parks, monuments, markets, and museums. Return ONLY a valid JSON array with objects containing "name" (exact place name) and "address" (approximate location/area). No explanations, just the JSON array.`;
+
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+
+        const response = await fetch(
+          // gemini-2.0-flash was retired (API: "no longer available"); use the same model as the rest of this file.
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.3 },
+            }),
+            signal: controller.signal,
+          },
+        );
+        clearTimeout(timer);
+
+        const json = await response.json();
+
+        // Check for API errors
+        if (json.error) {
+          console.warn(`[Gemini] API Error: ${json.error.code} - ${json.error.message}`);
+          throw new Error(`Gemini API Error: ${json.error.message}`);
+        }
+
+        const textContent = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+        // Extract JSON from potential markdown code blocks
+        let cleanJson = textContent.trim();
+        if (cleanJson.startsWith("```")) {
+          cleanJson = cleanJson
+            .replace(/```json?\n?/g, "")
+            .replace(/```/g, "")
+            .trim();
+        }
+
+        if (cleanJson) {
+          const parsed = JSON.parse(cleanJson);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e: any) {
+        console.warn(`[Gemini] Failed to get ${type} for ${destination}: ${e.message}`);
+      }
+    }
+
+    // Fallback to Google Places API
+    if (placesKey) {
+      try {
+        const prefTerms = [...(cuisinePreferences || []), ...(dietaryPreferences || [])];
+        const query =
+          type === "restaurants"
+            ? prefTerms.length > 0
+              ? `${prefTerms.join(" ")} restaurants in ${destination}`
+              : `best restaurants in ${destination}`
+            : `top tourist attractions in ${destination}`;
+
+        const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${placesKey}`;
+        const res = await googleFetch(url);
+        if (!res) throw new Error("daily Google quota reached");
+        const data = await res.json();
+
+        if (data.status === "OK" && data.results && data.results.length > 0) {
+          return data.results.slice(0, 15).map((p: any) => ({
+            name: p.name,
+            address: p.formatted_address || p.vicinity,
+            cuisine:
+              type === "restaurants"
+                ? p.types?.includes("cafe")
+                  ? "Cafe"
+                  : "Restaurant"
+                : undefined,
+          }));
+        }
+      } catch (e: any) {
+        console.error(`[Places] Error fetching ${type} for ${destination}:`, e.message);
+      }
+    }
+
+    return [];
+  }
+
+  // Pure filler — never distinguishes one place from another.
+  private readonly dedupeFillerWords = new Set([
+    "the",
+    "of",
+    "at",
+    "in",
+    "and",
+    "view",
+    "viewpoint",
+    "point",
+    "spot",
+    "area",
+    "place",
+    "site",
+  ]);
+  // A generic feature word alone doesn't distinguish two places either —
+  // but unlike filler, it's meaningful when paired with something else
+  // (two different real temples both containing "temple" is normal), so
+  // it's only stripped when deciding whether a title has ANYTHING
+  // distinguishing left over, never used to auto-match two titles just
+  // because they share it.
+  private readonly dedupeGenericFeatureWords = new Set([
+    "lake",
+    "fort",
+    "temple",
+    "park",
+    "museum",
+    "garden",
+    "gardens",
+    "market",
+    "hill",
+    "beach",
+    "river",
+    "falls",
+    "waterfall",
+  ]);
+  private wordsOf(text: string): Set<string> {
+    return new Set(
+      String(text)
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        // >1, not >2 — a 2-letter token can be a real distinguishing word
+        // ("Da Nang", "Ha Long Bay", "Mu Cang Chai"), not just filler.
+        .filter((w) => w.length > 1),
+    );
+  }
+  // What's left of a title after stripping the destination's own name,
+  // filler, and (usually) a generic feature word — i.e. what actually
+  // tells this place apart from every other real place in the same town.
+  // A small destination's every genuine attraction naturally starts with
+  // the town's own name (so matching on THAT alone would flag two real,
+  // different landmarks — "Ameenpur Kaman" vs "Ameenpur Lake" — as the
+  // same place), so the destination name is excluded from comparison,
+  // not used as a match signal.
+  private distinguishingTokens(title: string, destinationWords: Set<string>): Set<string> {
+    const afterDestAndFiller = new Set<string>();
+    for (const w of this.wordsOf(title)) {
+      if (destinationWords.has(w)) continue;
+      if (this.dedupeFillerWords.has(w)) continue;
+      afterDestAndFiller.add(w);
+    }
+    // Only strip a generic feature word ("fort", "lake", "museum"...) when
+    // something else survives it. A real, specific landmark can be
+    // NOTHING but destination + one generic word — "Agra Fort", "Jaipur
+    // Museum" — and stripping that word too would erase the only signal
+    // that title had, misclassifying a real distinct place as the same
+    // "generic feature repeated" bucket every other zero-token title
+    // falls into. Caught live: "Agra Fort" and "Jaipur Museum" both
+    // reduced to 0 tokens before this guard.
+    if (afterDestAndFiller.size <= 1) return afterDestAndFiller;
+    const out = new Set<string>();
+    for (const w of afterDestAndFiller) {
+      if (this.dedupeGenericFeatureWords.has(w)) continue;
+      out.add(w);
+    }
+    return out;
+  }
+
+  // Unconditional final anti-repetition pass — runs on finalPlan
+  // regardless of whether groundItineraryWithRealPlaces succeeded, timed
+  // out (it's wrapped in a 20s timeout and silently falls back to the
+  // raw AI draft), or threw. The prompt-level fix depends on the model
+  // actually following it, which live testing showed it doesn't reliably
+  // do for a destination with few real attractions (a small town's only
+  // real feature — e.g. a lake — got relisted as "X Lake" / "X Lake View
+  // Point" / "X lake view point" across 3 days: no distinguishing token
+  // beyond the destination name and the generic word "lake" in any of
+  // them). This pass is pure and local, so it can't be skipped: a title
+  // that reduces to nothing distinguishing is treated as the same
+  // generic feature repeated, and rewritten as honest extra time at the
+  // place it actually is — matching CLAUDE.md's rule against padding an
+  // itinerary with disguised repeats — rather than left claiming to be a
+  // different real place. A title with its own distinguishing word (e.g.
+  // "Ameenpur Kaman", "Ameenpur Lake Walking Track") is left alone even
+  // though it shares the destination name or a generic feature word with
+  // something else, since that's a real, separate experience, not a
+  // reworded duplicate.
+  // A model's own `days` disagreeing with its `itinerary.length` (e.g. days: 10, one entry) signals mid-generation truncation; the retry check only caught a fully empty itinerary.
+  private isPlanSuspiciouslyShort(plan: any): boolean {
+    return (
+      !!plan &&
+      typeof plan.days === "number" &&
+      plan.days > 1 &&
+      Array.isArray(plan.itinerary) &&
+      plan.itinerary.length < Math.ceil(plan.days / 2)
+    );
+  }
+
+  private finalizeAttractionDedup(plan: any): any {
+    if (!Array.isArray(plan?.itinerary)) return plan;
+    const destinationWords = this.wordsOf(plan.destination || "");
+    let firstGenericTitle: string | null = null;
+    // Separately catches a literal/near-literal repeat of a SPECIFIC real
+    // place (e.g. "Golconda Fort" verbatim twice) — distinguishingTokens
+    // being non-empty means the emptiness check above doesn't apply, but
+    // it can still be the same place said twice.
+    const seenSpecific: Array<{ tokens: Set<string>; title: string }> = [];
+    for (const day of plan.itinerary) {
+      if (!Array.isArray(day.activities)) continue;
+      for (const activity of day.activities) {
+        const title = activity.title || activity.placeName || "";
+        const type = (activity.type || "").toLowerCase();
+        const isFood =
+          type === "restaurant" ||
+          type === "cafe" ||
+          title.toLowerCase().includes("lunch") ||
+          title.toLowerCase().includes("dinner");
+        if (isFood || !title) continue;
+
+        const distinguishing = this.distinguishingTokens(title, destinationWords);
+        if (distinguishing.size === 0) {
+          if (firstGenericTitle) {
+            activity.title = `Relax / free time at ${firstGenericTitle}`;
+            activity.placeName = firstGenericTitle;
+          } else {
+            firstGenericTitle = title;
+          }
+          continue;
+        }
+
+        // Math.max, not Math.min — a single shared token was enough to
+        // hit the 0.6 threshold against the SMALLER set's size alone,
+        // which false-merged two real, different places that just
+        // happen to share one word: "National Museum" (-> {national})
+        // and "National War Memorial" (-> {national, war, memorial})
+        // matched at 1/min(1,3)=1.0 and the memorial got overwritten.
+        // Sizing against the larger set means a real title with its own
+        // extra distinguishing words no longer gets swallowed by a
+        // same-prefix generic one.
+        const dupe = seenSpecific.find((s) => {
+          let shared = 0;
+          for (const tok of s.tokens) if (distinguishing.has(tok)) shared++;
+          return shared / Math.max(s.tokens.size, distinguishing.size) >= 0.6;
+        });
+        if (dupe) {
+          activity.title = `Relax / free time at ${dupe.title}`;
+          activity.placeName = dupe.title;
+        } else {
+          seenSpecific.push({ tokens: distinguishing, title });
+        }
+      }
+    }
+    return plan;
+  }
+
+  // Verify specific places using Gemini AI for real names
+  private async groundItineraryWithRealPlaces(
+    plan: any,
+    currency: string,
+    cuisinePreferences?: string[],
+    dietaryPreferences?: string[],
+  ): Promise<any> {
+    // Get real places from Gemini
+    const [realRestaurants, realAttractions] = await Promise.all([
+      this.getRealPlacesFromGemini(
+        plan.destination,
+        "restaurants",
+        cuisinePreferences,
+        dietaryPreferences,
+      ),
+      this.getRealPlacesFromGemini(plan.destination, "attractions"),
+    ]);
+
+    // Base rates for cost estimation
+    const baseRates: Record<string, number> = {
+      INR: 500,
+      USD: 20,
+      EUR: 18,
+      GBP: 15,
+      AUD: 25,
+      CAD: 25,
+      JPY: 2000,
+      CNY: 100,
+    };
+    const base = baseRates[currency] || 20;
+
+    // Track used places to avoid duplicates
+    const usedRestaurants = new Set<string>();
+    const usedAttractions = new Set<string>();
+    let restaurantIndex = 0;
+    let attractionIndex = 0;
+
+    // Anti-repetition (the same landmark reappearing under a reworded
+    // title) is NOT handled in this function — it depends on the two
+    // Gemini calls above finishing inside a 20s timeout, which silently
+    // falls back to skipping this whole function on a slow response. See
+    // finalizeAttractionDedup, which runs unconditionally afterward
+    // regardless of whether grounding ran at all.
+
+    // Generic terms that should trigger replacement
+    const genericRestaurantTerms = [
+      "top rated",
+      "local restaurant",
+      "best cafe",
+      "famous",
+      "popular",
+      "restaurant",
+      "cafe",
+      "lunch",
+      "dinner",
+      "breakfast",
+      "eatery",
+    ];
+    const genericAttractionTerms = [
+      "tourist spot",
+      "famous place",
+      "landmark",
+      "attraction",
+      "sightseeing",
+      "top place",
+      "city park",
+      "local market",
+    ];
+
+    for (const day of plan.itinerary) {
+      if (!day.activities) continue;
+
+      for (const activity of day.activities) {
+        try {
+          const name = (activity.title || activity.placeName || "").toLowerCase();
+          const activityType = (activity.type || "").toLowerCase();
+
+          // Check if this is a restaurant/food activity
+          const isFood =
+            activityType === "restaurant" ||
+            activityType === "cafe" ||
+            activityType === "bar" ||
+            name.includes("lunch") ||
+            name.includes("dinner") ||
+            name.includes("breakfast");
+
+          // Check if this is a generic name that needs replacement
+          const isGenericRestaurant =
+            isFood && genericRestaurantTerms.some((term) => name.includes(term));
+          const isGenericAttraction =
+            !isFood && genericAttractionTerms.some((term) => name.includes(term));
+
+          if (isGenericRestaurant && realRestaurants.length > 0) {
+            // Pick next real restaurant
+            const real = realRestaurants[restaurantIndex % realRestaurants.length];
+            if (real && !usedRestaurants.has(real.name)) {
+              activity.title = real.name;
+              activity.placeName = real.name;
+              activity.address = real.address || `${plan.destination}`;
+              if (real.cuisine) activity.cuisine = real.cuisine;
+              usedRestaurants.add(real.name);
+              restaurantIndex++;
+
+              // Estimate cost
+              activity.cost = Math.round(base * (1 + Math.random() * 0.5));
+              activity.entryFee = activity.cost;
+            }
+          } else if (isGenericAttraction && realAttractions.length > 0) {
+            // Pick next real attraction
+            const real = realAttractions[attractionIndex % realAttractions.length];
+            if (real && !usedAttractions.has(real.name)) {
+              activity.title = real.name;
+              activity.placeName = real.name;
+              activity.address = real.address || `${plan.destination}`;
+              usedAttractions.add(real.name);
+              attractionIndex++;
+            }
+          } else if (isFood && !isGenericRestaurant && realRestaurants.length > 0) {
+            // Even for non-generic food entries, verify it's a real place
+            const matchingReal = realRestaurants.find(
+              (r) =>
+                r.name.toLowerCase().includes(name.split(" ")[0]) ||
+                name.includes(r.name.toLowerCase().split(" ")[0]),
+            );
+            if (!matchingReal && !usedRestaurants.has(activity.title || activity.placeName)) {
+              // If we can't verify it, replace with a real one
+              const real = realRestaurants[restaurantIndex % realRestaurants.length];
+              if (real && !usedRestaurants.has(real.name)) {
+                activity.title = real.name;
+                activity.placeName = real.name;
+                activity.address = real.address || `${plan.destination}`;
+                usedRestaurants.add(real.name);
+                restaurantIndex++;
+              }
+            }
+          }
+
+          // Set cost for food items if not set
+          if (isFood && !activity.cost) {
+            activity.cost = Math.round(base * (0.8 + Math.random() * 0.4));
+            activity.entryFee = activity.cost;
+          }
+        } catch (e) {
+          console.error(`[Grounding] Error processing ${activity.placeName}:`, e);
+        }
+      }
+    }
+
+    // Recalculate totals based on new costs
+    let newFoodCost = 0;
+    let newActivitiesCost = 0;
+
+    for (const day of plan.itinerary) {
+      if (!day.activities) continue;
+      for (const act of day.activities) {
+        const cost = act.entryFee || act.cost || 0;
+        const isFood =
+          (act.type || "").toLowerCase() === "restaurant" ||
+          (act.type || "").toLowerCase() === "cafe" ||
+          (act.placeName || "").toLowerCase().includes("lunch") ||
+          (act.placeName || "").toLowerCase().includes("dinner");
+        if (isFood) {
+          newFoodCost += cost * (plan.persons || 1);
+        } else {
+          newActivitiesCost += cost * (plan.persons || 1);
+        }
+      }
+    }
+
+    plan.costBreakdown = plan.costBreakdown || {};
+    plan.costBreakdown.food = newFoodCost;
+    plan.costBreakdown.foodINR = newFoodCost;
+    plan.costBreakdown.activities = newActivitiesCost;
+    plan.costBreakdown.activitiesINR = newActivitiesCost;
+
+    const acc = plan.costBreakdown.accommodation || plan.costBreakdown.accommodationINR || 0;
+    const trans = plan.costBreakdown.transport || plan.costBreakdown.transportINR || 0;
+    const misc = plan.costBreakdown.misc || plan.costBreakdown.miscINR || 0;
+
+    const calculatedTotal = acc + trans + newFoodCost + newActivitiesCost + misc;
+
+    // BUDGET INTEGRITY FIREWALL: Scale down if grounding exceeded budget
+    const targetBudget = plan.budget || 0;
+    if (targetBudget > 0 && calculatedTotal > targetBudget) {
+      const scaleFactor = targetBudget / calculatedTotal;
+
+      const scale = (val: number) => Math.floor((val || 0) * scaleFactor);
+
+      plan.costBreakdown.accommodation = scale(acc);
+      plan.costBreakdown.accommodationINR = scale(acc);
+      plan.costBreakdown.food = scale(newFoodCost);
+      plan.costBreakdown.foodINR = scale(newFoodCost);
+      plan.costBreakdown.transport = scale(trans);
+      plan.costBreakdown.transportINR = scale(trans);
+      plan.costBreakdown.activities = scale(newActivitiesCost);
+      plan.costBreakdown.activitiesINR = scale(newActivitiesCost);
+      plan.costBreakdown.misc = scale(misc);
+      plan.costBreakdown.miscINR = scale(misc);
+
+      // Also scale individual activity costs to keep UI consistent
+      for (const day of plan.itinerary) {
+        for (const act of day.activities) {
+          if (act.cost) act.cost = scale(act.cost);
+          if (act.entryFee) act.entryFee = scale(act.entryFee);
+        }
+      }
+      plan.costBreakdown.total =
+        plan.costBreakdown.accommodation +
+        plan.costBreakdown.food +
+        plan.costBreakdown.transport +
+        plan.costBreakdown.activities +
+        plan.costBreakdown.misc;
+      plan.costBreakdown.totalINR = plan.costBreakdown.total;
+    } else {
+      plan.costBreakdown.total = calculatedTotal;
+      plan.costBreakdown.totalINR = calculatedTotal;
+    }
+
+    plan.totalEstimatedCost = plan.costBreakdown.total;
+
+    const restaurantsUsed = usedRestaurants.size;
+    const attractionsUsed = usedAttractions.size;
+    plan.notes =
+      (plan.notes || "") +
+      ` | Grounded (${restaurantsUsed} restaurants, ${attractionsUsed} attractions verified)`;
+
+    return plan;
+  }
+
+  async getTravelHacks(
+    destination: string,
+    typeOfTrip: string = "relaxed",
+  ): Promise<{ hacks: string[]; economicalAlternatives: string[] }> {
+    const key = `hacks:${destination.trim().toLowerCase()}:${typeOfTrip}`;
+    const cached = this.getCached<any>(key);
+    if (cached) return cached;
+
+    // Validate destination
+    if (!this.validateDestination(destination)) {
+      console.warn(`[getTravelHacks] Invalid destination: "${destination}"`);
+      return this.getRegionAwareFallbackHacks(destination);
+    }
+
+    const prompt = `Provide 6-8 SPECIFIC travel hacks and insider tips for ${destination}, focusing on practical money-saving and time-saving strategies that work specifically in this location.
+    
+    Also suggest 3-5 economical alternatives for famous tourist attractions, transport, or dining. BE SPECIFIC - mention actual local services, apps, or strategies used by locals.
+    
+    Examples:
+    - Instead of \"Use public transport\" → \"Download the [City Metro App] for 30% discount on day passes\"
+    - Instead of \"Eat local food\" → \"Visit [Specific Market Name] for authentic street food at 1/3 the price of tourist areas\"
+    
+    Return as JSON with:
+    - 'hacks': array of strings (each string is a specific, actionable tip)
+    - 'economicalAlternatives': array of strings (each string is a specific local alternative)
+    
+    Reply ONLY with valid JSON, no markdown.`;
+
+    try {
+      let content = "";
+      if (this.openai) {
+        const aiPromise = this.openai.chat.completions.create({
+          model: "gemini-3.6-flash",
+          temperature: 0.7,
+          messages: [
+            { role: "system", content: "You are a travel expert. Return only valid JSON." },
+            { role: "user", content: prompt },
+          ],
+        });
+
+        const completion: any = await this.withTimeout(
+          aiPromise,
+          15000,
+          { choices: [{ message: { content: "{}" } }] } as any,
+          `OpenAI Travel Hacks: ${destination}`,
+        );
+
+        content = completion.choices?.[0]?.message?.content?.trim() || "{}";
+      } else {
+        const geminiPromise = this.generateWithGemini(
+          prompt,
+          "You are a travel expert. Return only valid JSON.",
+        );
+        content = await this.withTimeout(
+          geminiPromise,
+          15000,
+          "{}",
+          `Gemini Travel Hacks: ${destination}`,
+        );
+      }
+
+      const json = this.parseJson(content);
+
+      const ensureStringArray = (arr: any): string[] => {
+        if (!Array.isArray(arr)) return [];
+        return arr.map((item) => {
+          if (typeof item === "string") return item;
+          if (typeof item === "object" && item !== null) {
+            // Handle {category, description} or {tip} etc.
+            return (
+              item.description || item.tip || item.text || item.content || JSON.stringify(item)
+            );
+          }
+          return String(item);
+        });
+      };
+
+      let result = {
+        hacks: ensureStringArray(json.hacks),
+        economicalAlternatives: ensureStringArray(json.economicalAlternatives),
+      };
+
+      // If AI failed, use region-aware fallback
+      if (
+        !result.hacks ||
+        result.hacks.length === 0 ||
+        !result.economicalAlternatives ||
+        result.economicalAlternatives.length === 0
+      ) {
+        const fallback = this.getRegionAwareFallbackHacks(destination);
+        result = {
+          hacks: result.hacks && result.hacks.length > 0 ? result.hacks : fallback.hacks,
+          economicalAlternatives:
+            result.economicalAlternatives && result.economicalAlternatives.length > 0
+              ? result.economicalAlternatives
+              : fallback.economicalAlternatives,
+        };
+      }
+
+      return this.setCached(key, result, 24 * 60 * 60 * 1000);
+    } catch (e: any) {
+      console.error(`[getTravelHacks] Failed for ${destination}:`, e.message);
+      return this.getRegionAwareFallbackHacks(destination);
+    }
+  }
+
+  /**
+   * Returns region-specific fallback travel hacks based on destination
+   */
+  private getRegionAwareFallbackHacks(destination: string): {
+    hacks: string[];
+    economicalAlternatives: string[];
+  } {
+    const destLower = destination.toLowerCase();
+
+    // Detect region
+    const isAsian =
+      /india|china|japan|thailand|vietnam|singapore|malaysia|indonesia|philippines|korea|bangladesh|nepal|sri lanka|cambodia/i.test(
+        destLower,
+      );
+    const isEuropean =
+      /europe|france|germany|italy|spain|uk|britain|england|portugal|greece|netherlands|belgium|austria|switzerland|poland|czech/i.test(
+        destLower,
+      );
+    const isMiddleEast = /dubai|uae|qatar|saudi|egypt|turkey|jordan|israel/i.test(destLower);
+
+    if (isAsian) {
+      return {
+        hacks: [
+          "Negotiate prices at markets - bargaining is expected and can save 30-50%",
+          "Use local ride-sharing apps (Grab, Ola, etc.) instead of tourist taxis",
+          "Eat at local food stalls and street vendors for authentic meals at 1/4 the price",
+          "Visit temples and cultural sites early morning (6-8 AM) to avoid crowds and heat",
+          "Download offline translation apps - Google Translate works offline",
+          "Carry small bills - many vendors don't accept large denominations",
+          "Book trains/buses directly from official apps, not tourist agencies",
+        ],
+        economicalAlternatives: [
+          "Stay in homestays or guesthouses instead of hotels for authentic local experience",
+          "Use sleeper trains/buses for overnight journeys to save on accommodation",
+          "Visit free temples and parks instead of paid tourist monuments",
+          "Eat at local 'thali' restaurants or food courts in malls",
+        ],
+      };
+    } else if (isEuropean) {
+      return {
+        hacks: [
+          "Get a city pass or museum pass for discounted entry to multiple attractions",
+          "Use public transport day passes - usually cheaper than individual tickets",
+          "Visit museums on free entry days (usually first Sunday of month)",
+          "Book trains 2-3 months in advance for up to 70% discount",
+          "Eat lunch instead of dinner at restaurants - lunch menus are cheaper",
+          "Stay outside city center and use metro - accommodation is 40-60% cheaper",
+        ],
+        economicalAlternatives: [
+          "Use BlaBlaCar for intercity travel instead of trains",
+          "Shop at local supermarkets for picnic supplies instead of restaurants",
+          "Walk or rent bikes instead of hop-on-hop-off buses",
+          "Visit free walking tours (tip-based) instead of paid bus tours",
+        ],
+      };
+    } else if (isMiddleEast) {
+      return {
+        hacks: [
+          "Dress modestly to respect local culture and avoid unwanted attention",
+          "Visit malls for free AC and affordable food courts",
+          "Use metro/public transport - very modern and cheap in Gulf cities",
+          "Book desert safaris through local operators, not hotel concierge",
+          "Carry water bottle - staying hydrated is critical",
+          "Shop at local souks (markets) and bargain for better prices",
+        ],
+        economicalAlternatives: [
+          "Use Careem or local ride-sharing instead of hotel taxis",
+          "Visit public beaches instead of hotel beach clubs",
+          "Eat at local shawarma shops and cafeterias instead of restaurants",
+          "Stay in neighboring emirates/areas for cheaper accommodation",
+        ],
+      };
+    } else {
+      // General fallback for other regions
+      return {
+        hacks: [
+          "Carry a refillable water bottle to save on drinks",
+          "Use public transport apps for the best routes and discounts",
+          "Visit attractions early morning or late afternoon to avoid crowds",
+          "Download offline maps before arriving",
+          "Learn basic phrases in the local language for better prices",
+          "Book accommodation with free cancellation for flexibility",
+          "Check free walking tour options - great for orientation",
+        ],
+        economicalAlternatives: [
+          "Use local buses instead of tourist taxis",
+          "Eat at local markets instead of touristy restaurants",
+          "Stay in neighborhoods where locals live for better prices",
+          "Visit free attractions and parks instead of paid tourist spots",
+        ],
+      };
+    }
+  }
+
+  async augmentJournalEntry(
+    content: string,
+    destination?: string,
+  ): Promise<{ augmentedContent: string; suggestedLabels: string[]; sentiment: string }> {
+    const prompt = `Augment this travel journal entry with a few AI-generated poetic sentences or fun facts related to the context ${destination ? `at ${destination}` : ""}. Also provide 3-5 keywords/labels and the sentiment of the entry. Return JSON with 'augmentedContent', 'suggestedLabels' (string array), and 'sentiment'.`;
+
+    try {
+      let rawContent = "";
+      // Two Gemini transports, not two providers: the OpenAI-compat client first, then raw generateContent, so one transport failure doesn't take the feature down.
+      if (this.openai) {
+        try {
+          const completion = await this.openai.chat.completions.create({
+            model: "gemini-3.6-flash",
+            temperature: 0.7,
+            messages: [
+              {
+                role: "system",
+                content: "You are a creative travel journal assistant. Return only valid JSON.",
+              },
+              { role: "user", content: content + "\n\n" + prompt },
+            ],
+          });
+          rawContent = completion.choices?.[0]?.message?.content?.trim() || "";
+        } catch (e) {
+          console.error(
+            "[AiUtilities] augmentJournalEntry: first Gemini attempt failed, retrying:",
+            e,
+          );
+        }
+      }
+      if (!rawContent) {
+        rawContent = await this.generateWithGemini(
+          content + "\n\n" + prompt,
+          "You are a creative travel journal assistant. Return only valid JSON.",
+        );
+      }
+
+      const json = this.parseJson(rawContent);
+      const labels = Array.isArray(json.suggestedLabels)
+        ? json.suggestedLabels
+        : ["Travel", "Memories"];
+      const cleanLabels = labels.map((l: any) =>
+        typeof l === "string" ? l : String(l.name || l.text || JSON.stringify(l)),
+      );
+
+      return {
+        augmentedContent: String(json.augmentedContent || content),
+        suggestedLabels: cleanLabels,
+        sentiment: String(json.sentiment || "Positive"),
+      };
+    } catch (e) {
+      console.error("[AiUtilities] Failed to augment journal:", e);
+      // Previously returned the original content unchanged with a 200, which
+      // the client read as a successful enhancement — "Entry Enhanced!" even
+      // though nothing had changed. Throw so the caller surfaces a real error.
+      throw new Error("AI enhancement is temporarily unavailable. Please try again.");
+    }
+  }
+
+  /** Plain-text last-resort reply when the primary chat model(s) are unavailable — no tool-calling, no JSON parsing, just the best available provider's raw answer. */
+  async generateFallbackReply(
+    userMessage: string,
+    systemPrompt: string,
+    priorMessages?: Array<{ role: "user" | "assistant"; content: string }>,
+  ): Promise<string | null> {
+    // When the tool-calling chain is down we still want the reply to keep
+    // the thread's context — otherwise Atlas asks "which list?" right after
+    // producing one. Carry the recent turns through if given.
+    const convo =
+      priorMessages && priorMessages.length
+        ? priorMessages
+        : [{ role: "user" as const, content: userMessage }];
+
+    try {
+      if (this.openai) {
+        const completion = await this.openai.chat.completions.create({
+          model: "gemini-3.6-flash",
+          temperature: 0.4,
+          messages: [{ role: "system", content: systemPrompt }, ...convo],
+        });
+        const text = completion.choices?.[0]?.message?.content?.trim();
+        if (text) return text;
+      }
+    } catch (e) {
+      console.error("[AiUtilities] Fallback reply via OpenAI failed:", e);
+    }
+
+    try {
+      const transcript = convo.map((m) => `${m.role}: ${m.content}`).join("\n");
+      const text = await this.generateWithGemini(transcript, systemPrompt);
+      if (text && text.trim()) return text.trim();
+    } catch (e) {
+      console.error("[AiUtilities] Fallback reply via Gemini failed:", e);
+    }
+
+    return null;
+  }
+
+  async getQuietPlaceSuggestions(destination: string): Promise<
+    Array<{
+      name: string;
+      address: string;
+      crowdLevel: string;
+      type: string;
+      bestTime: string;
+      reason: string;
+    }>
+  > {
+    const quietKey = `quiet:${destination.trim().toLowerCase()}`;
+    const cachedSpots = this.getCached<any>(quietKey);
+    if (cachedSpots) return cachedSpots;
+
+    const prompt = `Suggest 3 real, specific, lesser-known or low-crowd places to visit in ${destination} for someone who wants to avoid tourist crowds. Return JSON with a 'spots' array, each item having: 'name' (real place name in ${destination}), 'address' (real neighborhood/area in ${destination}), 'crowdLevel' ('Low' or 'Minimal'), 'type' (e.g. Nature, Heritage, Park, Cafe), 'bestTime' (time range), and 'reason' (one sentence, under 20 words).`;
+    const system =
+      "You are a local travel expert who knows real, specific places. Return only valid JSON, no markdown.";
+
+    try {
+      const rawContent = this.openai
+        ? (
+            await this.openai.chat.completions.create({
+              model: "gemini-3.6-flash",
+              temperature: 0.6,
+              messages: [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
+              ],
+            })
+          ).choices?.[0]?.message?.content?.trim() || "{}"
+        : await this.generateWithGemini(prompt, system);
+
+      const json = this.parseJson(rawContent);
+      const spots = Array.isArray(json.spots) ? json.spots : [];
+      if (!spots.length) throw new Error("empty spots");
+      const quietTtl = 24 * 60 * 60 * 1000; // a place's quiet spots don't change day to day
+      return this.setCached(
+        quietKey,
+        spots.slice(0, 5).map((s: any) => ({
+          name: String(s.name || "Quiet Spot"),
+          address: String(s.address || destination),
+          crowdLevel: String(s.crowdLevel || "Low"),
+          type: String(s.type || "Outdoors"),
+          bestTime: String(s.bestTime || "Morning"),
+          reason: String(s.reason || "A calmer alternative away from the main tourist areas."),
+        })),
+        quietTtl,
+      );
+    } catch (e) {
+      console.error("[AiUtilities] Failed to generate quiet place suggestions:", e);
+      return [
+        {
+          name: "Local Public Library",
+          address: `${destination} — City Center`,
+          crowdLevel: "Minimal",
+          type: "Education",
+          bestTime: "Morning",
+          reason: "Ideal for remote work or reading in silence.",
+        },
+        {
+          name: "Botanical Garden",
+          address: `${destination} — Suburb Area`,
+          crowdLevel: "Low",
+          type: "Nature",
+          bestTime: "Afternoon",
+          reason: "Expansive green space with very few visitors during weekdays.",
+        },
+      ];
+    }
+  }
+
+  private async resolveCoordinates(
+    name: string,
+    destination: string,
+  ): Promise<{ lat: number; lon: number } | null> {
+    const key = `resolveCoordinates:${name}:${destination}`;
+    const cached = this.getCached<any>(key);
+    if (cached) return cached;
+
+    // 1. Static fallback for performance and reliability
+    const nameLower = name.toLowerCase().trim();
+    if (this.CITIES_COORD_MAP[nameLower]) {
+      const base = this.CITIES_COORD_MAP[nameLower];
+      // Add a micro-jitter (approx 100-200m) to avoid exact overlaps at city center
+      const jitter = () => (Math.random() - 0.5) * 0.005;
+      return this.setCached(key, {
+        lat: base.lat + jitter(),
+        lon: base.lon + jitter(),
+      });
+    }
+
+    try {
+      const places = await this.searchPlaces(`${name}, ${destination}`);
+      if (places && places.length > 0 && places[0].geometry?.location) {
+        const coords = {
+          lat: places[0].geometry.location.lat,
+          lon: places[0].geometry.location.lng,
+        };
+        return this.setCached(key, coords);
+      }
+    } catch (e) {
+      console.warn(`[resolveCoordinates] Failed for ${name}:`, e);
+    }
+    return null;
+  }
+
+  /**
+   * STAGE 2: Budget Breakdown Engine — Enhanced with Origin-to-Destination Transit
+   */
+  public async calculateBudgetBreakdown(
+    totalBudget: number,
+    travelStyle: string,
+    origin?: string,
+    destination?: string,
+    travelMedium?: string,
+  ): Promise<{
+    accommodation: number;
+    food: number;
+    transport: number;
+    activities: number;
+    buffer: number;
+    total: number;
+    grandTransit: number;
+  }> {
+    let grandTransit = 0;
+
+    // 1. Estimate Origin-to-Destination cost if possible
+    if (origin && destination) {
+      try {
+        const originCoords = await this.resolveCoordinates(origin, "");
+        const destCoords = await this.resolveCoordinates(destination, "");
+
+        if (originCoords && destCoords) {
+          const distance = this.calculateHaversineDistance(
+            originCoords.lat,
+            originCoords.lon,
+            destCoords.lat,
+            destCoords.lon,
+          );
+
+          // Heuristic costs per km in INR
+          const costPerKm: Record<string, number> = {
+            flight: 8,
+            train: 3,
+            bus: 2,
+            car: 12,
+            standard: 5,
+          };
+
+          const perPersonCost = distance * (costPerKm[travelMedium || "standard"] || 5) + 1000; // +1000 base
+          grandTransit = Math.round(perPersonCost);
+
+          // Cap transit at 60% of total budget to keep trip feasible
+          grandTransit = Math.min(grandTransit, totalBudget * 0.6);
+        }
+      } catch (e) {
+        console.warn("[calculateBudgetBreakdown] Transit estimation failed:", e);
+      }
+    }
+
+    const buffer = totalBudget * 0.1; // 10% Mandatory Safety Buffer
+    const allocatable = totalBudget - buffer - grandTransit;
+
+    let ratios = { accommodation: 0.35, food: 0.25, transport: 0.2, activities: 0.2 };
+
+    switch (travelStyle.toLowerCase()) {
+      case "adventure":
+        ratios = { accommodation: 0.25, food: 0.2, transport: 0.3, activities: 0.25 };
+        break;
+      case "luxury":
+        ratios = { accommodation: 0.5, food: 0.2, transport: 0.15, activities: 0.15 };
+        break;
+      case "budget":
+        ratios = { accommodation: 0.2, food: 0.3, transport: 0.3, activities: 0.2 };
+        break;
+      case "cultural":
+        ratios = { accommodation: 0.3, food: 0.25, transport: 0.2, activities: 0.25 };
+        break;
+      case "relaxed":
+        ratios = { accommodation: 0.45, food: 0.25, transport: 0.15, activities: 0.15 };
+        break;
+    }
+
+    return {
+      accommodation: Math.round(allocatable * ratios.accommodation),
+      food: Math.round(allocatable * ratios.food),
+      transport: Math.round(allocatable * ratios.transport),
+      activities: Math.round(allocatable * ratios.activities),
+      buffer: Math.round(buffer),
+      grandTransit: Math.round(grandTransit),
+      total: totalBudget,
+    };
+  }
+
+  private async getPointsOfInterest(destination: string, style: string): Promise<string[]> {
+    const prompt = `List the top 8 real-world tourist attractions and must-visit landmarks for ${destination} that match a ${style} travel style. Return ONLY a JSON array of strings.`;
+    try {
+      const result = await this.generateWithGemini(
+        prompt,
+        'You are a professional travel researcher. Format: ["Spot 1", "Spot 2"]',
+      );
+      const parsed = JSON.parse(result);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn(`[getPointsOfInterest] Semantic grounding failed:`, e);
+      return [];
+    }
+  }
+
+  private async getWeatherForLocation(lat: number, lon: number): Promise<any> {
+    const key = config.OPENWEATHER_API_KEY;
+    if (!key) return null;
+    try {
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`,
+      );
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Shared by parseSchedule (prompt-time steering), its cache key
+  // (trips.controller.ts calls this too, so the bucket used to build the
+  // hash always matches the bucket actually sent to the model), and — in
+  // the parseSchedule case — computed BEFORE the AI has parsed the
+  // schedule and determined the real day count, so `days` there is a
+  // deliberate rough stand-in (1), not a real day count; imprecise for a
+  // long multi-day budget entered as one lump sum, but consistent between
+  // prompt and cache key, which matters more than precision here. Buckets
+  // a raw budget instead of the exact number, so ₹49,800 and ₹50,000 hit
+  // the same cache entry instead of two nearly-identical ones.
+  // Currency-normalized via the same per-meal baseRates scale used
+  // elsewhere in this file (INR 500 ≈ one mid-range meal — the scale
+  // factor, not a literal meal count) so a ₹2,000/day trip and a $25/day
+  // trip land in the same "budget" bracket rather than one always
+  // reading as premium.
+  getBudgetBracket(
+    budget: number | undefined,
+    days: number,
+    persons: number,
+    currency: string,
+  ): "budget" | "mid" | "premium" {
+    if (!budget || budget <= 0) return "mid";
+    const baseRates: Record<string, number> = {
+      INR: 500,
+      USD: 20,
+      EUR: 18,
+      GBP: 15,
+      AUD: 25,
+      CAD: 25,
+      JPY: 2000,
+      CNY: 100,
+    };
+    const scale = (baseRates[currency] || baseRates.INR) / baseRates.INR;
+    const perDayPerPersonINR = budget / Math.max(1, days) / Math.max(1, persons) / scale;
+    if (perDayPerPersonINR < 2000) return "budget";
+    if (perDayPerPersonINR < 6000) return "mid";
+    return "premium";
+  }
+
+  /**
+   * Parses a free-text travel schedule into a structured, enriched
+   * itinerary. Used by the "Import My Plan" feature. Fields kept
+   * consistent with the rest of this codebase's itinerary shape
+   * (time/title/type/address/lat/lon/cost/entryFee/duration_minutes —
+   * see DraftingAgent.ts's prompt and IItineraryActivity) so downstream
+   * consumers (Budget tracker, TripMap, ItineraryManager's View
+   * routing) work on an imported plan exactly as they do on an
+   * AI-generated one, plus the richer per-activity/per-day fields this
+   * enrichment pass adds on top: why it's worth visiting, whether it's
+   * time-sensitive (sunset/sunrise/tide-locked), a local tip, and a
+   * last-day-per-city departure reminder.
+   */
+  async parseSchedule(
+    input: {
+      scheduleText: string;
+      startDate?: string;
+      groupSize?: number;
+      budget?: number;
+      currency?: string;
+    },
+    // Side channel for request-cost logging (server/controllers/trips.controller.ts)
+    // — kept separate from the return value rather than folding {model,
+    // tokensUsed} into it, so the response shape stays exactly what a
+    // caller of this method actually wants (the plan), not the plan plus
+    // internal telemetry a client would just have to ignore.
+    onMeta?: (meta: { model: string; tokensUsed?: number }) => void,
+  ): Promise<{
+    destination: string;
+    days: number;
+    startDate?: string;
+    tripStyle?: string;
+    budgetBracket: "budget" | "mid" | "premium";
+    itinerary: Array<{
+      day: number;
+      date?: string;
+      theme: string;
+      location?: string;
+      wakeUpTime?: string;
+      headlineExperience?: string;
+      departureReminder?: { departBy: string; transport: string; note: string } | null;
+      dayBudget?: number;
+      weatherNote?: string;
+      activities: Array<{
+        id: string;
+        time: string;
+        title: string;
+        placeName?: string;
+        type: string;
+        from?: string;
+        to?: string;
+        notes?: string;
+        address?: string;
+        lat?: number;
+        lon?: number;
+        duration_minutes: number;
+        travelTimeFromPreviousMinutes?: number;
+        whyVisit?: string;
+        cost?: number;
+        entryFee?: number;
+        timeSensitive?: boolean;
+        timeNote?: string;
+        localTip?: string;
+      }>;
+    }>;
+    costBreakdown?: Record<string, any>;
+    packingNotes?: string[];
+    bookingPriorities?: Array<{ item: string; urgency: string; reason: string }>;
+    notes?: string;
+  }> {
+    const { scheduleText, startDate, groupSize = 1, budget, currency = "INR" } = input;
+    // Same estimate trips.controller.ts computes for the cache key — kept
+    // identical so the bracket that steers this prompt always matches the
+    // bracket the cache was keyed on for this exact request. Real day
+    // count isn't known until after this parse; "Day N" occurrences in
+    // the user's own text is a much closer estimate than assuming 1.
+    const estimatedDays = Math.max(1, (scheduleText.match(/\bday\s*\d+/gi) || []).length);
+    const budgetBracket = this.getBudgetBracket(budget, estimatedDays, groupSize, currency);
+
+    // Kept tight and directive deliberately — a longer prompt costs more
+    // tokens on every single call with no quality gain proportional to
+    // the length; every rule earns its place.
+    const systemPrompt = `You are a travel itinerary engine. Parse the user's own pasted schedule into ONLY a valid JSON object — no prose, no markdown.
+
+Rules:
+- Extract each day as a separate entry. Lines like "27th ...", "Day 3 ...", "May 31 ..." each start a new day.
+- Build a time-blocked schedule (wake-up to dinner) from what the user described — don't invent a different trip, structure and enrich THEIRS.
+- Sequence a day's stops to avoid backtracking (furthest first, work back toward the stay) where the user's own text leaves the order ambiguous.
+- Travel legs (flight/drive/train/trek): type "travel", include from/to, 15 min buffer added to any travel-time estimate.
+- Sightseeing/temple/museum/park/market: type matches; NEVER repeat the same landmark under a reworded title across days.
+- Meals: type "restaurant" or "cafe", a real specific place name (not "lunch" or "local restaurant"), with time and cost.
+- Time-sensitive experiences (sunset, sunrise, aarti, tide-locked): set timeSensitive true, anchor that day's schedule around the correct time, fill timeNote with why.
+- budgetBracket "${budgetBracket}": skip suggesting paid add-ons; "premium": suggest a genuine experiential upgrade where it fits the user's own plan.
+- The last day the user's schedule spends in a given city needs departureReminder (departBy, transport, note) on that day; every other day: null.
+- Every activity needs: title, placeName, address, approximate lat/lon (best estimate), duration_minutes, travelTimeFromPreviousMinutes, whyVisit (max 12 words), cost, entryFee, timeSensitive, timeNote, localTip (max 12 words).
+- Always return valid JSON with at least one day. Never fabricate a real place that isn't recognizable — if genuinely unsure of an exact address, give the best general area instead of inventing a fake one.
+
+JSON shape:
+{"destination":"","days":0,"startDate":"YYYY-MM-DD or null","tripStyle":"",
+"itinerary":[{"day":1,"date":"YYYY-MM-DD or null","theme":"","location":"","wakeUpTime":"HH:MM AM/PM","headlineExperience":"",
+"departureReminder":{"departBy":"HH:MM AM/PM","transport":"","note":""}|null,"dayBudget":0,"weatherNote":"",
+"activities":[{"id":"act-1-0","time":"HH:MM AM/PM","title":"","placeName":"","type":"travel|sightseeing|hotel|restaurant|cafe|market|museum|temple|park|other","from":null,"to":null,"notes":null,"address":"","lat":0,"lon":0,"duration_minutes":0,"travelTimeFromPreviousMinutes":0,"whyVisit":"","cost":0,"entryFee":0,"timeSensitive":false,"timeNote":"","localTip":""}]}],
+"packingNotes":[],"bookingPriorities":[{"item":"","urgency":"","reason":""}],"notes":""}`;
+
+    const userPrompt = `Schedule:
+"""
+${scheduleText}
+"""
+Start: ${startDate || "not specified"} | Group: ${groupSize} | Budget: ${budget ? `${budget} ${currency}` : "not specified"} (bracket: ${budgetBracket})`;
+
+    let raw = "";
+    let usedModel = "gemini-3.5-flash-lite";
+    let tokensUsed: number | undefined;
+    const fallbackPrompt = `Return ONLY valid JSON, no other text. Same structure as before. Parse this schedule: ${scheduleText.slice(0, 1500)} | ${groupSize} people | ${budgetBracket} budget | Start ${startDate || "unspecified"}`;
+    try {
+      raw = await this.generateWithGemini(userPrompt, systemPrompt);
+    } catch {
+      // Fallback to a second Gemini transport/model if the first fails —
+      // was NVIDIA-then-OpenAI here; both removed along with every other
+      // non-Google/Gemini LLM provider in this codebase.
+      if (this.openai) {
+        const res = await this.openai.chat.completions.create({
+          model: "gemini-3.6-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.3,
+        });
+        raw = res.choices[0]?.message?.content || "{}";
+        usedModel = "gemini-3.6-flash";
+        tokensUsed = res.usage?.total_tokens;
+      } else {
+        throw new Error("No AI provider available");
+      }
+    }
+
+    let parsed = this.parseJson(raw);
+
+    // One retry with a shorter, stricter prompt if the first response didn't parse (truncation, stray prose) or is suspiciously incomplete (see isPlanSuspiciouslyShort).
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !Array.isArray(parsed.itinerary) ||
+      parsed.itinerary.length === 0 ||
+      this.isPlanSuspiciouslyShort(parsed)
+    ) {
+      try {
+        const retryRaw = await this.generateWithGemini(fallbackPrompt, systemPrompt);
+        const retryParsed = this.parseJson(retryRaw);
+        // Only replace the first attempt if the retry is actually more
+        // complete — a short-input case where the model correctly (not
+        // buggily) produced fewer days than initially guessed shouldn't
+        // get overwritten by a worse or equally-short retry.
+        if (
+          retryParsed &&
+          Array.isArray(retryParsed.itinerary) &&
+          retryParsed.itinerary.length > (parsed?.itinerary?.length || 0)
+        ) {
+          parsed = retryParsed;
+          usedModel = "gemini-3.5-flash-lite (retry)";
+        }
+      } catch {
+        // fall through — keep the first attempt's result (even if short)
+        // rather than losing it entirely over a failed retry.
+      }
+    }
+
+    onMeta?.({ model: usedModel, tokensUsed });
+
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !Array.isArray(parsed.itinerary) ||
+      parsed.itinerary.length === 0
+    ) {
+      throw new Error("AI could not extract a valid itinerary from the schedule text");
+    }
+
+    // Ensure each activity has an id and duration, same backstop the
+    // original implementation had — a model can omit a required field
+    // even under an explicit schema instruction.
+    for (const day of parsed.itinerary) {
+      if (!Array.isArray(day.activities)) day.activities = [];
+      for (let i = 0; i < day.activities.length; i++) {
+        if (!day.activities[i].id) {
+          day.activities[i].id = `act-${day.day ?? i + 1}-${i}`;
+        }
+        if (!day.activities[i].duration_minutes) {
+          day.activities[i].duration_minutes = 60;
+        }
+      }
+    }
+
+    parsed = this.finalizeAttractionDedup(parsed);
+    parsed.budgetBracket = budgetBracket;
+
+    return parsed;
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "detector": {
+    "ignoreRules": ["border-accent-on-rounded"],
+    "ignoreFiles": ["server/email.ts", "tests/frontend/TripCard.test.tsx"],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "typing-bounce",
+        "createdAt": "2026-08-31T16:52:41.609Z",
+        "reason": "false positive: keyframe uses ease-in-out timing, not elastic/spring math; name-matched only. Standard 3-dot typing indicator (WhatsApp/iMessage pattern), not the dated-bounce cliche the rule targets."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(232, 144, 10, 0.25)",
+        "createdAt": "2026-08-31T16:53:14.954Z",
+        "reason": "pre-existing production hover-glow tint, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "2px",
+        "createdAt": "2026-08-31T16:53:15.056Z",
+        "reason": "pre-existing nav-active-bar indicator radius, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "3px",
+        "createdAt": "2026-08-31T16:53:15.157Z",
+        "reason": "pre-existing stamp/status-badge radius (intentional 'stamped' look per DESIGN.md's own Shapes section), used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#4f82c4",
+        "createdAt": "2026-08-31T16:53:15.252Z",
+        "reason": "pre-existing icon-tint-blue token, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(167, 139, 250, 0.1)",
+        "createdAt": "2026-08-31T16:53:15.356Z",
+        "reason": "pre-existing icon-tint-purple background tint, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#a78bfa",
+        "createdAt": "2026-08-31T16:53:15.451Z",
+        "reason": "pre-existing icon-tint-purple foreground, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(251, 146, 60, 0.1)",
+        "createdAt": "2026-08-31T16:53:15.548Z",
+        "reason": "pre-existing icon-tint-orange background tint, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fb923c",
+        "createdAt": "2026-08-31T16:53:15.641Z",
+        "reason": "pre-existing icon-tint-orange foreground, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#d8453b",
+        "createdAt": "2026-08-31T16:53:15.743Z",
+        "reason": "pre-existing icon-tint-red foreground, used app-wide, predates this session"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "1rem",
+        "createdAt": "2026-08-31T16:53:15.851Z",
+        "reason": "pre-existing typing-indicator bubble radius (chat-bubble tail shape), used app-wide, predates this session"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": ["client/src/components/TripMap.tsx"],
+        "createdAt": "2026-09-02T10:08:00.625Z",
+        "reason": "L607 is a rounded-full spin loading indicator (border-b-2 on rounded-full is the standard CSS spinner technique), not a card with a clashing accent border"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "client/src/pages/tripplanner.tsx",
+        "createdAt": "2026-09-02T21:18:16.543Z"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": ["client/src/pages/TripPlanner.tsx"],
+        "createdAt": "2026-09-03T05:02:59.889Z",
+        "reason": "L914 (and prior line numbers as the file shifts) is the auth-loading rounded-full spinner (border-b-2 on rounded-full, standard CSS spinner technique), not a card with a clashing accent border - matches the identical, already-sanctioned TripMap.tsx spinner exception"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#1a1a1a",
+        "createdAt": "2026-09-03T11:35:41.781Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#64748b",
+        "createdAt": "2026-09-03T12:04:29.937Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,0.3)",
+        "createdAt": "2026-09-03T12:04:30.059Z"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "animate-spin rounded-full client/src/pages/tripdetail.tsx",
+        "createdAt": "2026-09-03T21:23:26.354Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#ffffff",
+        "createdAt": "2026-09-08T08:58:32.762Z"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "animate-bounce",
+        "createdAt": "2026-09-08T11:08:34.872Z"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "6px)",
+        "files": ["client/src/components/TripMap.tsx"],
+        "createdAt": "2026-09-09T10:20:54.955Z",
+        "reason": "var(--radius-xs, 6px) - the detector sees the fallback literal, not the token; --radius-xs IS 6px per DESIGN.md's own rounded scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": ["client/public/download/index.html"],
+        "createdAt": "2026-09-10T14:52:19.861Z",
+        "reason": "standalone static download page, outside the React app + design-token system; self-contained inline styles by design"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": ["client/src/components/TripMap.tsx"],
+        "createdAt": "2026-09-11T07:55:01.728Z",
+        "reason": "pre-existing 8-color activity-type/day-route category legend, documented in CONTEXT.md as an intentional out-of-scope exception; not introduced or touched by this session's MapTiler migration"
+      }
+    ]
+  }
+}

@@ -1,0 +1,2045 @@
+import { useState, useEffect, useRef } from "react";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { motion } from "framer-motion";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { NamePromptDialog } from "@/components/ui/NamePromptDialog";
+import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/components/layout/ThemeProvider";
+import {
+  computeTileUrls,
+  downloadTiles,
+  deleteTiles,
+  formatBytes,
+  TILE_CACHE_NAME,
+  matchTile,
+  exportRegionToImage,
+  saveBlobToDevice,
+} from "@/lib/offlineTiles";
+import { apiRequest } from "@/lib/queryClient";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+const REGION_RADIUS_DEG = 0.05; // ~5.5km — matches the padding used in openOfflineMap's bounds
+const REGION_ZOOM_MIN = 12;
+const REGION_ZOOM_MAX = 15;
+const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, matches the UI's "auto-expire" copy
+// OpenTopoMap — no API key, no signup. Third tile provider tried live:
+// raw OSM 403-blocked non-browser production traffic; MapTiler's key kept
+// rejecting as invalid; CARTO's anonymous endpoint turned out to require a
+// signup API key too (returns 200 with a real PNG even unauthenticated,
+// but the PNG itself is watermarked "API KEY REQUIRED" -- invisible from
+// response headers, only caught via an actual screenshot). No separate
+// dark style here, so dark mode falls back to the CSS invert-hue filter
+// on the tile pane, same as the original OSM fallback used.
+// Hardcoded "a" subdomain, not Leaflet's usual {s} round-robin across
+// a/b/c -- offlineTiles.ts's downloadTiles() always writes cached tiles
+// under "a." (a concrete URL, not a template), keyed by full URL in the
+// Cache Storage API. If this template rotated subdomains, ~2/3 of live
+// requests after a "Download for Offline" would ask for b./c. URLs that
+// were never written to the cache, missing it and hitting the network
+// anyway -- defeating the entire point of the download feature.
+const TILE_URL = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>';
+const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)";
+
+// Esri's World_Street_Map REST tiles -- genuinely free, no API key, no
+// signup (verified live: real JPEG tiles, Access-Control-Allow-Origin: *).
+// Note the path order is {z}/{y}/{x} (row before column), the reverse of
+// the {z}/{x}/{y} every other provider in this file uses -- an easy copy-
+// paste trap if this URL is ever touched without re-checking that.
+// Offline download stays tied to OpenTopoMap only (computeTileUrls/
+// downloadTiles below are called with TILE_URL directly, never this one) --
+// a downloaded region's cache has no entries for this style, so switching
+// to it while viewing an offline region would just be a wall of cache
+// misses. Toggle is hidden whenever offlineModeRegion is active.
+const STREET_TILE_URL =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
+const STREET_TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.esri.com" target="_blank">Esri</a>, HERE, Garmin, FAO, NOAA, USGS';
+
+interface MapRegion {
+  id: string;
+  name: string;
+  country: string;
+  bytes: number;
+  tileUrls: string[];
+  downloaded: boolean;
+  downloading: boolean;
+  progress: number;
+  lat: number;
+  lng: number;
+  zoom: number;
+  downloadedAt?: number;
+}
+
+interface PlaceResult {
+  id: string;
+  name: string;
+  displayName: string;
+  // The real, human-readable street address (Google's formatted_address,
+  // or Nominatim's display_name for geocode-sourced results) -- distinct
+  // from `displayName`, which the backend's /places/search sets to just
+  // the place NAME when one exists (places.routes.ts: `p.name ||
+  // p.formatted_address`), so it duplicated the name instead of showing a
+  // real address next to it.
+  address?: string;
+  lat: number;
+  lon: number;
+  category?: string;
+  type?: string;
+  name_en?: string;
+  name_local?: string;
+  transliteration?: string;
+  road?: string;
+  city?: string;
+  country?: string;
+  postcode?: string;
+  photoUrl?: string;
+}
+
+interface CustomPin {
+  id: string;
+  lat: number;
+  lng: number;
+  name: string;
+  note?: string;
+  color: string;
+}
+
+interface OfflineMapsProps {
+  className?: string;
+}
+
+const STORAGE_KEY = "tripmate_offlinemaps_v2";
+const PINS_STORAGE_KEY = "tripmate_custom_pins_v2"; // Sync versioning
+
+export function OfflineMaps({ className = "" }: OfflineMapsProps) {
+  const [activeTab, setActiveTab] = useState<"explore" | "navigation" | "saved">("explore");
+  // Focus-mode bottom sheet — collapsed shows a one-line peek (Storage Usage
+  // summary + handle), expanded reveals Storage/Search/Saved Regions in full.
+  // An overlay on top of the map rather than a flow sibling, so toggling it
+  // never changes the map container's own size (no need to invalidateSize).
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  // The map initializes at a world view (zoom 2) while waiting on
+  // geolocation to resolve (or its fallback to fire) — at that zoom level
+  // OSM tiles are mostly featureless landmass fill, and the dark-mode
+  // invert() filter turns that into what a real-user QA pass correctly
+  // flagged as "unreadable black continents". It was never a permanent
+  // state (geolocation resolves or times out within ~5s either way), but
+  // showing it at all reads as broken. Cover it with a normal loading
+  // state until the map actually has something worth looking at.
+  const [mapReady, setMapReady] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState<MapRegion | null>(null);
+  const { theme } = useTheme();
+  const [darkMode, setDarkMode] = useState(theme === "dark");
+  // "topo" (OpenTopoMap, offline-downloadable) vs "street" (Esri, online
+  // only -- see STREET_TILE_URL's comment above). Forced back to "topo"
+  // whenever an offline region is entered, below.
+  const [mapStyle, setMapStyle] = useState<"topo" | "street">("topo");
+  const mapStyleMountedRef = useRef(false);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pendingPinCenter, setPendingPinCenter] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const [offlineModeRegion, setOfflineModeRegion] = useState<MapRegion | null>(null);
+
+  useEffect(() => {
+    setDarkMode(theme === "dark");
+  }, [theme]);
+
+  function openOfflineMap(region: MapRegion) {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Simulate restricting map to this region
+    const bounds = L.latLngBounds(
+      [region.lat - 0.05, region.lng - 0.05],
+      [region.lat + 0.05, region.lng + 0.05],
+    );
+
+    map.setMaxBounds(bounds.pad(0.5)); // Allow a little padding buffer
+    map.fitBounds(bounds);
+    map.setMinZoom(11); // Don't allow zooming out too far
+
+    setOfflineModeRegion(region);
+    // Cached tiles only exist for the offline-downloadable style -- force
+    // back to it so entering an offline region never lands on a style that
+    // can only be a wall of cache misses here.
+    setMapStyle("topo");
+    toast({
+      title: `Opened ${region.name}`,
+      description: "You are now viewing the offline map area.",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // "Downloaded" here only means it was written to Cache Storage at
+    // download time — the browser can evict it under storage pressure, or
+    // the user can clear site data, and the region's saved state has no
+    // way to know that happened. Spot-check one tile so a since-evicted
+    // "downloaded" region doesn't silently show blank squares offline with
+    // no explanation.
+    if (region.downloaded && region.tileUrls?.[0] && !navigator.onLine) {
+      matchTile(region.tileUrls[0])
+        .then((hit) => {
+          if (!hit) {
+            toast({
+              title: "Tiles may be missing",
+              description:
+                "This region's offline tiles seem to have been cleared. Download it again for offline use.",
+              variant: "destructive",
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
+  function exitOfflineMap() {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    map.setMaxBounds([
+      [-90, -180],
+      [90, 180],
+    ]); // Clear restriction (World bounds)
+    map.setMinZoom(2);
+    map.setView([20, 0], 2);
+    setOfflineModeRegion(null);
+    toast({ title: "Exited Offline View", description: "Showing world map." });
+  }
+
+  // Custom Pins State — backed by the server (userId-scoped) so pins sync
+  // across devices/browsers instead of living only in this browser's
+  // localStorage, which silently lost pins on clearing site data, a
+  // private window, or switching devices.
+  const [customPins, setCustomPins] = useState<CustomPin[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiRequest("GET", "/api/v1/map-pins");
+        if (!res.ok) return;
+        const serverPins: CustomPin[] = await res.json();
+
+        if (serverPins.length === 0) {
+          // One-time migration: a pre-existing localStorage-only user might
+          // have real pins that predate this backend. Upload them once,
+          // then stop reading from localStorage entirely.
+          let localPins: CustomPin[] = [];
+          try {
+            const raw = localStorage.getItem(PINS_STORAGE_KEY);
+            localPins = raw ? JSON.parse(raw) : [];
+          } catch {
+            /* ignore */
+          }
+          if (localPins.length > 0) {
+            const migrated: CustomPin[] = [];
+            for (const p of localPins) {
+              try {
+                const r = await apiRequest("POST", "/api/v1/map-pins", {
+                  lat: p.lat,
+                  lng: p.lng,
+                  name: p.name,
+                  note: p.note,
+                  color: p.color,
+                });
+                if (r.ok) migrated.push(await r.json());
+              } catch {
+                /* skip pins that fail to migrate */
+              }
+            }
+            setCustomPins(migrated);
+            localStorage.removeItem(PINS_STORAGE_KEY);
+            return;
+          }
+        }
+        setCustomPins(serverPins);
+      } catch {
+        /* offline or request failed — leave pins empty for this session */
+      }
+    })();
+  }, []);
+
+  // Tile URLs belonging to regions that just aged past STALE_AFTER_MS on this
+  // load — stashed here so a mount-time effect can actually evict them from
+  // Cache Storage. Cache eviction is async and can't happen inside the
+  // synchronous useState initializer below.
+  const staleTileUrlsToPurgeRef = useRef<string[]>([]);
+  // Region id currently being zipped for "Save to device" — one at a time,
+  // since zipping hundreds of tiles in memory is the expensive part.
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState(0);
+
+  const [mapRegions, setMapRegions] = useState<MapRegion[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Array<Partial<MapRegion> & { size?: string }>;
+        const now = Date.now();
+
+        // ── OSM / MapTiler / CARTO → OpenTopoMap URL migration ──────────────
+        // Tile URLs saved from older sessions pointed at any of three
+        // abandoned providers (see the OpenTopoMap comment above). Rewrite
+        // them to the equivalent OpenTopoMap URL (same z/x/y coords) so
+        // previously downloaded regions don't go blank after the switch.
+        const osmRe = /^https:\/\/tile\.openstreetmap\.org\/(\d+)\/(\d+)\/(\d+)\.png$/;
+        const maptilerRe =
+          /^https:\/\/api\.maptiler\.com\/maps\/streets-v2(-dark)?\/(\d+)\/(\d+)\/(\d+)\.png/;
+        const cartoRe =
+          /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/(?:light|dark)_all\/(\d+)\/(\d+)\/(\d+)\.png$/;
+        function migrateUrl(url: string): string {
+          const osmM = url.match(osmRe);
+          if (osmM) {
+            const [, z, x, y] = osmM;
+            return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
+          }
+          const mtM = url.match(maptilerRe);
+          if (mtM) {
+            const [, , z, x, y] = mtM;
+            return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
+          }
+          const cartoM = url.match(cartoRe);
+          if (cartoM) {
+            const [, z, x, y] = cartoM;
+            return `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`;
+          }
+          return url;
+        }
+        // ────────────────────────────────────────────────────────────────────
+
+        return parsed.map((r) => {
+          // Regions saved before real tile caching (or downloaded >30 days
+          // ago) have no actual cached tiles — don't claim they're offline.
+          const hasRealTiles = Array.isArray(r.tileUrls) && r.tileUrls.length > 0;
+          const isStale = !r.downloadedAt || now - r.downloadedAt > STALE_AFTER_MS;
+          const stillDownloaded = !!r.downloaded && hasRealTiles && !isStale;
+          if (hasRealTiles && isStale) {
+            staleTileUrlsToPurgeRef.current.push(...r.tileUrls!);
+          }
+          // Migrate any stored OSM tile URLs to CARTO before hydrating state.
+          const migratedUrls = stillDownloaded ? r.tileUrls!.map(migrateUrl) : [];
+          return {
+            id: r.id!,
+            name: r.name!,
+            country: r.country || "",
+            bytes: typeof r.bytes === "number" ? r.bytes : 0,
+            tileUrls: migratedUrls,
+            downloaded: stillDownloaded,
+            downloading: false,
+            progress: stillDownloaded ? 100 : 0,
+            lat: r.lat!,
+            lng: r.lng!,
+            zoom: r.zoom ?? 12,
+            downloadedAt: stillDownloaded ? r.downloadedAt : undefined,
+          };
+        });
+      }
+    } catch {}
+    return [];
+  });
+
+  // Evict cache entries for regions that aged out on this load, or the tiles stay in Cache Storage forever.
+  useEffect(() => {
+    if (staleTileUrlsToPurgeRef.current.length > 0) {
+      deleteTiles(staleTileUrlsToPurgeRef.current);
+      staleTileUrlsToPurgeRef.current = [];
+    }
+  }, []);
+
+  const [placesResults, setPlacesResults] = useState<PlaceResult[]>([]);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState<string | null>(null);
+  const [placesSearched, setPlacesSearched] = useState(false);
+  // Maps here is a standalone, not-tied-to-one-trip page — bias search
+  // toward wherever the user actually is, not a trip's destination (that
+  // biasing happens in TripMap.tsx, which is opened from within a trip).
+  // Named distinctly from the `userLocation` nav-tracking state below —
+  // that one is live GPS during turn-by-turn navigation, this is a single
+  // cached read used only to rank search results.
+  const searchBiasLocation = useUserLocation();
+  const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
+  // Navigation State
+  // Panel is nearly full-width below `sm` (no fixed w-64 there) -- when
+  // fully expanded it covers almost the entire map on a phone, leaving no
+  // way to actually see the route while navigating. Collapsible so the map
+  // stays visible by default; expanding it is a deliberate choice.
+  const [navPanelExpanded, setNavPanelExpanded] = useState(true);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [currentHeading, setCurrentHeading] = useState<number>(0);
+  const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<{
+    lat: number;
+    lon: number;
+    name: string;
+  } | null>(null);
+  const [navDestInput, setNavDestInput] = useState("");
+  const [navDestSuggestions, setNavDestSuggestions] = useState<
+    Array<{ lat: number; lon: number; display_name: string }>
+  >([]);
+  const [navDestLoading, setNavDestLoading] = useState(false);
+  const [showNavDestSuggestions, setShowNavDestSuggestions] = useState(false);
+  const navDestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Turn-by-turn state — populated by computeRoute() below. distanceKm/etaMin
+  // are the REMAINING distance/time from wherever the last route fetch
+  // started (current GPS position while live-tracking, not the original
+  // start point), so they read correctly as "time left" rather than
+  // "original trip time" once the user has been moving for a while.
+  const routeAbortRef = useRef<AbortController | null>(null);
+  const [routeSteps, setRouteSteps] = useState<Array<{ instruction: string; distanceM: number }>>(
+    [],
+  );
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [routeEtaMin, setRouteEtaMin] = useState<number | null>(null);
+  const [routeArrived, setRouteArrived] = useState(false);
+  // Throttles the live-recompute effect below — re-fetching OSRM on every
+  // single GPS tick (can fire multiple times/sec) would hammer the public
+  // OSRM demo server for no real benefit; a human's ETA doesn't need
+  // sub-10-second precision.
+  const lastRouteFetchAtRef = useRef(0);
+
+  // Filters
+  const [filters, setFilters] = useState({
+    food: true,
+    hotel: true,
+    sights: true,
+  });
+
+  const suggestTimerRef = useRef<number | null>(null);
+  const { toast } = useToast();
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const routePolylineRef = useRef<L.Polyline | null>(null);
+  const pinMarkersRef = useRef<L.Marker[]>([]);
+  const placesAbortRef = useRef<AbortController | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  // Guards the auto-fit-to-pins below to run at most once per session —
+  // otherwise saving a new pin (which also updates customPins) would yank
+  // the view away from wherever the user just navigated to.
+  const pinsFitOnceRef = useRef(false);
+
+  // Persist regions & pins
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mapRegions));
+    } catch {}
+  }, [mapRegions]);
+
+  useEffect(() => {
+    refreshPinMarkers();
+
+    // Root cause of "I can't see my saved pins after reload" (live-verified:
+    // the /api/v1/map-pins backend itself round-trips correctly — create,
+    // then a fresh GET, both return the pin). The markers WERE being added
+    // to the map; they just landed off-screen, because the map always
+    // re-centers on the user's current geolocation (or a fallback region)
+    // on load, entirely independent of where any saved pins actually are.
+    // A pin saved in Kyoto is invisible if you reload this page from home.
+    // Fix: once pins are loaded and the map exists, fit the view to them —
+    // guarded to fire only once per session so adding a new pin later
+    // doesn't yank the view away from wherever the user is currently
+    // looking.
+    const map = mapInstanceRef.current;
+    if (map && customPins.length > 0 && !pinsFitOnceRef.current) {
+      pinsFitOnceRef.current = true;
+      if (customPins.length === 1) {
+        map.setView([customPins[0].lat, customPins[0].lng], 14);
+      } else {
+        const bounds = L.latLngBounds(customPins.map((p) => [p.lat, p.lng] as [number, number]));
+        map.fitBounds(bounds.pad(0.25));
+      }
+    }
+  }, [customPins]);
+
+  // Clean up markers helper
+  const clearPinMarkers = () => {
+    pinMarkersRef.current.forEach((m) => m.remove());
+    pinMarkersRef.current = [];
+  };
+
+  // Shared with the map-popup delete button below — pulled out so the new
+  // Saved Pins list (real fix for "can't see/delete saved pins") uses the
+  // exact same delete path instead of a second, divergent implementation.
+  const handleDeletePin = async (id: string) => {
+    try {
+      const r = await apiRequest("DELETE", `/api/v1/map-pins/${id}`);
+      if (!r.ok) throw new Error("delete_failed");
+      setCustomPins((prev) => prev.filter((p) => p.id !== id));
+      toast({ title: "Pin deleted" });
+    } catch {
+      toast({ title: "Couldn't delete pin", description: "Try again.", variant: "destructive" });
+    }
+  };
+
+  // Centers the map on a saved pin and collapses the sheet so the pin is
+  // actually visible instead of hidden behind the expanded sheet.
+  const locatePin = (pin: CustomPin) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.flyTo([pin.lat, pin.lng], 15);
+    setSheetExpanded(false);
+    const marker = pinMarkersRef.current.find(
+      (m) => m.getLatLng().lat === pin.lat && m.getLatLng().lng === pin.lng,
+    );
+    marker?.openPopup();
+  };
+
+  const refreshPinMarkers = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    clearPinMarkers();
+
+    customPins.forEach((pin) => {
+      const icon = L.divIcon({
+        className: "custom-pin-icon",
+        // pin.color is user input that lands in HTML: only a hex colour passes.
+        html: `<div style="background-color: ${/^#[0-9a-f]{3,8}$/i.test(pin.color || "") ? pin.color : "#1d4e89"}; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white;"></div>`,
+        iconSize: [20, 20],
+      });
+
+      // Build the popup as real DOM nodes with a bound listener instead of
+      // an HTML string with an inline onclick= attribute — the CSP here has
+      // no 'unsafe-inline' in script-src, so inline event handler attributes
+      // are silently blocked by the browser. That made the Delete button
+      // a no-op in production despite looking and rendering fine.
+      const popupEl = document.createElement("div");
+      const title = document.createElement("b");
+      title.textContent = pin.name;
+      popupEl.appendChild(title);
+      if (pin.note) {
+        popupEl.appendChild(document.createElement("br"));
+        popupEl.appendChild(document.createTextNode(pin.note));
+      }
+      popupEl.appendChild(document.createElement("br"));
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "Delete";
+      deleteBtn.style.color = "red";
+      deleteBtn.style.fontSize = "10px";
+      deleteBtn.style.marginTop = "4px";
+      deleteBtn.addEventListener("click", () => handleDeletePin(pin.id));
+      popupEl.appendChild(deleteBtn);
+
+      const marker = L.marker([pin.lat, pin.lng], { icon }).addTo(map).bindPopup(popupEl);
+      pinMarkersRef.current.push(marker);
+    });
+  };
+
+  // Adds the street/topo tile layer for the current mapStyle and applies the dark filter (CSS filter on the tile pane).
+  const makeTileLayer = (map: L.Map) => {
+    const layer = L.tileLayer(mapStyle === "street" ? STREET_TILE_URL : TILE_URL, {
+      attribution: mapStyle === "street" ? STREET_TILE_ATTRIBUTION : TILE_ATTRIBUTION,
+      maxZoom: mapStyle === "street" ? 19 : 17,
+      noWrap: true,
+      // CORS tiles: readable for "Save to Device" and not padded in storage.
+      crossOrigin: true,
+      // noWrap alone still requests off-world tiles (403/404 at low zoom).
+      bounds: [
+        [-90, -180],
+        [90, 180],
+      ],
+    }).addTo(map);
+    tileLayerRef.current = layer;
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+  };
+
+  // Initialize Leaflet
+  useEffect(() => {
+    if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+      iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+    });
+
+    // Leaflet wraps the world horizontally by default — at low zoom on a
+    // wide viewport (exactly the container/breakpoint this component runs
+    // at) that renders as multiple repeated copies of the world map side
+    // by side instead of one. maxBounds + noWrap on the tile layer confine
+    // it to a single instance of the world.
+    const worldBounds: L.LatLngBoundsExpression = [
+      [-90, -180],
+      [90, 180],
+    ];
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: true,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+    }).setView([20, 0], 2);
+
+    makeTileLayer(map);
+
+    mapInstanceRef.current = map;
+
+    // Initial state: Prioritize Geolocation — but never override the
+    // saved-pins auto-fit above (pinsFitOnceRef) if that already won the
+    // race. Geolocation and the pins fetch are two independent network
+    // calls; either can resolve first. If the user has saved pins, seeing
+    // those on load matters more than centering on wherever they are right
+    // now, and re-centering on geolocation after the pin-fit already ran
+    // would just reintroduce the exact "can't see my pins" bug.
+    const fallbackToDownloaded = () => {
+      const downloadedRegion = mapRegions.find((r) => r.downloaded) ?? mapRegions[0];
+      if (downloadedRegion && !pinsFitOnceRef.current) {
+        map.setView([downloadedRegion.lat, downloadedRegion.lng], downloadedRegion.zoom);
+      }
+      setMapReady(true);
+    };
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          // Auto-locate: Just center the map, don't add a marker until requested
+          if (!pinsFitOnceRef.current) {
+            map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+          }
+          setMapReady(true);
+        },
+        (err) => {
+          console.error("Auto-locate failed, falling back to downloaded regions", err);
+          fallbackToDownloaded();
+        },
+        { enableHighAccuracy: true, timeout: 5000 },
+      );
+    } else {
+      fallbackToDownloaded();
+    }
+
+    refreshPinMarkers();
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dark mode is a CSS filter on the tile pane (OpenTopoMap has no dark style), not a layer swap: a swap on mount refetched every in-flight tile.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) tilePane.style.filter = darkMode ? DARK_TILE_FILTER : "";
+  }, [darkMode]);
+
+  // Style IS a real layer swap (unlike dark mode above) -- these are two
+  // genuinely different tile sets, not a CSS filter on the same one. Guarded
+  // because every effect also fires once on mount:
+  // without mapStyleMountedRef, this would immediately remove and recreate
+  // the layer the init effect just added, firing a redundant duplicate
+  // request for every tile already in flight on first load.
+  useEffect(() => {
+    if (!mapStyleMountedRef.current) {
+      mapStyleMountedRef.current = true;
+      return;
+    }
+    const map = mapInstanceRef.current;
+    if (!map || !tileLayerRef.current) return;
+    map.removeLayer(tileLayerRef.current);
+    makeTileLayer(map);
+  }, [mapStyle]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live Navigation Logic
+  useEffect(() => {
+    if (isNavigating) {
+      if (!navigator.geolocation) {
+        toast({ title: "Error", description: "Geolocation not supported", variant: "destructive" });
+        setIsNavigating(false);
+        return;
+      }
+
+      toast({ title: "Navigation Started", description: "Tracking your movement..." });
+      let hasWarnedThisSession = false;
+
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, heading } = pos.coords;
+          const map = mapInstanceRef.current;
+
+          setUserLocation({ lat: latitude, lon: longitude });
+          if (heading != null) setCurrentHeading(heading);
+
+          if (map) {
+            // Update User Marker
+            if (userMarkerRef.current) userMarkerRef.current.remove();
+
+            // Navigation Arrow Icon — #1D4E89 is the customs-blue design
+            // token (DESIGN.md); hardcoded here because Leaflet divIcons
+            // render outside the CSS/Tailwind pipeline, so it can't reference
+            // the token directly. Keep in sync with DESIGN.md if that value
+            // ever changes.
+            const arrowHtml = `
+              <div style="
+                transform: rotate(${heading || 0}deg);
+                transition: transform 0.3s ease;
+                width: 0;
+                height: 0;
+                border-left: 10px solid transparent;
+                border-right: 10px solid transparent;
+                border-bottom: 20px solid #1D4E89;
+              "></div>`;
+
+            const navIcon = L.divIcon({
+              className: "nav-arrow-icon",
+              html: arrowHtml,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            });
+
+            userMarkerRef.current = L.marker([latitude, longitude], { icon: navIcon }).addTo(map);
+
+            // Auto Follow
+            map.flyTo([latitude, longitude], 17, { animate: true, duration: 0.5 });
+          }
+        },
+        (err) => {
+          console.error(err);
+          // Show the user one toast per tracking session (permission denied,
+          // GPS unavailable, etc) instead of either spamming on every retry
+          // or — the previous behavior — never surfacing the error at all.
+          if (!hasWarnedThisSession) {
+            hasWarnedThisSession = true;
+            toast({
+              title: "Location unavailable",
+              description:
+                err.code === err.PERMISSION_DENIED
+                  ? "Location permission denied. Enable it in your browser to track your position."
+                  : "Couldn't get your location. Retrying...",
+              variant: "destructive",
+            });
+          }
+        },
+        { enableHighAccuracy: true, maximumAge: 1000 },
+      );
+    } else {
+      if (watchIdRef.current) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      // Revert the nav-arrow marker back to a normal pin at the last known position.
+      const map = mapInstanceRef.current;
+      if (userMarkerRef.current) {
+        const { lat, lng } = userMarkerRef.current.getLatLng();
+        userMarkerRef.current.remove();
+        userMarkerRef.current = map
+          ? L.marker([lat, lng]).addTo(map).bindPopup("You are here")
+          : null;
+      }
+    }
+  }, [isNavigating]);
+
+  // Live turn-by-turn: recompute the route from wherever the user currently
+  // is every time live tracking reports a new GPS position, so the
+  // instruction/remaining-distance/ETA panel actually updates while moving
+  // instead of showing whatever "Get Route" calculated once at the start.
+  // Throttled to at most once per 8s (a GPS watch can fire far more often
+  // than that) and skipped once already arrived, so it doesn't keep pinging
+  // OSRM after the trip is effectively over.
+  useEffect(() => {
+    if (!isNavigating || !selectedPlace || !userLocation || routeArrived) return;
+    const now = Date.now();
+    if (now - lastRouteFetchAtRef.current < 8000) return;
+    lastRouteFetchAtRef.current = now;
+    // Aborted on cleanup so a fetch still in flight when tracking stops (or
+    // the component unmounts) can't land its response afterward and apply
+    // stale distance/ETA/step-list state for a navigation session that's
+    // already over.
+    // Only a newer reroute (at most every 8s) or stopping cancels it; a GPS
+    // tick on its own must not, or slow connections never get an update.
+    routeAbortRef.current?.abort();
+    const controller = new AbortController();
+    routeAbortRef.current = controller;
+    computeRoute(userLocation, selectedPlace, { silent: true, signal: controller.signal });
+    // computeRoute is defined in the same render scope and doesn't need to
+    // be a dep -- it closes over routePolylineRef/toast which are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNavigating, userLocation, selectedPlace, routeArrived]);
+
+  useEffect(() => {
+    if (!isNavigating || routeArrived) routeAbortRef.current?.abort();
+  }, [isNavigating, routeArrived]);
+  useEffect(() => () => routeAbortRef.current?.abort(), []);
+
+  const fetchNavDestSuggestions = (query: string) => {
+    if (navDestDebounceRef.current) clearTimeout(navDestDebounceRef.current);
+    if (query.trim().length < 3) {
+      setNavDestSuggestions([]);
+      setShowNavDestSuggestions(false);
+      return;
+    }
+    navDestDebounceRef.current = setTimeout(async () => {
+      try {
+        setNavDestLoading(true);
+        // For a "where do I want to go" navigation search, bias results
+        // toward the user's actual location — otherwise a common chain name
+        // like "D-Mart" or "Domino's" returns branches from anywhere in the
+        // country in no particular order, no more useful than the nearest
+        // one. Falls back to wherever the map is currently centered (which
+        // itself starts at the user's location on load) if geolocation
+        // hasn't set userLocation yet.
+        const bias =
+          userLocation ||
+          (() => {
+            const c = mapInstanceRef.current?.getCenter();
+            return c ? { lat: c.lat, lon: c.lng } : null;
+          })();
+        const biasParam = bias ? `&lat=${bias.lat}&lon=${bias.lon}` : "";
+        const r = await fetch(`/api/v1/geocode?q=${encodeURIComponent(query.trim())}${biasParam}`);
+        const data = await r.json();
+        setNavDestSuggestions(Array.isArray(data) ? data : []);
+        setShowNavDestSuggestions(true);
+      } catch {
+        setNavDestSuggestions([]);
+      } finally {
+        setNavDestLoading(false);
+      }
+    }, 350);
+  };
+
+  const selectNavDestSuggestion = (place: { lat: number; lon: number; display_name: string }) => {
+    const name = place.display_name?.split(",")[0] || place.display_name;
+    const lat = Number(place.lat);
+    const lon = Number(place.lon);
+    setSelectedPlace({ lat, lon, name });
+    setNavDestInput(name);
+    setShowNavDestSuggestions(false);
+    setNavDestSuggestions([]);
+    toast({ title: "Destination set", description: name });
+
+    const map = mapInstanceRef.current;
+    if (map) {
+      if (markerRef.current) markerRef.current.remove();
+      // A string popup is parsed as HTML; place names come from geocoders.
+      const label = document.createElement("span");
+      label.textContent = name;
+      markerRef.current = L.marker([lat, lon]).addTo(map).bindPopup(label).openPopup();
+      map.flyTo([lat, lon], 14, { duration: 1 });
+    }
+  };
+
+  // One-shot location fetch for "Get Route" when live tracking isn't already
+  // on — users shouldn't have to enable continuous tracking just to see a
+  // single route.
+  function getCurrentLocationOnce(): Promise<{ lat: number; lon: number }> {
+    if (!navigator.geolocation) return Promise.reject(new Error("Geolocation not supported"));
+    const attempt = (opts: PositionOptions) =>
+      new Promise<{ lat: number; lon: number }>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+          (err) => reject(err),
+          opts,
+        );
+      });
+    // High-accuracy GPS can time out or report unavailable on devices
+    // without a GPS chip (most desktops); fall back to coarser
+    // network/IP-based positioning, which is slower to appear but far
+    // more reliable, rather than surfacing "Location needed" outright.
+    return attempt({ enableHighAccuracy: true, timeout: 8000 }).catch(() =>
+      attempt({ enableHighAccuracy: false, timeout: 15000 }),
+    );
+  }
+
+  // OSRM's maneuver type/modifier -> a real instruction sentence. OSRM
+  // itself only returns structured maneuver data (type/modifier/road name),
+  // not prose -- every turn-by-turn UI built on it does this translation
+  // step itself. Covers the maneuver types OSRM actually emits for driving
+  // routes; anything unrecognized falls back to a generic "Continue" rather
+  // than showing raw OSRM enum strings to the user.
+  function formatManeuver(step: any): string {
+    const m = step?.maneuver;
+    const road = step?.name && String(step.name).trim() ? ` onto ${step.name}` : "";
+    if (!m) return "Continue";
+    switch (m.type) {
+      case "depart":
+        return `Head ${m.modifier || "out"}${road}`;
+      case "arrive":
+        return "Arrive at your destination";
+      case "roundabout":
+      case "rotary":
+        return `At the roundabout, take exit ${m.exit || 1}${road}`;
+      case "merge":
+        return `Merge ${m.modifier || ""}${road}`.trim();
+      case "fork":
+        return `Keep ${m.modifier || "straight"}${road}`;
+      case "end of road":
+        return `Turn ${m.modifier || ""}${road}`.trim();
+      case "new name":
+        return `Continue${road}`;
+      case "continue":
+        return `Continue ${m.modifier || "straight"}${road}`;
+      case "turn":
+      default:
+        if (m.modifier) return `Turn ${m.modifier}${road}`;
+        return `Continue${road}`;
+    }
+  }
+
+  // Shared by the "Get Route" button (fresh search, fits the map to the
+  // whole route) and the live-tracking recompute effect below (recalculates
+  // from wherever the user currently is, without yanking the map view or
+  // spamming a toast every time). Recomputing from the CURRENT position on
+  // every call — rather than tracking progress along the original route —
+  // is deliberately simple: it doubles as automatic off-route recalculation
+  // for free, at the cost of an OSRM call per update (already throttled by
+  // the caller).
+  async function computeRoute(
+    from: { lat: number; lon: number },
+    to: { lat: number; lon: number },
+    opts: { silent: boolean; signal?: AbortSignal },
+  ) {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true`;
+      const res = await fetch(url, { signal: opts.signal });
+      const json = await res.json();
+      const route = json?.routes?.[0];
+      const coords: [number, number][] =
+        route?.geometry?.coordinates?.map(
+          ([lng, lat]: [number, number]) => [lat, lng] as [number, number],
+        ) ?? [];
+      if (!coords.length) throw new Error("No route found");
+
+      if (routePolylineRef.current) routePolylineRef.current.remove();
+      routePolylineRef.current = L.polyline(coords, { color: "#1D4E89", weight: 4 }).addTo(map);
+      setRoutePoints(coords);
+
+      const distKm = route.distance / 1000;
+      const mins = route.duration / 60;
+      setRouteDistanceKm(distKm);
+      setRouteEtaMin(mins);
+      // Arrived once within 30m of the destination -- OSRM's own remaining
+      // distance already accounts for road geometry, not straight-line, so
+      // this stays accurate even on a winding approach road.
+      setRouteArrived(route.distance < 30);
+
+      const steps = (route?.legs?.[0]?.steps ?? []).map((s: any) => ({
+        instruction: formatManeuver(s),
+        distanceM: s.distance,
+      }));
+      setRouteSteps(steps);
+
+      if (!opts.silent) {
+        map.fitBounds(L.latLngBounds(coords));
+        toast({
+          title: "Route Ready",
+          description: `${distKm.toFixed(1)} km · ~${Math.round(mins)} min driving`,
+        });
+      }
+    } catch {
+      if (!opts.silent) {
+        toast({
+          title: "Route unavailable",
+          description: "Could not calculate route. Check connection.",
+          variant: "destructive",
+        });
+      }
+      // Silent (live) recompute failures stay quiet -- a single dropped GPS
+      // tick or a flaky OSRM response shouldn't interrupt navigation with a
+      // toast; the panel just keeps showing the last-known numbers until
+      // the next successful tick.
+    }
+  }
+
+  // Routing via OSRM (open-source, no API key needed)
+  const handleCalculateRoute = async () => {
+    if (!selectedPlace) {
+      toast({
+        title: "No destination",
+        description: "Search for and select a destination first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let location = userLocation;
+    if (!location) {
+      try {
+        location = await getCurrentLocationOnce();
+        setUserLocation(location);
+      } catch {
+        toast({
+          title: "Location needed",
+          description: "Enable location access to calculate a route.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setRouteArrived(false);
+    await computeRoute(location, selectedPlace, { silent: false });
+  };
+
+  // --- Existing Fetch/Utility Logic (Briefly retained/adapted) --- //
+  function parsePlaceItem(it: any): PlaceResult | null {
+    if (!it) return null;
+    const lat = Number(it.lat ?? it.latitude ?? it.location?.lat);
+    const lon = Number(it.lon ?? it.longitude ?? it.location?.lng);
+    if (Number.isNaN(lat)) return null;
+    // `it.address` is a string from /places/search but an object (city/country keys) from a Nominatim reverse-geocode.
+    const isAddressObject = it.address && typeof it.address === "object";
+    const address =
+      typeof it.address === "string"
+        ? it.address
+        : it.display_name && it.display_name !== it.name
+          ? it.display_name
+          : undefined;
+    return {
+      id: `${lat}-${lon}-${Math.random()}`,
+      name: it.name || it.display_name?.split(",")[0] || "Unknown",
+      displayName: it.display_name ?? "Unknown Location",
+      address,
+      lat,
+      lon,
+      category: it.type,
+      city: isAddressObject ? it.address.city : undefined,
+      country: isAddressObject ? it.address.country : undefined,
+      photoUrl: it.imageUrl,
+    };
+  }
+
+  async function fetchPlaces(query: string) {
+    if (!query || query.length < 2) return;
+    setPlacesLoading(true);
+    setPlacesError(null);
+    try {
+      // The backend's place search has no category filter — it's a raw text
+      // search passthrough. The only way the Food/Hotels/Sights checkboxes can
+      // actually affect results is by shaping the search text itself. When
+      // every category (or none) is checked, search the plain query; when a
+      // subset is checked, run one search per selected category and merge.
+      const categoryTerms: Record<"food" | "hotel" | "sights", string> = {
+        food: "restaurants",
+        hotel: "hotels",
+        sights: "tourist attractions",
+      };
+      const activeCategories = (Object.keys(filters) as Array<keyof typeof filters>).filter(
+        (k) => filters[k],
+      );
+      const queries =
+        activeCategories.length > 0 && activeCategories.length < 3
+          ? activeCategories.map((c) => `${categoryTerms[c]} in ${query}`)
+          : [query];
+
+      const perQueryPageSize = Math.ceil(pageSize / queries.length);
+      const biasParams = searchBiasLocation
+        ? `&lat=${searchBiasLocation.lat}&lon=${searchBiasLocation.lon}`
+        : "";
+      const results = await Promise.all(
+        queries.map(async (q) => {
+          const res = await fetch(
+            `/api/v1/places/search?q=${encodeURIComponent(q)}&page=${page}&pageSize=${perQueryPageSize}${biasParams}`,
+          );
+          const j = await res.json();
+          return { items: Array.isArray(j?.items) ? j.items : [], total: j?.total || 0 };
+        }),
+      );
+
+      const seen = new Set<string>();
+      const merged: PlaceResult[] = [];
+      let totalCount = 0;
+      for (const { items, total: t } of results) {
+        totalCount += t;
+        for (const it of items) {
+          const parsedItem = parsePlaceItem(it);
+          if (!parsedItem) continue;
+          const key = `${parsedItem.lat.toFixed(4)},${parsedItem.lon.toFixed(4)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(parsedItem);
+        }
+      }
+
+      setPlacesResults(merged);
+      setTotal(totalCount);
+    } catch {
+      setPlacesError("Search failed. Check your connection and try again.");
+      setPlacesResults([]);
+    } finally {
+      setPlacesLoading(false);
+      setPlacesSearched(true);
+    }
+  }
+
+  // Re-run the active search when the category filters change, so toggling a
+  // checkbox after a search actually updates the results instead of doing nothing.
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) fetchPlaces(searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.food, filters.hotel, filters.sights]);
+
+  // Generate MapRegion from a place
+  function addPlaceAsRegion(p: PlaceResult) {
+    const newRegion: MapRegion = {
+      id: `place-${p.id}`,
+      name: p.name,
+      country: p.country || "Unknown",
+      bytes: 0,
+      tileUrls: [],
+      downloaded: false,
+      downloading: false,
+      progress: 0,
+      lat: p.lat,
+      lng: p.lon,
+      zoom: 12,
+    };
+    setMapRegions((prev) => [...prev, newRegion]);
+    toast({ title: "Map Added", description: `${p.name} added to list.` });
+  }
+
+  // View a place on the map (preview only, does not add to list)
+  function viewPlaceOnMap(p: PlaceResult) {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.flyTo([p.lat, p.lon], 12, { duration: 1.1 });
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
+    }
+    // Same displayName-duplicates-name issue as the results list above --
+    // show the real address when there is one, not the place's own name
+    // again. textContent via a real DOM node, not string interpolation
+    // into innerHTML -- p.name/p.address come from a third-party API
+    // response and must never be trusted as safe HTML.
+    const popupEl = document.createElement("div");
+    const title = document.createElement("b");
+    title.textContent = p.name;
+    popupEl.appendChild(title);
+    if (p.address) {
+      popupEl.appendChild(document.createElement("br"));
+      const addr = document.createElement("small");
+      addr.textContent = p.address;
+      popupEl.appendChild(addr);
+    }
+    const mk = L.marker([p.lat, p.lon]).addTo(map).bindPopup(popupEl).openPopup();
+    markerRef.current = mk;
+  }
+
+  const downloadingRef = useRef<Set<string>>(new Set());
+
+  async function downloadMap(regionId: string) {
+    if (downloadingRef.current.has(regionId)) return; // Prevent double clicks
+    const region = mapRegions.find((r) => r.id === regionId);
+    if (!region) return;
+
+    downloadingRef.current.add(regionId);
+    setMapRegions((prev) =>
+      prev.map((r) => (r.id === regionId ? { ...r, downloading: true, progress: 0 } : r)),
+    );
+
+    const urls = computeTileUrls(
+      region.lat,
+      region.lng,
+      REGION_RADIUS_DEG,
+      REGION_ZOOM_MIN,
+      REGION_ZOOM_MAX,
+      darkMode,
+    );
+    toast({
+      title: "Download Started",
+      description: `Fetching ${urls.length} map tiles for offline use...`,
+    });
+
+    try {
+      const bytes = await downloadTiles(urls, (done, total) => {
+        setMapRegions((prev) =>
+          prev.map((r) =>
+            r.id === regionId ? { ...r, progress: Math.round((done / total) * 100) } : r,
+          ),
+        );
+      });
+
+      setMapRegions((prev) =>
+        prev.map((r) =>
+          r.id === regionId
+            ? {
+                ...r,
+                downloading: false,
+                downloaded: true,
+                progress: 100,
+                bytes,
+                tileUrls: urls,
+                downloadedAt: Date.now(),
+              }
+            : r,
+        ),
+      );
+      toast({
+        title: "Download Complete",
+        description: `${region.name} (${formatBytes(bytes)}) is now available offline`,
+      });
+    } catch (e) {
+      setMapRegions((prev) =>
+        prev.map((r) => (r.id === regionId ? { ...r, downloading: false, progress: 0 } : r)),
+      );
+      toast({
+        title: "Download Failed",
+        description: e instanceof Error ? e.message : "Could not cache map tiles.",
+        variant: "destructive",
+      });
+    } finally {
+      downloadingRef.current.delete(regionId);
+    }
+  }
+
+  async function deleteMap(regionId: string) {
+    const region = mapRegions.find((r) => r.id === regionId);
+    downloadingRef.current.delete(regionId);
+
+    if (region?.tileUrls?.length) {
+      await deleteTiles(region.tileUrls);
+    }
+
+    setMapRegions((prev) => prev.filter((r) => r.id !== regionId));
+    toast({ title: "Map Deleted", description: "Offline map removed." });
+  }
+
+  // Stitches an already-downloaded region into one real .png file the
+  // browser saves to the device's Downloads folder — unlike the Cache
+  // Storage the "Download" button above writes to, this is a real file the
+  // user can see in their file manager, move, or share, and it survives
+  // clearing site data. First version zipped the raw tile files; live
+  // feedback was that a folder of small tile images (even inside one .zip)
+  // wasn't what "download the map" meant — a single picture of the region
+  // is. Uses REGION_ZOOM_MAX for real street-level detail rather than the
+  // region's stored zoom (usually 12, the initial search zoom — a nearly
+  // blank overview at that level).
+  async function exportRegion(regionId: string) {
+    const region = mapRegions.find((r) => r.id === regionId);
+    if (!region) return;
+    setExportingId(regionId);
+    setExportProgress(0);
+    try {
+      const blob = await exportRegionToImage(
+        region,
+        REGION_RADIUS_DEG,
+        REGION_ZOOM_MAX,
+        darkMode,
+        (done, total) => setExportProgress(Math.round((done / total) * 100)),
+      );
+      const safeName = region.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
+      saveBlobToDevice(blob, `TripMate-${safeName || "region"}.png`);
+      toast({
+        title: "Saved to device",
+        description: `${region.name} exported as an image — check your Downloads folder.`,
+      });
+    } catch (e) {
+      toast({
+        title: "Export Failed",
+        description: e instanceof Error ? e.message : "Could not export this region.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingId(null);
+    }
+  }
+
+  // Stats
+  const totalSize = mapRegions.filter((r) => r.downloaded).reduce((s, r) => s + r.bytes, 0);
+
+  // Estimated size of a not-yet-downloaded region, before we know its real byte count.
+  function estimateRegionBytes(): number {
+    const tileCount = computeTileUrls(
+      0,
+      0,
+      REGION_RADIUS_DEG,
+      REGION_ZOOM_MIN,
+      REGION_ZOOM_MAX,
+      darkMode,
+    ).length;
+    return tileCount * 15_000;
+  }
+
+  return (
+    <div
+      className={`offline-maps-root relative h-full w-full flex flex-col overflow-hidden ${className}`}
+    >
+      {/* Slim top bar — tabs + offline/dark-mode state, not a full page header */}
+      <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card">
+        <div className="flex space-x-1 bg-muted p-1 rounded-xl">
+          <button
+            onClick={() => setActiveTab("explore")}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "explore" ? "bg-[rgb(var(--ink-blue-rgb))] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Explore
+          </button>
+          <button
+            onClick={() => setActiveTab("navigation")}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "navigation" ? "bg-[rgb(var(--ink-blue-rgb))] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Navigation
+          </button>
+          <button
+            onClick={() => setActiveTab("saved")}
+            className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${activeTab === "saved" ? "bg-[rgb(var(--ink-blue-rgb))] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <span className="whitespace-nowrap">Saved Pins</span>
+          </button>
+        </div>
+        {offlineModeRegion ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[var(--transit-green-text)] bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] rotate-[-2deg] truncate max-w-[140px] sm:max-w-none">
+              Offline: {offlineModeRegion.name}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exitOfflineMap}
+              aria-label="Exit offline map"
+              className="h-9 w-9 p-0 rounded-full bg-[rgb(var(--stamp-red-rgb)/10%)] hover:bg-[rgb(var(--stamp-red-rgb)/20%)] text-[var(--stamp-red-text)] border border-[rgb(var(--stamp-red-rgb)/50%)] flex items-center justify-center flex-shrink-0"
+            >
+              <i className="fas fa-times text-xs"></i>
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMapStyle(mapStyle === "street" ? "topo" : "street")}
+              className="text-muted-foreground hover:text-foreground"
+              title={mapStyle === "street" ? "Terrain View" : "Detailed Street View"}
+            >
+              <i className="fas fa-road"></i>
+              <span className="hidden sm:inline ml-2">
+                {mapStyle === "street" ? "Terrain" : "Detailed"}
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDarkMode(!darkMode)}
+              className="text-muted-foreground hover:text-foreground"
+              title={darkMode ? "Light Mode" : "Dark Mode"}
+            >
+              {darkMode ? <i className="fas fa-sun"></i> : <i className="fas fa-moon"></i>}
+              <span className="hidden sm:inline ml-2">{darkMode ? "Light Mode" : "Dark Mode"}</span>
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div id={activeTab === "saved" ? "tab-indicator-saved" : undefined}></div>
+
+      {/* Map fills all remaining space — the bottom sheet below is an overlay
+          on top of it, not a document-flow sibling, so it never changes this
+          container's size (no invalidateSize dance needed on toggle). */}
+      <div className="relative flex-1 min-h-0" data-testid="offline-map-display">
+        <div className="relative isolate w-full h-full overflow-hidden group">
+          <div ref={mapContainerRef} className="w-full h-full bg-muted" style={{ zIndex: 0 }} />
+
+          {!mapReady && (
+            <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center gap-2 bg-[hsl(var(--background))]">
+              <div className="w-6 h-6 border-2 border-[var(--amber)] border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">Locating you…</p>
+            </div>
+          )}
+
+          {/* Navigation Overlay Controls */}
+          {activeTab === "navigation" && (
+            <div className="absolute top-2 left-12 right-2 sm:left-16 sm:right-auto z-[400] bg-card/95 backdrop-blur p-3 rounded-xl border border-border space-y-3 sm:w-64">
+              <div className="flex items-center justify-between">
+                <h4 className="text-foreground font-serif font-bold text-sm">Live Navigation</h4>
+                <div className="flex items-center gap-2">
+                  {isNavigating && (
+                    <span className="text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[var(--transit-green-text)] bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] rotate-[-2deg] animate-pulse">
+                      Live
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setNavPanelExpanded((v) => !v)}
+                    aria-label={
+                      navPanelExpanded ? "Collapse navigation panel" : "Expand navigation panel"
+                    }
+                    className="sm:hidden text-muted-foreground hover:text-foreground p-1 -m-1"
+                  >
+                    <i className={`fas fa-chevron-${navPanelExpanded ? "up" : "down"} text-xs`}></i>
+                  </button>
+                </div>
+              </div>
+              <div className={`${navPanelExpanded ? "" : "hidden sm:block"} space-y-3`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs">Tracking</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isNavigating}
+                    aria-label="Live tracking"
+                    className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isNavigating ? "bg-[rgb(var(--transit-green-rgb))]" : "bg-muted"}`}
+                    onClick={() => setIsNavigating(!isNavigating)}
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isNavigating ? "translate-x-6" : "translate-x-0"}`}
+                    />
+                  </button>
+                </div>
+
+                <div className="border-t border-border pt-3">
+                  <h4 className="text-foreground font-serif font-bold text-sm mb-2">Route</h4>
+                  <div className="space-y-2 relative">
+                    <input
+                      aria-label="Navigation destination"
+                      type="text"
+                      autoFocus
+                      placeholder="Destination (city or place)"
+                      value={navDestInput}
+                      onChange={(e) => {
+                        setNavDestInput(e.target.value);
+                        fetchNavDestSuggestions(e.target.value);
+                      }}
+                      onFocus={() => {
+                        if (navDestSuggestions.length > 0) setShowNavDestSuggestions(true);
+                      }}
+                      onBlur={() => setTimeout(() => setShowNavDestSuggestions(false), 150)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && navDestInput.trim()) {
+                          if (navDestSuggestions.length > 0) {
+                            selectNavDestSuggestion(navDestSuggestions[0]);
+                            return;
+                          }
+                          try {
+                            const r = await fetch(
+                              `/api/v1/geocode?q=${encodeURIComponent(navDestInput.trim())}`,
+                            );
+                            const data = await r.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                              selectNavDestSuggestion(data[0]);
+                            } else {
+                              toast({
+                                title: "Not found",
+                                description: "Try a different name.",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch {
+                            toast({ title: "Search failed", variant: "destructive" });
+                          }
+                        }
+                      }}
+                      className="w-full bg-muted border border-border rounded px-2 py-1 text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:border-[var(--ink-blue-bright)]"
+                    />
+                    {showNavDestSuggestions &&
+                      (navDestLoading || navDestSuggestions.length > 0) && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl max-h-48 overflow-y-auto">
+                          {navDestLoading && (
+                            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                              Searching...
+                            </div>
+                          )}
+                          {!navDestLoading &&
+                            navDestSuggestions.map((s, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => selectNavDestSuggestion(s)}
+                                className="w-full text-left px-2 py-1.5 text-[11px] text-foreground hover:bg-muted truncate border-b border-border last:border-b-0"
+                              >
+                                {s.display_name}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    {selectedPlace && (
+                      <p className="text-[11px] text-[var(--ink-blue-text)] truncate">
+                        → {selectedPlace.name}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs border-[var(--ink-blue-text)] text-[var(--ink-blue-text)] hover:bg-[rgb(var(--ink-blue-rgb))] hover:text-white"
+                        onClick={handleCalculateRoute}
+                      >
+                        Get Route
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs border-[rgb(var(--stamp-red-rgb)/50%)] text-[var(--stamp-red-text)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)]"
+                        onClick={() => {
+                          if (routePolylineRef.current) {
+                            routePolylineRef.current.remove();
+                            routePolylineRef.current = null;
+                          }
+                          if (markerRef.current) {
+                            markerRef.current.remove();
+                            markerRef.current = null;
+                          }
+                          setRoutePoints([]);
+                          setSelectedPlace(null);
+                          setNavDestInput("");
+                          setRouteSteps([]);
+                          setRouteDistanceKm(null);
+                          setRouteEtaMin(null);
+                          setRouteArrived(false);
+                          toast({ title: "Route Cleared" });
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Turn-by-turn directions — only once a route exists. While
+                    live tracking is on, this panel's numbers update every
+                    ~8s (see the live-recompute effect) instead of staying
+                    frozen at whatever "Get Route" calculated at the start. */}
+                {routeSteps.length > 0 && (
+                  <div className="border-t border-border pt-3 space-y-2">
+                    {routeArrived ? (
+                      <p className="text-sm font-semibold text-[var(--transit-green-text)]">
+                        <i className="fas fa-flag-checkered mr-1.5"></i>
+                        You've arrived
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            {routeDistanceKm != null ? `${routeDistanceKm.toFixed(1)} km` : "—"}
+                          </span>
+                          <span className="font-semibold text-foreground">
+                            {routeEtaMin != null
+                              ? `ETA ${routeEtaMin < 1 ? "<1" : Math.round(routeEtaMin)} min`
+                              : "—"}
+                          </span>
+                          {isNavigating && (
+                            <span
+                              className="text-[11px] text-muted-foreground"
+                              title="Updates automatically while live tracking is on"
+                            >
+                              <i className="fas fa-sync-alt mr-1"></i>
+                              live
+                            </span>
+                          )}
+                        </div>
+                        {routeSteps[0] && (
+                          <p className="text-sm font-semibold text-foreground">
+                            <i className="fas fa-directions mr-1.5 text-[var(--ink-blue-text)]"></i>
+                            {/* The route is recomputed from where you are, so step 0 is
+                                always "Head ..."; the next turn is what matters. */}
+                            {routeSteps[1]
+                              ? `In ${routeSteps[0].distanceM >= 1000 ? `${(routeSteps[0].distanceM / 1000).toFixed(1)} km` : `${Math.round(routeSteps[0].distanceM)} m`}, ${routeSteps[1].instruction}`
+                              : routeSteps[0].instruction}
+                          </p>
+                        )}
+                        {routeSteps.length > 1 && (
+                          <ul className="max-h-32 overflow-y-auto text-xs text-muted-foreground space-y-1 pl-1">
+                            {routeSteps.slice(1).map((s, i) => (
+                              <li key={i} className="flex justify-between gap-2">
+                                <span className="truncate">{s.instruction}</span>
+                                <span className="flex-shrink-0 font-mono">
+                                  {s.distanceM >= 1000
+                                    ? `${(s.distanceM / 1000).toFixed(1)} km`
+                                    : `${Math.round(s.distanceM)} m`}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Add Pin Button (Visible in Saved Tab) */}
+          {activeTab === "saved" && (
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[400]">
+              <Button
+                size="sm"
+                onClick={() => {
+                  const map = mapInstanceRef.current;
+                  if (map) {
+                    const center = map.getCenter();
+                    setPendingPinCenter({ lat: center.lat, lng: center.lng });
+                    setPinDialogOpen(true);
+                  }
+                }}
+                className="bg-[rgb(var(--ink-blue-rgb))] hover:bg-[#0F2C52] text-white rounded-xl text-xs sm:text-sm"
+              >
+                <i className="fas fa-plus mr-1 sm:mr-2"></i>
+                <span className="hidden xs:inline">Add Pin</span>
+                <span className="hidden sm:inline"> at Center</span>
+              </Button>
+            </div>
+          )}
+
+          <Button
+            onClick={() => {
+              // getCurrentPosition with no options has no default timeout
+              // (spec allows Infinity) — on a device with no GPS/network
+              // fallback (e.g. desktop offline) this could hang forever
+              // with no visible feedback. getCurrentLocationOnce() already
+              // has the correct high-accuracy-then-fallback timeout
+              // handling (used by Get Route); reuse it here too.
+              getCurrentLocationOnce()
+                .then(({ lat, lon }) => {
+                  const map = mapInstanceRef.current;
+                  if (!map) return;
+                  map.flyTo([lat, lon], 15);
+
+                  // Add marker only when locating
+                  if (userMarkerRef.current) userMarkerRef.current.remove();
+                  userMarkerRef.current = L.marker([lat, lon])
+                    .addTo(map)
+                    .bindPopup("You are here")
+                    .openPopup();
+
+                  // Feed the same location into Get Route so users who've
+                  // already located themselves here don't have to trigger a
+                  // second, separate geolocation request from the Navigation tab.
+                  setUserLocation({ lat, lon });
+                })
+                .catch(() => {
+                  toast({
+                    title: "Location unavailable",
+                    description: "Couldn't get your position.",
+                    variant: "destructive",
+                  });
+                });
+            }}
+            variant="secondary"
+            size="icon"
+            // z-[400] doesn't help against the sheet's z-[500] here — the
+            // isolate div this button lives in is its own stacking
+            // context, so its z-index only competes within that context,
+            // never against the sheet in the outer one. Real fix is
+            // geometric: sit clear above the peek bar's top edge (peek
+            // bar occupies 76-132px from the container bottom), not
+            // "under" it with a lower z-index. Previously hidden entirely
+            // while the sheet was expanded (no way to re-center without
+            // collapsing it first) — now stays visible and just moves
+            // higher to clear the expanded sheet instead.
+            className="absolute right-4 z-[400] bg-card text-foreground rounded-full border border-border transition-all"
+            style={{ bottom: sheetExpanded ? "calc(65% + 88px)" : 140 }}
+            title="Locate Me"
+          >
+            <i className="fas fa-crosshairs"></i>
+          </Button>
+        </div>
+
+        {/* Bottom sheet — an overlay on top of the map (absolute, not a
+              flow sibling), so expanding/collapsing it never resizes the map
+              container. bottom-[76px] on mobile clears the fixed bottom nav;
+              md:bottom-0 because the desktop sidebar layout has no bottom nav
+              to clear. */}
+        <motion.div
+          className="absolute left-0 right-0 bottom-[76px] md:bottom-0 z-30 bg-card border-t border-[rgb(var(--ink-blue-rgb)/40%)] rounded-t-2xl flex flex-col overflow-hidden"
+          animate={{ height: sheetExpanded ? "65%" : 56 }}
+          transition={{ type: "spring", damping: 30, stiffness: 300 }}
+          style={{ maxHeight: "80%" }}
+        >
+          <button
+            onClick={() => setSheetExpanded((v) => !v)}
+            className="relative flex-shrink-0 flex items-center justify-between gap-3 px-4 h-14 w-full text-left"
+            aria-expanded={sheetExpanded}
+            aria-label="Toggle map details panel"
+          >
+            <div className="absolute left-1/2 -translate-x-1/2 top-1.5 w-10 h-1 rounded-full bg-border" />
+            <div className="flex items-center gap-2 min-w-0 mt-1.5">
+              {/* "X MB / 2 GB used" alone reads as a passive storage
+                  readout — it gave zero signal that tapping this collapsed
+                  bar is actually how you get to search on a page that opens
+                  to a bare world map with no other visible input. Lead with
+                  what's actually behind it on the tab where that matters. */}
+              {activeTab === "explore" ? (
+                <>
+                  <i className="fas fa-search text-muted-foreground text-sm"></i>
+                  <span className="text-sm font-medium text-foreground truncate">
+                    Tap to search places
+                  </span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-sliders-h text-muted-foreground text-sm"></i>
+                  <span className="text-sm font-medium text-foreground truncate">
+                    <span className="font-mono">{formatBytes(totalSize)}</span> /{" "}
+                    <span className="font-mono">2 GB</span> used
+                  </span>
+                </>
+              )}
+            </div>
+            {/* Bouncing while collapsed — a static chevron reads as
+                  decoration; motion is what actually signals "more content,
+                  tap or drag to reveal" for a sheet that isn't obviously
+                  interactive at a glance. */}
+            <i
+              className={`fas fa-chevron-up text-muted-foreground text-xs transition-transform mt-1.5 ${sheetExpanded ? "rotate-180" : "animate-bounce"}`}
+              aria-hidden="true"
+            ></i>
+          </button>
+
+          {sheetExpanded && (
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-4">
+              {/* Filtering & Search only visible in Explore */}
+              {activeTab === "explore" && (
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="text-foreground text-base">Search Places</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        aria-label="Search for a city"
+                        placeholder="Search city..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            fetchPlaces(searchQuery);
+                          }
+                        }}
+                        className="bg-muted border-border text-foreground flex-1"
+                      />
+                      <Button
+                        onClick={() => fetchPlaces(searchQuery)}
+                        disabled={placesLoading}
+                        className="bg-[rgb(var(--ink-blue-rgb))] hover:bg-[#0F2C52] rounded-xl w-full sm:w-auto"
+                      >
+                        {placesLoading ? "Searching..." : "Search"}
+                      </Button>
+                    </div>
+                    {placesLoading && (
+                      <div className="text-center py-4 text-sm text-muted-foreground">
+                        Searching...
+                      </div>
+                    )}
+
+                    {/* Category Filters */}
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center space-x-2 text-foreground text-sm cursor-pointer">
+                        <Checkbox
+                          checked={filters.food}
+                          onCheckedChange={(c) => setFilters((f) => ({ ...f, food: !!c }))}
+                        />
+                        <span>Food</span>
+                      </label>
+                      <label className="flex items-center space-x-2 text-foreground text-sm cursor-pointer">
+                        <Checkbox
+                          checked={filters.hotel}
+                          onCheckedChange={(c) => setFilters((f) => ({ ...f, hotel: !!c }))}
+                        />
+                        <span>Hotels</span>
+                      </label>
+                      <label className="flex items-center space-x-2 text-foreground text-sm cursor-pointer">
+                        <Checkbox
+                          checked={filters.sights}
+                          onCheckedChange={(c) => setFilters((f) => ({ ...f, sights: !!c }))}
+                        />
+                        <span>Sights</span>
+                      </label>
+                    </div>
+
+                    {!placesLoading && placesSearched && placesResults.length === 0 && (
+                      <div className="text-center py-4 text-sm text-muted-foreground">
+                        {placesError ?? `No results for "${searchQuery}".`}
+                      </div>
+                    )}
+
+                    {placesResults.length > 0 && (
+                      <div className="grid gap-2 max-h-60 overflow-y-auto">
+                        {placesResults.map((p) => (
+                          <div
+                            key={p.id}
+                            className="p-3 border-b border-border hover:bg-secondary/50 cursor-pointer transition-colors flex gap-3"
+                            onClick={() => {
+                              viewPlaceOnMap(p); // Assuming handlePlaceSelect is viewPlaceOnMap
+                            }}
+                          >
+                            {p.photoUrl && (
+                              <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-muted">
+                                <img
+                                  src={p.photoUrl}
+                                  alt={p.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-foreground truncate">{p.name}</div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {p.address || p.displayName}
+                              </div>
+                              {p.category && (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-[3px] border border-[var(--ink-blue-text)] rotate-[-2deg] text-[11px] font-mono uppercase tracking-[0.05em] bg-[rgb(var(--ink-blue-rgb)/10%)] text-[var(--ink-blue-text)]">
+                                    {p.category.replace(/_/g, " ")}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-2 items-center">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  viewPlaceOnMap(p);
+                                }}
+                              >
+                                View
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addPlaceAsRegion(p);
+                                }}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Storage Dashboard */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-foreground text-base">Storage Usage</CardTitle>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {formatBytes(totalSize)} / 2 GB
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Progress
+                    value={(totalSize / (2 * 1024 * 1024 * 1024)) * 100}
+                    className="h-2 bg-muted [&>div]:bg-[rgb(var(--ink-blue-rgb))]"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-2 text-right">
+                    Offline maps auto-expire 30 days after download
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Region Grid */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="text-foreground">Saved Regions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {mapRegions.length === 0 ? (
+                    <div className="text-muted-foreground text-sm py-8 text-center border-2 border-dashed border-border rounded-lg">
+                      <i className="fas fa-map-marked-alt text-4xl mb-3 opacity-50"></i>
+                      <p>No saved regions yet.</p>
+                      <p className="text-xs mt-1">Search for a city above to add it.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {mapRegions.map((r) => (
+                        <div
+                          key={r.id}
+                          className="bg-muted rounded-xl overflow-hidden border border-border group relative"
+                        >
+                          {/* Region header — solid ink-navy surface, not a gradient
+                      placeholder standing in for a real map thumbnail. */}
+                          <div className="h-24 bg-[#0D1B2E] relative">
+                            <div className="absolute bottom-2 left-3">
+                              <h3 className="font-serif font-bold text-lg text-white leading-tight">
+                                {r.name}
+                              </h3>
+                              <p className="text-xs text-white/60">{r.country}</p>
+                            </div>
+                            {r.downloaded && (
+                              <div className="absolute top-2 right-2 text-[11px] font-mono uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-[3px] border border-[var(--transit-green-text)] bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] rotate-[-2deg]">
+                                Saved
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="p-3">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-xs text-muted-foreground font-mono-data">
+                                {r.downloaded
+                                  ? formatBytes(r.bytes)
+                                  : `~${formatBytes(estimateRegionBytes())}`}
+                              </span>
+                              <ConfirmDeleteButton
+                                onConfirm={() => deleteMap(r.id)}
+                                label={`Delete downloaded map ${r.name}`}
+                                testId={`button-delete-map-${r.id}`}
+                              />
+                            </div>
+
+                            {r.downloaded ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => openOfflineMap(r)}
+                                  className="flex-1 rounded-xl bg-[rgb(var(--transit-green-rgb)/10%)] text-[var(--transit-green-text)] hover:bg-[rgb(var(--transit-green-rgb)/20%)] border border-[rgb(var(--transit-green-rgb)/60%)] transition-all font-semibold"
+                                >
+                                  <i className="fas fa-map-marked-alt mr-2"></i> Open Map
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={exportingId === r.id}
+                                  onClick={() => exportRegion(r.id)}
+                                  title="Save as one image file to your device's Downloads folder"
+                                  className="flex-1 rounded-xl border-[var(--ink-blue-text)] text-[var(--ink-blue-text)] hover:bg-[rgb(var(--ink-blue-rgb))] hover:text-white transition-colors"
+                                >
+                                  <i
+                                    className={`fas ${exportingId === r.id ? "fa-spinner fa-spin" : "fa-file-download"} mr-2`}
+                                  ></i>
+                                  {exportingId === r.id
+                                    ? `Saving… ${exportProgress}%`
+                                    : "Save to Device"}
+                                </Button>
+                              </div>
+                            ) : r.downloading ? (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[11px] font-mono text-[var(--ink-blue-text)]">
+                                  <span>Saving...</span>
+                                  <span>{Math.round(r.progress)}%</span>
+                                </div>
+                                <Progress value={r.progress} className="h-1.5" />
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full rounded-xl border-[var(--ink-blue-text)] text-[var(--ink-blue-text)] hover:bg-[rgb(var(--ink-blue-rgb))] hover:text-white transition-colors"
+                                onClick={() => downloadMap(r.id)}
+                              >
+                                <i className="fas fa-download mr-1"></i> Download
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Saved Pins list — previously the only way to see a saved
+                  pin was to spot its tiny marker on the map, which was
+                  often off-screen entirely (see the auto-fit fix above).
+                  A real list makes them visible regardless of where the
+                  map is currently centered, and puts name + delete one
+                  tap away instead of buried in a map popup. */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-foreground">Saved Pins</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {customPins.length === 0 ? (
+                    <div className="text-muted-foreground text-sm py-8 text-center border-2 border-dashed border-border rounded-lg">
+                      <i className="fas fa-map-pin text-4xl mb-3 opacity-50"></i>
+                      <p>No saved pins yet.</p>
+                      <p className="text-xs mt-1">
+                        Use "Add Pin at Center" above to drop one anywhere.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {customPins.map((pin) => (
+                        <div
+                          key={pin.id}
+                          className="flex items-center gap-3 bg-muted rounded-xl border border-border p-3"
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full border-2 border-white flex-shrink-0"
+                            style={{ backgroundColor: pin.color }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {pin.name}
+                            </p>
+                            {pin.note && (
+                              <p className="text-xs text-muted-foreground truncate">{pin.note}</p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg flex-shrink-0"
+                            onClick={() => locatePin(pin)}
+                          >
+                            <i className="fas fa-location-crosshairs mr-1.5"></i> Locate
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-[var(--stamp-red-text)] hover:text-[var(--stamp-red-text)] hover:bg-[rgb(var(--stamp-red-rgb)/10%)] flex-shrink-0"
+                            onClick={() => handleDeletePin(pin.id)}
+                            aria-label={`Delete pin ${pin.name}`}
+                          >
+                            <i className="fas fa-trash text-xs"></i>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      <NamePromptDialog
+        open={pinDialogOpen}
+        title="Pin name"
+        defaultValue="New Location"
+        confirmLabel="Add Pin"
+        onOpenChange={setPinDialogOpen}
+        onConfirm={async (name) => {
+          if (!pendingPinCenter) return;
+          try {
+            const res = await apiRequest("POST", "/api/v1/map-pins", {
+              lat: pendingPinCenter.lat,
+              lng: pendingPinCenter.lng,
+              name,
+              color: "#B3261E", // stamp-red — DESIGN.md's "marked" ink role
+            });
+            if (!res.ok) throw new Error("create_failed");
+            const saved: CustomPin = await res.json();
+            setCustomPins((prev) => [...prev, saved]);
+          } catch {
+            toast({
+              title: "Couldn't save pin",
+              description: "Try again.",
+              variant: "destructive",
+            });
+          }
+        }}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,952 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserRound } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import type { User } from "@shared/schema";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { LogOut, Download } from "lucide-react";
+import { apiRequest, apiRequestJson, getCsrfToken } from "@/lib/queryClient";
+import { Switch } from "@/components/ui/switch";
+import {
+  isPushSupported,
+  isDesktopApp,
+  desktopNotificationsEnabled,
+  setDesktopNotifications,
+  getCurrentPushSubscription,
+  enablePushNotifications,
+  disablePushNotifications,
+} from "@/lib/push";
+
+export default function Profile() {
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const isGuest = !!user?.isGuest;
+
+  const queryClient = useQueryClient();
+  // Never fetch real user data for a guest — they have no profile, and the
+  // cache may still contain a previous user's personal details.
+  const { data: userData } = useQuery<User>({
+    queryKey: ["/api/v1/auth/user"],
+    enabled: !isGuest,
+  });
+
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
+  const [pushEnabled, setPushEnabled] = useState<boolean>(false);
+  const [pushBusy, setPushBusy] = useState<boolean>(false);
+  const pushSupported = useMemo(() => isPushSupported(), []);
+  const desktopApp = useMemo(() => isDesktopApp(), []);
+  useEffect(() => {
+    if (desktopApp) setPushEnabled(desktopNotificationsEnabled());
+    if (!pushSupported) return;
+    getCurrentPushSubscription()
+      .then((sub) => setPushEnabled(!!sub))
+      .catch(() => {});
+  }, [pushSupported]);
+  const togglePush = async (checked: boolean) => {
+    setPushBusy(true);
+    try {
+      if (desktopApp) {
+        if ((await setDesktopNotifications(checked)) === "denied") {
+          toast({
+            title: "Couldn't enable notifications",
+            description:
+              "Windows blocked notifications for TripMate. Allow them in Settings > System > Notifications, then try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        setPushEnabled(checked);
+        toast({ title: checked ? "Notifications enabled" : "Notifications turned off" });
+        return;
+      }
+      if (checked) {
+        const result = await enablePushNotifications();
+        if (result.ok) {
+          setPushEnabled(true);
+          toast({ title: "Push notifications enabled" });
+        } else {
+          const reasons: Record<typeof result.reason, string> = {
+            denied:
+              "Notification permission was denied — enable it in your browser's site settings.",
+            "not-configured": "Push notifications aren't set up on the server yet.",
+            "not-supported": "Your browser doesn't support push notifications.",
+            "no-service-worker":
+              "The app's background worker isn't running. Reload the page (Ctrl+Shift+R) and try again.",
+            "push-service":
+              'Your browser\'s push service refused the request. In Brave, enable "Use Google services for push messaging"; otherwise try Chrome, Edge or Firefox.',
+            "private-window":
+              "Push notifications don't work in private/incognito windows. Open TripMate in a normal window and try again.",
+            server: "We couldn't save your device. Please try again in a moment.",
+          };
+          const reason = reasons[result.reason];
+          if (result.detail) console.warn("[push] enable failed:", result.reason, result.detail);
+          toast({ title: "Couldn't enable push", description: reason, variant: "destructive" });
+        }
+      } else {
+        await disablePushNotifications();
+        setPushEnabled(false);
+        toast({ title: "Push notifications turned off" });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Couldn't update push notification settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setPushBusy(false);
+    }
+  };
+  const [selectedFileName, setSelectedFileName] = useState<string>("");
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadStatus, setUploadStatus] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setUploadStatus("Uploading...");
+      setIsUploading(true);
+      setUploadProgress(0);
+      const fd = new FormData();
+      fd.append("image", file);
+
+      const xhr = new XMLHttpRequest();
+      const url = "/api/v1/auth/user/avatar";
+      return await new Promise((resolve, reject) => {
+        xhr.open("POST", url);
+        // Raw XHR bypasses apiRequest()'s automatic X-CSRF-Token attachment
+        // (needed here instead of fetch for upload-progress events) — without
+        // this header the server's CSRF middleware 403s every upload.
+        const csrfToken = getCsrfToken();
+        if (csrfToken) xhr.setRequestHeader("X-CSRF-Token", csrfToken);
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            setUploadProgress(percent);
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const json = JSON.parse(xhr.responseText);
+              resolve(json);
+            } catch (e) {
+              resolve({});
+            }
+          } else {
+            reject(new Error(xhr.responseText || "Upload failed"));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.send(fd);
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
+      toast({ title: "Profile picture updated" });
+      setUploadStatus("Upload complete");
+      setIsUploading(false);
+      setUploadProgress(100);
+      setSelectedFileName("");
+      setLocalPreviewUrl("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not upload picture", variant: "destructive" });
+      setUploadStatus("Upload failed");
+      setIsUploading(false);
+      setUploadProgress(0);
+    },
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: (data: any) => apiRequestJson("PUT", "/api/v1/auth/change-password", data),
+    onSuccess: () => {
+      toast({ title: "Password updated successfully" });
+      (document.getElementById("currentPassword") as HTMLInputElement).value = "";
+      (document.getElementById("newPassword") as HTMLInputElement).value = "";
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error",
+        description: err.message || "Could not update password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (data: any) => apiRequestJson("POST", "/api/v1/auth/delete-account", data),
+    onSuccess: async () => {
+      toast({ title: "Account deleted" });
+      await logout();
+      navigate("/");
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error",
+        description: err.message || "Could not delete account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const profileMutation = useMutation({
+    mutationFn: async (payload: Partial<User>) => {
+      // Was a raw fetch(), which skips apiRequest()'s automatic
+      // X-CSRF-Token header — every save 403'd with "Invalid CSRF token"
+      // in production, where CSRF protection is on by default.
+      const res = await apiRequest("PUT", "/api/v1/auth/user", {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        phoneNumber: (payload as any).phoneNumber,
+        dietaryPreferences: (payload as any).dietaryPreferences,
+        cuisinePreferences: (payload as any).cuisinePreferences,
+      });
+      if (!res.ok) throw new Error("Failed to update profile");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
+      toast({ title: "Profile updated" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not update profile", variant: "destructive" });
+    },
+  });
+
+  const firstName = userData?.firstName ?? "";
+  const lastName = userData?.lastName ?? "";
+  const email = userData?.email ?? "";
+  const profileImageUrl = localPreviewUrl || userData?.avatar || userData?.profileImageUrl || "";
+  const phoneNumber = (userData as any)?.phoneNumber ?? "";
+  const memberSince = useMemo(() => {
+    const raw = (userData as any)?.createdAt;
+    if (!raw) return "";
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  }, [userData]);
+
+  const [countryCode, setCountryCode] = useState<string>("");
+  const [phoneLocal, setPhoneLocal] = useState<string>("");
+  const [phoneError, setPhoneError] = useState<string>("");
+
+  // dietaryPreferences already existed on the user model and was read/
+  // written by the Atlas chatbot's own tool calls, but had no UI here —
+  // setting it required typing "I'm vegetarian" into chat and hoping the
+  // right tool fired. cuisinePreferences is new, same treatment.
+  const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([]);
+  const [cuisinePreferences, setCuisinePreferences] = useState<string[]>([]);
+  useEffect(() => {
+    setDietaryPreferences((userData as any)?.dietaryPreferences || []);
+    setCuisinePreferences((userData as any)?.cuisinePreferences || []);
+  }, [userData]);
+  const toggleChip = (list: string[], setList: (v: string[]) => void, value: string) => {
+    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  };
+  const DIETARY_OPTIONS = ["Vegetarian", "Vegan", "Non-Vegetarian", "Jain", "Halal", "Gluten-Free"];
+  const CUISINE_OPTIONS = [
+    "North Indian",
+    "South Indian",
+    "Chinese",
+    "Continental",
+    "Italian",
+    "Mexican",
+    "Thai",
+    "Mediterranean",
+  ];
+
+  useEffect(() => {
+    const match = (phoneNumber || "").match(/^\+?(\d{1,3})\s*(\d{4,})$/);
+    if (match) {
+      setCountryCode(match[1]);
+      setPhoneLocal(match[2]);
+    } else {
+      setCountryCode("");
+      setPhoneLocal("");
+    }
+    setPhoneError("");
+  }, [phoneNumber]);
+
+  const validatePhone = (code: string, local: string) => {
+    const digitsOnly = local.replace(/\D/g, "");
+    if (!local || !digitsOnly) return "";
+    if (digitsOnly.length < 6 || digitsOnly.length > 15) return "Enter 6-15 digits";
+    return "";
+  };
+
+  useEffect(() => {
+    setPhoneError(validatePhone(countryCode, phoneLocal));
+  }, [countryCode, phoneLocal]);
+
+  const fullPhone = useMemo(
+    () => `+${countryCode} ${phoneLocal.replace(/\D/g, "")}`,
+    [countryCode, phoneLocal],
+  );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement & {
+      firstName: { value: string };
+      lastName: { value: string };
+      email: { value: string };
+    };
+    if (phoneError) {
+      toast({ title: "Invalid phone number", description: phoneError, variant: "destructive" });
+      return;
+    }
+    const payload: any = {
+      firstName: form.firstName.value.trim(),
+      lastName: form.lastName.value.trim(),
+      email: form.email.value.trim(),
+      dietaryPreferences,
+      cuisinePreferences,
+    };
+    if (phoneLocal.trim()) {
+      payload.phoneNumber = fullPhone;
+    }
+    profileMutation.mutate(payload);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const allowed = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (!allowed.includes(file.type) || file.size > maxSize) {
+        toast({
+          title: "Invalid file",
+          description: "Please select a JPEG, PNG, GIF, or WEBP up to 5MB.",
+          variant: "destructive",
+        });
+        e.currentTarget.value = "";
+        setSelectedFileName("");
+        setLocalPreviewUrl("");
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      setSelectedFileName(file.name);
+      setLocalPreviewUrl(url);
+      navigate(`/app/profile/crop?src=${encodeURIComponent(url)}`);
+      e.currentTarget.value = "";
+    }
+  };
+
+  const openFileDialog = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Guest users have no real profile — show a sign-up prompt instead.
+  if (isGuest) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Your Profile</h1>
+          <p className="text-muted-foreground">Manage your account settings and preferences</p>
+        </div>
+        <Card className="bg-card border-border">
+          <CardContent className="flex flex-col items-center gap-6 py-16 text-center">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <UserRound className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-foreground">Guest Account</h2>
+              <p className="text-muted-foreground max-w-sm">
+                You&apos;re exploring as a guest. Create a free account to save your trips, set
+                preferences, and access your profile across all devices.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={() => navigate("/auth/signup")} className="px-8">
+                Create Account
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/auth/signin")}>
+                Sign In
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Your Profile</h1>
+        <p className="text-muted-foreground">Manage your account settings and preferences</p>
+        {memberSince && (
+          <p className="text-xs text-muted-foreground mt-1">Member since {memberSince}</p>
+        )}
+      </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-foreground">Account Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            key={userData?._id ?? userData?.email ?? "loading"}
+            onSubmit={handleSubmit}
+            className="space-y-6"
+          >
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 space-x-0 sm:space-x-4">
+              <div
+                className="w-24 h-24 relative group cursor-pointer shrink-0"
+                onClick={openFileDialog}
+                title="Change picture"
+              >
+                <Avatar className="w-24 h-24 rounded-full overflow-hidden bg-muted ring-2 ring-offset-2 ring-offset-background ring-[var(--explorer-blue)]">
+                  <AvatarImage
+                    src={profileImageUrl}
+                    alt="Profile"
+                    className="object-cover transition-transform group-hover:scale-105"
+                  />
+                  <AvatarFallback className="text-2xl">
+                    {firstName?.[0] || email?.[0] || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="text-white"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 items-center sm:items-start w-full">
+                <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="avatar-input"
+                    aria-hidden="true"
+                  />
+                  <Button
+                    type="button"
+                    onClick={openFileDialog}
+                    aria-label="Upload profile picture"
+                    variant="secondary"
+                    disabled={isUploading}
+                    className="gap-2"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    {isUploading ? "Uploading…" : "Change Photo"}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const src = profileImageUrl || "";
+                      if (!src) {
+                        toast({ title: "No image", description: "Upload an image first to edit." });
+                        return;
+                      }
+                      navigate(`/app/profile/crop?src=${encodeURIComponent(src)}`);
+                    }}
+                    aria-label="Edit current picture"
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    Adjust
+                  </Button>
+                </div>
+                {selectedFileName && (
+                  <span
+                    className="text-sm text-muted-foreground text-center sm:text-left"
+                    aria-live="polite"
+                  >
+                    {selectedFileName}
+                  </span>
+                )}
+              </div>
+            </div>
+            {isUploading && (
+              <div className="mt-2" aria-live="polite">
+                <div className="w-full bg-secondary rounded h-2">
+                  <div
+                    className="bg-primary h-2 rounded"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {uploadStatus} ({uploadProgress}%)
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  htmlFor="profile-first-name"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
+                  First Name
+                </label>
+                <Input id="profile-first-name" name="firstName" defaultValue={firstName} />
+              </div>
+              <div>
+                <label
+                  htmlFor="profile-last-name"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
+                  Last Name
+                </label>
+                <Input id="profile-last-name" name="lastName" defaultValue={lastName} />
+              </div>
+              <div>
+                <label
+                  htmlFor="profile-email"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
+                  Email
+                </label>
+                <Input id="profile-email" name="email" defaultValue={email} disabled />
+              </div>
+              <div>
+                <label
+                  htmlFor="profile-phone"
+                  className="block text-sm font-medium text-muted-foreground mb-2"
+                >
+                  Phone Number
+                </label>
+                <div className="flex gap-2">
+                  <div className="w-28">
+                    <Select value={countryCode} onValueChange={setCountryCode}>
+                      <SelectTrigger aria-label="Country code">
+                        <SelectValue placeholder="Code" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="91">+91 (IN)</SelectItem>
+                        <SelectItem value="1">+1 (US)</SelectItem>
+                        <SelectItem value="44">+44 (UK)</SelectItem>
+                        <SelectItem value="61">+61 (AU)</SelectItem>
+                        <SelectItem value="65">+65 (SG)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      id="profile-phone"
+                      aria-label="Phone number"
+                      value={phoneLocal}
+                      onChange={(e) => setPhoneLocal(e.target.value)}
+                      placeholder="Enter phone"
+                      className={`${phoneError ? "border-red-500 focus:border-red-500" : ""}`}
+                    />
+                    {phoneError && (
+                      <p
+                        id="phone-error"
+                        className="text-xs text-[var(--stamp-red-text)] mt-1"
+                        aria-live="assertive"
+                      >
+                        {phoneError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="block text-sm font-medium text-muted-foreground mb-2">
+                Dietary preferences
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {DIETARY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleChip(dietaryPreferences, setDietaryPreferences, opt)}
+                    className={`stamp text-xs px-2.5 py-1 transition-colors ${
+                      dietaryPreferences.includes(opt)
+                        ? "border-[var(--explorer-blue)] text-[var(--ink-blue-text)] bg-[rgb(var(--explorer-blue-rgb)/10%)]"
+                        : "border-[hsl(var(--border))] text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="block text-sm font-medium text-muted-foreground mb-2">
+                Cuisines you enjoy
+              </p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Used to suggest real, named restaurants when planning a trip.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {CUISINE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleChip(cuisinePreferences, setCuisinePreferences, opt)}
+                    className={`stamp text-xs px-2.5 py-1 transition-colors ${
+                      cuisinePreferences.includes(opt)
+                        ? "border-[var(--amber)] text-[var(--ink-blue-text)] bg-[var(--amber-dim)]"
+                        : "border-[hsl(var(--border))] text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end">
+              <Button
+                type="submit"
+                aria-label="Save changes"
+                disabled={profileMutation.isPending || !!phoneError}
+              >
+                {profileMutation.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-foreground">Security</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget as HTMLFormElement & {
+                currentPassword: { value: string };
+                newPassword: { value: string };
+              };
+              passwordMutation.mutate({
+                currentPassword: form.currentPassword.value,
+                newPassword: form.newPassword.value,
+              });
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="currentPassword"
+                className="block text-sm font-medium text-muted-foreground mb-2"
+              >
+                Current Password
+              </label>
+              <Input type="password" id="currentPassword" name="currentPassword" required />
+            </div>
+            <div>
+              <label
+                htmlFor="newPassword"
+                className="block text-sm font-medium text-muted-foreground mb-2"
+              >
+                New Password
+              </label>
+              <Input type="password" id="newPassword" name="newPassword" required />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={passwordMutation.isPending}>
+                {passwordMutation.isPending ? "Updating..." : "Update Password"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-foreground">Connected Accounts</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center shrink-0">
+                <i className="fab fa-google text-foreground text-lg"></i>
+              </div>
+              <div>
+                <h4 className="font-medium text-foreground">Google</h4>
+                <p className="text-xs text-muted-foreground">
+                  {(userData as any)?.googleConnected ? "Connected" : "Sign in with Google"}
+                </p>
+              </div>
+            </div>
+            {(userData as any)?.googleConnected ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const res = await apiRequest("POST", "/api/v1/auth/google/disconnect");
+                    if (res.ok) {
+                      queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
+                      toast({ title: "Google disconnected" });
+                    } else {
+                      toast({
+                        title: "Error",
+                        description: "Could not disconnect Google",
+                        variant: "destructive",
+                      });
+                    }
+                  } catch {
+                    toast({ title: "Error", description: "Network error", variant: "destructive" });
+                  }
+                }}
+              >
+                Disconnect
+              </Button>
+            ) : (
+              <a href="/api/v1/auth/google">
+                <Button variant="secondary" size="sm">
+                  Connect
+                </Button>
+              </a>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-border border-red-500/20">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-foreground">Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-foreground">Sign Out</h3>
+              <p className="text-sm text-muted-foreground">
+                Sign out of your account on this device
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await logout();
+                navigate("/");
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </Button>
+          </div>
+          <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-foreground">Export Your Data</h3>
+              <p className="text-sm text-muted-foreground">
+                Download a copy of your trips, journal entries, packing lists, and account data
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={isExporting}
+              onClick={async () => {
+                setIsExporting(true);
+                try {
+                  const res = await apiRequest("GET", "/api/v1/auth/user/export");
+                  if (!res.ok) throw new Error("Export failed");
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `tripmate-export-${new Date().toISOString().slice(0, 10)}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } catch {
+                  toast({
+                    title: "Error",
+                    description: "Could not export your data",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {isExporting ? "Exporting…" : "Export Data"}
+            </Button>
+          </div>
+          <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-foreground">App Version</h3>
+              <p className="text-sm text-muted-foreground">
+                Force the latest version if the app looks out of date after an update
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={isCheckingUpdate}
+              onClick={async () => {
+                setIsCheckingUpdate(true);
+                try {
+                  const regs = (await navigator.serviceWorker?.getRegistrations()) ?? [];
+                  await Promise.all(regs.map((r) => r.unregister()));
+                  if (window.caches) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map((k) => caches.delete(k)));
+                  }
+                } catch {
+                  /* still reload — a plain reload alone often picks up the new build */
+                }
+                toast({ title: "Updating…", description: "Reloading with the latest version." });
+                setTimeout(() => window.location.reload(), 500);
+              }}
+              className="flex items-center gap-2"
+            >
+              {isCheckingUpdate ? "Updating…" : "Check for updates"}
+            </Button>
+          </div>
+          {(pushSupported || desktopApp) && (
+            <div className="mt-8 pt-6 border-t border-border flex items-center justify-between gap-4">
+              <div>
+                <h3 className="font-medium text-foreground">Push Notifications</h3>
+                <p className="text-sm text-muted-foreground">
+                  {desktopApp
+                    ? "Get Windows notifications for trip updates, collaborator activity and reminders while the TripMate app is open, even minimized."
+                    : "Get notified on this device even when TripMate isn't open — trip updates, collaborator activity, reminders."}
+                </p>
+              </div>
+              <Switch
+                checked={pushEnabled}
+                disabled={pushBusy}
+                onCheckedChange={togglePush}
+                aria-label="Toggle push notifications"
+              />
+            </div>
+          )}
+          <div className="mt-8 pt-6 border-t border-red-500/20">
+            <h3 className="font-medium text-[var(--stamp-red-text)] mb-2">Danger Zone</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Permanently delete your account and all associated data. This action cannot be undone.
+            </p>
+            {(() => {
+              // A guest account (and a pure Google/OAuth account) has no
+              // `password` on the server, so the API branches to a typed
+              // "DELETE" confirmation instead — but this form only ever
+              // rendered a password field, required for anyone who wasn't
+              // Google-connected. A guest could neither fill it in (nothing
+              // to type) nor skip it (required blocked submission), leaving
+              // guests with no way to remove their own account at all.
+              const hasPassword = !userData?.googleConnected && !userData?.isGuest;
+              return (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (
+                      !window.confirm(
+                        "Are you sure you want to delete your account? This action cannot be undone.",
+                      )
+                    )
+                      return;
+                    const form = e.currentTarget as HTMLFormElement & {
+                      deletePassword?: { value: string };
+                      deleteConfirm?: { value: string };
+                    };
+                    deleteMutation.mutate(
+                      hasPassword
+                        ? { password: form.deletePassword?.value || "" }
+                        : { confirm: form.deleteConfirm?.value || "" },
+                    );
+                  }}
+                  className="flex items-end gap-4"
+                >
+                  <div className="flex-1">
+                    <label
+                      htmlFor="profile-delete-confirm"
+                      className="block text-xs font-medium text-muted-foreground mb-1"
+                    >
+                      {hasPassword ? "Confirm Password" : 'Type "DELETE" to confirm'}
+                    </label>
+                    {hasPassword ? (
+                      <Input
+                        id="profile-delete-confirm"
+                        type="password"
+                        name="deletePassword"
+                        placeholder="Enter password to confirm"
+                        required
+                      />
+                    ) : (
+                      <Input
+                        id="profile-delete-confirm"
+                        type="text"
+                        name="deleteConfirm"
+                        placeholder="DELETE"
+                        autoComplete="off"
+                        pattern="DELETE"
+                        title="Type DELETE in capital letters"
+                        required
+                      />
+                    )}
+                  </div>
+                  <Button type="submit" variant="destructive" disabled={deleteMutation.isPending}>
+                    {deleteMutation.isPending ? "Deleting..." : "Delete Account"}
+                  </Button>
+                </form>
+              );
+            })()}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

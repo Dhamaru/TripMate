@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Download TripMate</title>
+<link rel="icon" href="/apple-touch-icon.png" />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2rem; padding: 2rem;
+    font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #0d2b2b; color: #e8e6df; text-align: center;
+  }
+  h1 { font-size: 1.6rem; margin: 0; }
+  p { margin: 0; opacity: .75; }
+  .row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+  a.btn {
+    display: flex; flex-direction: column; align-items: center; gap: .35rem;
+    min-width: 190px; padding: 1.25rem 1.5rem;
+    background: #12403c; border: 1px solid #1f5c54; border-radius: 14px;
+    color: #e8e6df; text-decoration: none; font-weight: 600;
+    transition: background .15s, transform .15s;
+  }
+  a.btn:hover { background: #1a544d; transform: translateY(-2px); }
+  a.btn span { font-weight: 400; font-size: .8rem; opacity: .7; }
+  .note { max-width: 34rem; font-size: .85rem; opacity: .6; }
+  a.plain { color: #7fd8c8; }
+</style>
+</head>
+<body>
+  <div>
+    <h1>Download TripMate</h1>
+    <p>Or just use it in the browser: <a class="plain" href="/app/home">open TripMate</a></p>
+  </div>
+  <div class="row">
+    <a class="btn" href="/download/TripMate-Setup.exe" download>
+      Windows
+      <span>.exe installer &middot; 64-bit</span>
+    </a>
+    <a class="btn" href="/download/TripMate.apk" download>
+      Android
+      <span>.apk &middot; sideload</span>
+    </a>
+  </div>
+  <p class="note">
+    Windows: first launch shows an "unknown publisher" warning &mdash; click
+    <b>More info &rarr; Run anyway</b>. Android: enable <b>Install unknown apps</b> for your
+    browser when prompted. Both are thin wrappers around the live site &mdash; they always
+    load the latest version, nothing to update.
+  </p>
+</body>
+</html>

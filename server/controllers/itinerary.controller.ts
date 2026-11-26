@@ -1,0 +1,459 @@
+import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
+import { TripModel } from "@shared/schema";
+import { NotFoundError, BadRequestError, ConflictError } from "../errors";
+import { nanoid } from "nanoid";
+import { socketService } from "../services/SocketService";
+import { notifyTripParticipants } from "../notifications";
+import { ACTIVITY_FIELD_NAMES } from "../schemas/itinerary.schemas";
+
+// Was a hand-maintained {time, title, location, notes, latitude,
+// longitude} list that fell out of sync with updateActivitySchema the
+// last time the accepted field set was widened (latitude/longitude were
+// even renamed to lat/lon elsewhere and never updated here) — every
+// other field a real edit sends (cost, type, address, placeName,
+// duration, coordinates) validated fine, got a 200 back, and was
+// silently never written. Now derived from the schema's own field list
+// so the two structurally cannot drift apart again.
+const UPDATABLE_ACTIVITY_FIELDS = ACTIVITY_FIELD_NAMES;
+
+const editorAccessFilter = (tripId: string, userId: string) => ({
+  _id: tripId,
+  $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+});
+
+export const addActivity = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { dayIndex, activity } = req.body;
+  const tripId = req.params.id;
+  const userId = req.user!._id;
+
+  const newActivity = { ...activity, id: nanoid() };
+
+  // Fast path: push atomically into the existing day (the common,
+  // race-prone case — multiple collaborators adding to the same day).
+  let trip = await TripModel.findOneAndUpdate(
+    { ...editorAccessFilter(tripId, String(userId)), "itinerary.dayIndex": dayIndex },
+    { $push: { "itinerary.$[day].activities": newActivity } },
+    { new: true, arrayFilters: [{ "day.dayIndex": dayIndex }] },
+  );
+
+  if (!trip) {
+    // Day may not exist yet. Confirm trip exists/access, then try to
+    // atomically create the day — the $ne filter is re-evaluated by
+    // Mongo at write time, so concurrent creators can't both win.
+    const existing = await TripModel.exists(editorAccessFilter(tripId, String(userId)));
+    if (!existing) throw new NotFoundError("Trip not found or access denied");
+
+    // Appending just this day put it at the end of the array, so its
+    // dayIndex no longer matched its position whenever earlier days were
+    // missing. Fill the gap with empty days. The $size filter makes this a
+    // compare-and-set against concurrent changes.
+    const current = await TripModel.findOne(editorAccessFilter(tripId, String(userId)), {
+      itinerary: 1,
+      days: 1,
+    });
+    const length = current?.itinerary?.length ?? 0;
+    // A day past the end of the trip used to silently grow the itinerary
+    // (day 40 on a 2-day trip made 41 days).
+    if (dayIndex >= Math.max(current?.days ?? 0, length)) {
+      throw new BadRequestError("That day is outside this trip's dates.");
+    }
+    if (dayIndex >= length) {
+      const days = Array.from({ length: dayIndex - length + 1 }, (_, i) => ({
+        dayIndex: length + i,
+        activities: length + i === dayIndex ? [newActivity] : [],
+      }));
+      trip = await TripModel.findOneAndUpdate(
+        {
+          ...editorAccessFilter(tripId, String(userId)),
+          // A trip saved without an itinerary field has no array to size.
+          // ($and, not $or: the access filter already uses $or.)
+          ...(length === 0
+            ? { $and: [{ $or: [{ itinerary: { $size: 0 } }, { itinerary: { $exists: false } }] }] }
+            : { itinerary: { $size: length } }),
+          "itinerary.dayIndex": { $ne: dayIndex },
+        },
+        { $push: { itinerary: { $each: days } } },
+        { new: true },
+      );
+    }
+
+    if (!trip) {
+      // Either we lost the race (someone else just created the day)
+      // or the day already existed all along — the fast path now
+      // applies either way.
+      trip = await TripModel.findOneAndUpdate(
+        { ...editorAccessFilter(tripId, String(userId)), "itinerary.dayIndex": dayIndex },
+        { $push: { "itinerary.$[day].activities": newActivity } },
+        { new: true, arrayFilters: [{ "day.dayIndex": dayIndex }] },
+      );
+    }
+    if (!trip) throw new NotFoundError("Trip not found or access denied");
+  }
+
+  socketService.broadcastMutation(
+    tripId,
+    { type: "itinerary-updated", data: trip.itinerary },
+    String(userId),
+  );
+  await notifyTripParticipants(trip, String(userId), {
+    type: "itinerary-updated",
+    title: "Itinerary updated",
+    message: `${newActivity.title || "A new activity"} was added to your trip to ${trip.destination}.`,
+    link: `/app/trips/${tripId}`,
+    tripId,
+    groupKey: `itinerary-updated:${tripId}`,
+  });
+
+  res.status(201).json(trip);
+});
+
+export const updateActivity = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { dayIndex, data } = req.body;
+    const { id: tripId, activityId } = req.params;
+    const userId = req.user!._id;
+
+    const setFields = Object.fromEntries(
+      Object.entries(data)
+        .filter(([key]) => (UPDATABLE_ACTIVITY_FIELDS as readonly string[]).includes(key))
+        .map(([key, value]) => [`itinerary.$[day].activities.$[act].${key}`, value]),
+    );
+    if (Object.keys(setFields).length === 0) {
+      throw new BadRequestError("No valid fields to update");
+    }
+
+    const trip = await TripModel.findOneAndUpdate(
+      {
+        ...editorAccessFilter(tripId, String(userId)),
+        itinerary: { $elemMatch: { dayIndex, "activities.id": activityId } },
+      },
+      { $set: setFields },
+      {
+        new: true,
+        arrayFilters: [{ "day.dayIndex": dayIndex }, { "act.id": activityId }],
+      },
+    );
+    if (!trip) throw new NotFoundError("Trip not found, day/activity not found, or access denied");
+
+    const day = trip.itinerary?.find((d) => d.dayIndex === dayIndex);
+    const activity = day?.activities.find((a: any) => a.id === activityId);
+
+    socketService.broadcastMutation(
+      tripId,
+      { type: "itinerary-updated", data: trip.itinerary },
+      String(userId),
+    );
+    await notifyTripParticipants(trip, String(userId), {
+      type: "itinerary-updated",
+      title: "Itinerary updated",
+      message: `${activity?.title || "An activity"} was updated on your trip to ${trip.destination}.`,
+      link: `/app/trips/${tripId}`,
+      tripId,
+      groupKey: `itinerary-updated:${tripId}`,
+    });
+
+    res.json(trip);
+  },
+);
+
+export const deleteActivity = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { dayIndex } = req.body;
+    const { id: tripId, activityId } = req.params;
+    const userId = req.user!._id;
+
+    const before = await TripModel.findOne(
+      { ...editorAccessFilter(tripId, String(userId)), "itinerary.dayIndex": dayIndex },
+      { itinerary: { $elemMatch: { dayIndex } } },
+    );
+    const beforeDay = before?.itinerary?.[0];
+    const removed = beforeDay?.activities.find((a: any) => a.id === activityId);
+
+    const trip = await TripModel.findOneAndUpdate(
+      { ...editorAccessFilter(tripId, String(userId)), "itinerary.dayIndex": dayIndex },
+      { $pull: { "itinerary.$[day].activities": { id: activityId } } },
+      { new: true, arrayFilters: [{ "day.dayIndex": dayIndex }] },
+    );
+    if (!trip) throw new NotFoundError("Trip not found or access denied");
+
+    // Guard against a TOCTOU double-notification: if a concurrent request
+    // already removed this activity between our pre-read and this write,
+    // this request's $pull is a no-op — the day's activity count won't have
+    // dropped from what we saw in `before`, so don't re-fire the broadcast.
+    const afterDay = trip.itinerary?.find((d) => d.dayIndex === dayIndex);
+    const actuallyRemoved =
+      removed && beforeDay && (afterDay?.activities.length ?? 0) < beforeDay.activities.length;
+
+    if (actuallyRemoved) {
+      socketService.broadcastMutation(
+        tripId,
+        { type: "itinerary-updated", data: trip.itinerary },
+        String(userId),
+      );
+      await notifyTripParticipants(trip, String(userId), {
+        type: "itinerary-updated",
+        title: "Itinerary updated",
+        message: `${removed.title || "An activity"} was removed from your trip to ${trip.destination}.`,
+        link: `/app/trips/${tripId}`,
+        tripId,
+        groupKey: `itinerary-updated:${tripId}`,
+      });
+    }
+
+    res.json(trip);
+  },
+);
+
+// Edit Trip's day-count field only ever writes trip.days -- deliberately,
+// so a metadata edit can never silently delete real planned activities
+// (see updateTrip). This is the explicit, confirmed-on-the-frontend
+// counterpart: the user has already seen which days/activities will be
+// removed and clicked through a confirmation dialog before this fires.
+export const trimItinerary = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { days } = req.body;
+    const { id: tripId } = req.params;
+    const userId = req.user!._id;
+
+    if (!Number.isInteger(days) || days < 1) {
+      throw new BadRequestError("days must be a positive integer");
+    }
+
+    const before = await TripModel.findOne(editorAccessFilter(tripId, String(userId)), {
+      itinerary: 1,
+    });
+    if (!before) throw new NotFoundError("Trip not found or access denied");
+    const droppedCount = Math.max(0, (before.itinerary || []).length - days);
+
+    // Keep the first `days` days by position. Pulling by dayIndex did nothing
+    // on older trips whose days were saved without a dayIndex.
+    const trip = await TripModel.findOneAndUpdate(
+      editorAccessFilter(tripId, String(userId)),
+      { $push: { itinerary: { $each: [], $slice: days } } },
+      { new: true },
+    );
+    if (!trip) throw new NotFoundError("Trip not found or access denied");
+
+    // Mirrors deleteActivity's actuallyRemoved guard just above: skip the
+    // broadcast/notification entirely on a no-op trim (a stale client
+    // calling trim with days already >= the real itinerary length, or a
+    // double-submit) so collaborators don't get a false "trip shortened"
+    // notification for a request that changed nothing.
+    if (droppedCount > 0) {
+      socketService.broadcastMutation(
+        tripId,
+        { type: "itinerary-updated", data: trip.itinerary },
+        String(userId),
+      );
+      await notifyTripParticipants(trip, String(userId), {
+        type: "itinerary-updated",
+        title: "Itinerary updated",
+        message: `Your trip to ${trip.destination} was shortened to ${days} day${days === 1 ? "" : "s"}.`,
+        link: `/app/trips/${tripId}`,
+        tripId,
+        groupKey: `itinerary-updated:${tripId}`,
+      });
+    }
+
+    res.json(trip);
+  },
+);
+
+// Reorder replaces the whole itinerary array — the one mutation in this
+// file that genuinely can't be expressed as a targeted $push/$pull/$set,
+// since the client is sending back a full reordering. It was a bare
+// findOneAndUpdate with no concurrency guard at all: two collaborators
+// reordering at once would silently clobber each other, worse than the
+// arrayFilters-scoped mutations elsewhere in this file. Same
+// optimistic-concurrency pattern as modifyItineraryHandler/toggleVote —
+// read current updatedAt, CAS the write, retry a few times on conflict.
+export const reorderItinerary = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { itinerary } = req.body;
+    const tripId = req.params.id;
+    const userId = req.user!._id;
+    const accessFilter = editorAccessFilter(tripId, String(userId));
+
+    // Every OTHER itinerary write in this file matches a day by its
+    // `dayIndex` field, which must equal the day's real array position --
+    // getTrip self-heals this on read, and createTrip stamps it at write
+    // time (trips.controller.ts's ensureDayIndexes). This write replaces
+    // the whole array with the client's new ORDER but was leaving each
+    // day's dayIndex at its pre-reorder value, so a write racing in right
+    // after a reorder (addActivity/deleteActivity/toggleVote sending
+    // dayIndex: 0) would match whichever day USED to be at position 0, not
+    // the day now actually there -- same phantom-day bug class, reached
+    // from the reorder path instead of the read/create paths.
+    itinerary.forEach((day: any, idx: number) => {
+      if (day) day.dayIndex = idx;
+    });
+
+    // A reorder may only change order and times. The client sends the whole
+    // itinerary as it last saw it, so writing that back could undo an
+    // activity someone added/removed meanwhile, or background updates such
+    // as map coordinates. Instead: refuse if the set of activities differs
+    // (a real conflict), otherwise apply the client's order and times onto
+    // the latest stored activities.
+    const ids = (days: any[]) =>
+      days.flatMap((d) => (d?.activities || []).map((a: any) => a?.id)).sort();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const current = await TripModel.findOne(accessFilter, { itinerary: 1, updatedAt: 1 });
+      if (!current) throw new NotFoundError("Trip not found or access denied");
+      const stored: any[] = (current.toObject().itinerary as any[]) || [];
+
+      const sent = ids(itinerary);
+      const now = ids(stored);
+      const comparable = sent.every(Boolean) && now.every(Boolean);
+      if (comparable && (itinerary.length !== stored.length || sent.join("|") !== now.join("|"))) {
+        throw new ConflictError(
+          "The itinerary changed while you were moving things. Your move wasn't saved; please try again.",
+        );
+      }
+      const byId = new Map<string, Record<string, unknown>>(
+        stored.flatMap((d) => (d?.activities || []).map((a: any) => [a.id, a] as [string, any])),
+      );
+      const baseTimes = req.body.baseTimes as Record<string, unknown> | undefined;
+      if (
+        comparable &&
+        baseTimes &&
+        [...byId].some(([id, a]) => id in baseTimes && (a.time ?? null) !== (baseTimes[id] ?? null))
+      ) {
+        throw new ConflictError(
+          "Someone just changed a time on this day. Your move wasn't saved; please try again.",
+        );
+      }
+      const merged = comparable
+        ? itinerary.map((day: any, idx: number) => ({
+            ...(stored[idx] || {}),
+            dayIndex: idx,
+            activities: (day.activities || []).map((a: any) => ({
+              ...byId.get(a.id),
+              time: a.time,
+            })),
+          }))
+        : itinerary; // legacy activities without ids: nothing to match on
+
+      const trip = await TripModel.findOneAndUpdate(
+        { ...accessFilter, updatedAt: current.updatedAt },
+        { itinerary: merged },
+        { new: true },
+      );
+
+      if (trip) {
+        socketService.broadcastMutation(
+          tripId,
+          { type: "itinerary-updated", data: trip.itinerary },
+          String(userId),
+        );
+        await notifyTripParticipants(trip, String(userId), {
+          type: "itinerary-updated",
+          title: "Itinerary reordered",
+          message: `The day plan for your trip to ${trip.destination} was rearranged.`,
+          link: `/app/trips/${tripId}?tab=itinerary`,
+          tripId,
+          groupKey: `itinerary-updated:${tripId}`,
+        });
+        res.json(trip);
+        return;
+      }
+      // Lost the race — someone else wrote in between. Retry with a fresh read.
+    }
+    throw new ConflictError(
+      "The itinerary changed while you were moving things. Your move wasn't saved; please try again.",
+    );
+  },
+);
+
+// `vote` is the caller's DESIRED final state (1 up / -1 down / 0 clear), not
+// a delta — the server is the source of truth for how many net votes an
+// activity has and who cast them (`userVotes`, keyed by userId). Previously
+// the server blindly $inc'd whatever number the client sent, trusting the
+// client's own toggle-diff math; that math lived only in React state, so it
+// reset on every reload/new device/direct-API call and the same user could
+// inflate the count indefinitely (confirmed live: 3 identical "vote: 1"
+// calls in a row produced votes: 3, not 1). `vote: 0` was also a complete
+// no-op — $inc by 0 changes nothing and neither push branch fires, so a
+// user could never actually clear their vote.
+export const toggleVote = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { dayIndex, activityId, vote } = req.body; // 1 | -1 | 0
+  const tripId = req.params.id;
+  const userId = String(req.user!._id);
+  const desired = vote > 0 ? 1 : vote < 0 ? -1 : 0;
+
+  const accessFilter = {
+    _id: tripId,
+    $or: [{ userId }, { collaborators: { $elemMatch: { userId } } }],
+    itinerary: { $elemMatch: { dayIndex, "activities.id": activityId } },
+  };
+
+  // Read-modify-write is required here (need the caller's *previous* vote
+  // to compute the delta) — mitigated the same way modifyItineraryHandler
+  // is: optimistic concurrency with a retry, not a bare overwrite.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await TripModel.findOne(accessFilter, {
+      itinerary: { $elemMatch: { dayIndex } },
+      updatedAt: 1,
+    });
+    if (!current)
+      throw new NotFoundError("Trip not found, day/activity not found, or access denied");
+
+    const activity = current.itinerary?.[0]?.activities.find((a: any) => a.id === activityId);
+    if (!activity)
+      throw new NotFoundError("Trip not found, day/activity not found, or access denied");
+
+    // `userId` is a raw email for Google-signup accounts (User._id = email).
+    // A `.` in a Mongo update path means nesting, so the old
+    // `...userVotes.${userId}` dynamic path wrote `userVotes: {a@gmail:{com:1}}`
+    // and the flat-key read below never matched — `previous` was always 0,
+    // so every click moved the count by ±1 with no cap, for every Google
+    // user. Key the map on a dot-free base64url token instead, rebuild the
+    // whole `userVotes` object in JS, and $set it wholesale (no dynamic path
+    // segment). Legacy malformed (nested) entries are dropped on the way
+    // through; `votes` is recomputed from the map so it self-heals.
+    const voteKey = Buffer.from(userId).toString("base64url");
+    const userVotes: Record<string, 1 | -1> = {};
+    for (const [k, v] of Object.entries(activity.userVotes || {})) {
+      if (v === 1 || v === -1) userVotes[k] = v;
+    }
+    const previous = userVotes[voteKey] || 0;
+    if (previous === desired) {
+      // No-op — already in the desired state. Nothing to write.
+      const trip = await TripModel.findById(tripId);
+      res.json(trip);
+      return;
+    }
+    if (desired === 0) delete userVotes[voteKey];
+    else userVotes[voteKey] = desired;
+
+    const upCount = Object.values(userVotes).filter((v) => v === 1).length;
+    const downCount = Object.values(userVotes).filter((v) => v === -1).length;
+    const vibeSignals = [...Array(upCount).fill("High Vibe"), ...Array(downCount).fill("Low Vibe")];
+
+    const base = "itinerary.$[day].activities.$[act]";
+    const trip = await TripModel.findOneAndUpdate(
+      { ...accessFilter, updatedAt: current.updatedAt },
+      {
+        $set: {
+          [`${base}.votes`]: upCount - downCount,
+          [`${base}.vibeSignals`]: vibeSignals,
+          [`${base}.userVotes`]: userVotes,
+        },
+      },
+      { new: true, arrayFilters: [{ "day.dayIndex": dayIndex }, { "act.id": activityId }] },
+    );
+
+    if (trip) {
+      socketService.broadcastMutation(
+        tripId,
+        { type: "itinerary-updated", data: trip.itinerary },
+        userId,
+      );
+      res.json(trip);
+      return;
+    }
+    // Lost the race (someone else updated the trip between our read and
+    // write) — retry with a fresh read.
+  }
+  throw new BadRequestError("Trip was modified by someone else at the same time. Please retry.");
+});

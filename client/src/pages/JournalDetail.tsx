@@ -1,0 +1,568 @@
+import { useState, useEffect } from "react";
+import { appendCompressed } from "@/lib/compressImage";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { useAuth } from "@/hooks/useAuth";
+import type { JournalEntry, User } from "@shared/schema";
+import {
+  ChevronLeft,
+  Edit,
+  Trash2,
+  MapPin,
+  Calendar,
+  Clock,
+  Share2,
+  Image as ImageIcon,
+} from "lucide-react";
+import { motion } from "framer-motion";
+
+export default function JournalDetail() {
+  const { id } = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
+  const { isLoading: authLoading, isAuthenticated } = useAuth() as {
+    user: User | undefined;
+    isLoading: boolean;
+    isAuthenticated: boolean;
+  };
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  // A journal photo can 404 (file no longer exists server-side) — the bare
+  // browser broken-image icon + raw alt text read as a rendering bug.
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set());
+
+  const {
+    data: entry,
+    isLoading: entryLoading,
+    error,
+    refetch,
+  } = useQuery<JournalEntry>({
+    queryKey: [`/api/v1/journal/${id}`],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/v1/journal/${id}`, undefined, 30_000);
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    },
+    enabled: !!id && isAuthenticated,
+  });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [entryForm, setEntryForm] = useState({
+    title: "",
+    content: "",
+    location: "",
+    latitude: "",
+    longitude: "",
+  });
+  const [photos, setPhotos] = useState<FileList | null>(null);
+  const [keptPhotos, setKeptPhotos] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (entry) {
+      setEntryForm({
+        title: entry.title,
+        content: entry.content,
+        location: entry.location || "",
+        latitude: entry.latitude?.toString() || "",
+        longitude: entry.longitude?.toString() || "",
+      });
+      setKeptPhotos(entry.photos || []);
+    }
+  }, [entry]);
+
+  // A new or shorter photo list must not leave the carousel pointing past
+  // its end (blank image after a photo was removed).
+  useEffect(() => {
+    setActivePhotoIndex(0);
+  }, [entry?.photos?.length]);
+
+  // Auto-advance photo carousel
+  useEffect(() => {
+    const photos = entry?.photos;
+    if (!photos || photos.length <= 1 || isEditing) return;
+
+    const photoCount = photos.length;
+    const interval = setInterval(() => {
+      setActivePhotoIndex((prev) => (prev + 1) % photoCount);
+    }, 4000); // 4 seconds per slide
+
+    return () => clearInterval(interval);
+  }, [entry?.photos, isEditing]);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
+
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/v1/journal/${id}`);
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/journal"] });
+      toast({ title: "Entry Deleted", description: "Your journal entry has been deleted." });
+      navigate("/app/journal");
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "Your session expired. Please log in again.",
+          variant: "destructive",
+        });
+        navigate("/signin");
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete journal entry.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateEntryMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const res = await apiRequest("PUT", `/api/v1/journal/${id}`, formData);
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/journal/${id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/journal"] });
+      toast({
+        title: "Entry Updated",
+        description: "Your journal entry has been updated successfully.",
+      });
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "Your session expired. Please log in again.",
+          variant: "destructive",
+        });
+        navigate("/signin");
+        return;
+      }
+      // Someone else changed this entry's photos meanwhile; keep the
+      // form as typed so nothing is lost.
+      if ((error as any)?.status === 409) {
+        toast({
+          title: "Photos changed",
+          description:
+            "Someone else just changed this entry's photos. Reload to see them, then save again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update journal entry.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!entryForm.title.trim() || !entryForm.content.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in the title and content.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("title", entryForm.title);
+    formData.append("content", entryForm.content);
+    if (entryForm.location) formData.append("location", entryForm.location);
+    if (entryForm.latitude) formData.append("latitude", entryForm.latitude);
+    if (entryForm.longitude) formData.append("longitude", entryForm.longitude);
+    if (photos) await appendCompressed(formData, "photos", photos);
+    // Positions, not the photos themselves: kept photos are base64 data URIs
+    // and one phone photo exceeds the multipart field limit (edit -> 500).
+    const original = entry?.photos || [];
+    formData.append(
+      "existingPhotoIndexes",
+      JSON.stringify(keptPhotos.map((p) => original.indexOf(p)).filter((i) => i >= 0)),
+    );
+    formData.append("photoCount", String(original.length));
+
+    updateEntryMutation.mutate(formData);
+  };
+
+  if (authLoading || entryLoading) {
+    return (
+      <div className=" flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--explorer-blue)] mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading memory...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only a 403/404 means the entry is gone; anything else (5xx, timeout,
+  // offline) is retryable and shouldn't tell the user it was removed.
+  if (error && ![403, 404].includes((error as any)?.status)) {
+    return (
+      <div className=" flex items-center justify-center p-4">
+        <Card className="bg-card border max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-xl font-bold text-foreground mb-2">Couldn't load this memory</h2>
+            <p className="text-muted-foreground mb-6">Check your connection and try again.</p>
+            <Button onClick={() => refetch()} className="bg-[var(--explorer-blue)] w-full">
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !entry) {
+    return (
+      <div className=" flex items-center justify-center p-4">
+        <Card className="bg-card border max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <div className="text-destructive mb-4">
+              <Trash2 className="w-12 h-12 mx-auto" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground mb-2">Memory Not Found</h2>
+            <p className="text-muted-foreground mb-6">
+              The journal entry you're looking for doesn't exist or has been removed.
+            </p>
+            <Button
+              onClick={() => navigate("/app/journal")}
+              className="bg-[var(--explorer-blue)] w-full"
+            >
+              Back to Journal
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleShare = () => {
+    const shareData = {
+      title: entry.title,
+      text: entry.content,
+      url: window.location.href,
+    };
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({ title: "Link Copied", description: "Link copied to clipboard!" });
+    }
+  };
+
+  return (
+    <div className=" pb-20">
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Top Navigation */}
+        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/app/journal")}
+            className="text-muted-foreground hover:text-foreground p-0 h-auto hover:bg-transparent"
+          >
+            <ChevronLeft className="w-5 h-5 mr-1" />
+            Back to Journal
+          </Button>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShare}
+                  className="bg-card border text-foreground hover:bg-muted/50"
+                >
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                  data-testid="button-edit-journal"
+                  className="bg-card border text-foreground hover:bg-muted/50"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm("Delete this memory forever?")) {
+                      deleteEntryMutation.mutate(entry.id);
+                    }
+                  }}
+                  className="bg-card border-[var(--ios-red)] text-[var(--stamp-red-text)] hover:bg-[var(--ios-red)] hover:text-white"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {isEditing ? (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+            <Card className="bg-card border rounded-3xl overflow-hidden mb-8">
+              <CardHeader>
+                <CardTitle className="text-foreground">Edit Memory</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="entry-title" className="text-sm font-medium text-foreground">
+                      Title
+                    </label>
+                    <input
+                      id="entry-title"
+                      type="text"
+                      value={entryForm.title}
+                      onChange={(e) => setEntryForm((prev) => ({ ...prev, title: e.target.value }))}
+                      data-testid="input-journal-title"
+                      className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--explorer-blue)]"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="entry-location" className="text-sm font-medium text-foreground">
+                      Location
+                    </label>
+                    <input
+                      id="entry-location"
+                      type="text"
+                      value={entryForm.location}
+                      onChange={(e) =>
+                        setEntryForm((prev) => ({ ...prev, location: e.target.value }))
+                      }
+                      className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--explorer-blue)]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="entry-content" className="text-sm font-medium text-foreground">
+                      Content
+                    </label>
+                    <textarea
+                      id="entry-content"
+                      value={entryForm.content}
+                      onChange={(e) =>
+                        setEntryForm((prev) => ({ ...prev, content: e.target.value }))
+                      }
+                      className="w-full bg-muted/50 border border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--explorer-blue)] min-h-[200px]"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="entry-add-photos"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Add Photos
+                    </label>
+                    <input
+                      id="entry-add-photos"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => setPhotos(e.target.files)}
+                      className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--explorer-blue)] file:text-white hover:file:bg-[var(--explorer-blue-deep)]"
+                    />
+                  </div>
+                  {keptPhotos.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {keptPhotos.map((photo, i) => (
+                        <div
+                          key={i}
+                          className="relative w-20 h-20 rounded-xl overflow-hidden group"
+                        >
+                          {failedPhotos.has(photo) ? (
+                            <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
+                              <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          ) : (
+                            <img
+                              src={photo}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={() => setFailedPhotos((prev) => new Set(prev).add(photo))}
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setKeptPhotos((prev) => prev.filter((_, idx) => idx !== i))
+                            }
+                            className="absolute top-1 right-1 bg-[rgb(var(--ios-red-rgb)/80%)] p-1 rounded-full text-white"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-4 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsEditing(false)}
+                      className="flex-1 border text-foreground"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      data-testid="button-save-journal"
+                      disabled={updateEntryMutation.isPending}
+                      className="flex-1 bg-[var(--amber)] hover:bg-[var(--airbnb-primary-active)] text-white"
+                    >
+                      {updateEntryMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible">
+            {/* Hero Section - Photos */}
+            {
+              entry.photos && entry.photos.filter((p) => !failedPhotos.has(p)).length > 0 ? (
+                <motion.div
+                  variants={itemVariants}
+                  className="relative h-64 md:h-96 rounded-3xl overflow-hidden mb-8 border border-[hsl(var(--border))]"
+                >
+                  {failedPhotos.has(entry.photos[activePhotoIndex]) ? (
+                    <div className="w-full h-full flex items-center justify-center bg-[hsl(var(--muted))]">
+                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <motion.img
+                      key={activePhotoIndex}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 1 }}
+                      src={entry.photos[activePhotoIndex]}
+                      alt={entry.title}
+                      className="w-full h-full object-cover"
+                      onError={() =>
+                        setFailedPhotos((prev) =>
+                          new Set(prev).add(entry.photos![activePhotoIndex]),
+                        )
+                      }
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+
+                  {entry.photos.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {entry.photos.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setActivePhotoIndex(i)}
+                          aria-label={`Show photo ${i + 1} of ${entry.photos!.length}`}
+                          aria-current={i === activePhotoIndex}
+                          className={`w-2 h-2 rounded-full transition-all ${i === activePhotoIndex ? "bg-card w-4" : "bg-card/40"}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              ) : null /* No photo: no empty hero (it looked like a broken image). */
+            }
+
+            {/* Header Info */}
+            <div className="mb-8">
+              <motion.h1
+                variants={itemVariants}
+                className="text-3xl md:text-5xl font-bold text-foreground mb-4"
+              >
+                {entry.title}
+              </motion.h1>
+
+              <div className="flex flex-wrap gap-4 text-muted-foreground">
+                {entry.location && (
+                  <motion.div
+                    variants={itemVariants}
+                    className="flex items-center bg-card px-3 py-1.5 rounded-full border border"
+                  >
+                    <MapPin className="w-4 h-4 mr-2 text-[var(--ink-blue-text)]" />
+                    <span className="text-sm font-medium text-foreground">{entry.location}</span>
+                  </motion.div>
+                )}
+                <motion.div
+                  variants={itemVariants}
+                  className="flex items-center bg-card px-3 py-1.5 rounded-full border border"
+                >
+                  <Calendar className="w-4 h-4 mr-2 icon-tint-amber" />
+                  <span className="text-sm font-medium text-foreground">
+                    {new Date(entry.createdAt).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
+                </motion.div>
+                <motion.div
+                  variants={itemVariants}
+                  className="flex items-center bg-card px-3 py-1.5 rounded-full border border"
+                >
+                  <Clock className="w-4 h-4 mr-2 text-[var(--transit-green-text)]" />
+                  <span className="text-sm font-medium text-foreground">
+                    {new Date(entry.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Large Content Section */}
+            <motion.div variants={itemVariants}>
+              <Card className="bg-card border rounded-3xl overflow-hidden backdrop-blur-sm bg-opacity-80">
+                <CardContent className="p-6 md:p-10">
+                  <div className="prose dark:prose-invert max-w-none text-lg leading-relaxed text-foreground whitespace-pre-wrap">
+                    {entry.content}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}

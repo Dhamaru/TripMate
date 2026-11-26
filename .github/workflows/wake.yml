@@ -1,0 +1,24 @@
+name: Morning wake-up
+
+# Render's free tier sleeps when idle. Waking the server each morning lets
+# its hourly trip-reminder sweep (server/scheduler.ts) run that day even if
+# nobody has opened the app yet. Only hits the public health check.
+on:
+  schedule:
+    - cron: "40 3 * * *" # 09:10 IST
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping health check
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS --max-time 60 https://tripmate-ylt6.onrender.com/api/v1/health; then exit 0; fi
+            sleep 20
+          done
+          echo "Server did not answer"; exit 1

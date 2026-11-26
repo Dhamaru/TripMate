@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a121c" />
+    <!-- App ships its own dark/light themes (.dark / .light on <html>).
+         Declaring color-scheme opts the page out of Chrome / Samsung
+         Internet "auto dark theme", which was force-darkening our already
+         theme-aware UI whenever the phone was in dark mode. -->
+    <meta name="color-scheme" content="dark light" />
+    <!-- Saved theme before the bundle loads (no dark flash in light mode).
+         Its sha256 is allowed in the production CSP; keep the two in sync. -->
+    <script>try{var t=localStorage.getItem('tripmate-ui-theme');document.documentElement.classList.add(t==='light'?'light':'dark')}catch(e){document.documentElement.classList.add('dark')}</script>
+    <meta name="description" content="TripMate — Your AI travel companion" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TripMate" />
+    <title>TripMate</title>
+    <!--
+      DIRECTION: Passport & Visa Stamp System
+      THESIS: TripMate is your passport, stamped at every stage of a trip — not a generic photo-card SaaS app.
+      OWN-WORLD: Kraft/parchment-cream (light) / ink-navy under a customs-desk lamp (dark); four ink roles —
+        customs-blue (planning), transit-green (active), exit-red (completed/alert), seal-black (official/system).
+        IBM Plex Serif (headers), IBM Plex Mono (data: dates, prices, codes), IBM Plex Sans (body).
+      STORY: Trip cards are passport bio-data pages; status badges are ink stamps; forms are customs declarations.
+      FIRST VIEWPORT: Home dashboard as an open passport spread — traveler data left, current/next trip stamped
+        in on the right with a date-stamp badge and real stamp texture, not a gradient hero card.
+      FORM: Committed direction (rank 3 of 7 grounded candidates), full-palette ink-role strategy,
+        Operate-mode discipline throughout.
+    -->
+    <!-- manifest <link> injected by vite-plugin-pwa (see vite.config.ts) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%231E3A8A'/%3E%3Cstop offset='100%25' style='stop-color:%23F59E0B'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='49' fill='url(%23g)'/%3E%3Cpath d='M30 35 L70 50 L30 65 L35 50 Z' fill='white'/%3E%3C/svg%3E" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,500;0,600;0,700;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

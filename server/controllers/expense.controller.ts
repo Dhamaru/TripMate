@@ -1,0 +1,128 @@
+import { Request, Response, NextFunction } from "express";
+import { asyncHandler } from "../middleware/asyncHandler";
+import { TripModel } from "@shared/schema";
+import { NotFoundError, BadRequestError } from "../errors";
+import { nanoid } from "nanoid";
+import { socketService } from "../services/SocketService";
+import { notifyTripParticipants } from "../notifications";
+
+const UPDATABLE_EXPENSE_FIELDS = ["amount", "currency", "category", "description", "date"] as const;
+
+const editorAccessFilter = (tripId: string, userId: string) => ({
+  _id: tripId,
+  $or: [{ userId }, { collaborators: { $elemMatch: { userId, role: "editor" } } }],
+});
+
+export const addExpense = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const tripId = req.params.id;
+  const userId = req.user!._id;
+  const expenseData = req.body;
+
+  // No currency given: use the trip's own, not whatever the client defaulted to.
+  let currency = expenseData.currency;
+  if (!currency) {
+    const t = await TripModel.findOne(editorAccessFilter(tripId, String(userId)), { currency: 1 });
+    if (!t) throw new NotFoundError("Trip not found or access denied");
+    currency = t.currency || "INR";
+  }
+
+  const newExpense = {
+    ...expenseData,
+    currency,
+    id: nanoid(),
+    date: expenseData.date || new Date(),
+  };
+
+  const trip = await TripModel.findOneAndUpdate(
+    editorAccessFilter(tripId, String(userId)),
+    { $push: { expenses: newExpense } },
+    { new: true },
+  );
+  if (!trip) throw new NotFoundError("Trip not found or access denied");
+
+  socketService.broadcastMutation(
+    tripId,
+    { type: "expenses-updated", data: trip.expenses },
+    String(userId),
+  );
+  await notifyTripParticipants(trip, String(userId), {
+    type: "expense-updated",
+    title: "Expense added",
+    message: `${newExpense.amount} ${newExpense.currency} (${newExpense.category}) added to your trip to ${trip.destination}.`,
+    link: `/app/trips/${tripId}`,
+    tripId,
+    groupKey: `expense-updated:${tripId}`,
+  });
+
+  res.status(201).json(trip);
+});
+
+export const updateExpense = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id: tripId, expenseId } = req.params;
+    const userId = req.user!._id;
+    const updateData = req.body;
+
+    const setFields = Object.fromEntries(
+      Object.entries(updateData)
+        .filter(([key]) => (UPDATABLE_EXPENSE_FIELDS as readonly string[]).includes(key))
+        .map(([key, value]) => [`expenses.$[elem].${key}`, value]),
+    );
+    if (Object.keys(setFields).length === 0) {
+      throw new BadRequestError("No valid fields to update");
+    }
+
+    const trip = await TripModel.findOneAndUpdate(
+      { ...editorAccessFilter(tripId, String(userId)), "expenses.id": expenseId },
+      { $set: setFields },
+      { new: true, arrayFilters: [{ "elem.id": expenseId }] },
+    );
+    if (!trip) throw new NotFoundError("Trip not found, expense not found, or access denied");
+
+    socketService.broadcastMutation(
+      tripId,
+      { type: "expenses-updated", data: trip.expenses },
+      String(userId),
+    );
+    await notifyTripParticipants(trip, String(userId), {
+      type: "expense-updated",
+      title: "Expense updated",
+      message: `An expense was updated on your trip to ${trip.destination}.`,
+      link: `/app/trips/${tripId}`,
+      tripId,
+      groupKey: `expense-updated:${tripId}`,
+    });
+
+    res.json(trip);
+  },
+);
+
+export const deleteExpense = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id: tripId, expenseId } = req.params;
+    const userId = req.user!._id;
+
+    const trip = await TripModel.findOneAndUpdate(
+      { ...editorAccessFilter(tripId, String(userId)), "expenses.id": expenseId },
+      { $pull: { expenses: { id: expenseId } } },
+      { new: true },
+    );
+    if (!trip) throw new NotFoundError("Trip not found, expense not found, or access denied");
+
+    socketService.broadcastMutation(
+      tripId,
+      { type: "expenses-updated", data: trip.expenses },
+      String(userId),
+    );
+    await notifyTripParticipants(trip, String(userId), {
+      type: "expense-updated",
+      title: "Expense removed",
+      message: `An expense was removed from your trip to ${trip.destination}.`,
+      link: `/app/trips/${tripId}`,
+      tripId,
+      groupKey: `expense-updated:${tripId}`,
+    });
+
+    res.status(204).send();
+  },
+);

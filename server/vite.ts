@@ -1,0 +1,131 @@
+import express, { type Express } from "express";
+import fs from "fs";
+import path from "path";
+import { createServer as createViteServer, createLogger } from "vite";
+import { type Server } from "http";
+import viteConfig from "../vite.config.ts";
+import { nanoid } from "nanoid";
+
+const viteLogger = createLogger();
+
+function isApiPath(url: string) {
+  return url === "/api" || url.startsWith("/api/");
+}
+
+export function log(message: string, source = "express") {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+
+export async function setupVite(app: Express, server: Server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true as const,
+  };
+
+  const config = (viteConfig as any).default || viteConfig;
+  log(`Vite root: ${config.root}`, "vite");
+  log(`Vite config keys: ${Object.keys(config).join(", ")}`, "vite");
+
+  const vite = await createViteServer({
+    ...config,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      },
+    },
+    server: serverOptions,
+    appType: "custom",
+  });
+
+  app.use(vite.middlewares);
+  app.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    if (isApiPath(url)) {
+      return next();
+    }
+
+    try {
+      const clientTemplate = path.resolve(import.meta.dirname, "..", "client", "index.html");
+
+      // always reload the index.html file from disk incase it changes
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(`src="/src/main.tsx"`, `src="/src/main.tsx?v=${nanoid()}"`);
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e as Error);
+      next(e);
+    }
+  });
+}
+
+export function serveStatic(app: Express) {
+  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+    );
+  }
+
+  // Service worker must never be cached by HTTP — browser needs to fetch fresh on every visit
+  // so it can detect new deploys and update itself
+  app.use((req, res, next) => {
+    if (req.path === "/sw.js" || req.path.startsWith("/workbox-")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+    }
+    next();
+  });
+
+  app.use(
+    express.static(distPath, {
+      maxAge: "1y",
+      immutable: true,
+      // Only content-hashed build output (/assets/*) may be cached forever.
+      // Installers, latest.json (the desktop updater manifest), the web
+      // manifest, icons and robots.txt keep their names across releases and
+      // were being cached as immutable for a year.
+      setHeaders: (res, filePath) => {
+        if (!/[\\/]assets[\\/]/.test(filePath)) res.setHeader("Cache-Control", "no-cache");
+      },
+      // express.static's default `index: true` auto-serves index.html itself
+      // whenever a request resolves to it (including "/") — WITH the same 1y
+      // immutable cache meant for hashed asset filenames. Since that header is
+      // "public", any CDN/shared cache in front of the app can then keep
+      // serving a stale index.html (pointing at an old JS bundle) to every
+      // visitor for up to a year after a deploy. index.html must always be
+      // revalidated, so route it through the catch-all below instead, which
+      // sets Cache-Control: no-cache.
+      index: false,
+    }),
+  );
+
+  // Static download page lives at /download/index.html; serve it for the
+  // bare /download URL too (express.static has index:false, so a directory
+  // request would otherwise fall through to the SPA shell below).
+  app.get(["/download", "/download/"], (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.resolve(distPath, "download", "index.html"));
+  });
+
+  // fall through to index.html if the file doesn't exist
+  app.use("*", (req, res) => {
+    if (isApiPath(req.originalUrl)) {
+      return res.status(404).json({ message: "API route not found" });
+    }
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.resolve(distPath, "index.html"));
+  });
+}

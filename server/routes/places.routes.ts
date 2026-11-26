@@ -1,0 +1,305 @@
+import { Router } from "express";
+import { optionalAuth, requireAuth } from "../middleware/auth.middleware";
+import { apiProxyLimiter, placesPhotoLimiter } from "../middleware/rateLimit.middleware";
+import { config } from "../config";
+import { googleFetch } from "../services/billedQuota";
+
+const router = Router();
+
+// Photo bytes by ref+width: trip heroes and result cards are re-requested on
+// every view, and each miss is a billed Google Photo call.
+// ponytail: per-process, 150 entries, 24h; enough for one Render instance.
+const photoCache = new Map<string, { at: number; type: string; body: Buffer }>();
+const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;
+
+router.use(apiProxyLimiter);
+router.use(optionalAuth);
+
+// Google's own JS SDK exposes API keys client-side too, but this key is
+// unrestricted-by-referrer (used server-side for several other providers) —
+// embedding it directly in imageUrl handed to an unauthenticated caller
+// (live-confirmed: GET /search returns it in plain JSON) let anyone extract
+// and reuse it against TripMate's billing account. Route photos through this
+// server instead, same pattern as tools.controller.ts's getDestinationImage.
+// placesPhotoLimiter on top of the router-wide apiProxyLimiter: this route
+// makes one billed Google call per request on an unauthenticated path, so it
+// gets its own tighter ceiling rather than sharing the general 60/min quota
+// with cheap text-search requests.
+router.get("/photo", placesPhotoLimiter, async (req, res) => {
+  try {
+    const ref = String(req.query.ref || "");
+    if (!ref) return res.status(400).json({ error: "ref is required" });
+    const key = config.GOOGLE_API_KEY;
+    if (!key) return res.status(404).end();
+
+    // Was a flat maxwidth=400 for every caller — fine for the small
+    // Places-search-result thumbnails this was built for, but the trip
+    // hero banner (TripDetail.tsx: w-full, up to ~900px, object-cover)
+    // reuses this exact route and was stretching that same 400px source
+    // across its full width — visibly soft/blurry, live-reported, and
+    // inconsistent with the hero's OWN Wikipedia-thumbnail fallback one
+    // source over (trips.controller.ts), which already asks for
+    // pithumbsize=1200. Callers now opt into a wider size via ?w=; every
+    // existing call site that doesn't pass it keeps the original 400px
+    // (Places-tab cards, destination-image landing thumbnails).
+    const w = Math.min(1600, Math.max(1, parseInt(String(req.query.w || "400"), 10) || 400));
+
+    const cacheKey = `${w}:${ref}`;
+    const hit = photoCache.get(cacheKey);
+    if (hit && Date.now() - hit.at < PHOTO_TTL_MS) {
+      res.setHeader("Content-Type", hit.type);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.send(hit.body);
+    }
+
+    const upstream = await googleFetch(
+      `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${w}&photo_reference=${encodeURIComponent(ref)}&key=${key}`,
+      req.user as any,
+      { redirect: "follow" },
+    );
+    if (!upstream?.ok) return res.status(404).end();
+    const contentType = upstream.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) return res.status(404).end();
+
+    const body = Buffer.from(await upstream.arrayBuffer());
+    if (photoCache.size >= 150) photoCache.delete(photoCache.keys().next().value!);
+    photoCache.set(cacheKey, { at: Date.now(), type: contentType, body });
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(body);
+  } catch (err) {
+    console.error("Places photo proxy error:", err);
+    res.status(500).end();
+  }
+});
+
+// /search and /tourist-attractions each make a BILLED Google Places call.
+// `optionalAuth` (router-wide, above) only decodes a session if present —
+// it never blocks an anonymous caller, so both were reachable by anyone,
+// throttled only by the shared per-IP apiProxyLimiter. Trivial IP rotation
+// bills the Google account with no account of ours required. /nearby (below)
+// hits the free OSM Overpass API, not Google — left open on purpose.
+// /photo also stays optionalAuth-only: it's the same route public
+// trip-share pages load images through for signed-out viewers.
+router.get("/search", requireAuth, async (req, res) => {
+  try {
+    const { query: queryParam, q, pageSize = 10, lat, lon, type } = req.query;
+    const query = (queryParam || q) as string;
+    if (!query) return res.status(400).json({ error: "Search query is required" });
+
+    const key = config.GOOGLE_API_KEY;
+    if (!key) {
+      console.warn("[Places] GOOGLE_API_KEY is missing, returning empty results");
+      return res.json({ items: [] });
+    }
+
+    const clampedPageSize = Math.min(Math.max(Number(pageSize) || 10, 1), 20);
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    const hasBias =
+      lat !== undefined && lon !== undefined && !Number.isNaN(latNum) && !Number.isNaN(lonNum);
+
+    // "city" (trip origin/destination pickers) used to append
+    // `&type=locality` to Text Search below — verified against Google's
+    // raw API that this does nothing: Text Search's `type` param doesn't
+    // filter when a free-text query is present, so "Vijaya" still returned
+    // Vijaya Super Speciality Hospital, Vijaya Dairy Parlour, etc. (live
+    // production behavior, confirmed). Text Search also does full-text
+    // relevance matching, not prefix matching — a real city-picker needs
+    // Places Autocomplete instead (`types=(cities)` is properly enforced
+    // there, and prefix-matches "Vijaya" -> Vijayawada/Vijayapura/etc,
+    // verified against Google's raw endpoint). Every other picker in the
+    // app (restaurants, activities, attractions) keeps Text Search below —
+    // this branch is opt-in, not a global switch.
+    // "area" (Emergency's "where are you" box) is the same idea one level
+    // down: neighbourhoods, streets, PIN codes — Text Search there suggested
+    // "Vijayaa Beauty Parlour" for a location search (live-reported).
+    if (type === "city" || type === "area") {
+      const types = type === "city" ? "(cities)" : "geocode";
+      const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
+      // One session token per search (sent by the client) bills the keystrokes
+      // and the final /location lookup as a single session.
+      const session = /^[\w-]{8,64}$/.test(String(req.query.sessiontoken || ""))
+        ? `&sessiontoken=${req.query.sessiontoken}`
+        : "";
+      const response = await googleFetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=${types}${biasParam}${session}&key=${key}`,
+        req.user as any,
+      );
+      if (!response) return res.json({ items: [] });
+      // Autocomplete has its own, tighter per-key quota than Text Search
+      // and a CDN layer in front of it — an error response here (429/503)
+      // can come back as plain text/HTML, not JSON. .json() on that
+      // throws and surfaces as an unhandled 500 instead of the empty
+      // result a search box should degrade to.
+      if (!response.ok) {
+        console.warn(`[Places] Google Autocomplete HTTP ${response.status}`);
+        return res.json({ items: [] });
+      }
+      const data = await response.json().catch(() => ({}));
+      if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+        console.error(
+          `[Places] Google Autocomplete returned ${data.status}: ${data.error_message || "no message"}`,
+        );
+      }
+      const results = (data.predictions || []).slice(0, clampedPageSize).map((p: any) => ({
+        id: p.place_id,
+        name: p.structured_formatting?.main_text || p.description,
+        address: p.structured_formatting?.secondary_text,
+        display_name: p.description,
+      }));
+      return res.json({ items: results });
+    }
+
+    // Optional proximity bias — Text Search doesn't restrict to a radius,
+    // it just re-ranks toward the given point, which is exactly what we
+    // want here: a search bar biased toward the user's real location or a
+    // trip's destination should still surface a good match far away, just
+    // rank the nearby one first when both are plausible. 50km keeps the
+    // bias city-scale rather than pinpoint-scale.
+    const biasParam = hasBias ? `&location=${latNum},${lonNum}&radius=50000` : "";
+
+    const response = await googleFetch(
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}${biasParam}&key=${key}`,
+      req.user as any,
+    );
+    if (!response) return res.json({ items: [] });
+    const data = await response.json();
+
+    if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+      console.error(
+        `[Places] Google API returned ${data.status}: ${data.error_message || "no message"}`,
+      );
+    }
+
+    // Transform for frontend consumption if needed
+    // Google Text Search caps at 20/page anyway, but clamp explicitly
+    // rather than trust the caller's raw pageSize (NaN-safe: falls back to
+    // the default when the query value doesn't parse).
+    const results = (data.results || []).slice(0, clampedPageSize).map((p: any) => ({
+      id: p.place_id,
+      name: p.name,
+      address: p.formatted_address,
+      rating: p.rating,
+      user_ratings_total: p.user_ratings_total,
+      price_level: p.price_level,
+      imageUrl: p.photos?.[0]
+        ? `/api/v1/places/photo?ref=${encodeURIComponent(p.photos[0].photo_reference)}`
+        : null,
+      location: p.geometry.location,
+      display_name: p.name || p.formatted_address,
+    }));
+
+    res.json({ items: results });
+  } catch (err) {
+    console.error("Places search error:", err);
+    res.status(500).json({ error: "Failed to search places" });
+  }
+});
+
+// Free-text tourism type from the client, interpolated into an Overpass QL
+// query string — unescaped, this is a query-injection point (an attacker
+// closes the ["tourism"="..."] filter early and appends arbitrary Overpass
+// QL). Restrict to OSM's actual tourism=* value set instead of accepting
+// anything.
+const ALLOWED_TOURISM_TYPES = new Set([
+  "attraction",
+  "museum",
+  "gallery",
+  "viewpoint",
+  "zoo",
+  "theme_park",
+  "artwork",
+  "picnic_site",
+  "camp_site",
+  "hotel",
+  "hostel",
+  "guest_house",
+  "information",
+  "monument",
+]);
+
+// Coordinates for an Autocomplete suggestion (which carries none). Re-
+// geocoding the suggestion's text instead put "R.R.Peta, Eluru" on a river
+// in Telangana (live) — the place_id is exact.
+router.get("/location", requireAuth, async (req, res) => {
+  const placeId = String(req.query.placeId || "");
+  if (!/^[\w-]{10,300}$/.test(placeId)) return res.status(400).json({ error: "Invalid placeId" });
+  const key = config.GOOGLE_API_KEY;
+  if (!key) return res.status(503).json({ error: "Places not configured" });
+  try {
+    const session = /^[\w-]{8,64}$/.test(String(req.query.sessiontoken || ""))
+      ? `&sessiontoken=${req.query.sessiontoken}`
+      : "";
+    const r = await googleFetch(
+      `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=geometry,formatted_address${session}&key=${key}`,
+      req.user as any,
+    );
+    if (!r)
+      return res
+        .status(429)
+        .json({ error: "Place lookups are paused for today. Try again tomorrow." });
+    const data = await r.json().catch(() => ({}));
+    const loc = data?.result?.geometry?.location;
+    if (!loc) return res.status(404).json({ error: "Location not found" });
+    res.json({ lat: loc.lat, lng: loc.lng, address: data.result.formatted_address });
+  } catch (err) {
+    console.error("Places location error:", err);
+    res.status(500).json({ error: "Failed to resolve place" });
+  }
+});
+
+router.get("/nearby", async (req, res) => {
+  try {
+    const { lat, lon, type = "attraction" } = req.query;
+    if (!lat || !lon) return res.status(400).json({ error: "lat and lon are required" });
+    const tourismType = ALLOWED_TOURISM_TYPES.has(String(type)) ? String(type) : "attraction";
+
+    const overpassQuery = `[out:json][timeout:25];(node["tourism"="${tourismType}"](${Number(lat) - 0.05},${Number(lon) - 0.05},${Number(lat) + 0.05},${Number(lon) + 0.05}););out body;`;
+
+    const response = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body: overpassQuery,
+    });
+
+    if (!response.ok) throw new Error("Overpass API failed");
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("Overpass nearby error:", err);
+    res.status(500).json({ error: "Failed to fetch nearby places" });
+  }
+});
+
+router.get("/tourist-attractions", requireAuth, async (req, res) => {
+  try {
+    const { location, pageSize = 20 } = req.query;
+    if (!location) return res.status(400).json({ error: "Location is required" });
+
+    const key = config.GOOGLE_API_KEY;
+    if (!key) return res.json({ results: [] });
+
+    const response = await googleFetch(
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent("tourist attractions in " + String(location))}&key=${key}`,
+      req.user as any,
+    );
+    if (!response) return res.json({ items: [] });
+    const data = await response.json();
+
+    if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+      console.error(
+        `[Places] Google API returned ${data.status}: ${data.error_message || "no message"}`,
+      );
+    }
+
+    const clampedPageSize = Math.min(Math.max(Number(pageSize) || 20, 1), 20);
+    const results = (data.results || []).slice(0, clampedPageSize);
+
+    res.json({ items: results });
+  } catch (err) {
+    console.error("Attractions search error:", err);
+    res.status(500).json({ error: "Failed to get attractions" });
+  }
+});
+
+export default router;

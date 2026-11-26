@@ -1,0 +1,278 @@
+import "./fetchTimeout";
+import { clientIpMiddleware } from "./middleware/clientIp.middleware";
+import { config } from "./config";
+import express from "express";
+import fs from "fs";
+import path from "path";
+import { createServer } from "http";
+import { setupAuth } from "./auth";
+import { connectDB } from "./db";
+import { runStartupMigrations } from "./migrations";
+import { setupVite, serveStatic, log } from "./vite";
+import cookieParser from "cookie-parser";
+import compression from "compression";
+import mongoose from "mongoose";
+
+import {
+  corsMiddleware,
+  helmetMiddleware,
+  mongoSanitizeMiddleware,
+  hppMiddleware,
+} from "./middleware/security.middleware";
+import { requestIdMiddleware } from "./middleware/requestId.middleware";
+import { requestLoggerMiddleware } from "./middleware/requestLogger.middleware";
+import { errorHandler } from "./middleware/errorHandler.middleware";
+import { generalLimiter } from "./middleware/rateLimit.middleware";
+import { csrfMiddleware } from "./middleware/csrf.middleware";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./swagger";
+
+// Routes
+import authRoutes from "./routes/auth.routes";
+import tripsRoutes from "./routes/trips.routes";
+import sharedRoutes from "./routes/shared.routes";
+import toolsRoutes from "./routes/tools.routes";
+import journalRoutes from "./routes/journal.routes";
+import orchestratorRoutes from "./routes/orchestrator.routes";
+import suggestionRoutes from "./routes/suggestion.routes";
+import feedbackRoutes from "./routes/feedback.routes";
+import notificationsRoutes from "./routes/notifications.routes";
+import agentRoutes from "./routes/agent.routes";
+import placesRoutes from "./routes/places.routes";
+import emergencyRoutes from "./routes/emergency.routes";
+import weatherRoutes from "./routes/weather.routes";
+import crowdRoutes from "./routes/crowd.routes";
+import logsRoutes from "./routes/logs.routes";
+import mapPinsRoutes from "./routes/mapPins.routes";
+import pushRoutes from "./routes/push.routes";
+import { socketService } from "./services/SocketService";
+// Side-effect import: registers the push-on-notification-created hook
+// (shared/schema.ts's onNotificationCreated) so real OS-level pushes fire
+// for every notification, from any call site, without those call sites
+// knowing push exists.
+import "./push";
+
+const app = express();
+export { app };
+app.locals.ready = false;
+app.set("etag", false);
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+
+// 1. Global Middleware (Attach synchronously)
+app.use(clientIpMiddleware); // before anything that reads req.ip (rate limits, sessions)
+app.use(corsMiddleware);
+app.use(helmetMiddleware);
+// Performance-audit finding: this was previously registered inside
+// startServer() (see below), which runs AFTER every route in this file is
+// already mounted — Express dispatches middleware in registration order, so
+// every real API response (trips, itinerary, notifications) was sent
+// uncompressed; only the static file server (also mounted inside
+// startServer()) ever got gzip. Moved to the top of the real middleware
+// chain so it actually wraps API responses too. Still dev-gated — compressing
+// Vite's HMR dev responses caused real issues, per the comment this replaces.
+if (app.get("env") !== "development") {
+  app.use(compression());
+}
+
+// Security audit finding: mongoSanitizeMiddleware/hppMiddleware were mounted
+// BEFORE express.json(), so req.body didn't exist yet when they ran —
+// express-mongo-sanitize is a one-shot pass over body/params/headers/query,
+// so req.body sanitization silently no-op'd (confirmed live: a crafted
+// `{$ne: null}` body value passed through untouched while the same shape
+// in the query string was correctly stripped). No live exploit found today
+// (every unvalidated body-into-query path is additionally scoped by a
+// token-derived userId), but the codebase is written assuming this runs on
+// the body too — moved after the body parsers so it actually does.
+app.use(express.json({ limit: config.BODY_JSON_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: config.BODY_URLENCODED_LIMIT }));
+app.use(mongoSanitizeMiddleware);
+app.use(hppMiddleware);
+app.use(cookieParser(config.SESSION_SECRET));
+app.use(requestIdMiddleware);
+app.use(requestLoggerMiddleware);
+app.use(csrfMiddleware);
+// Was `app.use("/api/v1", generalLimiter)` — path-scoped, so it silently
+// never applied to anything mounted outside that exact prefix. The two
+// back-compat aliases below (/api/tools, /api/auth) are real, separate
+// top-level mounts, not sub-paths of /api/v1 — confirmed live-exploitable:
+// /api/tools/public/destination-image (a billed Google Places Photo call)
+// was reachable completely unauthenticated and unlimited. /api/tools is
+// also NOT dead code (TripPlanner.tsx's generate-itinerary fallback calls
+// /api/tools/planTrip directly), so it can't just be deleted — it has to
+// actually be protected.
+//
+// First attempt mounted this with NO path at all (applies to every
+// request the app handles) to guarantee no future alias/prefix mismatch
+// could bypass it again — but that also metered every static asset, the
+// SPA shell, sw.js, and the manifest against the same per-IP budget.
+// Caught live the same day: a single normal page load now costs ~10+ of
+// the 100/15min budget before a single API call, and under this
+// session's own heavy verification traffic /signin itself started
+// 429ing. "/api" covers every real API surface (/api/v1, /api/tools,
+// /api/auth all start with it) while leaving static/SPA delivery
+// unmetered — same bypass-proof guarantee (nothing API-shaped can be
+// mounted outside "/api" without it being obviously wrong), without the
+// over-broad blast radius.
+app.use("/api", generalLimiter);
+
+// Uploads (journal photos, feedback attachments) are served through
+// authenticated/ownership-checked proxy routes now — GET /api/v1/journal/
+// photo/:filename (journal.routes.ts) and GET /api/v1/feedback/attachment/
+// :filename (feedback.routes.ts) — not a public static mount. The old
+// `app.use("/uploads", express.static(...))` here meant anyone with a URL
+// (only ~30 bits of entropy: Date.now() + Math.random()*1e9) could read
+// another user's journal photos with zero authentication. Avatars are
+// base64-in-Mongo, never written to disk, so nothing else needs this mount.
+
+// Swagger UI at /api/docs: development only. In production it just mapped
+// the API for anyone (owner decision 2026-11-03).
+if (config.NODE_ENV !== "production") {
+  app.use(
+    "/api/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customSiteTitle: "TripMate API Docs",
+      swaggerOptions: { persistAuthorization: true },
+    }),
+  );
+  app.get("/api/docs.json", (_req, res) => res.json(swaggerSpec));
+}
+
+// 2. Auth Setup (Non-blocking call)
+setupAuth(app).catch((err) => console.error("[Server] Auth Setup Error:", err));
+
+// 3. API Routes (Specific routes FIRST to avoid shadowing)
+app.use("/api/v1", toolsRoutes);
+app.use("/api/v1", logsRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/trips", tripsRoutes);
+app.use("/api/v1/map-pins", mapPinsRoutes);
+app.use("/api/v1/places", placesRoutes);
+app.use("/api/v1/emergency", emergencyRoutes);
+app.use("/api/v1/weather", weatherRoutes);
+app.use("/api/v1/orchestrator", orchestratorRoutes);
+app.use("/api/v1/suggestions", suggestionRoutes);
+app.use("/api/v1/agent", agentRoutes);
+app.use("/api/v1/feedback", feedbackRoutes);
+app.use("/api/v1/notifications", notificationsRoutes);
+app.use("/api/v1/crowd", crowdRoutes);
+app.use("/api/v1/push", pushRoutes);
+// journalRoutes defines its own full sub-paths (/journal) — mount at the
+// bare /api/v1 prefix. It carries the real multer photo-upload middleware
+// that shared.routes.ts's identical-looking /journal paths lack, so it
+// must stay mounted before sharedRoutes to win the match.
+//
+// packingRoutes (a fully redundant duplicate of the /packing paths shared.
+// routes.ts already serves, with none of shared.routes.ts's later additions
+// like /packing-lists/templates or /duplicate) was removed — nothing on the
+// client ever called its one non-overlapping route, POST /trips/:id/packing.
+app.use("/api/v1", journalRoutes);
+
+// Generic/Shared routes (Last, as they match widely)
+app.use("/api/v1", sharedRoutes);
+
+// ─── Backward Compatibility & Special Case Routes ──────────────────────────
+// Support non-v1 tools calls if any remain in frontend
+app.use("/api/tools", toolsRoutes);
+
+// Map /api/auth to authRoutes for legacy/Apple compatibility
+app.use("/api/auth", authRoutes);
+
+// Unknown API paths: a JSON 404, not the SPA's index.html or a misleading 401.
+app.use("/api", (req, res) => {
+  res.status(404).json({ success: false, error: "Not found", code: "NOT_FOUND" });
+});
+
+// Error Handling (Must be last)
+app.use(errorHandler);
+
+async function startServer() {
+  console.log("[Server] Starting server initialization...");
+  console.log("[Server] Connecting to MongoDB...");
+  await connectDB();
+  console.log("[Server] MongoDB connection sequence finished.");
+  // Fire-and-forget: gated by MigrationModel so it's a genuine no-op on
+  // every boot after the first, never blocks startup on itself.
+  runStartupMigrations().catch((err) => console.error("[Server] Startup migrations failed:", err));
+  console.log("[Server] Current NODE_ENV:", config.NODE_ENV);
+
+  const server = createServer(app);
+
+  console.log("[Server] Initializing Socket Service...");
+  socketService.init(server);
+  console.log("[Server] Socket Service initialized.");
+
+  // 5. Frontend Middleware (Catch-all)
+  console.log(`[Server] Environment: ${app.get("env")}`);
+  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+
+  if (app.get("env") === "development" && !process.env.NO_VITE) {
+    console.log("[Server] Setting up Vite dev middleware...");
+    await setupVite(app, server);
+  } else if (app.get("env") === "production" || fs.existsSync(distPath)) {
+    console.log("[Server] Serving static files from dist/public...");
+    serveStatic(app);
+  } else {
+    console.log("[Server] Skipping frontend middleware (NO_VITE=true and no build found)");
+  }
+
+  const port = config.PORT;
+  server.listen(port, "0.0.0.0", () => {
+    app.locals.ready = true;
+    log(`serving on port ${port} pid=${process.pid}`);
+  });
+
+  // Daily trip-reminder notifications. Skipped under Vite dev unless
+  // explicitly enabled, so local `npm run dev` doesn't fire real
+  // notifications into the shared DB on every restart.
+  if (config.NODE_ENV === "production" || process.env.ENABLE_SCHEDULER === "1") {
+    const { startScheduler } = await import("./scheduler");
+    startScheduler();
+  }
+
+  const shutdown = (signal: string) => {
+    log(`received ${signal}, starting graceful shutdown`);
+    app.locals.ready = false;
+    // Open websockets otherwise keep the server from closing until the
+    // forced exit below, so Mongo never got closed cleanly.
+    socketService.close();
+    server.close(() => {
+      mongoose.connection.close(false).finally(() => {
+        log("server closed, exiting");
+        process.exit(0);
+      });
+    });
+    setTimeout(() => process.exit(0), 10000);
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+}
+
+// In tests, this module is imported directly (`import { app } from '../../server/index'`)
+// into the SAME process the test runner uses. process.exit() here would kill the whole
+// test worker on any single uncaught exception, aborting every other test mid-run.
+const isTestEnv = config.NODE_ENV === "test";
+
+if (!isTestEnv) {
+  startServer().catch((err) => {
+    console.error("Critical server startup error:", err);
+    process.exit(1);
+  });
+} else {
+  startServer().catch((err) => {
+    console.error("Critical server startup error (test env, not exiting):", err);
+  });
+}
+
+process.on("uncaughtException", (e) => {
+  console.error("[CRITICAL] Uncaught Exception:", e.name, e.message);
+  console.error(e.stack);
+  if (!isTestEnv) process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
+  // We don't exit(1) here to allow the server to survive minor agent failures
+});

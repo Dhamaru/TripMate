@@ -1,0 +1,48 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+.replit
+replit.nix
+.config
+.cache
+.upm
+.env
+.env.*
+!.env.example
+uploads/
+*.log
+*.log.*
+*_errors.txt
+
+# Local Claude Code tooling config — not app source, stays local-only
+.claude/
+
+# Playwright's own generated output (npm run test:e2e) — reproducible, not source
+playwright-report/
+test-results/
+# Bubblewrap / TWA Android build — keep only twa-manifest.json + the doc
+android/*
+!android/twa-manifest.json
+!android/BUILD_ANDROID_APK.md
+*.keystore
+android.keystore
+
+# Tauri desktop wrapper — generated project is gitignored
+desktop/tripmate-desktop/
+desktop/.updater-secret
+.push-vapid-secret.txt
+
+# graphify knowledge-graph output — local analysis artifact, regenerated on demand
+graphify-out/
+
+# Installer binaries served from client/public/download (index.html + latest.json
+# stay tracked — they are the update manifest; the .exe/.apk are build output,
+# published for the auto-updater but never source)
+client/public/download/*.exe
+client/public/download/*.apk
+client/public/download/*.msi
+client/public/download/*.dmg
+client/public/download/*.blockmap

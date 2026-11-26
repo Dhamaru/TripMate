@@ -1,0 +1,670 @@
+/* Fonts loaded via index.html for better LCP */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────
+   TripMate — Passport & Visa Stamp Design System
+   THESIS: your passport, stamped at every stage of a trip.
+   Kraft/parchment (light) · ink-navy under a customs lamp (dark)
+   IBM Plex Serif (headers) / IBM Plex Sans (body) / IBM Plex Mono (data)
+   Ink roles: ink-blue (primary/CTA) · customs-blue (planning) ·
+              transit-green (active) · stamp-red (completed/alert)
+   ───────────────────────────────────────────────────────── */
+
+:root {
+  /* Opt out of browser "auto dark theme" (Chrome/Samsung Internet) — the
+     app manages its own .dark / .light themes; without this, a phone in
+     dark mode force-darkens our UI on top of the theme we already set. */
+  color-scheme: dark;
+
+  /* ── Official Ink Roles (Passport & Visa Stamp System) ──── */
+  --ink-blue: #163f73; /* primary action ink */
+  --ink-blue-rgb: 22 63 115;
+  --customs-blue: #1d4e89; /* planning status ink */
+  --customs-blue-rgb: 29 78 137;
+  --customs-blue-deep: #122a47; /* darkened customs-blue, per DESIGN.md's
+    spec'd value — was referenced by TripStatusBadge.tsx's "upcoming" stamp
+    but never defined, same class of bug as --stamp-red-deep below: the
+    badge's background silently dropped entirely (invalid rgb() var). */
+  --customs-blue-deep-rgb: 18 42 71;
+  --transit-green: #2f6f4e; /* active status ink */
+  --transit-green-rgb: 47 111 78;
+  --transit-green-deep: #1e4a34; /* darkened transit-green -- not in
+    DESIGN.md, pattern-matched from stamp-red-deep's ~40% darkening; was
+    referenced by TripStatusBadge.tsx's "ongoing" stamp but never defined,
+    same silently-dropped-background bug as customs-blue-deep above. */
+  --transit-green-deep-rgb: 30 74 52;
+  --stamp-red: #b3261e; /* alert / completed ink */
+  --stamp-red-rgb: 179 38 30;
+  --stamp-red-deep: #8b1a13; /* darkened stamp-red — was referenced by
+    Layout.tsx's offline banner, TripCard.tsx and TripDetail.tsx but never
+    actually defined, so all three rendered with no background at all */
+  --stamp-red-deep-rgb: 139 26 19;
+  --warning-amber: #d97706; /* departure alerts / time-sensitive notes */
+  --warning-amber-rgb: 217 119 6;
+  --ink-blue-bright: #4f82c4; /* ink-blue, lifted for readable text/links
+    on dark navy surfaces — --ink-blue itself is ~1.6:1 against --card and
+    fails contrast for interactive text (design-audit P0, NotificationBell) */
+  --ink-blue-bright-rgb: 79 130 196;
+
+  /* ── 8-Way Activity Category Ink Register ─────────────────── */
+  /* Text roles. The inks above are dark fills: fine with white text on top and
+     as text on light paper, but only 1.6-3.3:1 as text on the dark theme. Use
+     these for text and the plain inks for fills. */
+  --ink-blue-text: #6fa0e0;
+  /* For panels that stay dark in both themes (the auth screens). */
+  --ink-blue-on-dark: #6fa0e0;
+  --stamp-red-text: #f2837b;
+  --transit-green-text: #5cc08d;
+  --ink-sightseeing-text: #8ab4f0;
+  --ink-dining-text: #f0a070;
+  --ink-lodging-text: #a0aec0;
+  --ink-transit-text: #6fa0e0;
+  --ink-culture-text: #d9a441;
+  --ink-nature-text: #5cc08d;
+  --ink-nightlife-text: #f2837b;
+  --ink-shopping-text: #4fc4b0;
+  --ink-sightseeing: #1e3a8a;
+  --ink-sightseeing-rgb: 30 58 138;
+  --ink-dining: #c2410c;
+  --ink-dining-rgb: 194 65 12;
+  --ink-lodging: #334155;
+  --ink-lodging-rgb: 51 65 85;
+  --ink-transit: #1d4e89;
+  --ink-transit-rgb: 29 78 137;
+  --ink-culture: #854d0e;
+  --ink-culture-rgb: 133 77 14;
+  --ink-nature: #2f6f4e;
+  --ink-nature-rgb: 47 111 78;
+  --ink-nightlife: #b3261e;
+  --ink-nightlife-rgb: 179 38 30;
+  --ink-shopping: #0f766e;
+  --ink-shopping-rgb: 15 118 110;
+
+  /* ── Brand constants (backward-compatible legacy bridges) ─── */
+  --amber: var(--ink-blue); /* deep ink-blue — primary action ink */
+  --amber-rgb: 22 63 115; /* space-separated channel form for rgb(var(...) / N%) */
+  --amber-dim: rgba(22, 63, 115, 0.12);
+  --amber-glow: rgba(22, 63, 115, 0.22);
+  --amber-hover-border: rgba(22, 63, 115, 0.5);
+  --forest: var(--transit-green);
+  --forest-rgb: 47 111 78;
+  --cream: #ede3cc; /* kraft/parchment paper */
+  --ink: #0d1b2e; /* ink-navy dark ground */
+
+  /* ── Radius ─────────────────────────────────────────── */
+  --radius: 0.75rem;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 12px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ─────────────────────────────────────────── */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-hover: 0 0 0 1px var(--amber-dim), 0 4px 24px rgba(0, 0, 0, 0.35);
+
+  /* ── Dark (default) tokens — ink-navy under a customs-desk lamp ────
+     Surface ramp rebuilt 2026-09-08 (design-audit P0): the previous
+     ramp spanned background 11% -> border 22%, an 11-point range that
+     reads as one flat navy field on a real monitor (design-auditor
+     agent finding, confirmed live). Rebuilt to a 5-step ramp spanning
+     ~19 points (7% -> 26%) so page/card/raised/input/border are each
+     visibly distinct without touching hue or violating the no-drop-
+     shadow elevation rule — depth comes from lightness steps, not
+     shadows. --hairline-lit is a new top-edge highlight token (the
+     Linear/Arc "simulated light source" trick) for future use on
+     elevated surfaces; not yet wired into a shared component. */
+  --background: 211 44% 7%; /* page ground — was 11%, darkened for headroom */
+  --foreground: 38 25% 88%; /* #EDE6D6 warm parchment text */
+
+  --card: 211 38% 12%; /* elevated ink-navy surface — was 15%, now step 1 */
+  --card-foreground: 38 25% 88%;
+
+  --popover: 211 36% 15%; /* raised surface — dropdowns, popovers, hovered rows */
+  --popover-foreground: 38 25% 88%;
+
+  --primary: 211 68% 27%; /* #163F73 ink-blue         */
+  --primary-foreground: 0 0% 98%;
+
+  --secondary: 211 28% 17%;
+  --secondary-foreground: 38 20% 80%;
+
+  --muted: 211 26% 17%;
+  --muted-foreground: 210 14% 58%;
+
+  --accent: 211 28% 19%;
+  --accent-foreground: 38 20% 80%;
+
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 211 20% 26%; /* subtle cool-ink border — top of the ramp */
+  --input: 211 24% 21%;
+  --ring: 211 70% 66%;
+
+  --hairline-lit: 0 0% 100% / 6%; /* simulated top-edge light source */
+
+  /* ── Sidebar ─────────────────────────────────────────── */
+  --sidebar: 211 46% 5%;
+  --sidebar-foreground: 38 25% 88%;
+  --sidebar-primary: 211 68% 27%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 211 28% 17%;
+  --sidebar-accent-foreground: 38 20% 80%;
+  --sidebar-border: 211 22% 21%;
+  --sidebar-ring: 211 70% 66%;
+
+  /* ── Legacy bridge (used by older components) ─────────── */
+  --airbnb-ink: hsl(var(--foreground));
+  --airbnb-primary: var(--amber);
+  --airbnb-primary-active: #0f2c52;
+  --airbnb-canvas: hsl(var(--card));
+  --airbnb-surface: hsl(var(--muted));
+  --airbnb-muted: hsl(var(--muted-foreground));
+  --airbnb-hairline: hsl(var(--border));
+  --airbnb-hairline-soft: hsl(var(--border));
+  --airbnb-body: hsl(var(--foreground));
+  --airbnb-teal: var(--forest);
+  --solar-amber: var(--amber);
+  --explorer-blue: #1d4e89; /* customs-blue — planning status ink */
+  --explorer-blue-rgb: 29 78 137;
+  --explorer-blue-deep: #122a47;
+  --emerald-horizon: #3d9467; /* transit-green — active status ink */
+  --emerald-horizon-rgb: 61 148 103;
+  --ios-blue: #1d4e89;
+  --ios-orange: var(--amber);
+  --ios-green: #3d9467;
+  --ios-red: #b3261e;
+  --ios-red-rgb: 179 38 30;
+  --ios-gray: #94a3b8;
+  --ios-dark: #16283f;
+  --ios-darker: #0d1b2e;
+  --ios-card: rgba(19, 33, 53, 0.92);
+}
+
+/* ── Light mode overrides — kraft/parchment passport page ─────────── */
+.light {
+  color-scheme: light;
+  --ink-blue-text: #163f73;
+  --stamp-red-text: #b3261e;
+  --transit-green-text: #2f6f4e;
+  --ink-sightseeing-text: #1e3a8a;
+  --ink-dining-text: #c2410c;
+  --ink-lodging-text: #334155;
+  --ink-transit-text: #1d4e89;
+  --ink-culture-text: #854d0e;
+  --ink-nature-text: #2f6f4e;
+  --ink-nightlife-text: #b3261e;
+  --ink-shopping-text: #0f766e;
+  --background: 42 38% 90%; /* kraft/parchment paper    */
+  --foreground: 211 40% 14%; /* ink-navy text            */
+
+  --card: 40 35% 96%; /* fresh visa-stamp page    */
+  --card-foreground: 211 40% 14%;
+
+  --popover: 40 35% 97%;
+  --popover-foreground: 211 40% 14%;
+
+  --primary: 211 60% 32%; /* ink-blue                 */
+  --primary-foreground: 42 38% 96%;
+
+  --secondary: 40 25% 88%;
+  --secondary-foreground: 211 40% 14%;
+
+  --muted: 40 25% 88%;
+  --muted-foreground: 211 14% 40%;
+
+  --accent: 40 25% 88%;
+  --accent-foreground: 211 40% 14%;
+
+  --destructive: 0 72% 42%; /* white text on it was 3.8:1 at 60% */
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 40 20% 78%;
+  --input: 40 20% 78%;
+  --ring: 211 60% 32%;
+
+  --sidebar: 42 38% 92%;
+  --sidebar-foreground: 211 40% 14%;
+  --sidebar-primary: 211 60% 32%;
+  --sidebar-primary-foreground: 42 38% 96%;
+  --sidebar-accent: 40 25% 88%;
+  --sidebar-accent-foreground: 211 40% 14%;
+  --sidebar-border: 40 20% 78%;
+  --sidebar-ring: 211 60% 32%;
+
+  --airbnb-ink: #16283f;
+  --airbnb-canvas: #f7f0dd;
+  --airbnb-surface: #fbf6ea;
+  --ios-card: rgba(247, 240, 221, 0.85);
+}
+
+/* `:root` already carries the full dark palette (dark is the default; `.light`
+   is the override). `.dark` exists only for the explicit toggle and must NOT
+   redefine the surface ramp — it previously pinned the pre-2026-09-08 flat
+   ramp (background 11% -> border 22%) and, since ThemeProvider always writes
+   `.dark` to <html>, that override silently shadowed the rebuilt `:root` ramp
+   above on every load. Keep this to `color-scheme` only; inherit the rest. */
+.dark {
+  color-scheme: dark;
+}
+
+/* ── Base Styles ──────────────────────────────────────── */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family:
+      "IBM Plex Sans",
+      -apple-system,
+      BlinkMacSystemFont,
+      system-ui,
+      "Helvetica Neue",
+      sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.55;
+    margin: 0;
+    /* paper-grain texture overlay */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary));
+    color: #ffffff;
+  }
+
+  /* Browser surface theming — discrete themed scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "IBM Plex Serif", Georgia, serif;
+    color: hsl(var(--foreground));
+    font-weight: 700;
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+}
+
+/* ── Design Utilities ─────────────────────────────────── */
+
+@layer utilities {
+  /* Serif display utility */
+  .font-display {
+    font-family: "IBM Plex Serif", Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+  /* Sans utility */
+  .font-sans-clean {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    letter-spacing: 0;
+  }
+  /* Mono data utility — dates, prices, flight-style codes */
+  .font-mono-data {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Staggered fade-up animations */
+  .animate-fade-up {
+    animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-fade-up-delay-1 {
+    animation-delay: 0.08s;
+  }
+  .animate-fade-up-delay-2 {
+    animation-delay: 0.16s;
+  }
+  .animate-fade-up-delay-3 {
+    animation-delay: 0.24s;
+  }
+  .animate-fade-up-delay-4 {
+    animation-delay: 0.32s;
+  }
+
+  /* Amber glow */
+  .glow-amber {
+    box-shadow:
+      0 0 20px var(--amber-glow),
+      0 0 48px rgba(22, 63, 115, 0.08);
+  }
+  /* Card hover glow */
+  .card-hover-glow {
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .card-hover-glow:hover {
+    box-shadow: var(--shadow-hover);
+    border-color: var(--amber-hover-border) !important;
+  }
+  /* Amber left border active indicator */
+  .nav-active-bar {
+    position: relative;
+  }
+  .nav-active-bar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 2px;
+    background: var(--amber);
+    border-radius: 0 2px 2px 0;
+  }
+  /* Uppercase label — tracked mono, like an official form field label */
+  .label-xs {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  /* Big serif number/stat — stamped numeral */
+  .stat-display {
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-weight: 700;
+  }
+  /* Rotated ink-stamp badge */
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    transform: rotate(-3deg);
+    border: 2px solid currentColor;
+    border-radius: 3px;
+    padding: 2px 10px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 0 0 1px currentColor inset;
+    opacity: 0.92;
+  }
+  /* Ink-stamp press — primary CTAs compress + flash on click, like a stamp hitting paper */
+  .stamp-press {
+    transition:
+      transform 0.12s ease,
+      filter 0.12s ease;
+  }
+  .stamp-press:active {
+    transform: scale(0.96);
+    filter: brightness(0.85);
+  }
+  /* Perforated ticket-stub edge (dashed, like a boarding-pass tear line) */
+  .perforated-edge {
+    border-top: 2px dashed hsl(var(--border));
+  }
+  /* Official document double hairline rule */
+  .rule-double {
+    border-top: 1px solid hsl(var(--border));
+    border-bottom: 1px solid hsl(var(--border));
+    padding-block: 2px;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Landing page destination showcase — the track holds the list twice back
+   to back, so translating exactly -50% loops seamlessly with no visible
+   seam or reset-jump. */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.animate-marquee {
+  animation: marquee-scroll 40s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+/* ── Leaflet map attribution ─────────────────────────────
+   Only the full-bleed Offline Maps page needs its bottom controls pushed
+   above the fixed mobile bottom nav — this used to be a GLOBAL rule, which
+   also shoved the attribution 84px up INTO the content of the smaller
+   in-card map on the Trip Detail page. Scoped to .offline-maps-root now. */
+@media (max-width: 767px) {
+  .offline-maps-root .leaflet-bottom {
+    bottom: 84px !important;
+  }
+}
+/* Keep the attribution compact + tucked into the corner on every map —
+   the default renders as a wide bar that eats a small in-card map. */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  line-height: 1.3 !important;
+  padding: 1px 5px !important;
+  background: hsl(var(--card) / 0.82) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  max-width: 60vw;
+}
+.leaflet-control-attribution a {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* ── Root ─────────────────────────────────────────────── */
+
+#root {
+  min-height: 100vh;
+}
+
+/* ── Component tweaks ─────────────────────────────────── */
+
+@layer components {
+  /* Quick-action icon containers — ink-stamp tints */
+  /* Textured ink surface for a missing-photo hero fallback — replaces a
+     previous from-[#1D4E89]-to-purple-600 gradient block, which both
+     violated DESIGN.md's Don't-render-a-gradient-as-a-photo-placeholder
+     rule and introduced an off-system purple (design-audit P0). */
+  .hero-fallback-ink {
+    background-color: hsl(var(--card));
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.1'/%3E%3C/svg%3E");
+  }
+
+  /* Theme-aware ink: fixed colours here were ~1.6:1 on the dark card. */
+  .icon-tint-amber,
+  .icon-tint-blue {
+    background: rgb(var(--ink-blue-rgb) / 0.14);
+    color: var(--ink-blue-text);
+  }
+  .icon-tint-green {
+    background: rgb(var(--transit-green-rgb) / 0.14);
+    color: var(--transit-green-text);
+  }
+  .icon-tint-red {
+    background: rgb(var(--stamp-red-rgb) / 0.12);
+    color: var(--stamp-red-text);
+  }
+
+  /* Status badge — an ink stamp, not a SaaS pill */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    transform: rotate(-2deg);
+  }
+  .status-planning {
+    background: rgb(var(--ink-blue-rgb) / 0.12);
+    color: var(--ink-blue-text);
+    border: 2px solid var(--ink-blue-text);
+  }
+  .status-active {
+    background: rgb(var(--transit-green-rgb) / 0.12);
+    color: var(--transit-green-text);
+    border: 2px solid var(--transit-green-text);
+  }
+  .status-completed {
+    background: rgb(var(--stamp-red-rgb) / 0.12);
+    color: var(--stamp-red-text);
+    border: 2px solid var(--stamp-red-text);
+  }
+
+  /* Atlas typing indicator — three pulsing dots shown while waiting on the
+     first token. These classes previously had no CSS anywhere in the repo,
+     so the component rendered three zero-size empty spans: for the full
+     20-30s provider-fallback latency, the chat panel showed nothing at all
+     instead of any "Atlas is thinking" signal. */
+  .typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    border-radius: 1rem 1rem 1rem 0.25rem;
+    background: hsl(var(--muted) / 0.8);
+    border: 1px solid hsl(var(--border) / 0.5);
+    width: fit-content;
+  }
+  .typing-indicator__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: hsl(var(--muted-foreground));
+    animation: typing-bounce 1.2s infinite ease-in-out;
+  }
+  .typing-indicator__dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .typing-indicator__dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes typing-bounce {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.5;
+    }
+    30% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
+
+  /* Atlas suggested-action chips — same missing-CSS issue as above: rendered
+     as unstyled stacked buttons with no spacing or visual affordance. */
+  .suggested-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 16px 12px;
+  }
+  .suggested-actions__chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    color: var(--ink-blue-text);
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+      background-color 0.15s,
+      border-color 0.15s;
+  }
+  .suggested-actions__chip:hover {
+    background: hsl(var(--muted));
+    border-color: var(--explorer-blue);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing-indicator__dot {
+      animation: none;
+      opacity: 0.8;
+    }
+  }
+
+  /* Referenced across all four auth pages (Sign In/Up, Forgot/Reset Password)
+     but never defined anywhere the app actually imports — client/src/styles/index.css
+     has a real .smooth-transition rule, but that file is never imported by
+     main.tsx or anything else, so it never reached the browser. Same phantom-
+     class shape as .typing-indicator above. */
+  .radius-card {
+    border-radius: var(--radius-lg, 20px);
+  }
+  .smooth-transition {
+    transition: all 150ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .smooth-transition {
+      transition: none;
+    }
+  }
+}

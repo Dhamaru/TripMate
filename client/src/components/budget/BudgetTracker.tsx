@@ -1,0 +1,679 @@
+import { useState } from "react";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { splitByCurrency, formatOther } from "@/lib/expenseTotals";
+import type { Trip } from "@/types/api.types";
+import { type IExpense } from "@shared/schema";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
+import { useTripStore } from "@/store";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { Trash2, Plus, Pencil, AlertTriangle, TrendingUp, Lightbulb } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
+
+interface BudgetTrackerProps {
+  trip: Trip;
+  // View-only collaborators: the server refuses their edits, so hide the controls.
+  canEdit?: boolean;
+}
+
+// On-system category ink tokens (design-audit P0 fix — this was the
+// Recharts documentation's default demo palette, verbatim, on the app's
+// budget screen. Reusing the same 6-way activity-category ink register
+// index.css already defines rather than inventing a 7th color set).
+const COLORS = [
+  "#4f82c4", // --ink-sightseeing, lifted: the ink itself vanishes on the dark card
+  "#c2410c", // --ink-dining
+  "#64748b", // --ink-lodging, lifted for the same reason
+  "#854d0e", // --ink-culture
+  "#2f6f4e", // --ink-nature
+  "#0f766e", // --ink-shopping
+];
+
+const CATEGORIES = ["Accommodation", "Food", "Transport", "Activities", "Shopping", "Other"];
+
+export function BudgetTracker({ trip, canEdit = true }: BudgetTrackerProps) {
+  const { toast } = useToast();
+  const [isAdding, setIsAdding] = useState(false);
+  const [newExpense, setNewExpense] = useState<Partial<IExpense>>({
+    amount: 0,
+    currency: trip.currency || "INR",
+    category: "Food",
+    description: "",
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editExpense, setEditExpense] = useState<Partial<IExpense>>({});
+
+  const expenses = trip.expenses || [];
+
+  const { data: forecast, isLoading: forecasting } = useQuery<any>({
+    queryKey: [`/api/v1/trips/${trip.id}/budget-forecast`],
+    enabled: !!trip.id,
+  });
+
+  // Calculate itinerary costs — the Add Activity form shows "Est. Cost"
+  // and "Entry Fee" as two separate, always-visible fields with no
+  // indication one doesn't count toward the trip total; only summing
+  // `cost` silently dropped whatever a user entered under Entry Fee.
+  let itineraryCost = 0;
+  if (Array.isArray(trip.itinerary)) {
+    trip.itinerary.forEach((day: any) => {
+      if (Array.isArray(day.activities)) {
+        day.activities.forEach((act: any) => {
+          itineraryCost += (Number(act.cost) || 0) + (Number(act.entryFee) || 0);
+        });
+      }
+    });
+  }
+
+  // Only expenses in the trip's currency are added up; others are listed below the total.
+  const { inTripCurrency: manualSpent, other: otherCurrencies } = splitByCurrency(
+    expenses,
+    trip.currency,
+  );
+  // Round trip from the trip's origin, estimated by the server; 0/unset = none.
+  const transit = Number(trip.transitEstimate || 0);
+  const plannedCost = itineraryCost + transit;
+  const totalSpent = manualSpent + plannedCost;
+  const budget = trip.budget || 0;
+  const remaining = budget - totalSpent;
+
+  // "Spent" previously meant this whole total unconditionally — a user who
+  // just created a trip and logged zero real expenses would see a nonzero
+  // "Spent" figure the moment the AI itinerary's own entry-fee/cost
+  // estimates got summed in, before a single rupee actually left their
+  // pocket ("i have just created the trip why its showing spent?", a real
+  // user report). The number itself is useful (it's how much of the
+  // budget the current plan is on track to use), but calling it "Spent"
+  // when it's entirely planned/estimated reads as the app claiming money
+  // was already charged. Label reflects what's actually behind the figure.
+  const spentLabel =
+    manualSpent === 0 && plannedCost > 0
+      ? "Estimated (planned)"
+      : manualSpent > 0 && plannedCost > 0
+        ? "Spent + planned"
+        : "Spent";
+
+  // Prepare Chart Data
+  // We add an "AI Itinerary" slice to the pie chart to represent the planned activities
+  const chartData = CATEGORIES.map((cat) => {
+    let value = splitByCurrency(
+      expenses.filter((e) => e.category === cat),
+      trip.currency,
+    ).inTripCurrency;
+
+    // If the category is Activities, include the AI itinerary cost
+    if (cat === "Activities" && itineraryCost > 0) {
+      value += itineraryCost;
+    }
+
+    return { name: cat, value };
+  }).filter((d) => d.value > 0);
+
+  if (transit > 0) {
+    chartData.push({ name: "Getting there & back", value: transit });
+  }
+
+  // Travelers who log their real tickets don't want the estimate counted too.
+  const removeTransit = async () => {
+    const res = await apiRequest("PUT", `/api/v1/trips/${trip.id}`, { transitEstimate: 0 });
+    if (!res.ok) {
+      toast({
+        title: "Couldn't remove the estimate",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    useTripStore.getState().fetchTrip(trip.id!);
+  };
+
+  const handleAdd = async () => {
+    if (!newExpense.amount || !newExpense.description) {
+      toast({
+        title: "Missing details",
+        description: "Enter an amount and a description to save this expense.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (Number(newExpense.amount) <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Amount must be greater than zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // apiRequest() never throws on a non-2xx response, so the server's
+      // 400 on an invalid amount was previously read as success — the
+      // form closed and reset as if the expense had saved, with nothing
+      // actually written and no error shown.
+      const res = await apiRequest("POST", `/api/v1/trips/${trip.id}/expenses`, {
+        ...newExpense,
+        date: new Date(),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Failed to add expense (${res.status})`);
+      }
+      useTripStore.getState().fetchTrip(trip.id!);
+      setIsAdding(false);
+      setNewExpense({
+        amount: 0,
+        currency: trip.currency || "INR",
+        category: "Food",
+        description: "",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to add expense",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startEdit = (expense: IExpense) => {
+    setIsAdding(false);
+    setEditingId(expense.id);
+    setEditExpense({
+      amount: expense.amount,
+      currency: expense.currency,
+      category: expense.category,
+      description: expense.description,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditExpense({});
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    if (!editExpense.amount || !editExpense.description) return;
+    if (Number(editExpense.amount) <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Amount must be greater than zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const res = await apiRequest(
+        "PUT",
+        `/api/v1/trips/${trip.id}/expenses/${editingId}`,
+        editExpense,
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Failed to update expense (${res.status})`);
+      }
+      useTripStore.getState().fetchTrip(trip.id!);
+      cancelEdit();
+    } catch (error) {
+      toast({
+        title: "Failed to update expense",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await apiRequest("DELETE", `/api/v1/trips/${trip.id}/expenses/${id}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Failed to delete expense (${res.status})`);
+      }
+      useTripStore.getState().fetchTrip(trip.id!);
+    } catch (error) {
+      toast({
+        title: "Failed to delete expense",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* AI Burn Rate Alert */}
+      <AnimatePresence>
+        {forecast?.burnRate > 1 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Card className="bg-[rgb(var(--stamp-red-rgb)/10%)] border-[rgb(var(--stamp-red-rgb)/20%)] overflow-hidden">
+              <CardContent className="p-4 flex items-start gap-3">
+                <div className="p-2 bg-[rgb(var(--stamp-red-rgb)/20%)] rounded-full text-[var(--stamp-red-text)]">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-[var(--stamp-red-text)]">
+                      High Burn Rate Detected
+                    </h4>
+                    <Badge
+                      variant="outline"
+                      className="text-[var(--stamp-red-text)] border-[rgb(var(--stamp-red-rgb)/50%)] bg-[rgb(var(--stamp-red-rgb)/10%)]"
+                    >
+                      {Math.round((forecast.burnRate - 1) * 100)}% Over Target
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-[rgb(var(--stamp-red-rgb)/70%)] mt-1">
+                    Your current spending pace exceeds your proportional daily budget.
+                    {forecast.alerts?.[0] ||
+                      "We recommend reviewing your upcoming planned expenses."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Side by side only from lg: next to the sidebar on tablets each card
+          was ~200px and the totals ran into the card edge. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Summary Card */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Budget Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between mb-4 text-foreground">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Budget</p>
+                <p className="text-2xl font-bold font-mono-data tabular-nums">
+                  {trip.currency || "INR"} {budget.toLocaleString()}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">{spentLabel}</p>
+                <p className="text-2xl font-bold font-mono-data tabular-nums text-[var(--ink-blue-text)]">
+                  {trip.currency || "INR"} {totalSpent.toLocaleString()}
+                </p>
+              </div>
+            </div>
+            <div className="w-full bg-secondary h-4 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${remaining < 0 ? "bg-[var(--stamp-red)]" : "bg-[var(--transit-green)]"}`}
+                style={{ width: `${Math.min((totalSpent / (budget || 1)) * 100, 100)}%` }}
+              />
+            </div>
+            <p
+              className={`text-right mt-2 text-sm font-mono-data tabular-nums ${remaining < 0 ? "text-[var(--stamp-red-text)]" : "text-[var(--transit-green-text)]"}`}
+            >
+              {remaining < 0
+                ? `Over budget by ${Math.abs(remaining).toLocaleString()}`
+                : `${remaining.toLocaleString()} remaining`}
+            </p>
+            {Object.keys(otherCurrencies).length > 0 && (
+              <p
+                className="mt-3 text-xs text-muted-foreground"
+                data-testid="other-currency-expenses"
+              >
+                Not included above:{" "}
+                <span className="font-mono-data tabular-nums text-foreground">
+                  {formatOther(otherCurrencies)}
+                </span>{" "}
+                in other currencies.
+              </p>
+            )}
+            {transit > 0 && (
+              <div
+                className="mt-3 flex items-start justify-between gap-3 text-xs text-muted-foreground"
+                data-testid="transit-estimate"
+              >
+                <p>
+                  Includes about{" "}
+                  <span className="font-mono-data tabular-nums text-foreground">
+                    {trip.currency || "INR"} {transit.toLocaleString()}
+                  </span>{" "}
+                  to get from {trip.origin} to {trip.destination} and back (rough estimate).
+                </p>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={removeTransit}
+                    className="shrink-0 underline underline-offset-2 hover:text-foreground"
+                    data-testid="button-remove-transit"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Chart Card */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground">Spending Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[260px]">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    // Relative, so the donut fits the narrow tablet card.
+                    innerRadius="45%"
+                    outerRadius="80%"
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      color: "hsl(var(--foreground))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                    itemStyle={{ color: "hsl(var(--foreground))" }}
+                  />
+                  <Legend
+                    // Below the donut: beside it, labels ran over the chart on
+                    // tablet widths where this card is ~200px wide.
+                    layout="horizontal"
+                    align="center"
+                    verticalAlign="bottom"
+                    // Labels in the text colour; the swatch carries the slice colour.
+                    formatter={(value) => <span className="text-foreground">{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                No expenses logged yet.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* AI Insights & Pivots */}
+      <AnimatePresence>
+        {forecast?.pivots?.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="bg-[#1D4E89]/5 border-[#1D4E89]/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-[var(--ink-blue-text)]" />
+                  AI Smart Pivots
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {forecast.pivots.map((pivot: string, i: number) => (
+                    <div
+                      key={i}
+                      className="flex gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border/50"
+                    >
+                      <div className="text-[var(--ink-blue-text)] font-bold">#{i + 1}</div>
+                      <div>{pivot}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between text-xs pt-4 border-t border-border/50">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <TrendingUp className="w-4 h-4" />
+                    Est. Final Cost:{" "}
+                    <span className="text-foreground font-bold">
+                      {trip.currency || "INR"} {forecast?.estimatedFinalCost?.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="text-[var(--ink-blue-text)] flex items-center gap-1">
+                    <i className="fas fa-robot"></i> AI Forecast
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Expense List & Add Form */}
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-foreground">Expenses</CardTitle>
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAdding(!isAdding)}
+              data-testid="button-add-expense"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Add Expense
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {canEdit && isAdding && (
+            <div className="mb-4 p-4 bg-secondary rounded-lg grid gap-4 md:grid-cols-4 items-end">
+              <div>
+                <label
+                  htmlFor="expense-description"
+                  className="text-xs text-muted-foreground mb-1 block"
+                >
+                  Description
+                </label>
+                <Input
+                  id="expense-description"
+                  value={newExpense.description}
+                  onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                  placeholder="Lunch, Taxi, etc."
+                  className="bg-background border-border text-foreground"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="expense-amount"
+                  className="text-xs text-muted-foreground mb-1 block"
+                >
+                  Amount
+                </label>
+                <Input
+                  id="expense-amount"
+                  type="number"
+                  value={newExpense.amount}
+                  onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
+                  className="bg-background border-border text-foreground"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="expense-category"
+                  className="text-xs text-muted-foreground mb-1 block"
+                >
+                  Category
+                </label>
+                <Select
+                  value={newExpense.category}
+                  onValueChange={(val: any) => setNewExpense({ ...newExpense, category: val })}
+                >
+                  <SelectTrigger
+                    id="expense-category"
+                    className="bg-background border-border text-foreground"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleAdd} className="bg-[#1D4E89] hover:bg-[#1D4E89]/90">
+                Save
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {expenses.length === 0 && !isAdding && (
+              <div className="text-center text-muted-foreground py-4">No expenses recorded.</div>
+            )}
+            {expenses.map((expense) =>
+              editingId === expense.id ? (
+                <div
+                  key={expense.id}
+                  className="p-4 bg-secondary rounded-lg grid gap-4 md:grid-cols-4 items-end"
+                >
+                  <div>
+                    <label
+                      htmlFor="expense-description-2"
+                      className="text-xs text-muted-foreground mb-1 block"
+                    >
+                      Description
+                    </label>
+                    <Input
+                      id="expense-description-2"
+                      value={editExpense.description}
+                      onChange={(e) =>
+                        setEditExpense({ ...editExpense, description: e.target.value })
+                      }
+                      className="bg-background border-border text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="expense-amount-2"
+                      className="text-xs text-muted-foreground mb-1 block"
+                    >
+                      Amount
+                    </label>
+                    <Input
+                      id="expense-amount-2"
+                      type="number"
+                      value={editExpense.amount}
+                      onChange={(e) =>
+                        setEditExpense({ ...editExpense, amount: Number(e.target.value) })
+                      }
+                      className="bg-background border-border text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="expense-category-2"
+                      className="text-xs text-muted-foreground mb-1 block"
+                    >
+                      Category
+                    </label>
+                    <Select
+                      value={editExpense.category}
+                      onValueChange={(val: any) =>
+                        setEditExpense({ ...editExpense, category: val })
+                      }
+                    >
+                      <SelectTrigger
+                        id="expense-category-2"
+                        className="bg-background border-border text-foreground"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSaveEdit}
+                      className="bg-[#1D4E89] hover:bg-[#1D4E89]/90 flex-1"
+                    >
+                      Save
+                    </Button>
+                    <Button variant="outline" onClick={cancelEdit}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={expense.id}
+                  // Stacked on phones: amount + buttons beside the text left the
+                  // description no room at 390px.
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-secondary rounded-lg"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-[#1D4E89]/10 flex items-center justify-center text-[var(--ink-blue-text)]">
+                      <i
+                        className={`fas fa-${expense.category === "Food" ? "utensils" : expense.category === "Transport" ? "car" : "tag"}`}
+                      ></i>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground truncate">
+                        {expense.description}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {expense.category} • {new Date(expense.date).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                    <div className="font-bold text-foreground mr-1 whitespace-nowrap font-mono-data tabular-nums">
+                      {expense.currency} {Number(expense.amount).toLocaleString()}
+                    </div>
+                    {canEdit && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startEdit(expense)}
+                          aria-label={`Edit ${expense.description}`}
+                          className="text-muted-foreground hover:text-foreground hover:bg-muted h-10 w-10"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <ConfirmDeleteButton
+                          onConfirm={() => handleDelete(expense.id)}
+                          label={`Delete ${expense.description}`}
+                          testId={`button-delete-expense-${expense.id}`}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

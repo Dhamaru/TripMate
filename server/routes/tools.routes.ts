@@ -1,0 +1,361 @@
+import { Router } from "express";
+import * as toolsController from "../controllers/tools.controller";
+import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
+import {
+  generationLimiter,
+  aiLimiter,
+  placesPhotoLimiter,
+  apiProxyLimiter,
+} from "../middleware/rateLimit.middleware";
+
+const router = Router();
+
+// ─── Public health & tools endpoints (NO auth required) ────────────────────
+
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Server + DB health check
+ *     responses:
+ *       200:
+ *         description: ok or degraded
+ */
+router.get("/health", toolsController.health);
+
+/**
+ * @swagger
+ * /atlas/health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Atlas AI provider circuit-breaker status — which providers are currently healthy
+ *     responses:
+ *       200:
+ *         description: ok or degraded
+ */
+router.get("/atlas/health", toolsController.atlasHealth);
+
+/**
+ * @swagger
+ * /public/stats:
+ *   get:
+ *     tags: [Public]
+ *     summary: Real, live platform stats for the landing page (trips planned, destinations, travelers) — QA/guest accounts excluded
+ *     responses:
+ *       200:
+ *         description: stats object
+ */
+router.get("/public/stats", toolsController.getPublicStats);
+
+/**
+ * @swagger
+ * /public/top-destinations:
+ *   get:
+ *     tags: [Public]
+ *     summary: Most-planned real destinations with a representative trip image, for the landing page showcase
+ *     responses:
+ *       200:
+ *         description: destinations array
+ */
+router.get("/public/top-destinations", toolsController.getTopDestinations);
+
+/**
+ * @swagger
+ * /public/destination-image:
+ *   get:
+ *     tags: [Public]
+ *     summary: Same-origin proxy for a top-destination's photo — keeps the upstream Google Places URL (and its embedded API key) off the public client
+ *     parameters:
+ *       - in: query
+ *         name: d
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: image bytes
+ */
+// Security audit finding: this makes one billed Google Places Photo call
+// per request (same expensive shape /places/photo already got a dedicated
+// limiter for) but had no dedicated ceiling — an attacker could loop it
+// unauthenticated for real, unbounded billing. Same limiter as that route.
+// Cached images are served before the limiter: only real upstream fetches count.
+router.get(
+  "/public/destination-image",
+  toolsController.serveCachedDestinationImage,
+  placesPhotoLimiter,
+  toolsController.getDestinationImage,
+);
+
+/**
+ * @swagger
+ * /ping:
+ *   get:
+ *     tags: [Health]
+ *     summary: Liveness ping
+ *     responses:
+ *       200:
+ *         description: pong
+ */
+router.get("/ping", toolsController.ping);
+router.get("/liveness", toolsController.liveness);
+router.get("/readiness", toolsController.readiness);
+router.get("/version", toolsController.version);
+
+/**
+ * @swagger
+ * /currency:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: Latest exchange rates or single conversion
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string }
+ *         description: Base currency (default USD)
+ *       - in: query
+ *         name: to
+ *         schema: { type: string }
+ *         description: Target currency — if omitted returns all rates
+ *       - in: query
+ *         name: amount
+ *         schema: { type: number }
+ *         description: Amount to convert (default 1)
+ *     responses:
+ *       200:
+ *         description: Rate and converted amount
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CurrencyResponse'
+ */
+router.get("/currency", toolsController.latestCurrency);
+router.get("/currency/latest", toolsController.latestCurrency);
+
+/**
+ * @swagger
+ * /currency/history:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: Historical exchange rate series (7–90 days)
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string }
+ *       - in: query
+ *         name: days
+ *         schema: { type: integer, minimum: 7, maximum: 90 }
+ *     responses:
+ *       200:
+ *         description: Array of { date, rate }
+ */
+router.get("/currency/history", toolsController.currencyHistory);
+
+/**
+ * @swagger
+ * /currency/convert:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: AI-assisted currency conversion
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: amount
+ *         required: true
+ *         schema: { type: number }
+ *       - in: query
+ *         name: from
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: to
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Conversion result
+ */
+router.get("/currency/convert", requireAuth, toolsController.convertCurrency);
+
+/**
+ * @swagger
+ * /geocode:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: Forward geocode a place name
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema: { type: string }
+ *         description: Place name to geocode
+ *     responses:
+ *       200:
+ *         description: Array of Nominatim results
+ */
+// Security audit finding: silently falls back to billed Google Places
+// Text/Nearby Search when Nominatim errors, with no dedicated rate limit —
+// a burst from one attacker can push the server's shared Nominatim quota
+// into 429s, forcing every subsequent request (including real users') onto
+// the billed path. /places/search got requireAuth for the same reason;
+// apiProxyLimiter is the minimum bound for an unauthenticated route.
+// optionalAuth: the signed-out landing search uses this, but only signed-in
+// callers can reach the billed Google fallback (see the controller).
+router.get("/geocode", optionalAuth, apiProxyLimiter, toolsController.geocode);
+
+/**
+ * @swagger
+ * /reverse-geocode:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: Reverse geocode lat/lon to address
+ *     parameters:
+ *       - in: query
+ *         name: lat
+ *         required: true
+ *         schema: { type: number }
+ *       - in: query
+ *         name: lon
+ *         required: true
+ *         schema: { type: number }
+ *     responses:
+ *       200:
+ *         description: Nominatim address object
+ */
+router.get("/reverse-geocode", requireAuth, apiProxyLimiter, toolsController.reverseGeocode);
+
+// ─── Protected tool endpoints (auth required) ──────────────────────────────
+
+/**
+ * @swagger
+ * /weather:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: 7-day weather forecast for a city or coordinates
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: city
+ *         schema: { type: string }
+ *         description: City name (or use lat/lon)
+ *       - in: query
+ *         name: lat
+ *         schema: { type: number }
+ *       - in: query
+ *         name: lon
+ *         schema: { type: number }
+ *     responses:
+ *       200:
+ *         description: Weather data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WeatherResponse'
+ */
+router.get("/weather", requireAuth, toolsController.getWeather);
+router.get("/weather/tiles/:layer/:z/:x/:y", requireAuth, toolsController.weatherProxy);
+
+/**
+ * @swagger
+ * /proxy-image:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: Fetch an allowlisted external image server-side (OAuth avatar CDNs) to work around canvas CORS taint
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: url
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Proxied image bytes
+ */
+router.get("/proxy-image", requireAuth, toolsController.proxyImage);
+
+/**
+ * @swagger
+ * /translate:
+ *   post:
+ *     tags: [AI Tools]
+ *     summary: Translate text between languages
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [text, to]
+ *             properties:
+ *               text: { type: string }
+ *               from: { type: string, default: auto }
+ *               to: { type: string, example: hi }
+ *     responses:
+ *       200:
+ *         description: Translation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 translatedText: { type: string }
+ *                 pronunciation: { type: string }
+ */
+router.post("/translate", requireAuth, aiLimiter, toolsController.translateText);
+
+/**
+ * @swagger
+ * /emergency:
+ *   get:
+ *     tags: [AI Tools]
+ *     summary: Nearby emergency services (deprecated — use /emergency/:query)
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Emergency data
+ */
+// aiLimiter: this route is also reachable via the /api/tools legacy-alias
+// mount of this same router (server/index.ts) -- kept registered rather
+// than removed in favor of emergency.routes.ts's newer /emergency/:query
+// path, so that alias doesn't 404. Same unbounded-billed-call risk as the
+// newer route (see emergency.routes.ts's comment), so it needs the same
+// limiter.
+router.get("/emergency", requireAuth, aiLimiter, toolsController.getEmergencyContacts);
+
+/**
+ * @swagger
+ * /planTrip:
+ *   post:
+ *     tags: [AI Tools]
+ *     summary: AI trip planner — generate full itinerary
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               destination: { type: string }
+ *               days: { type: integer }
+ *               budget: { type: number }
+ *               travelers: { type: integer }
+ *               style: { type: string }
+ *     responses:
+ *       200:
+ *         description: Generated trip plan
+ */
+router.post("/planTrip", requireAuth, generationLimiter, toolsController.planTrip);
+router.get("/proactive-insights", requireAuth, aiLimiter, toolsController.getProactiveInsights);
+
+export default router;

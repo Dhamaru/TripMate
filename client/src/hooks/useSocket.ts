@@ -1,0 +1,62 @@
+import { useEffect, useRef } from "react";
+import { io, Socket } from "socket.io-client";
+
+// Module-level singleton: every caller of useSocket() must share the SAME
+// connection. Previously each call created its own independent `io()`
+// connection — on TripDetail.tsx, the direct useSocket() call (listening for
+// trip-mutation) and PresenceBubbles' internal usePresence -> useSocket()
+// call (which emits join-trip) ended up on two disconnected sockets, so the
+// socket that actually joined the trip room never listened for mutations,
+// and the one listening never joined any room. Live updates never worked.
+let sharedSocket: Socket | null = null;
+let refCount = 0;
+
+function getSharedSocket(): Socket {
+  if (!sharedSocket) {
+    sharedSocket = io({
+      path: "/socket.io",
+      transports: ["websocket"],
+      withCredentials: true,
+      autoConnect: true,
+      // Keep trying (with backoff up to 30s): a cap of 5 tries gave up for
+      // good after ~20s of outage, e.g. a deploy or a sleeping phone.
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30_000,
+    });
+
+    sharedSocket.on("connect_error", (error) => {
+      console.warn("[Socket] Connection error:", error.message);
+    });
+    sharedSocket.on("disconnect", (reason) => {
+      // The server drops sockets whose session ended (password change,
+      // revoke, sign-out). socket.io won't retry those on its own; try
+      // once with whatever session cookie this tab now has.
+      if (reason === "io server disconnect") {
+        setTimeout(() => sharedSocket?.connect(), 1000);
+      }
+    });
+  }
+  return sharedSocket;
+}
+
+export const useSocket = () => {
+  const socketRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    const socket = getSharedSocket();
+    socketRef.current = socket;
+    refCount++;
+
+    return () => {
+      refCount--;
+      if (refCount <= 0 && sharedSocket) {
+        sharedSocket.disconnect();
+        sharedSocket = null;
+        refCount = 0;
+      }
+    };
+  }, []);
+
+  return socketRef;
+};
