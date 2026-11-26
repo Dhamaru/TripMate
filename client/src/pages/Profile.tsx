@@ -539,7 +539,12 @@ export default function Profile() {
                 >
                   First Name
                 </label>
-                <Input id="profile-first-name" name="firstName" defaultValue={firstName} />
+                <Input
+                  key={`first-${firstName}`}
+                  id="profile-first-name"
+                  name="firstName"
+                  defaultValue={firstName}
+                />
               </div>
               <div>
                 <label
@@ -548,7 +553,12 @@ export default function Profile() {
                 >
                   Last Name
                 </label>
-                <Input id="profile-last-name" name="lastName" defaultValue={lastName} />
+                <Input
+                  key={`last-${lastName}`}
+                  id="profile-last-name"
+                  name="lastName"
+                  defaultValue={lastName}
+                />
               </div>
               <div>
                 <label
@@ -655,7 +665,7 @@ export default function Profile() {
               <Button
                 type="submit"
                 aria-label="Save changes"
-                disabled={profileMutation.isPending || !!phoneError}
+                disabled={!userData || profileMutation.isPending || !!phoneError}
               >
                 {profileMutation.isPending ? "Saving…" : "Save Changes"}
               </Button>
