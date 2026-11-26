@@ -23,7 +23,7 @@ export default function TermsOfService() {
         </div>
       </nav>
 
-      <div className="pt-24 pb-20 max-w-prose mx-auto px-4 prose dark:prose-invert">
+      <main className="pt-24 pb-20 max-w-prose mx-auto px-4 prose dark:prose-invert">
         <h1 className="text-4xl font-bold mb-8">Terms of Service</h1>
         <p className="text-muted-foreground mb-4">Last updated: December 2025</p>
 
@@ -79,7 +79,7 @@ export default function TermsOfService() {
             you irrevocably submit to the exclusive jurisdiction of the courts in that location.
           </p>
         </section>
-      </div>
+      </main>
     </div>
   );
 }

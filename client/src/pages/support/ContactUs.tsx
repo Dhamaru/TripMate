@@ -67,7 +67,7 @@ export default function ContactUs() {
         </div>
       </nav>
 
-      <div className="pt-24 pb-20 max-w-6xl mx-auto px-4">
+      <main className="pt-24 pb-20 max-w-6xl mx-auto px-4">
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold mb-4">Get in Touch</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -171,7 +171,7 @@ export default function ContactUs() {
             )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

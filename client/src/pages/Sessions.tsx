@@ -11,6 +11,7 @@ interface SessionItem {
   ip?: string;
   userAgent?: string;
   expiresAt?: string;
+  isCurrent?: boolean;
 }
 
 export default function Sessions() {
@@ -39,10 +40,10 @@ export default function Sessions() {
     }
   }
 
-  async function revokeSession(id: string) {
+  async function revokeSession(id: string, isCurrent?: boolean) {
     const res = await apiRequest("POST", `/api/v1/auth/sessions/${id}/revoke`);
     if (!res.ok) return;
-    if (id === "current") {
+    if (isCurrent) {
       // Revoking the current session clears the auth cookie server-side —
       // reload so the app picks up the now-logged-out state and redirects
       // to sign-in, instead of leaving the UI showing a session that no
@@ -98,18 +99,24 @@ export default function Sessions() {
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-md border border-border"
                   >
                     <div className="text-sm min-w-0">
-                      <div className="font-medium">{s.device || "Web browser"}</div>
+                      <div className="font-medium flex items-center gap-2 flex-wrap">
+                        {s.device || "Web browser"}
+                        {s.isCurrent && (
+                          <span className="text-xs font-normal text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                            This device
+                          </span>
+                        )}
+                      </div>
                       <div className="text-muted-foreground">
                         {s.ip}
                         {s.expiresAt &&
-                          ` · Signed in until ${new Date(s.expiresAt).toLocaleDateString(
-                            undefined,
-                            {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )}`}
+                          ` · Signed in until ${new Date(s.expiresAt).toLocaleString(undefined, {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}`}
                       </div>
                       <div className="text-muted-foreground text-xs break-words">{s.userAgent}</div>
                     </div>
@@ -117,7 +124,7 @@ export default function Sessions() {
                       variant="destructive"
                       size="sm"
                       className="self-start sm:self-auto shrink-0"
-                      onClick={() => revokeSession(s.id)}
+                      onClick={() => revokeSession(s.id, s.isCurrent)}
                       data-testid={`button-revoke-${s.id}`}
                     >
                       Revoke

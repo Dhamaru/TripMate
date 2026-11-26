@@ -112,7 +112,7 @@ export default function HelpCenter() {
         </div>
       </nav>
 
-      <div className="pt-24 pb-20 max-w-4xl mx-auto px-4">
+      <main className="pt-24 pb-20 max-w-4xl mx-auto px-4">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">How can we help you?</h1>
           <div className="max-w-lg mx-auto relative">
@@ -191,7 +191,7 @@ export default function HelpCenter() {
             .
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
