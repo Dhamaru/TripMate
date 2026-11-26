@@ -69,7 +69,7 @@ export default function Sessions() {
         >
           ← Back to profile
         </button>
-        <Card className="bg-card border-border">
+        <Card className="bg-muted border-border">
           <CardHeader>
             <h1 className="text-xl font-semibold text-foreground">Signed-in devices</h1>
             <p className="text-sm text-muted-foreground">
