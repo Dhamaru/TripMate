@@ -83,6 +83,8 @@ export default function Profile() {
           const reasons: Record<typeof result.reason, string> = {
             denied:
               "Notification permission was denied — enable it in your browser's site settings.",
+            "prompt-dismissed":
+              "The notification prompt was dismissed. Allow notifications in your browser's site settings, then try again.",
             "not-configured": "Push notifications aren't set up on the server yet.",
             "not-supported": "Your browser doesn't support push notifications.",
             "no-service-worker":

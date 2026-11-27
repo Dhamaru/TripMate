@@ -495,6 +495,7 @@ export default function Feedback() {
               <Button
                 type="submit"
                 disabled={loading}
+                aria-label="Submit feedback"
                 className="w-full bg-[var(--explorer-blue)] hover:bg-[var(--explorer-blue-deep)] text-white py-3 text-lg font-semibold "
               >
                 {loading ? (
@@ -505,11 +506,7 @@ export default function Feedback() {
                 ) : (
                   <>
                     <i className="fas fa-paper-plane mr-2"></i>
-                    {form.type === "bug"
-                      ? "Submit Bug Report"
-                      : form.type === "trip-experience"
-                        ? "Share My Experience"
-                        : "Submit Feedback"}
+                    Submit Feedback
                   </>
                 )}
               </Button>

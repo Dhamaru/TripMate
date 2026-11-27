@@ -418,6 +418,27 @@ export default function TripDetail() {
     queryFn: () => apiRequestJson("GET", `/api/v1/trips/${id}/quiet-places`),
   });
 
+  // AI-backed cards can legitimately take 10-30s. Keep the user informed
+  // instead of leaving a generic "Fetching..." on screen indefinitely.
+  const [hacksTakingLong, setHacksTakingLong] = useState(false);
+  const [quietTakingLong, setQuietTakingLong] = useState(false);
+  useEffect(() => {
+    if (!hacksLoading) {
+      setHacksTakingLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setHacksTakingLong(true), 8000);
+    return () => clearTimeout(timer);
+  }, [hacksLoading]);
+  useEffect(() => {
+    if (!quietLoading) {
+      setQuietTakingLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setQuietTakingLong(true), 8000);
+    return () => clearTimeout(timer);
+  }, [quietLoading]);
+
   useEffect(() => {
     try {
       const count = Array.isArray(sightsResults) ? sightsResults.length : 0;
@@ -1936,12 +1957,22 @@ export default function TripDetail() {
                       </div>
                     ))}
                     {(!hacks || !hacks.hacks?.length) && (
-                      <p className="text-muted-foreground italic text-sm">
-                        {hacksLoading
-                          ? "Fetching smart tips..."
-                          : hacksFailed
-                            ? "Tips aren't available right now. Try again later."
-                            : "No tips for this trip yet."}
+                      <p
+                        className="text-muted-foreground italic text-sm"
+                        aria-live="polite"
+                      >
+                        {hacksLoading ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin mr-2"></i>
+                            {hacksTakingLong
+                              ? "Still generating tips — this usually takes 10–30 seconds."
+                              : "Fetching smart tips..."}
+                          </>
+                        ) : hacksFailed ? (
+                          "Tips aren't available right now. Try again later."
+                        ) : (
+                          "No tips for this trip yet."
+                        )}
                       </p>
                     )}
                   </div>
@@ -2015,12 +2046,22 @@ export default function TripDetail() {
                       </div>
                     ))}
                     {(!quietPlaces?.spots || quietPlaces.spots.length === 0) && (
-                      <p className="text-muted-foreground italic text-sm">
-                        {quietLoading
-                          ? "Discovery in progress..."
-                          : quietFailed
-                            ? "Couldn't look for quiet spots right now. Try again later."
-                            : "No quiet spots found for this area."}
+                      <p
+                        className="text-muted-foreground italic text-sm"
+                        aria-live="polite"
+                      >
+                        {quietLoading ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin mr-2"></i>
+                            {quietTakingLong
+                              ? "Still discovering quiet spots — this usually takes 10–30 seconds."
+                              : "Discovery in progress..."}
+                          </>
+                        ) : quietFailed ? (
+                          "Couldn't look for quiet spots right now. Try again later."
+                        ) : (
+                          "No quiet spots found for this area."
+                        )}
                       </p>
                     )}
                   </div>

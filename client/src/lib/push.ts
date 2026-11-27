@@ -83,6 +83,7 @@ export type PushEnableResult =
       reason:
         | "not-supported"
         | "denied"
+        | "prompt-dismissed"
         | "not-configured"
         | "no-service-worker"
         | "push-service"
@@ -96,8 +97,22 @@ export type PushEnableResult =
 // now comes back as a reason the toast can explain.
 export async function enablePushNotifications(): Promise<PushEnableResult> {
   if (!isPushSupported()) return { ok: false, reason: "not-supported" };
+  if (Notification.permission === "denied") return { ok: false, reason: "denied" };
 
-  const permission = await Notification.requestPermission();
+  // Some embedded browsers never settle the permission promise (the prompt
+  // is auto-dismissed). Don't leave the toggle spinning forever — fall back
+  // to the current permission after 10s and report a dismissed prompt
+  // distinctly from an explicit browser denial.
+  let permissionTimer: ReturnType<typeof setTimeout> | undefined;
+  const permission = await Promise.race([
+    Notification.requestPermission(),
+    new Promise<NotificationPermission>((resolve) => {
+      permissionTimer = setTimeout(() => resolve(Notification.permission), 10000);
+    }),
+  ]).finally(() => {
+    if (permissionTimer) clearTimeout(permissionTimer);
+  });
+  if (permission === "default") return { ok: false, reason: "prompt-dismissed" };
   if (permission !== "granted") return { ok: false, reason: "denied" };
 
   const keyRes = await apiRequest("GET", "/api/v1/push/vapid-public-key");
