@@ -662,6 +662,7 @@ export interface IAtlasConversation extends Document {
     tool_calls?: unknown[];
     tool_call_id?: string;
     name?: string;
+    toolsUsed?: string[];
     timestamp?: Date;
   }>;
   summary?: string;
@@ -686,6 +687,7 @@ const atlasConversationSchema = new Schema<IAtlasConversation>(
         tool_calls: { type: Schema.Types.Mixed },
         tool_call_id: { type: String },
         name: { type: String },
+        toolsUsed: [{ type: String }],
         timestamp: { type: Date, default: Date.now },
       },
     ],
