@@ -71,7 +71,7 @@ export const chat = asyncHandler(async (req: Request, res: Response, next: NextF
       userId,
       [
         { role: "user", content: message },
-        { role: "assistant", content: result.message },
+        { role: "assistant", content: result.message, toolsUsed: result.toolsUsed },
       ],
       {
         totalToolCalls: result.toolsUsed.length,
@@ -173,7 +173,7 @@ export const stream = async (req: Request, res: Response, next: NextFunction) =>
         userId,
         [
           { role: "user", content: messageStr },
-          { role: "assistant", content: result.message },
+          { role: "assistant", content: result.message, toolsUsed: result.toolsUsed },
         ],
         {
           totalToolCalls: result.toolsUsed.length,

@@ -68,11 +68,15 @@ function derivePackingFlag(avgHigh: number, precipChance: number): string {
   return flags.join(" | ");
 }
 
-export async function weatherHandler(args: {
-  location: string;
-  units?: string;
-}): Promise<ToolResult> {
+export async function weatherHandler(
+  args: { location: string; units?: string },
+  deps?: { aiService?: { peekWeather?: (city: string) => any | null } },
+): Promise<ToolResult> {
   const start = Date.now();
+  // The app already caches a weather payload for the trip page. Reuse only
+  // that cached result on failure — calling aiUtils.weather() here would
+  // start a fresh billed Gemini generation when no cache exists.
+  const cachedAppWeather = () => deps?.aiService?.peekWeather?.(args.location) ?? null;
   try {
     const cacheKey = `weather:${args.location.toLowerCase()}:${args.units ?? "metric"}`;
     const cached = cacheService.get<WeatherData>(cacheKey);
@@ -95,6 +99,8 @@ export async function weatherHandler(args: {
     }
 
     if (!geo) {
+      const cached = cachedAppWeather();
+      if (cached) return { success: true, data: cached, durationMs: 0 };
       return {
         success: false,
         error: `Could not geocode location: ${args.location}`,
@@ -115,6 +121,8 @@ export async function weatherHandler(args: {
       // — a raw "Open-Meteo API error: 429" surfaced to a real user as
       // Atlas saying "rate limit exceeded", exposing an internal
       // provider name/status code. Keep this message user-appropriate.
+      const cached = cachedAppWeather();
+      if (cached) return { success: true, data: cached, durationMs: 0 };
       const error =
         res.status === 429
           ? "Weather data is temporarily unavailable — the forecast provider is under heavy load right now. Please try again in a moment."
@@ -189,6 +197,8 @@ export async function weatherHandler(args: {
     cacheService.set(cacheKey, result, CACHE_TTL.WEATHER);
     return { success: true, data: result, durationMs: Date.now() - start };
   } catch (err: unknown) {
+    const cached = cachedAppWeather();
+    if (cached) return { success: true, data: cached, durationMs: 0 };
     return {
       success: false,
       error: err instanceof Error ? err.message : "Weather fetch failed",

@@ -49,6 +49,9 @@ export interface Message {
   // turn, has no timestamp yet); optional rather than widening every
   // call site that constructs one without it.
   timestamp?: string;
+  // Persisted per assistant turn so tool provenance survives a history
+  // restore (the chat UI no longer loses badges after close/reopen).
+  toolsUsed?: string[];
 }
 
 export interface ToolCall {

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useAgentStore } from "../../store";
 import { ToolCallBadge } from "./ToolCallBadge";
 import { TypingIndicator } from "./TypingIndicator";
+import { MarkdownContent } from "./MarkdownContent";
 
 const TRIP_STARTERS = [
   "What's the weather like for my trip?",
@@ -102,14 +103,8 @@ export function ChatMessageList() {
               }
               aria-label={`${msg.role === "user" ? "You" : "Atlas"}: ${msg.content}`}
             >
-              <div className="relative break-words whitespace-pre-wrap">
-                {msg.content}
-                {msg.isStreaming && (
-                  <span
-                    className="inline-block w-1.5 h-4 bg-current opacity-60 ml-1 align-middle animate-pulse"
-                    aria-hidden="true"
-                  />
-                )}
+              <div className="relative">
+                <MarkdownContent content={msg.content} streaming={msg.isStreaming} />
               </div>
               {msg.toolsUsed && msg.toolsUsed.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1" aria-label="Tools used">

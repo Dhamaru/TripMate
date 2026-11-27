@@ -456,6 +456,14 @@ Now translate the following text from ${langName(from)} to ${langName(to)}, in t
     }
   }
 
+  /** Return an already-cached weather payload without starting a fresh
+   * generation. Atlas's weather tool uses this when Open-Meteo fails so it
+   * can serve the same data the trip page already loaded, with no billed
+   * fallback call just to fill a tool result. */
+  peekWeather(city: string): any | null {
+    return this.getCached<any>(`weather:${sanitize(city, 128)}`);
+  }
+
   async weather(city: string): Promise<{
     current: any;
     forecast: any[];
