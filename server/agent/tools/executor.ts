@@ -70,6 +70,7 @@ export interface ExecutorDeps {
   openai: OpenAI | null;
   TripModel?: any;
   aiService: {
+    peekWeather?: (city: string) => any | null;
     emergency: (location: string) => Promise<unknown>;
     searchPlaces: (query: string, timeoutMs?: number) => Promise<any[]>;
     calculateBudgetBreakdown: (
@@ -166,7 +167,7 @@ export async function dispatchTool(
   try {
     switch (name) {
       case "get_weather":
-        result = await weatherHandler(args as { location: string; units?: string });
+        result = await weatherHandler(args as { location: string; units?: string }, deps);
         break;
 
       case "convert_currency":

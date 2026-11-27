@@ -62,7 +62,7 @@ export function ChatInput() {
     <div className="flex items-end gap-2 p-3 border-t border-border bg-card">
       <textarea
         ref={textareaRef}
-        className="flex-1 bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground max-h-32 py-2 focus-visible:ring-2 focus-visible:ring-[rgb(var(--explorer-blue-rgb)/40%)] rounded"
+        className="flex-1 min-h-10 bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground max-h-32 py-2 focus-visible:ring-2 focus-visible:ring-[rgb(var(--explorer-blue-rgb)/40%)] rounded"
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS))}
         onKeyDown={handleKeyDown}
@@ -74,14 +74,14 @@ export function ChatInput() {
       />
       {text.length >= COUNTER_THRESHOLD && (
         <span
-          className="absolute right-14 bottom-14 text-[11px] text-muted-foreground"
+          className="absolute right-16 bottom-14 text-[11px] text-muted-foreground"
           aria-label={`${MAX_CHARS - text.length} characters remaining`}
         >
           {MAX_CHARS - text.length}
         </span>
       )}
       <button
-        className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0 mb-1 transition-colors"
+        className="w-10 h-10 rounded-full flex items-center justify-center bg-[var(--explorer-blue)] text-white hover:bg-[var(--explorer-blue-deep)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0 transition-colors"
         onClick={() => void handleSubmit()}
         disabled={isLoading || !text.trim()}
         aria-label="Send message"

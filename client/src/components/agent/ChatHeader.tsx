@@ -33,14 +33,14 @@ export function ChatHeader({ onClose }: Props) {
       </div>
       <div className="flex items-center gap-2">
         <button
-          className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded transition-colors"
+          className="min-h-10 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
           onClick={clearConversation}
           aria-label="Clear conversation"
         >
           Clear
         </button>
         <button
-          className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
+          className="w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
           onClick={onClose}
           aria-label="Close Atlas chat panel"
         >

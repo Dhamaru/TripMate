@@ -214,6 +214,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
           role: m.role,
           content: m.content || "",
           timestamp: m.timestamp || new Date().toISOString(),
+          toolsUsed: Array.isArray((m as any).toolsUsed) ? (m as any).toolsUsed : undefined,
         }));
       // Don't let a stale/slower fetch shrink a conversation we're already
       // showing more of (same race as above, just landing a beat later).
